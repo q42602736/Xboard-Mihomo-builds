@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     defaults:
       run:
-        shell: ${{ startsWith(matrix.platform, 'windows') && 'bash' || 'bash' }}
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -30,15 +30,6 @@ jobs:
             arch: arm64
 
     steps:
-      - name: Setup rust (ARM only)
-        if: startsWith(matrix.os, 'windows-11-arm')
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri "https://win.rustup.rs/aarch64" -OutFile rustup-init.exe
-          .\rustup-init.exe -y --default-toolchain stable
-          $cargoPath = "$env:USERPROFILE\.cargo\bin"
-          Add-Content $env:GITHUB_PATH $cargoPath
-
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -51,6 +42,54 @@ jobs:
           git clone git@github.com:${{ env.PRIVATE_REPO }}.git source
           cd source
           git checkout ${{ github.event.inputs.tag }} || git checkout main
+          git submodule update --init --recursive
+
+      - name: Setup Windows Build Environment
+        shell: bash
+        run: |
+          # 创建持久化工具目录
+          TOOLS_DIR="/c/runner-tools"
+          mkdir -p "$TOOLS_DIR"
+
+          # 检查并安装jq
+          if command -v jq &> /dev/null; then
+            echo "✓ jq already available"
+          else
+            echo "Installing jq..."
+            choco install jq -y --no-progress || true
+            export PATH="/c/ProgramData/chocolatey/bin:$PATH"
+            echo "/c/ProgramData/chocolatey/bin" >> $GITHUB_PATH
+          fi
+
+          # 检查并安装Rust/Cargo
+          if ! command -v cargo &> /dev/null; then
+            echo "Installing Rust..."
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            source "$HOME/.cargo/env"
+            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          else
+            echo "✓ Rust/Cargo already available"
+          fi
+          cargo --version
+
+          # 检查并安装Inno Setup
+          INNO_SETUP_PATH="/c/Program Files (x86)/Inno Setup 6/ISCC.exe"
+          if [ -f "$INNO_SETUP_PATH" ]; then
+            echo "✓ Inno Setup already available"
+          else
+            echo "Installing Inno Setup..."
+            choco install innosetup -y --no-progress
+            echo "/c/Program Files (x86)/Inno Setup 6" >> $GITHUB_PATH
+          fi
+
+      - name: Setup rust (ARM only)
+        if: matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://win.rustup.rs/aarch64" -OutFile rustup-init.exe
+          .\rustup-init.exe -y --default-toolchain stable
+          $cargoPath = "$env:USERPROFILE\.cargo\bin"
+          Add-Content $env:GITHUB_PATH $cargoPath
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -69,60 +108,56 @@ jobs:
         if: matrix.arch == 'arm64'
         shell: pwsh
         run: |
-          git clone https://github.com/flutter/flutter.git -b stable C:\flutter
-          Add-Content $env:GITHUB_PATH "C:\flutter\\bin"
+          git clone https://github.com/flutter/flutter.git -b master C:\flutter
+          Add-Content $env:GITHUB_PATH "C:\flutter\bin"
           C:\flutter\bin\flutter --version
 
-      - name: Install Inno Setup
-        shell: pwsh
-        run: |
-          choco install innosetup -y
-          Add-Content $env:GITHUB_PATH "C:\Program Files (x86)\Inno Setup 6"
-
-      - name: Setup
-        shell: pwsh
+      - name: Get Flutter Dependency
         run: |
           cd source
-          dart pub global activate flutter_distributor
-          # Add pub cache bin to PATH
-          $pubCacheBin = "$env:LOCALAPPDATA\Pub\Cache\bin"
-          Add-Content $env:GITHUB_PATH $pubCacheBin
           flutter pub get
 
-      - name: Build core
+      - name: Generate SDK Code
+        run: |
+          cd source/lib/sdk/flutter_xboard_sdk
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Generate Main Project Code
         run: |
           cd source
-          dart setup.dart ${{ matrix.platform }} --arch ${{ matrix.arch }}
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Prepare Windows Build Environment
+        shell: bash
+        run: |
+          # 确保PATH包含Pub Cache bin和Inno Setup
+          PUB_CACHE_BIN="/c/Users/$(whoami)/AppData/Local/Pub/Cache/bin"
+          INNO_SETUP_DIR="/c/Program Files (x86)/Inno Setup 6"
+          export PATH="$PUB_CACHE_BIN:$INNO_SETUP_DIR:$PATH"
+          echo "$PUB_CACHE_BIN" >> $GITHUB_PATH
+          echo "$INNO_SETUP_DIR" >> $GITHUB_PATH
+
+          # 安装 flutter_distributor
+          dart pub global activate flutter_distributor
+          echo "✓ flutter_distributor installed"
 
       - name: Build
-        shell: pwsh
         run: |
           cd source
-          flutter_distributor package --platform ${{ matrix.platform }} --targets exe --skip-clean
-          echo "Build exit code: $LASTEXITCODE"
+          dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }}
 
-      - name: List all possible output locations
+      - name: List dist contents
         run: |
-          echo "=== Current directory ==="
-          pwd
-          echo "=== Root dist ==="
-          ls -la ./dist/ 2>/dev/null || echo "./dist not found"
-          echo "=== source/dist ==="
-          ls -la ./source/dist/ 2>/dev/null || echo "./source/dist not found"
-          echo "=== source/build ==="
-          ls -la ./source/build/ 2>/dev/null || echo "./source/build not found"
-          echo "=== Find all exe files ==="
-          find . -name "*.exe" -type f 2>/dev/null || echo "No exe files found"
-          echo "=== Find all dist directories ==="
-          find . -type d -name "dist" 2>/dev/null
-          echo "=== source directory listing ==="
-          ls -la ./source/
+          echo "=== source/dist contents ==="
+          ls -la ./source/dist/ || echo "source/dist not found"
+          find ./source/dist -type f 2>/dev/null || echo "No files found"
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
-          path: ./source/dist/**/*
+          path: ./source/dist
           overwrite: true
 
   upload:
@@ -141,13 +176,13 @@ jobs:
 
       - name: Generate sha256
         run: |
-          if [ -d "./dist" ]; then
+          if [ -d "./dist" ] && [ "$(ls -A ./dist 2>/dev/null)" ]; then
             cd ./dist
             for file in $(find . -type f -not -name "*.sha256"); do
               sha256sum "$file" > "${file}.sha256"
             done
           else
-            echo "No artifacts found, skipping sha256 generation"
+            echo "No artifacts found"
             exit 1
           fi
 
