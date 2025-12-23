@@ -61,17 +61,6 @@ jobs:
             echo "/c/ProgramData/chocolatey/bin" >> $GITHUB_PATH
           fi
 
-          # 检查并安装Rust/Cargo
-          if ! command -v cargo &> /dev/null; then
-            echo "Installing Rust..."
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-            source "$HOME/.cargo/env"
-            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          else
-            echo "✓ Rust/Cargo already available"
-          fi
-          cargo --version
-
           # 检查并安装Inno Setup
           INNO_SETUP_PATH="/c/Program Files (x86)/Inno Setup 6/ISCC.exe"
           if [ -f "$INNO_SETUP_PATH" ]; then
@@ -82,7 +71,21 @@ jobs:
             echo "/c/Program Files (x86)/Inno Setup 6" >> $GITHUB_PATH
           fi
 
-      - name: Setup rust (ARM only)
+      - name: Setup Rust (x64)
+        if: matrix.arch == 'amd64'
+        shell: bash
+        run: |
+          if ! command -v cargo &> /dev/null; then
+            echo "Installing Rust for x64..."
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            source "$HOME/.cargo/env"
+            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          else
+            echo "✓ Rust/Cargo already available"
+          fi
+          cargo --version
+
+      - name: Setup Rust (ARM64)
         if: matrix.arch == 'arm64'
         shell: pwsh
         run: |
@@ -145,13 +148,25 @@ jobs:
       - name: Build
         run: |
           cd source
+          echo "=== Build Environment ==="
+          echo "Platform: ${{ matrix.platform }}"
+          echo "Arch: ${{ matrix.arch }}"
+          echo "IS_STABLE: ${{ env.IS_STABLE }}"
+          which flutter || echo "flutter not in PATH"
+          flutter --version || echo "flutter version failed"
+          which dart || echo "dart not in PATH"
+          which cargo || echo "cargo not in PATH"
+          echo "=== Starting Build ==="
           dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }}
 
       - name: List dist contents
+        if: always()
         run: |
           echo "=== source/dist contents ==="
           ls -la ./source/dist/ || echo "source/dist not found"
           find ./source/dist -type f 2>/dev/null || echo "No files found"
+          echo "=== All exe files ==="
+          find ./source -name "*.exe" -type f 2>/dev/null | head -20 || echo "No exe files"
 
       - name: Upload
         uses: actions/upload-artifact@v4
