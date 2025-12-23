@@ -74,9 +74,13 @@ jobs:
           C:\flutter\bin\flutter --version
 
       - name: Setup
+        shell: pwsh
         run: |
           cd source
           dart pub global activate flutter_distributor
+          # Add pub cache bin to PATH
+          $pubCacheBin = "$env:LOCALAPPDATA\Pub\Cache\bin"
+          Add-Content $env:GITHUB_PATH $pubCacheBin
           flutter pub get
 
       - name: Build core
@@ -85,6 +89,7 @@ jobs:
           dart setup.dart ${{ matrix.platform }} --arch ${{ matrix.arch }}
 
       - name: Build
+        shell: pwsh
         run: |
           cd source
           flutter_distributor package --platform ${{ matrix.platform }} --targets exe --skip-clean
