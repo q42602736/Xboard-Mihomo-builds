@@ -163,7 +163,7 @@ jobs:
   upload:
     runs-on: ubuntu-latest
     needs: [ build ]
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    if: ${{ always() && !cancelled() }}
     permissions:
       contents: write
     steps:
@@ -174,19 +174,28 @@ jobs:
           pattern: artifact-*
           merge-multiple: true
 
-      - name: Generate sha256
+      - name: Check artifacts
+        id: check
         run: |
           if [ -d "./dist" ] && [ "$(ls -A ./dist 2>/dev/null)" ]; then
-            cd ./dist
-            for file in $(find . -type f -not -name "*.sha256"); do
-              sha256sum "$file" > "${file}.sha256"
-            done
+            echo "has_artifacts=true" >> $GITHUB_OUTPUT
+            echo "Found artifacts:"
+            ls -la ./dist/
           else
+            echo "has_artifacts=false" >> $GITHUB_OUTPUT
             echo "No artifacts found"
-            exit 1
           fi
 
+      - name: Generate sha256
+        if: steps.check.outputs.has_artifacts == 'true'
+        run: |
+          cd ./dist
+          for file in $(find . -type f -not -name "*.sha256"); do
+            sha256sum "$file" > "${file}.sha256"
+          done
+
       - name: Release
+        if: steps.check.outputs.has_artifacts == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
