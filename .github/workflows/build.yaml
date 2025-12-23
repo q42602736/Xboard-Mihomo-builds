@@ -62,15 +62,15 @@ jobs:
         if: matrix.arch == 'amd64'
         uses: subosito/flutter-action@v2
         with:
-          channel: "beta"
+          channel: "stable"
           cache: true
 
       - name: Setup Flutter (ARM64)
         if: matrix.arch == 'arm64'
         shell: pwsh
         run: |
-          git clone https://github.com/flutter/flutter.git -b beta C:\flutter
-          Add-Content $env:GITHUB_PATH "C:\flutter\bin"
+          git clone https://github.com/flutter/flutter.git -b stable C:\flutter
+          Add-Content $env:GITHUB_PATH "C:\flutter\\bin"
           C:\flutter\bin\flutter --version
 
       - name: Setup
