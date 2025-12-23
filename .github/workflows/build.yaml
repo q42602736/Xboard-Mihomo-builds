@@ -1,0 +1,114 @@
+name: build
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g., v0.1.0)'
+        required: true
+        type: string
+
+env:
+  IS_STABLE: ${{ !contains(github.event.inputs.tag, '-') }}
+  PRIVATE_REPO: q42602736/Xboard-Mihomo_sub
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ startsWith(matrix.platform, 'windows') && 'bash' || 'bash' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            os: windows-latest
+            arch: amd64
+          - platform: windows
+            os: windows-11-arm
+            arch: arm64
+
+    steps:
+      - name: Setup rust (ARM only)
+        if: startsWith(matrix.os, 'windows-11-arm')
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://win.rustup.rs/aarch64" -OutFile rustup-init.exe
+          .\rustup-init.exe -y --default-toolchain stable
+          $cargoPath = "$env:USERPROFILE\.cargo\bin"
+          Add-Content $env:GITHUB_PATH $cargoPath
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Clone private repo
+        run: |
+          git clone git@github.com:${{ env.PRIVATE_REPO }}.git source
+          cd source
+          git checkout ${{ github.event.inputs.tag }} || git checkout main
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+          cache-dependency-path: source/core/go.sum
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.27.x"
+          channel: "stable"
+          cache: true
+
+      - name: Setup
+        run: |
+          cd source
+          dart pub global activate flutter_distributor
+          flutter pub get
+
+      - name: Build core
+        run: |
+          cd source
+          dart setup.dart ${{ matrix.platform }} --arch ${{ matrix.arch }}
+
+      - name: Build
+        run: |
+          cd source
+          flutter_distributor package --platform ${{ matrix.platform }} --targets exe --skip-clean
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
+          path: ./source/dist
+          overwrite: true
+
+  upload:
+    runs-on: ubuntu-latest
+    needs: [ build ]
+    permissions:
+      contents: write
+    steps:
+      - name: Download
+        uses: actions/download-artifact@v4
+        with:
+          path: ./dist/
+          pattern: artifact-*
+          merge-multiple: true
+
+      - name: Generate sha256
+        run: |
+          cd ./dist
+          for file in $(find . -type f -not -name "*.sha256"); do
+            sha256sum "$file" > "${file}.sha256"
+          done
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag }}
+          files: ./dist/*
+          body: "Build for ${{ github.event.inputs.tag }}"
