@@ -69,10 +69,9 @@ jobs:
         if: matrix.arch == 'arm64'
         shell: pwsh
         run: |
-          $ProgressPreference = 'SilentlyContinue'
-          Invoke-WebRequest -Uri "https://storage.googleapis.com/flutter_infra_release/releases/beta/windows/flutter_windows_arm64_3.32.0-0.1.pre-beta.zip" -OutFile flutter.zip
-          Expand-Archive -Path flutter.zip -DestinationPath C:\
+          git clone https://github.com/flutter/flutter.git -b beta C:\flutter
           Add-Content $env:GITHUB_PATH "C:\flutter\bin"
+          C:\flutter\bin\flutter --version
 
       - name: Setup
         run: |
