@@ -58,11 +58,21 @@ jobs:
           go-version: "stable"
           cache-dependency-path: source/core/go.sum
 
-      - name: Setup Flutter
+      - name: Setup Flutter (x64)
+        if: matrix.arch == 'amd64'
         uses: subosito/flutter-action@v2
         with:
           channel: "beta"
           cache: true
+
+      - name: Setup Flutter (ARM64)
+        if: matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          Invoke-WebRequest -Uri "https://storage.googleapis.com/flutter_infra_release/releases/beta/windows/flutter_windows_arm64_3.32.0-0.1.pre-beta.zip" -OutFile flutter.zip
+          Expand-Archive -Path flutter.zip -DestinationPath C:\
+          Add-Content $env:GITHUB_PATH "C:\flutter\bin"
 
       - name: Setup
         run: |
