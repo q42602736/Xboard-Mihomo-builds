@@ -73,6 +73,12 @@ jobs:
           Add-Content $env:GITHUB_PATH "C:\flutter\\bin"
           C:\flutter\bin\flutter --version
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y
+          Add-Content $env:GITHUB_PATH "C:\Program Files (x86)\Inno Setup 6"
+
       - name: Setup
         shell: pwsh
         run: |
