@@ -94,11 +94,18 @@ jobs:
           cd source
           flutter_distributor package --platform ${{ matrix.platform }} --targets exe --skip-clean
 
+      - name: List dist contents
+        run: |
+          echo "=== source/dist contents ==="
+          ls -la ./source/dist/ || echo "source/dist not found"
+          echo "=== Recursive listing ==="
+          find ./source/dist -type f 2>/dev/null || echo "No files found"
+
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
-          path: ./source/dist
+          path: ./source/dist/**/*
           overwrite: true
 
   upload:
