@@ -93,13 +93,24 @@ jobs:
         run: |
           cd source
           flutter_distributor package --platform ${{ matrix.platform }} --targets exe --skip-clean
+          echo "Build exit code: $LASTEXITCODE"
 
-      - name: List dist contents
+      - name: List all possible output locations
         run: |
-          echo "=== source/dist contents ==="
-          ls -la ./source/dist/ || echo "source/dist not found"
-          echo "=== Recursive listing ==="
-          find ./source/dist -type f 2>/dev/null || echo "No files found"
+          echo "=== Current directory ==="
+          pwd
+          echo "=== Root dist ==="
+          ls -la ./dist/ 2>/dev/null || echo "./dist not found"
+          echo "=== source/dist ==="
+          ls -la ./source/dist/ 2>/dev/null || echo "./source/dist not found"
+          echo "=== source/build ==="
+          ls -la ./source/build/ 2>/dev/null || echo "./source/build not found"
+          echo "=== Find all exe files ==="
+          find . -name "*.exe" -type f 2>/dev/null || echo "No exe files found"
+          echo "=== Find all dist directories ==="
+          find . -type d -name "dist" 2>/dev/null
+          echo "=== source directory listing ==="
+          ls -la ./source/
 
       - name: Upload
         uses: actions/upload-artifact@v4
