@@ -104,6 +104,7 @@ jobs:
   upload:
     runs-on: ubuntu-latest
     needs: [ build ]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     permissions:
       contents: write
     steps:
@@ -116,10 +117,15 @@ jobs:
 
       - name: Generate sha256
         run: |
-          cd ./dist
-          for file in $(find . -type f -not -name "*.sha256"); do
-            sha256sum "$file" > "${file}.sha256"
-          done
+          if [ -d "./dist" ]; then
+            cd ./dist
+            for file in $(find . -type f -not -name "*.sha256"); do
+              sha256sum "$file" > "${file}.sha256"
+            done
+          else
+            echo "No artifacts found, skipping sha256 generation"
+            exit 1
+          fi
 
       - name: Release
         uses: softprops/action-gh-release@v2
