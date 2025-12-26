@@ -209,10 +209,10 @@ jobs:
           ls -la "/c/Program Files (x86)/Inno Setup 6/" 2>/dev/null || echo "Inno Setup dir not found"
           echo ""
           echo "=== Build Command ==="
-          echo "Running: dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }}"
+          echo "Running: dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} --version ${{ github.event.inputs.tag }}"
           echo ""
           echo "=== Build Output ==="
-          dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} 2>&1 | tee build.log
+          dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} --version ${{ github.event.inputs.tag }} 2>&1 | tee build.log
           BUILD_EXIT_CODE=$?
           echo ""
           echo "=== Build Exit Code: $BUILD_EXIT_CODE ==="
