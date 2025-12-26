@@ -184,6 +184,17 @@ jobs:
           which cargo && cargo --version || echo "cargo not found"
           which go && go version || echo "go not found"
           echo ""
+
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            echo "=== Windows Build Tools ==="
+            which cmake && cmake --version || echo "cmake not found"
+            which msbuild && msbuild -version || echo "msbuild not found"
+            echo "Visual Studio installations:"
+            ls -la "/c/Program Files/Microsoft Visual Studio/" 2>/dev/null || echo "VS not found"
+            ls -la "/c/Program Files (x86)/Microsoft Visual Studio/" 2>/dev/null || echo "VS x86 not found"
+            echo ""
+          fi
+
           echo "=== Checking flutter_distributor ==="
           which flutter_distributor || echo "flutter_distributor not in PATH"
           flutter_distributor --version || echo "flutter_distributor version failed"
@@ -197,8 +208,41 @@ jobs:
           echo ""
           echo "=== Build Output ==="
           dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} 2>&1 | tee build.log
+          BUILD_EXIT_CODE=$?
           echo ""
-          echo "=== Build Exit Code: $? ==="
+          echo "=== Build Exit Code: $BUILD_EXIT_CODE ==="
+
+          if [ $BUILD_EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "=== BUILD FAILED - Collecting Debug Information ==="
+            echo ""
+            if [ "${{ matrix.platform }}" = "windows" ]; then
+              echo "=== CMake Error Logs ==="
+              find ./build/windows -name "CMakeError.log" -exec echo "File: {}" \; -exec cat {} \; 2>/dev/null || echo "No CMakeError.log found"
+              echo ""
+
+              echo "=== CMake Output Logs ==="
+              find ./build/windows -name "CMakeOutput.log" -exec echo "File: {}" \; -exec tail -100 {} \; 2>/dev/null || echo "No CMakeOutput.log found"
+              echo ""
+
+              echo "=== MSBuild Error Details ==="
+              find ./build/windows -name "*.log" -exec echo "File: {}" \; -exec tail -50 {} \; 2>/dev/null || echo "No MSBuild logs found"
+              echo ""
+
+              echo "=== Flutter Build Verbose Output (last 200 lines) ==="
+              tail -200 build.log 2>/dev/null || echo "No build log"
+              echo ""
+
+              echo "=== Windows Build Directory Structure ==="
+              ls -laR ./build/windows/ 2>/dev/null | head -100 || echo "No build directory"
+              echo ""
+            fi
+
+            echo "=== Full Build Log (last 300 lines) ==="
+            tail -300 build.log 2>/dev/null || echo "No build log"
+
+            exit $BUILD_EXIT_CODE
+          fi
 
       - name: List dist contents
         if: always()
