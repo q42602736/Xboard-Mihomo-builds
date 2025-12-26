@@ -25,10 +25,6 @@ jobs:
           - platform: windows
             os: windows-latest
             arch: amd64
-          # Windows ARM64 暂时禁用，因为 CMake 安装步骤有问题
-          # - platform: windows
-          #   os: windows-11-arm
-          #   arch: arm64
           - platform: android
             os: ubuntu-latest
             arch: arm64
@@ -104,15 +100,6 @@ jobs:
           fi
           cargo --version
 
-      - name: Setup Rust (ARM64)
-        if: matrix.platform == 'windows' && matrix.arch == 'arm64'
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri "https://win.rustup.rs/aarch64" -OutFile rustup-init.exe
-          .\rustup-init.exe -y --default-toolchain stable
-          $cargoPath = "$env:USERPROFILE\.cargo\bin"
-          Add-Content $env:GITHUB_PATH $cargoPath
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -126,14 +113,6 @@ jobs:
           channel: "stable"
           flutter-version: "3.35.7"
           cache: true
-
-      - name: Setup Flutter (Windows ARM64)
-        if: matrix.platform == 'windows' && matrix.arch == 'arm64'
-        shell: pwsh
-        run: |
-          git clone https://github.com/flutter/flutter.git -b master C:\flutter
-          Add-Content $env:GITHUB_PATH "C:\flutter\bin"
-          C:\flutter\bin\flutter --version
 
       - name: Setup Flutter (Android)
         if: matrix.platform == 'android'
