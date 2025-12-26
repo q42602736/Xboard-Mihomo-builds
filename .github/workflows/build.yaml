@@ -86,6 +86,11 @@ jobs:
             echo "/c/Program Files (x86)/Inno Setup 6" >> $GITHUB_PATH
           fi
 
+          # 设置 CMake 参数以忽略 CMP0175 策略警告
+          # 修复 flutter_inappwebview_windows 插件与新版 CMake 的兼容性问题
+          echo "CMAKE_ARGS=-Wno-dev" >> $GITHUB_ENV
+          echo "✓ CMake configured to ignore policy warnings"
+
       - name: Setup Rust (x64)
         if: matrix.platform == 'windows' && matrix.arch == 'amd64'
         shell: bash
