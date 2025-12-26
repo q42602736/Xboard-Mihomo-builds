@@ -25,12 +25,19 @@ jobs:
           - platform: windows
             os: windows-latest
             arch: amd64
-          - platform: windows
-            os: windows-11-arm
-            arch: arm64
+          # Windows ARM64 暂时禁用，因为 CMake 安装步骤有问题
+          # - platform: windows
+          #   os: windows-11-arm
+          #   arch: arm64
           - platform: android
             os: ubuntu-latest
             arch: arm64
+          - platform: macos
+            os: macos-latest
+            arch: arm64
+          - platform: macos
+            os: macos-13
+            arch: amd64
 
     steps:
       - name: Setup SSH
@@ -130,6 +137,14 @@ jobs:
 
       - name: Setup Flutter (Android)
         if: matrix.platform == 'android'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "3.35.7"
+          cache: true
+
+      - name: Setup Flutter (macOS)
+        if: matrix.platform == 'macos'
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
