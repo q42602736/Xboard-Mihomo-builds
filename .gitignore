@@ -1,0 +1,82 @@
+# Xboard-Mihomo-builds .gitignore
+
+# ============================================
+# Android 签名相关文件（敏感信息，绝对不能上传）
+# =========================================keystore.jks
+*.jks
+keystore_base64.txt
+*_base64.txt
+ANDROID_SIGNING_CONFIG.md
+如何添加GitHub_Secrets.md
+
+# ============================================
+# 本地配置文件
+# ============================================
+local.properties
+*.properties
+
+# ============================================
+# macOS 系统文件
+# ============================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# ============================================
+# IDE 和编辑器
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ==================================
+# 构建产物
+# ============================================
+dist/
+build/
+*.apk
+*.aab
+*.exe
+*.dmg
+*.zip
+*.tar.gz
+
+# =================================
+# 日志文件
+# ============================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ================================
+# 临时文件
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# ============================================
+# 依赖===========================================
+node_modules/
+vendor/

@@ -28,6 +28,9 @@ jobs:
           - platform: windows
             os: windows-11-arm
             arch: arm64
+          - platform: android
+            os: ubuntu-latest
+            arch: arm64
 
     steps:
       - name: Setup SSH
@@ -44,7 +47,16 @@ jobs:
           git checkout ${{ github.event.inputs.tag }} || git checkout main
           git submodule update --init --recursive
 
+      - name: Setup Android Signing
+        if: matrix.platform == 'android'
+        run: |
+          echo "${{ secrets.KEYSTORE }}" | base64 --decode > source/android/app/keystore.jks
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> source/android/local.properties
+          echo "storePassword=${{ secrets.STORE_PASSWORD }}" >> source/android/local.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> source/android/local.properties
+
       - name: Setup Windows Build Environment
+        if: matrix.platform == 'windows'
         shell: bash
         run: |
           # 创建持久化工具目录
@@ -72,7 +84,7 @@ jobs:
           fi
 
       - name: Setup Rust (x64)
-        if: matrix.arch == 'amd64'
+        if: matrix.platform == 'windows' && matrix.arch == 'amd64'
         shell: bash
         run: |
           if ! command -v cargo &> /dev/null; then
@@ -86,7 +98,7 @@ jobs:
           cargo --version
 
       - name: Setup Rust (ARM64)
-        if: matrix.arch == 'arm64'
+        if: matrix.platform == 'windows' && matrix.arch == 'arm64'
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://win.rustup.rs/aarch64" -OutFile rustup-init.exe
@@ -100,20 +112,29 @@ jobs:
           go-version: "stable"
           cache-dependency-path: source/core/go.sum
 
-      - name: Setup Flutter (x64)
-        if: matrix.arch == 'amd64'
+      - name: Setup Flutter (Windows x64)
+        if: matrix.platform == 'windows' && matrix.arch == 'amd64'
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
+          flutter-version: "3.35.7"
           cache: true
 
-      - name: Setup Flutter (ARM64)
-        if: matrix.arch == 'arm64'
+      - name: Setup Flutter (Windows ARM64)
+        if: matrix.platform == 'windows' && matrix.arch == 'arm64'
         shell: pwsh
         run: |
           git clone https://github.com/flutter/flutter.git -b master C:\flutter
           Add-Content $env:GITHUB_PATH "C:\flutter\bin"
           C:\flutter\bin\flutter --version
+
+      - name: Setup Flutter (Android)
+        if: matrix.platform == 'android'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "3.35.7"
+          cache: true
 
       - name: Get Flutter Dependency
         run: |
@@ -132,6 +153,7 @@ jobs:
           dart run build_runner build --delete-conflicting-outputs
 
       - name: Prepare Windows Build Environment
+        if: matrix.platform == 'windows'
         shell: bash
         run: |
           # 确保PATH包含Pub Cache bin和Inno Setup
@@ -141,6 +163,14 @@ jobs:
           echo "$PUB_CACHE_BIN" >> $GITHUB_PATH
           echo "$INNO_SETUP_DIR" >> $GITHUB_PATH
 
+          # 安装 flutter_distributor
+          dart pub global activate flutter_distributor
+          echo "✓ flutter_distributor installed"
+
+      - name: Prepare Android Build Environment
+        if: matrix.platform == 'android'
+        run: |
+          echo "Preparing Android build environment..."
           # 安装 flutter_distributor
           dart pub global activate flutter_distributor
           echo "✓ flutter_distributor installed"
@@ -183,11 +213,21 @@ jobs:
           ls -la ./source/dist/ 2>/dev/null || echo "source/dist not found or empty"
           find ./source/dist -type f 2>/dev/null || echo "No files in dist"
           echo ""
-          echo "=== source/build/windows contents ==="
-          ls -la ./source/build/windows/ 2>/dev/null || echo "source/build/windows not found"
-          echo ""
-          echo "=== All exe files in source ==="
-          find ./source -name "*.exe" -type f 2>/dev/null | grep -v "build/windows/x64/CMakeFiles" | head -30 || echo "No exe files"
+
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            echo "=== source/build/windows contents ==="
+            ls -la ./source/build/windows/ 2>/dev/null || echo "source/build/windows not found"
+            echo ""
+            echo "=== All exe files in source ==="
+            find ./source -name "*.exe" -type f 2>/dev/null | grep -v "build/windows/x64/CMakeFiles" | head -30 || echo "No exe files"
+          elif [ "${{ matrix.platform }}" = "android" ]; then
+            echo "=== source/build/app/outputs contents ==="
+            ls -la ./source/build/app/outputs/ 2>/dev/null || echo "source/build/app/outputs not found"
+            echo ""
+            echo "=== All APK/AAB files in source ==="
+            find ./source -name "*.apk" -o -name "*.aab" 2>/dev/null | head -30 || echo "No APK/AAB files"
+          fi
+
           echo ""
           echo "=== Build log tail ==="
           tail -100 ./source/build.log 2>/dev/null || echo "No build log"
