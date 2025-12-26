@@ -23,7 +23,7 @@ jobs:
       matrix:
         include:
           - platform: windows
-            os: windows-latest
+            os: Windows-2022
             arch: amd64
           - platform: android
             os: ubuntu-latest
