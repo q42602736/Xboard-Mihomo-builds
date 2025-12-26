@@ -1,0 +1,258 @@
+name: build-windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g., v0.1.0)'
+        required: true
+        type: string
+
+env:
+  IS_STABLE: ${{ !contains(github.event.inputs.tag, '-') }}
+  PRIVATE_REPO: q42602736/Xboard-Mihomo_sub
+
+jobs:
+  build-windows:
+    runs-on: Windows-2022
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Clone private repo
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          git clone git@github.com:${{ env.PRIVATE_REPO }}.git source
+          cd source
+          git checkout ${{ github.event.inputs.tag }} || git checkout main
+          git submodule update --init --recursive
+
+      - name: Setup Windows Build Environment
+        shell: bash
+        run: |
+          # 创建持久化工具目录
+          TOOLS_DIR="/c/runner-tools"
+          mkdir -p "$TOOLS_DIR"
+
+          # 检查并安装jq
+          if command -v jq &> /dev/null; then
+            echo "✓ jq already available"
+          else
+            echo "Installing jq..."
+            choco install jq -y --no-progress || true
+            export PATH="/c/ProgramData/chocolatey/bin:$PATH"
+            echo "/c/ProgramData/chocolatey/bin" >> $GITHUB_PATH
+          fi
+
+          # 检查并安装Inno Setup
+          INNO_SETUP_PATH="/c/Program Files (x86)/Inno Setup 6/ISCC.exe"
+          if [ -f "$INNO_SETUP_PATH" ]; then
+            echo "✓ Inno Setup already available"
+          else
+            echo "Installing Inno Setup..."
+            choco install innosetup -y --no-progress
+            echo "/c/Program Files (x86)/Inno Setup 6" >> $GITHUB_PATH
+          fi
+
+          # 设置 CMake 参数以忽略 CMP0175 策略警告
+          # 修复 flutter_inappwebview_windows 插件与新版 CMake 的兼容性问题
+          echo "CMAKE_ARGS=-Wno-dev" >> $GITHUB_EN   echo "✓ CMake configured to ignore policy warnings"
+
+      - name: Setup Rust (x64)
+        shell: bash
+        run: |
+          if ! command -v cargo &> /devull; then
+            echo "Installing Rust for x64..."
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            OME/.cargo/env"
+            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          else
+            echo "✓ Rust/Cargo already available"
+          fi
+          cargo --version
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+ ache-dependency-path: source/core/go.sum
+
+      - name: Setup Flutter (Windows x64)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "3.35.7"
+          cache: true
+
+      - name: Get Flutter Dependency
+        run: |
+          cd source
+          flutter pub get
+
+      - name: Generate SDK Code
+        run: |
+          cd source/lib/sdk/flutter_xboard_sdk
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Generate Main Project Code
+        run: |
+          cd source
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Prepare Windows Build Environment
+        shell: bash
+        run: |
+          # 确保PATH包含Pub Cache bin和Inno Setup
+          PUB_CACHE_BIN="/c/Users/$(whoami)/AppData/Local/Pub/Cache/bin"
+          INNO_SETUP_DIR="/c/Program Files (x86)/Inno Setup 6"
+          export PATH="$PUB_CACHE_BIN:$INNO_SETUP_DIR:$PATH"
+          echo "$PUB_CACHE_BIN" >> $GITHUB_PATH
+          echo "$INNO_SETUP_DIR" >> $GITHUB_PATH
+
+          # 安装 flutter_distributor
+          dart pub global activate flutter_distributor
+          echo "✓ flutter_distribstalled"
+
+      - name: Build
+        run: |
+          cd source
+          echo "=== Build Environment ==="
+          echo "Platform: windows\ echo "Arch: amd64"
+          echo "IS_STABLE: ${{ env.IS_STABLE }}"
+          echo "Current directory: $(pwd)"
+          echo ""
+          echo "==ons ==="
+          which flutter && flutter --version || echo "flutter not found"
+          which dart &rt --version || echo "dart not found"
+          which cargo && cargo --version || echo "cargo not found"
+          which go && go version || echo "go not found"
+          echo ""
+
+          echo "=== Windows Build Tools ==="
+          which cmake && cmake --version || echo "cmake not found"
+          which msbuild && msbuild -version || echo "msbuild not found"
+          echo "Visual Studio installations:"
+          ls -la "/c/Program Files/Microsoft Visual Studio/" 2>/dev/null || echo "VS not found"
+          ls -la "/c/Program Files (x86)/Microsoft Visual Studio/" 2>/dev/null || echo "VS x86 not found"
+          echo ""
+
+          echo "=== Checking flutter_distributor ==="
+          which flutter_distributor || echo "flutter_distributor not in PATH"
+          flutter_distributor --version || echo "flutter_distributor version failed"
+          echo ""
+          echo "=== Checking ISCC (Inno Setup) ==="
+          which ISCC || echo "ISCC not in PATH"
+          ls -la "/c/Program Files (x86)/Inno Setup 6/" 2>/dev/null || echo "Inno Setup dir not found"
+          echo ""
+          echo "=== Build Command ==="
+          echo "Running: dart setup.dart windows --arch amd64 ${{ env.IS_STABLE == 'true' && '--env stable' || '' }}"
+          echo ""
+          echo "=== Build Output ==="
+          dart setup.dart windows --arch amd64 ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} 2>&1 | tee build.log
+          BUILD_EXIT_CODE=$?
+          echo ""
+          echo "=== Build Exit Code: $BUILD_EXIT_CODE ==="
+
+          if [ $BUILD_EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "=== BUILD FAILED - Collecting Debug Information ==="
+            echo ""
+
+            echo "=== CMake Error Logs ==="
+         ./build/windows -name "CMakeError.log" -exec echo "File: {}" \; -exec cat {} \; 2>/dev/null || echo "No CMakeError.log found"
+            echo ""
+
+    o "=== CMake Output Logs ==="
+            find ./build/windows -name "CMakeOutput.log" -exec echo "File: {}" \; -exec tail -100 {} \; 2>/devho "No CMakeOutput.log found"
+            echo ""
+
+            echo "=== MSBuild Error Details ==="
+            find ./build/windows -name "*.log" -File: {}" \; -exec tail -50 {} \; 2>/dev/null || echo "No MSBuild logs found"
+            echo ""
+
+            echo "=== Flutter Build Verbose Output (last 200 lines) ==="
+            tail -200 build.log 2>/dev/null || echo "No build log"
+            echo ""
+
+         echo "=== Windows Build Directory Structure ==="
+            ls -laR ./build/windows/ 2>/dev/null | head -100 || echodirectory"
+            echo ""
+
+            echo "=== Full Build Log (last 300 lines) ==="
+            tail -300 build.log 2>/dev/null || echo d log"
+
+            exit $BUILD_EXIT_CODE
+          fi
+
+      - name: List dist contents
+        if: always()
+        run: |
+          echo "=== source/dist contents ==="
+          ls -la ./source/dist/ 2>/dev/null || echo "source/dist not found or empty"
+          find ./source/dist -type f 2>/dev/null || echo "No files in dist"
+          echo ""
+
+          echo "=== source/build/windows contents ==="
+          ls -la ./source/build/windows/ 2>/dev/null || echo "source/build/windows not found"
+          echo ""
+          echo "=== All exe files in source ==="
+          find ./source -name "*.exe" -type f 2>/dev/null | grep -v "build/windows/x64/CMakeFiles" | head -30 || echo "No exe files"
+
+          echo ""
+          echo "=== Build log tail ==="
+          tail -100 ./source/build.log 2>/dev/null || echo "No build log"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-windows-amd64
+          path: ./source/dist
+          overwrite: true
+
+  upload:
+    runs-on: ubuntu-latest
+    needs: [ build-windows ]
+    if: ${{ always() && !cancelled() }}
+    permissions:
+      contents: write
+    steps:
+      - name: Download
+        uses: actions/download-artifact@v4
+        with:
+          path: ./dist/
+          pattern: artifact-*
+          merge-multiple: true
+
+      - name: Check artifacts
+        id: check
+        run: |
+          if [ -d "./dist" ] && [ "$(ls -A ./dist 2>/dev/null)" ]; then
+            echo "has_artifacts=true" >> $GITHUB_OUTPUT
+            echo "Found artifacts:"
+            ls -la ./dist/
+          else
+            echo "has_artifacts=false" >> $GITHUB_OUTPUT
+            echo "No artifacts found"
+          fi
+
+      - name: Generate sha256
+        if: steps.check.outputs.has_artifacts == 'true'
+        run: |\ cd ./dist
+          for file in $(find . -type f -not -name "*.sha256"); do
+            sha256sum "$file\{file}.sha256"
+          done
+
+      - name: Release
+        if: steps.check.outputs.has_artifacts == 'true'
+        uses: softprops/action-gh-release   with:
+          tag_name: ${{ github.event.inputs.tag }}
+          files: ./dist/*
+          body: "Windows build for ${{ github.event.inputs.tag }}"
