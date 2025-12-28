@@ -36,6 +36,57 @@ jobs:
             arch: amd64
 
     steps:
+      - name: Free Disk Space (Android)
+        if: matrix.platform == 'android'
+        run: |
+          echo "=== 清理磁盘空间 ==="
+          echo "清理前磁盘使用情况:"
+          df -h
+
+          # 删除大型预装软件包
+          sudo rm -rf /usr/share/dotnet              # ~2GB
+          sudo rm -rf /usr/share/swift               # ~1.5GB
+          sudo rm -rf /usr/local/share/boost         # ~1GB
+          sudo rm -rf /opt/ghc                       # ~5GB
+          sudo rm -rf /opt/hostedtoolcache/CodeQL    # ~5GB
+          sudo rm -rf /opt/hostedtoolcache/go        # ~1GB
+          sudo rm -rf /opt/hostedtoolcache/node      # ~1GB
+          sudo rm -rf /opt/hostedtoolcache/Python    # ~1GB
+          sudo rm -rf /opt/hostedtoolcache/Ruby      # ~500MB
+          sudo rm -rf /usr/local/lib/heroku          # ~500MB
+          sudo rm -rf /usr/local/share/chromium      # ~500MB
+          sudo rm -rf /usr/local/share/powershell    # ~500MB
+          sudo rm -rf /usr/share/miniconda           # ~500MB
+          sudo rm -rf /usr/share/az_*                # Azure CLI
+
+          # 清理Android SDK不需要的部分
+          sudo rm -rf /usr/local/lib/android/sdk/ndk                    # ~8GB
+          sudo rm -rf /usr/local/lib/android/sdk/build-tools/2*
+          sudo rm -rf /usr/local/lib/android/sdk/build-tools/30*
+          sudo rm -rf /usr/local/lib/android/sdk/build-tools/31*
+          sudo rm -rf /usr/local/lib/android/sdk/build-tools/32*
+          sudo rm -rf /usr/local/lib/android/sdk/build-tools/33*
+          sudo rm -rf /usr/local/lib/android/sdk/platforms/android-2*
+          sudo rm -rf /usr/local/lib/android/sdk/platforms/android-30
+          sudo rm -rf /usr/local/lib/android/sdk/platforms/android-31
+          sudo rm -rf /usr/local/lib/android/sdk/platforms/android-32
+          sudo rm -rf /usr/local/lib/android/sdk/platforms/android-33
+          sudo rm -rf /usr/local/lib/android/sdk/system-images
+          sudo rm -rf /usr/local/lib/android/sdk/emulator              # ~1GB
+
+          # 清理Docker
+          sudo docker image prune --all --force || true
+          sudo docker system prune --all --force --volumes || true
+
+          # 清理apt和其他缓存
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /tmp/*
+
+          echo ""
+          echo "清理后磁盘使用情况:"
+          df -h
+
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -49,36 +100,6 @@ jobs:
           cd source
           git checkout ${{ github.event.inputs.tag }} || git checkout main
           git submodule update --init --recursive
-
-      - name: Free Disk Space (Android)
-        if: matrix.platform == 'android'
-        run: |
-          echo "=== 清理磁盘空间 ==="
-          echo "清理前磁盘使用情况:"
-          df -h
-
-          # 删除不需要的预装软件
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android/sdk/ndk
-          sudo rm -rf /usr/local/lib/android/sdk/build-tools/30*
-          sudo rm -rf /usr/local/lib/android/sdk/build-tools/31*
-          sudo rm -rf /usr/local/lib/android/sdk/build-tools/32*
-          sudo rm -rf /usr/local/lib/android/sdk/platforms/android-3[0-2]
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf /usr/share/swift
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-
-          # 清理Docker镜像
-          sudo docker image prune --all --force || true
-
-          # 清理apt缓存
-          sudo apt-get clean || true
-
-          echo ""
-          echo "清理后磁盘使用情况:"
-          df -h
 
       - name: Setup Android Signing
         if: matrix.platform == 'android'
