@@ -27,7 +27,7 @@ jobs:
             arch: amd64
           - platform: android
             os: ubuntu-latest
-            arch: arm64
+            # 不指定arch，自动构建所有3个架构: armeabi-v7a, arm64-v8a, x86_64
           - platform: macos
             os: macos-latest
             arch: arm64
