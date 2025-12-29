@@ -310,14 +310,13 @@ jobs:
           path: ./source/dist
           overwrite: true
 
-  upload:
+  # 合并所有平台的构建产物到一个 Artifact（方便下载）
+  merge-artifacts:
     runs-on: ubuntu-latest
     needs: [ build ]
     if: ${{ always() && !cancelled() }}
-    permissions:
-      contents: write
     steps:
-      - name: Download
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./dist/
@@ -344,10 +343,10 @@ jobs:
             sha256sum "$file" > "${file}.sha256"
           done
 
-      - name: Release
+      - name: Upload merged artifact
         if: steps.check.outputs.has_artifacts == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ github.event.inputs.tag }}
-          files: ./dist/*
-          body: "Build for ${{ github.event.inputs.tag }}"
+          name: all-platforms-${{ github.event.inputs.tag }}
+          path: ./dist/*
+          retention-days: 30
