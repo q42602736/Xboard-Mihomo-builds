@@ -179,6 +179,18 @@ jobs:
           cd source
           dart run build_runner build --delete-conflicting-outputs
 
+      - name: Generate XBoard Config
+        run: |
+          cd source
+          echo "=== Generating XBoard Config ==="
+          dart run tools/generate_config.dart
+          echo ""
+          echo "=== Generated Config ==="
+          cat lib/xboard/config/core/generated_config.dart
+          echo ""
+          echo "=== Pubspec Assets Check ==="
+          grep -A 10 "assets:" pubspec.yaml || echo "No assets section found"
+
       - name: Prepare Windows Build Environment
         if: matrix.platform == 'windows'
         shell: bash
