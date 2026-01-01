@@ -168,6 +168,15 @@ jobs:
           cd source
           flutter pub get
 
+      - name: Generate Executable Names
+        run: |
+          cd source
+          echo "=== Generating Executable Names ==="
+          dart run scripts/generate_executable_names.dart
+          echo ""
+          echo "=== Generated Executable Names ==="
+          cat lib/generated/executable_names.dart
+
       - name: Generate SDK Code
         run: |
           cd source/lib/sdk/flutter_xboard_sdk
