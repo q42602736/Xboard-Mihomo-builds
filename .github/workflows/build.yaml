@@ -7,18 +7,13 @@ on:
         description: 'Tag to build (e.g., v0.1.0)'
         required: true
         type: string
-      platform:
-        description: 'Platform to build'
+      platforms:
+        description: '选择要编译的平台（多选用逗号分隔，如: windows,android）'
         required: true
-        type: choice
+        type: string
         default: 'all'
-        options:
-          - all
-          - windows
-          - android
-          - macos
-          - macos-arm64
-          - macos-amd64
+        # 可选值: all, windows, android, macos, macos-arm64, macos-amd64
+        # 示例: windows,android 或 macos-arm64,windows
 
 env:
   IS_STABLE: ${{ !contains(github.event.inputs.tag, '-') }}
@@ -51,22 +46,25 @@ jobs:
       - name: Check if platform should run
         id: check
         run: |
-          SELECTED="${{ github.event.inputs.platform }}"
+          SELECTED="${{ github.event.inputs.platforms }}"
           CURRENT="${{ matrix.platform }}"
           ARCH="${{ matrix.arch }}"
           
-          echo "Selected platform: $SELECTED"
+          echo "Selected platforms: $SELECTED"
           echo "Current matrix: platform=$CURRENT, arch=$ARCH"
           
           SHOULD_RUN="false"
           
-          if [ "$SELECTED" = "all" ]; then
+          # 检查是否选择了 all
+          if [[ "$SELECTED" == "all" ]]; then
             SHOULD_RUN="true"
-          elif [ "$SELECTED" = "$CURRENT" ]; then
+          # 检查是否包含当前平台
+          elif [[ ",$SELECTED," == *",$CURRENT,"* ]]; then
             SHOULD_RUN="true"
-          elif [ "$SELECTED" = "macos-arm64" ] && [ "$CURRENT" = "macos" ] && [ "$ARCH" = "arm64" ]; then
+          # macOS 特殊处理
+          elif [[ ",$SELECTED," == *",macos-arm64,"* ]] && [ "$CURRENT" = "macos" ] && [ "$ARCH" = "arm64" ]; then
             SHOULD_RUN="true"
-          elif [ "$SELECTED" = "macos-amd64" ] && [ "$CURRENT" = "macos" ] && [ "$ARCH" = "amd64" ]; then
+          elif [[ ",$SELECTED," == *",macos-amd64,"* ]] && [ "$CURRENT" = "macos" ] && [ "$ARCH" = "amd64" ]; then
             SHOULD_RUN="true"
           fi
           
