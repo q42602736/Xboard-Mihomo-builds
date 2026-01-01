@@ -7,6 +7,18 @@ on:
         description: 'Tag to build (e.g., v0.1.0)'
         required: true
         type: string
+      platform:
+        description: 'Platform to build'
+        required: true
+        type: choice
+        default: 'all'
+        options:
+          - all
+          - windows
+          - android
+          - macos
+          - macos-arm64
+          - macos-amd64
 
 env:
   IS_STABLE: ${{ !contains(github.event.inputs.tag, '-') }}
@@ -36,8 +48,38 @@ jobs:
             arch: amd64
 
     steps:
+      - name: Check if platform should run
+        id: check
+        run: |
+          SELECTED="${{ github.event.inputs.platform }}"
+          CURRENT="${{ matrix.platform }}"
+          ARCH="${{ matrix.arch }}"
+          
+          echo "Selected platform: $SELECTED"
+          echo "Current matrix: platform=$CURRENT, arch=$ARCH"
+          
+          SHOULD_RUN="false"
+          
+          if [ "$SELECTED" = "all" ]; then
+            SHOULD_RUN="true"
+          elif [ "$SELECTED" = "$CURRENT" ]; then
+            SHOULD_RUN="true"
+          elif [ "$SELECTED" = "macos-arm64" ] && [ "$CURRENT" = "macos" ] && [ "$ARCH" = "arm64" ]; then
+            SHOULD_RUN="true"
+          elif [ "$SELECTED" = "macos-amd64" ] && [ "$CURRENT" = "macos" ] && [ "$ARCH" = "amd64" ]; then
+            SHOULD_RUN="true"
+          fi
+          
+          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
+          
+          if [ "$SHOULD_RUN" = "false" ]; then
+            echo "⏭️ Skipping $CURRENT ($ARCH) - not selected"
+          else
+            echo "✅ Building $CURRENT ($ARCH)"
+          fi
+
       - name: Free Disk Space (Android)
-        if: matrix.platform == 'android'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'android'
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: true
@@ -49,7 +91,7 @@ jobs:
           swap-storage: true
 
       - name: Additional Disk Cleanup (Android)
-        if: matrix.platform == 'android'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'android'
         run: |
           echo "=== 额外清理磁盘空间 ==="
           df -h
@@ -65,11 +107,13 @@ jobs:
           df -h
 
       - name: Setup SSH
+        if: steps.check.outputs.should_run == 'true'
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Clone private repo
+        if: steps.check.outputs.should_run == 'true'
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan github.com >> ~/.ssh/known_hosts
@@ -79,7 +123,7 @@ jobs:
           git submodule update --init --recursive
 
       - name: Setup Android Signing
-        if: matrix.platform == 'android'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'android'
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 --decode > source/android/app/keystore.jks
           echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> source/android/local.properties
@@ -87,7 +131,7 @@ jobs:
           echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> source/android/local.properties
 
       - name: Setup Windows Build Environment
-        if: matrix.platform == 'windows'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'windows'
         shell: bash
         run: |
           # 创建持久化工具目录
@@ -120,7 +164,7 @@ jobs:
           echo "✓ CMake configured to ignore policy warnings"
 
       - name: Setup Rust (x64)
-        if: matrix.platform == 'windows' && matrix.arch == 'amd64'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'windows' && matrix.arch == 'amd64'
         shell: bash
         run: |
           if ! command -v cargo &> /dev/null; then
@@ -134,13 +178,14 @@ jobs:
           cargo --version
 
       - name: Setup Go
+        if: steps.check.outputs.should_run == 'true'
         uses: actions/setup-go@v5
         with:
           go-version: "stable"
           cache-dependency-path: source/core/go.sum
 
       - name: Setup Flutter (Windows x64)
-        if: matrix.platform == 'windows' && matrix.arch == 'amd64'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'windows' && matrix.arch == 'amd64'
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -148,7 +193,7 @@ jobs:
           cache: true
 
       - name: Setup Flutter (Android)
-        if: matrix.platform == 'android'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'android'
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -156,7 +201,7 @@ jobs:
           cache: true
 
       - name: Setup Flutter (macOS)
-        if: matrix.platform == 'macos'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'macos'
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -164,11 +209,13 @@ jobs:
           cache: true
 
       - name: Get Flutter Dependency
+        if: steps.check.outputs.should_run == 'true'
         run: |
           cd source
           flutter pub get
 
       - name: Generate Executable Names
+        if: steps.check.outputs.should_run == 'true'
         run: |
           cd source
           echo "=== Generating Executable Names ==="
@@ -178,17 +225,20 @@ jobs:
           cat lib/generated/executable_names.dart
 
       - name: Generate SDK Code
+        if: steps.check.outputs.should_run == 'true'
         run: |
           cd source/lib/sdk/flutter_xboard_sdk
           flutter pub get
           dart run build_runner build --delete-conflicting-outputs
 
       - name: Generate Main Project Code
+        if: steps.check.outputs.should_run == 'true'
         run: |
           cd source
           dart run build_runner build --delete-conflicting-outputs
 
       - name: Generate XBoard Config
+        if: steps.check.outputs.should_run == 'true'
         run: |
           cd source
           echo "=== Generating XBoard Config ==="
@@ -201,7 +251,7 @@ jobs:
           grep -A 10 "assets:" pubspec.yaml || echo "No assets section found"
 
       - name: Prepare Windows Build Environment
-        if: matrix.platform == 'windows'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'windows'
         shell: bash
         run: |
           # 确保PATH包含Pub Cache bin和Inno Setup
@@ -216,7 +266,7 @@ jobs:
           echo "✓ flutter_distributor installed"
 
       - name: Clean Windows Build Cache
-        if: matrix.platform == 'windows'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'windows'
         shell: bash
         run: |
           echo "🧹 清理 Windows 构建缓存（解决 CMake 安装问题）..."
@@ -230,7 +280,7 @@ jobs:
           echo "✓ 构建缓存已清理，CMake 策略已配置"
 
       - name: Prepare Android Build Environment
-        if: matrix.platform == 'android'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'android'
         run: |
           echo "Preparing Android build environment..."
           # 安装 flutter_distributor
@@ -238,6 +288,7 @@ jobs:
           echo "✓ flutter_distributor installed"
 
       - name: Build
+        if: steps.check.outputs.should_run == 'true'
         run: |
           cd source
           echo "=== Build Environment ==="
@@ -313,7 +364,7 @@ jobs:
           fi
 
       - name: List dist contents
-        if: always()
+        if: always() && steps.check.outputs.should_run == 'true'
         run: |
           echo "=== source/dist contents ==="
           ls -la ./source/dist/ 2>/dev/null || echo "source/dist not found or empty"
@@ -339,6 +390,7 @@ jobs:
           tail -100 ./source/build.log 2>/dev/null || echo "No build log"
 
       - name: Upload
+        if: steps.check.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
