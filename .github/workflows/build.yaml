@@ -206,6 +206,20 @@ jobs:
           dart pub global activate flutter_distributor
           echo "✓ flutter_distributor installed"
 
+      - name: Clean Windows Build Cache
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          echo "🧹 清理 Windows 构建缓存（解决 CMake 安装问题）..."
+          cd source
+          # 删除 build/windows 目录（如果存在），确保干净构建
+          rm -rf build/windows
+          # 设置 CMake 策略环境变量，解决 flutter_inappwebview_windows 插件兼容性问题
+          echo "CMAKE_POLICY_DEFAULT_CMP0175=OLD" >> $GITHUB_ENV
+          # 忽略 CMake 开发者警告
+          echo "CMAKE_NO_WARN_DEV=ON" >> $GITHUB_ENV
+          echo "✓ 构建缓存已清理，CMake 策略已配置"
+
       - name: Prepare Android Build Environment
         if: matrix.platform == 'android'
         run: |
