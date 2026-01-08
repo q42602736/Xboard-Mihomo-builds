@@ -320,6 +320,22 @@ jobs:
           which go && go version || echo "go not found"
           echo ""
 
+          if [ "${{ matrix.platform }}" = "macos" ]; then
+            echo "=== macOS Pre-Build Check ==="
+            echo "Xcode version:"
+            xcodebuild -version
+            echo ""
+            echo "Available SDKs:"
+            xcodebuild -showsdks
+            echo ""
+            echo "libclash/macos directory (before core build):"
+            ls -la ./libclash/macos/ 2>/dev/null || echo "libclash/macos not found yet"
+            echo ""
+            echo "Xcode project core reference:"
+            grep -A2 "RuanjianyunCore\|NexGenCore" ./macos/Runner.xcodeproj/project.pbxproj | head -20 || echo "Core reference not found"
+            echo ""
+          fi
+
           if [ "${{ matrix.platform }}" = "windows" ]; then
             echo "=== Windows Build Tools ==="
             which cmake && cmake --version || echo "cmake not found"
@@ -385,6 +401,27 @@ jobs:
               
               echo "=== Xcode Build Logs ==="
               find ./build/macos -name "*.log" -exec echo "File: {}" \; -exec tail -100 {} \; 2>/dev/null || echo "No Xcode logs found"
+              echo ""
+              
+              echo "=== Flutter Assemble Script Content ==="
+              SCRIPT_PATH="./build/macos/Build/Intermediates.noindex/Runner.build/Release/Flutter Assemble.build/Script-33CC111E2044C6BF0003C045.sh"
+              if [ -f "$SCRIPT_PATH" ]; then
+                cat "$SCRIPT_PATH"
+              else
+                echo "Script not found at: $SCRIPT_PATH"
+                find ./build/macos -name "*.sh" 2>/dev/null | head -10
+              fi
+              echo ""
+              
+              echo "=== DerivedData Logs ==="
+              find ~/Library/Developer/Xcode/DerivedData -name "*.log" -mmin -10 2>/dev/null | while read f; do
+                echo "=== $f ==="
+                tail -50 "$f"
+              done || echo "No recent DerivedData logs"
+              echo ""
+              
+              echo "=== Xcode Build Output (xcactivitylog) ==="
+              find ./build/macos -name "*.xcactivitylog" 2>/dev/null | head -5 || echo "No xcactivitylog found"
               echo ""
               
               echo "=== CocoaPods Status ==="
