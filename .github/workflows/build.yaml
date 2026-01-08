@@ -285,6 +285,24 @@ jobs:
           dart pub global activate flutter_distributor
           echo "✓ flutter_distributor installed"
 
+      - name: Prepare macOS Build Environment
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'macos'
+        run: |
+          echo "Preparing macOS build environment..."
+          
+          # 安装 flutter_distributor
+          dart pub global activate flutter_distributor
+          echo "✓ flutter_distributor installed"
+          
+          # 安装 appdmg (用于生成 DMG)
+          npm install -g appdmg
+          echo "✓ appdmg installed"
+          
+          # 运行 pod install
+          cd source/macos
+          pod install --repo-update
+          echo "✓ CocoaPods dependencies installed"
+
       - name: Build
         if: steps.check.outputs.should_run == 'true'
         run: |
@@ -352,6 +370,29 @@ jobs:
 
               echo "=== Windows Build Directory Structure ==="
               ls -laR ./build/windows/ 2>/dev/null | head -100 || echo "No build directory"
+              echo ""
+            elif [ "${{ matrix.platform }}" = "macos" ]; then
+              echo "=== macOS Core File Check ==="
+              echo "libclash/macos contents:"
+              ls -la ./libclash/macos/ 2>/dev/null || echo "libclash/macos not found"
+              echo ""
+              echo "libclash/macos/arm64 contents:"
+              ls -la ./libclash/macos/arm64/ 2>/dev/null || echo "libclash/macos/arm64 not found"
+              echo ""
+              echo "libclash/macos/amd64 contents:"
+              ls -la ./libclash/macos/amd64/ 2>/dev/null || echo "libclash/macos/amd64 not found"
+              echo ""
+              
+              echo "=== Xcode Build Logs ==="
+              find ./build/macos -name "*.log" -exec echo "File: {}" \; -exec tail -100 {} \; 2>/dev/null || echo "No Xcode logs found"
+              echo ""
+              
+              echo "=== CocoaPods Status ==="
+              cat ./macos/Podfile.lock 2>/dev/null | head -50 || echo "No Podfile.lock"
+              echo ""
+              
+              echo "=== Flutter Assemble Script Location ==="
+              ls -la ./build/macos/Build/Intermediates.noindex/Runner.build/Release/ 2>/dev/null || echo "Build intermediates not found"
               echo ""
             fi
 
