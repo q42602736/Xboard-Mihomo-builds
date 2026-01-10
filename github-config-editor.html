@@ -1362,9 +1362,9 @@
                 
                 // 2. 保存到档案文件（先刷新 SHA 防止冲突）
                 var profileUrl = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + PROFILES_PATH;
-                // 先获取最新的 profilesSha
+                // 先获取最新的 profilesSha（加时间戳防缓存）
                 try {
-                    var refreshResponse = await fetch(profileUrl + '?ref=' + config.branch, {
+                    var refreshResponse = await fetch(profileUrl + '?ref=' + config.branch + '&t=' + Date.now(), {
                         headers: {
                             'Authorization': 'token ' + config.token,
                             'Accept': 'application/vnd.github.v3+json'
