@@ -874,12 +874,16 @@
                 return false;
             });
             
-            // 先移除旧的 online_support 配置
+            // 先移除旧的 online_support 配置（包括注释）
             var supportLines = yaml.split('\n');
             var newSupportLines = [];
             var inOnlineSupportSection = false;
             for (var k = 0; k < supportLines.length; k++) {
                 var sLine = supportLines[k];
+                // 跳过 "# 在线客服配置" 注释行
+                if (/^\s*#\s*在线客服/.test(sLine)) {
+                    continue;
+                }
                 if (/^  online_support:/.test(sLine)) {
                     inOnlineSupportSection = true;
                     continue;
