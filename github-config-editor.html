@@ -1360,13 +1360,31 @@
                     }
                 }
                 
-                // 2. 保存到档案文件
+                // 2. 保存到档案文件（先刷新 SHA 防止冲突）
+                var profileUrl = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + PROFILES_PATH;
+                // 先获取最新的 profilesSha
+                try {
+                    var refreshResponse = await fetch(profileUrl + '?ref=' + config.branch, {
+                        headers: {
+                            'Authorization': 'token ' + config.token,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+                    if (refreshResponse.ok) {
+                        var refreshData = await refreshResponse.json();
+                        profilesSha = refreshData.sha;
+                        // 同时更新 profilesData 以防其他地方修改过
+                        profilesData = JSON.parse(decodeURIComponent(escape(atob(refreshData.content))));
+                    }
+                } catch (e) {
+                    console.log('刷新档案SHA失败:', e.message);
+                }
+                
                 profilesData[profileName] = {
                     yaml_content: yamlContent,
                     last_updated: new Date().toLocaleString('zh-CN')
                 };
                 var profileContent = btoa(unescape(encodeURIComponent(JSON.stringify(profilesData, null, 2))));
-                var profileUrl = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + PROFILES_PATH;
                 var profileBody = {
                     message: '保存配置档案: ' + profileName,
                     content: profileContent,
