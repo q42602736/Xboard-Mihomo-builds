@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XBoard 配置编辑器</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 20px; color: #00d4ff; }
+        .config-panel {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .config-panel h3 { color: #00d4ff; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #aaa; }
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 14px;
+        }
+        .form-group input:focus { outline: none; border-color: #00d4ff; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .btn-primary { background: linear-gradient(135deg, #00d4ff, #0099cc); color: #000; }
+        .btn-success { background: linear-gradient(135deg, #00ff88, #00cc6a); color: #000; }
+        .btn-warning { background: linear-gradient(135deg, #ffaa00, #ff8800); color: #000; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .editor-container { background: #0d1117; border-radius: 8px; overflow: hidden; }
+        .tabs { display: flex; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .tab { padding: 12px 20px; cursor: pointer; color: #8b949e; border-bottom: 2px solid transparent; }
+        .tab.active { color: #00d4ff; border-bottom-color: #00d4ff; }
+        .tab-content { display: none; padding: 20px; }
+        .tab-content.active { display: block; }
+        .section { margin-bottom: 25px; }
+        .section-title { color: #00d4ff; font-size: 16px; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid rgba(0,212,255,0.3); }
+        .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 14px;
+        }
+        .form-group textarea { min-height: 80px; font-family: Monaco, monospace; resize: vertical; }
+        .switch-group { display: flex; align-items: center; gap: 10px; }
+        .switch { position: relative; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.1); border-radius: 26px; transition: 0.3s; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s; }
+        input:checked + .slider { background: #00d4ff; }
+        input:checked + .slider:before { transform: translateX(24px); }
+        .help-text { font-size: 12px; color: #666; margin-top: 5px; }
+        #editor {
+            width: 100%;
+            min-height: 400px;
+            padding: 15px;
+            border: none;
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: Monaco, Menlo, monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+        }
+        #editor:focus { outline: none; }
+        .status { padding: 12px 15px; border-radius: 6px; margin-bottom: 15px; }
+        .status.info { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.3); }
+        .status.success { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); color: #00ff88; }
+        .status.error { background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: #ff4444; }
+        .token-help {
+            background: rgba(255,170,0,0.1);
+            border: 1px solid rgba(255,170,0,0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        .token-help a { color: #ffaa00; }
+        .source-item { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 15px; margin-bottom: 10px; position: relative; }
+        .source-item .form-row { grid-template-columns: 1fr 2fr 2fr; }
+        .source-item .btn-remove { position: absolute; top: 10px; right: 10px; background: rgba(255,68,68,0.3); color: #ff4444; border: 1px solid rgba(255,68,68,0.5); padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; }
+        .source-item .btn-remove:hover { background: rgba(255,68,68,0.5); }
+        .source-index { color: #00d4ff; font-weight: bold; margin-bottom: 10px; }
+        .build-panel { background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 12px; padding: 20px; margin-top: 20px; }
+        .build-panel h3 { color: #00ff88; margin-bottom: 15px; }
+        .platform-checkboxes { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px; }
+        .platform-checkbox { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); padding: 8px 15px; border-radius: 6px; cursor: pointer; }
+        .platform-checkbox input { cursor: pointer; }
+        .platform-checkbox:hover { background: rgba(0,255,136,0.1); }
+        .btn-build { background: linear-gradient(135deg, #ff6b6b, #ee5a5a); color: #fff; }
+        .btn-build:hover { background: linear-gradient(135deg, #ff5252, #e04545); }
+        .collapsible { cursor: pointer; user-select: none; }
+        .collapse-toggle { display: flex; justify-content: center; align-items: center; padding: 8px; margin-top: 10px; background: rgba(255,255,255,0.05); border-radius: 6px; cursor: pointer; color: #888; font-size: 12px; transition: all 0.3s; }
+        .collapse-toggle:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .collapse-toggle::before { content: '▲ 收起'; }
+        .collapse-toggle.collapsed::before { content: '▼ 展开'; }
+        .collapse-content { overflow: hidden; transition: max-height 0.3s ease-out; }
+        .collapse-content.collapsed { max-height: 0 !important; padding-top: 0; padding-bottom: 0; margin-top: 0; }
+        .support-item { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 15px; margin-bottom: 10px; position: relative; }
+        .support-item .btn-remove { position: absolute; top: 10px; right: 10px; background: rgba(255,68,68,0.3); color: #ff4444; border: 1px solid rgba(255,68,68,0.5); padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; }
+        .support-item .btn-remove:hover { background: rgba(255,68,68,0.5); }
+        .support-index { color: #00d4ff; font-weight: bold; margin-bottom: 10px; }
+        .support-fields { display: none; margin-top: 10px; }
+        .support-fields.active { display: block; }
+        .profile-panel { background: rgba(138,43,226,0.1); border: 1px solid rgba(138,43,226,0.3); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .profile-panel h3 { color: #9370db; margin-bottom: 15px; }
+        .profile-row { display: flex; gap: 15px; align-items: flex-end; }
+        .profile-select-wrapper { width: 300px; flex-shrink: 0; }
+        .profile-select-wrapper label { display: block; margin-bottom: 5px; color: #aaa; }
+        .profile-select-wrapper select { width: 100%; height: 42px; padding: 0 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; background: rgba(0,0,0,0.3); color: #fff; font-size: 14px; }
+        .profile-actions { display: flex; gap: 10px; }
+        .profile-actions .btn { height: 42px; display: flex; align-items: center; justify-content: center; white-space: nowrap; }
+        .btn-profile { background: linear-gradient(135deg, #9370db, #8a2be2); color: #fff; }
+        .btn-profile:hover { background: linear-gradient(135deg, #8a2be2, #7b1fa2); }
+        .btn-danger { background: linear-gradient(135deg, #ff6b6b, #ee5a5a); color: #fff; }
+        .new-profile-input { display: none; margin-top: 15px; padding: 15px; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); border-radius: 8px; }
+        .new-profile-input.active { display: block; }
+        .new-profile-input label { display: block; margin-bottom: 8px; color: #00ff88; font-weight: 500; }
+        .new-profile-input .input-row { display: flex; gap: 10px; align-items: center; }
+        .new-profile-input input { flex: 1; padding: 10px 12px; border: 1px solid rgba(0,255,136,0.3); border-radius: 6px; background: rgba(0,0,0,0.3); color: #fff; font-size: 14px; }
+        .new-profile-input input:focus { outline: none; border-color: #00ff88; box-shadow: 0 0 8px rgba(0,255,136,0.3); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>XBoard 配置编辑器</h1>
+        <div class="config-panel">
+            <h3>GitHub 配置</h3>
+            <div class="collapse-content collapsed" id="githubConfigContent">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>仓库所有者</label>
+                        <input type="text" id="owner" value="q42602736">
+                    </div>
+                    <div class="form-group">
+                        <label>仓库名称</label>
+                        <input type="text" id="repo" value="Xboard-Mihomo_sub">
+                    </div>
+                    <div class="form-group">
+                        <label>分支</label>
+                        <input type="text" id="branch" value="main">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>文件路径</label>
+                    <input type="text" id="filepath" value="assets/config/xboard.config.yaml">
+                </div>
+                <div class="form-group">
+                    <label>GitHub Personal Access Token</label>
+                    <input type="password" id="token" placeholder="ghp_xxxxxxxxxxxx">
+                    <div class="token-help">
+                        <strong>如何获取 Token：</strong>
+                        <a href="https://github.com/settings/tokens/new" target="_blank">点击这里创建</a>，勾选 <code>repo</code> 权限（编辑配置），如需触发打包还需勾选 <code>workflow</code> 权限。
+                    </div>
+                </div>
+            </div>
+            <div class="collapse-toggle collapsed" onclick="toggleCollapse(this, 'githubConfigContent')"></div>
+        </div>
+        <div class="profile-panel">
+            <h3>配置档案管理</h3>
+            <div class="profile-row">
+                <div class="profile-select-wrapper">
+                    <label>选择配置档案</label>
+                    <select id="profileSelect">
+                        <option value="">-- 请选择档案 --</option>
+                    </select>
+                </div>
+                <div class="profile-actions">
+                    <button class="btn btn-profile" id="loadProfileBtn">加载档案</button>
+                    <button class="btn btn-success" id="saveProfileBtn">保存为档案</button>
+                    <button class="btn btn-danger" id="deleteProfileBtn">删除档案</button>
+                </div>
+            </div>
+            <div class="new-profile-input" id="newProfileInput">
+                <label>保存当前配置为新档案</label>
+                <div class="input-row">
+                    <input type="text" id="newProfileName" placeholder="输入档案名称，如：软件云、企鹅云">
+                    <button class="btn btn-success" id="confirmSaveProfileBtn">确认保存</button>
+                    <button class="btn btn-warning" id="cancelSaveProfileBtn">取消</button>
+                </div>
+            </div>
+            <div class="help-text" style="margin-top: 10px;">档案会保存到 GitHub 仓库的 config-profiles.json 文件中</div>
+        </div>
+        <div id="status" class="status info">请填写配置信息，然后选择档案加载或保存</div>
+        <div class="editor-container">
+            <div class="tabs">
+                <div class="tab active" data-tab="form">可视化编辑</div>
+                <div class="tab" data-tab="yaml">YAML源码</div>
+            </div>
+            <div id="formTab" class="tab-content active">
+                <div class="section">
+                    <div class="section-title">应用信息</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>应用名称</label>
+                            <input type="text" id="appTitle" placeholder="如: 软件云">
+                        </div>
+                        <div class="form-group">
+                            <label>网站地址</label>
+                            <input type="text" id="appWebsite" placeholder="如: example.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Logo类型</label>
+                            <select id="logoType">
+                                <option value="text">文字Logo</option>
+                                <option value="image">图片Logo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Logo图片地址</label>
+                        <input type="text" id="logoImageUrl" placeholder="https://example.com/logo.png">
+                        <div class="help-text">仅当Logo类型为"图片Logo"时生效</div>
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-title">应用图标</div>
+                    <div class="form-group">
+                        <label>图标图片地址</label>
+                        <input type="text" id="appIconUrl" placeholder="https://example.com/icon.png">
+                        <div class="help-text">建议1024x1024像素PNG图片</div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Android前景图</label>
+                            <input type="text" id="adaptiveForeground" placeholder="可选">
+                        </div>
+                        <div class="form-group">
+                            <label>Android背景色</label>
+                            <input type="text" id="adaptiveBackground" value="#FFFFFF" placeholder="#FFFFFF">
+                        </div>
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-title">订阅配置</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>优先加密订阅</label>
+                            <div class="switch-group">
+                                <label class="switch"><input type="checkbox" id="preferEncrypt"><span class="slider"></span></label>
+                                <span id="preferEncryptLabel">关闭</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>专用客户端模式</label>
+                            <div class="switch-group">
+                                <label class="switch"><input type="checkbox" id="useExclusiveMode"><span class="slider"></span></label>
+                                <span id="useExclusiveModeLabel">关闭</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>订阅解密密钥</label>
+                        <input type="text" id="decryptKey" placeholder="your_secret_decrypt_key_here">
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-title">自动离线模式</div>
+                    <div class="form-group">
+                        <label>启用自动离线</label>
+                        <div class="switch-group">
+                            <label class="switch"><input type="checkbox" id="autoOfflineEnabled"><span class="slider"></span></label>
+                            <span id="autoOfflineEnabledLabel">关闭</span>
+                        </div>
+                        <div class="help-text">启用后，应用启动完成所有初始化请求后会自动进入离线模式，适用于专用客户端场景</div>
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-title">订阅缓存配置</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>启用订阅缓存</label>
+                            <div class="switch-group">
+                                <label class="switch"><input type="checkbox" id="subscriptionCacheEnabled"><span class="slider"></span></label>
+                                <span id="subscriptionCacheEnabledLabel">关闭</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>缓存有效期（小时）</label>
+                            <input type="number" id="subscriptionCacheTtl" value="24" min="0" placeholder="24">
+                        </div>
+                    </div>
+                    <div class="help-text">启用后，订阅配置将被缓存，在有效期内不会重复拉取。设置为0表示禁用缓存。</div>
+                </div>
+                <div class="section">
+                    <div class="section-title">远程配置源</div>
+                    <div id="sourcesContainer"></div>
+                    <button type="button" class="btn btn-primary" id="addSourceBtn" style="margin-top: 10px;">+ 添加配置源</button>
+                </div>
+                <div class="section">
+                    <div class="section-title">在线客服配置</div>
+                    <div id="onlineSupportContainer"></div>
+                    <button type="button" class="btn btn-primary" id="addSupportBtn" style="margin-top: 10px;">+ 添加客服类型</button>
+                    <div class="help-text" style="margin-top: 10px;">支持类型: browser(网页), crisp, chatway, tawkto。第一个有效配置会被使用。</div>
+                </div>
+            </div>
+            <div id="yamlTab" class="tab-content">
+                <textarea id="editor" placeholder="配置内容将显示在这里..."></textarea>
+            </div>
+        </div>
+        <div class="build-panel">
+            <h3>触发打包构建</h3>
+            <div class="collapse-content collapsed" id="buildConfigContent">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>打包仓库所有者</label>
+                        <input type="text" id="buildOwner" value="q42602736">
+                    </div>
+                    <div class="form-group">
+                        <label>打包仓库名称</label>
+                        <input type="text" id="buildRepo" value="Xboard-Mihomo-builds">
+                    </div>
+                    <div class="form-group">
+                        <label>版本标签</label>
+                        <input type="text" id="buildTag" placeholder="如: v0.1.0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>选择编译平台</label>
+                    <div class="platform-checkboxes">
+                        <label class="platform-checkbox"><input type="checkbox" value="all" id="platformAll" checked> 全部平台</label>
+                        <label class="platform-checkbox"><input type="checkbox" value="windows" class="platformItem"> Windows</label>
+                        <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem"> Android</label>
+                        <label class="platform-checkbox"><input type="checkbox" value="macos" class="platformItem"> macOS (全部)</label>
+                        <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem"> macOS ARM64</label>
+                        <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem"> macOS AMD64</label>
+                    </div>
+                </div>
+                <div id="buildStatus" class="status info" style="margin-top: 15px;">选择平台和版本后点击"触发打包"</div>
+                <div id="lastBuildInfo" style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; display: none;">
+                    <div style="color: #aaa; font-size: 12px;">上次打包记录：</div>
+                    <div id="lastBuildContent" style="margin-top: 5px; font-size: 13px;"></div>
+                </div>
+                <button class="btn btn-build" id="buildBtn" style="margin-top: 15px;">触发打包</button>
+            </div>
+            <div class="collapse-toggle collapsed" onclick="toggleCollapse(this, 'buildConfigContent')"></div>
+        </div>
+    </div>
+    <script>
+        // 折叠功能
+        function toggleCollapse(toggleEl, contentId) {
+            var content = document.getElementById(contentId);
+            toggleEl.classList.toggle('collapsed');
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                content.style.maxHeight = content.scrollHeight + 'px';
+            } else {
+                content.style.maxHeight = '0';
+                content.classList.add('collapsed');
+            }
+        }
+
+        var currentSha = null;
+        var STORAGE_KEY = 'github_config_editor';
+        var BUILD_HISTORY_PATH = 'build-versions.json';
+        var PROFILES_PATH = 'config-profiles.json';
+        var profilesSha = null;
+        var profilesData = {};
+        var buildHistorySha = null;
+        var buildHistoryData = {};
+        var sources = [];
+        var onlineSupportItems = [];
+
+        function createSourceItem(index, source) {
+            source = source || { name: '', url: '', encryption_key: '' };
+            var div = document.createElement('div');
+            div.className = 'source-item';
+            div.dataset.index = index;
+            div.innerHTML = '<div class="source-index">配置源 #' + (index + 1) + '</div>' +
+                '<button type="button" class="btn-remove" onclick="removeSource(' + index + ')">删除</button>' +
+                '<div class="form-row">' +
+                    '<div class="form-group"><label>名称</label><input type="text" class="source-name" value="' + (source.name || '') + '" placeholder="如: redirect"></div>' +
+                    '<div class="form-group"><label>URL</label><input type="text" class="source-url" value="' + (source.url || '') + '" placeholder="https://your-server.com/remote.config.json"></div>' +
+                    '<div class="form-group"><label>加密密钥（可选）</label><input type="text" class="source-key" value="' + (source.encryption_key || '') + '" placeholder="可选"></div>' +
+                '</div>';
+            return div;
+        }
+
+        function renderSources() {
+            var container = document.getElementById('sourcesContainer');
+            container.innerHTML = '';
+            sources.forEach(function(source, index) {
+                var item = createSourceItem(index, source);
+                container.appendChild(item);
+                // 为输入框添加 change 事件，自动同步到 YAML
+                item.querySelectorAll('input').forEach(function(input) {
+                    input.addEventListener('change', function() {
+                        formToYaml();
+                    });
+                });
+            });
+        }
+
+        function addSource() {
+            sources.push({ name: '', url: '', encryption_key: '' });
+            renderSources();
+            formToYaml(); // 同步到 YAML
+        }
+
+        function removeSource(index) {
+            sources.splice(index, 1);
+            if (sources.length === 0) {
+                sources.push({ name: '', url: '', encryption_key: '' });
+            }
+            renderSources();
+            formToYaml(); // 同步到 YAML
+        }
+
+        function collectSources() {
+            var items = document.querySelectorAll('.source-item');
+            sources = [];
+            items.forEach(function(item) {
+                sources.push({
+                    name: item.querySelector('.source-name').value.trim(),
+                    url: item.querySelector('.source-url').value.trim(),
+                    encryption_key: item.querySelector('.source-key').value.trim()
+                });
+            });
+            return sources;
+        }
+
+        // 在线客服配置相关函数
+        function createSupportItem(index, item) {
+            item = item || { type: 'browser', url: '', description: '', website_id: '', widget_id: '', property_id: '' };
+            var div = document.createElement('div');
+            div.className = 'support-item';
+            div.dataset.index = index;
+            div.innerHTML = '<div class="support-index">客服配置 #' + (index + 1) + '</div>' +
+                '<button type="button" class="btn-remove" onclick="removeSupportItem(' + index + ')">删除</button>' +
+                '<div class="form-row">' +
+                    '<div class="form-group"><label>类型</label>' +
+                        '<select class="support-type" onchange="updateSupportFields(this)">' +
+                            '<option value="browser"' + (item.type === 'browser' ? ' selected' : '') + '>browser (网页)</option>' +
+                            '<option value="crisp"' + (item.type === 'crisp' ? ' selected' : '') + '>crisp</option>' +
+                            '<option value="chatway"' + (item.type === 'chatway' ? ' selected' : '') + '>chatway</option>' +
+                            '<option value="tawkto"' + (item.type === 'tawkto' ? ' selected' : '') + '>tawkto</option>' +
+                        '</select>' +
+                    '</div>' +
+                    '<div class="form-group"><label>描述</label>' +
+                        '<input type="text" class="support-description" value="' + (item.description || '') + '" placeholder="如: 在线客服">' +
+                    '</div>' +
+                '</div>' +
+                '<div class="support-fields browser-fields' + (item.type === 'browser' ? ' active' : '') + '">' +
+                    '<div class="form-group"><label>客服页面URL</label>' +
+                        '<input type="text" class="support-url" value="' + (item.url || '') + '" placeholder="https://example.com/support">' +
+                    '</div>' +
+                '</div>' +
+                '<div class="support-fields crisp-fields' + (item.type === 'crisp' ? ' active' : '') + '">' +
+                    '<div class="form-group"><label>Website ID</label>' +
+                        '<input type="text" class="support-website-id" value="' + (item.website_id || '') + '" placeholder="CRISP Website ID">' +
+                    '</div>' +
+                '</div>' +
+                '<div class="support-fields chatway-fields' + (item.type === 'chatway' ? ' active' : '') + '">' +
+                    '<div class="form-group"><label>Widget ID</label>' +
+                        '<input type="text" class="support-chatway-widget-id" value="' + (item.widget_id || '') + '" placeholder="Chatway Widget ID">' +
+                    '</div>' +
+                '</div>' +
+                '<div class="support-fields tawkto-fields' + (item.type === 'tawkto' ? ' active' : '') + '">' +
+                    '<div class="form-row">' +
+                        '<div class="form-group"><label>Property ID</label>' +
+                            '<input type="text" class="support-property-id" value="' + (item.property_id || '') + '" placeholder="Tawk.to Property ID">' +
+                        '</div>' +
+                        '<div class="form-group"><label>Widget ID</label>' +
+                            '<input type="text" class="support-tawkto-widget-id" value="' + (item.widget_id || '') + '" placeholder="Tawk.to Widget ID">' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            return div;
+        }
+
+        function updateSupportFields(selectEl) {
+            var item = selectEl.closest('.support-item');
+            var type = selectEl.value;
+            item.querySelectorAll('.support-fields').forEach(function(f) { f.classList.remove('active'); });
+            item.querySelector('.' + type + '-fields').classList.add('active');
+            formToYaml();
+        }
+
+        function renderSupportItems() {
+            var container = document.getElementById('onlineSupportContainer');
+            container.innerHTML = '';
+            onlineSupportItems.forEach(function(item, index) {
+                var el = createSupportItem(index, item);
+                container.appendChild(el);
+                el.querySelectorAll('input, select').forEach(function(input) {
+                    input.addEventListener('change', function() { formToYaml(); });
+                });
+            });
+        }
+
+        function addSupportItem() {
+            onlineSupportItems.push({ type: 'browser', url: '', description: '在线客服' });
+            renderSupportItems();
+            formToYaml();
+        }
+
+        function removeSupportItem(index) {
+            onlineSupportItems.splice(index, 1);
+            renderSupportItems();
+            formToYaml();
+        }
+
+        function collectSupportItems() {
+            var items = document.querySelectorAll('.support-item');
+            onlineSupportItems = [];
+            items.forEach(function(item) {
+                var type = item.querySelector('.support-type').value;
+                var obj = {
+                    type: type,
+                    description: item.querySelector('.support-description').value.trim()
+                };
+                if (type === 'browser') {
+                    obj.url = item.querySelector('.support-url').value.trim();
+                } else if (type === 'crisp') {
+                    obj.website_id = item.querySelector('.support-website-id').value.trim();
+                } else if (type === 'chatway') {
+                    obj.widget_id = item.querySelector('.support-chatway-widget-id').value.trim();
+                } else if (type === 'tawkto') {
+                    obj.property_id = item.querySelector('.support-property-id').value.trim();
+                    obj.widget_id = item.querySelector('.support-tawkto-widget-id').value.trim();
+                }
+                onlineSupportItems.push(obj);
+            });
+            return onlineSupportItems;
+        }
+
+        window.onload = function() {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    var config = JSON.parse(saved);
+                    if (config.owner) document.getElementById('owner').value = config.owner;
+                    if (config.repo) document.getElementById('repo').value = config.repo;
+                    if (config.branch) document.getElementById('branch').value = config.branch;
+                    if (config.filepath) document.getElementById('filepath').value = config.filepath;
+                    if (config.token) document.getElementById('token').value = config.token;
+                } catch (e) {}
+            }
+            document.getElementById('token').addEventListener('change', saveLocalConfig);
+            document.getElementById('addSourceBtn').addEventListener('click', addSource);
+            document.getElementById('addSupportBtn').addEventListener('click', addSupportItem);
+            document.getElementById('buildBtn').addEventListener('click', triggerBuild);
+            document.getElementById('appTitle').addEventListener('change', displayBuildHistory);
+            // 配置档案相关事件
+            document.getElementById('loadProfileBtn').addEventListener('click', loadProfile);
+            document.getElementById('saveProfileBtn').addEventListener('click', showSaveProfileInput);
+            document.getElementById('deleteProfileBtn').addEventListener('click', deleteProfile);
+            document.getElementById('confirmSaveProfileBtn').addEventListener('click', confirmSaveProfile);
+            document.getElementById('cancelSaveProfileBtn').addEventListener('click', hideSaveProfileInput);
+            initTabs();
+            initSwitches();
+            initPlatformCheckboxes();
+            renderSources();
+            renderSupportItems();
+            // 如果已有保存的配置，自动加载档案列表
+            if (document.getElementById('token').value) {
+                loadProfiles();
+                loadBuildHistory();
+            }
+        };
+
+        function initTabs() {
+            document.querySelectorAll('.tab').forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    var tabName = this.dataset.tab;
+                    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+                    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+                    this.classList.add('active');
+                    document.getElementById(tabName + 'Tab').classList.add('active');
+                    if (tabName === 'yaml') { formToYaml(); }
+                    else { yamlToForm(); }
+                });
+            });
+        }
+
+        function initSwitches() {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled'].forEach(function(id) {
+                var el = document.getElementById(id);
+                var label = document.getElementById(id + 'Label');
+                el.addEventListener('change', function() {
+                    label.textContent = this.checked ? '开启' : '关闭';
+                    formToYaml(); // 同步到 YAML
+                });
+            });
+            // 订阅缓存TTL输入框事件
+            document.getElementById('subscriptionCacheTtl').addEventListener('change', function() {
+                formToYaml();
+            });
+        }
+
+        function yamlToForm() {
+            var yaml = document.getElementById('editor').value;
+            if (!yaml.trim()) return;
+            var getValue = function(key) {
+                var re = new RegExp(key + ':\\s*(.*)');
+                var m = yaml.match(re);
+                return m ? m[1].trim().replace(/^["']|["']$/g, '') : '';
+            };
+            var getBool = function(key) {
+                var v = getValue(key);
+                return v === 'true';
+            };
+            document.getElementById('appTitle').value = getValue('title');
+            document.getElementById('appWebsite').value = getValue('website');
+            document.getElementById('logoType').value = getValue('type') || 'text';
+            var logoMatch = yaml.match(/logo:[\s\S]*?image_url:\s*(.*)/);
+            if (logoMatch) document.getElementById('logoImageUrl').value = logoMatch[1].trim();
+            var iconMatch = yaml.match(/app_icon:[\s\S]*?image_url:\s*(.*)/);
+            if (iconMatch) document.getElementById('appIconUrl').value = iconMatch[1].trim();
+            document.getElementById('adaptiveForeground').value = getValue('adaptive_foreground_url');
+            document.getElementById('adaptiveBackground').value = getValue('adaptive_background') || '#FFFFFF';
+            document.getElementById('preferEncrypt').checked = getBool('prefer_encrypt');
+            document.getElementById('preferEncryptLabel').textContent = getBool('prefer_encrypt') ? '开启' : '关闭';
+            document.getElementById('useExclusiveMode').checked = getBool('use_exclusive_mode');
+            document.getElementById('useExclusiveModeLabel').textContent = getBool('use_exclusive_mode') ? '开启' : '关闭';
+            document.getElementById('decryptKey').value = getValue('decrypt_key');
+            // 解析自动离线模式 - 匹配 auto_offline 区块内的 enabled 字段
+            var autoOfflineMatch = yaml.match(/auto_offline:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
+            var autoOfflineEnabled = autoOfflineMatch ? autoOfflineMatch[1] === 'true' : false;
+            document.getElementById('autoOfflineEnabled').checked = autoOfflineEnabled;
+            document.getElementById('autoOfflineEnabledLabel').textContent = autoOfflineEnabled ? '开启' : '关闭';
+            // 解析订阅缓存配置 - 匹配 subscription_cache 区块内的 enabled 和 ttl_hours 字段
+            var subCacheEnabledMatch = yaml.match(/subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
+            var subCacheEnabled = subCacheEnabledMatch ? subCacheEnabledMatch[1] === 'true' : false;
+            document.getElementById('subscriptionCacheEnabled').checked = subCacheEnabled;
+            document.getElementById('subscriptionCacheEnabledLabel').textContent = subCacheEnabled ? '开启' : '关闭';
+            var subCacheTtlMatch = yaml.match(/subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*(\d+)/);
+            var subCacheTtl = subCacheTtlMatch ? parseInt(subCacheTtlMatch[1]) : 24;
+            document.getElementById('subscriptionCacheTtl').value = subCacheTtl;
+            // 解析多个 sources
+            sources = [];
+            var lines = yaml.split('\n');
+            var inSources = false;
+            var currentSource = null;
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                // 跳过注释行
+                if (/^\s*#/.test(line)) continue;
+                // 检测 sources: 开始（必须是4空格缩进的 sources:）
+                if (/^    sources:\s*$/.test(line)) {
+                    inSources = true;
+                    continue;
+                }
+                if (inSources) {
+                    // 遇到2空格缩进的新配置项，结束 sources 解析
+                    if (/^  [a-z_]+:/i.test(line)) {
+                        inSources = false;
+                        if (currentSource) sources.push(currentSource);
+                        currentSource = null;
+                        break;
+                    }
+                    // 空行也可能表示结束
+                    if (line.trim() === '' && i + 1 < lines.length && /^  [a-z_]+:/i.test(lines[i + 1])) {
+                        inSources = false;
+                        if (currentSource) sources.push(currentSource);
+                        currentSource = null;
+                        break;
+                    }
+                    // 新的 source 项 (以 - 开头)
+                    if (/^\s*-\s*name:\s*(.*)/.test(line)) {
+                        if (currentSource) sources.push(currentSource);
+                        currentSource = { name: line.match(/^\s*-\s*name:\s*(.*)/)[1].trim(), url: '', encryption_key: '' };
+                    } else if (currentSource && /^\s+url:\s*(.*)/.test(line)) {
+                        currentSource.url = line.match(/^\s+url:\s*(.*)/)[1].trim();
+                    } else if (currentSource && /^\s+encryption_key:\s*(.*)/.test(line)) {
+                        var key = line.match(/^\s+encryption_key:\s*(.*)/)[1].trim();
+                        currentSource.encryption_key = key.replace(/^["']|["']$/g, '');
+                    }
+                }
+            }
+            if (currentSource) sources.push(currentSource);
+            if (sources.length === 0) {
+                sources.push({ name: '', url: '', encryption_key: '' });
+            }
+            renderSources();
+            
+            // 解析 online_support items
+            onlineSupportItems = [];
+            var inOnlineSupport = false;
+            var inItems = false;
+            var currentSupportItem = null;
+            for (var j = 0; j < lines.length; j++) {
+                var supportLine = lines[j];
+                // 跳过注释行
+                if (/^\s*#/.test(supportLine)) continue;
+                // 检测 online_support: 开始（2空格缩进）
+                if (/^  online_support:/.test(supportLine)) {
+                    inOnlineSupport = true;
+                    continue;
+                }
+                if (inOnlineSupport && /^    items:/.test(supportLine)) {
+                    // 检查是否是空数组 items: []
+                    if (/^    items:\s*\[\]/.test(supportLine)) {
+                        inOnlineSupport = false;
+                        continue;
+                    }
+                    inItems = true;
+                    continue;
+                }
+                if (inItems) {
+                    // 遇到新的2空格缩进配置项（不是4空格或更多），结束解析
+                    if (/^  [a-z_]+:/i.test(supportLine) && !/^  online_support/.test(supportLine) && !/^    /.test(supportLine)) {
+                        if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
+                        break;
+                    }
+                    // 遇到空行后面是新的顶级配置，也结束
+                    if (supportLine.trim() === '' && j + 1 < lines.length) {
+                        var nextLine = lines[j + 1];
+                        if (/^  [a-z_]+:/i.test(nextLine) && !/^    /.test(nextLine)) {
+                            if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
+                            break;
+                        }
+                    }
+                    // 新的 item (6空格 + - type:)
+                    if (/^      - type:\s*(.*)/.test(supportLine)) {
+                        if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
+                        currentSupportItem = { type: supportLine.match(/^      - type:\s*(.*)/)[1].trim() };
+                    } else if (currentSupportItem) {
+                        // 8空格的属性
+                        if (/^        url:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.url = supportLine.match(/^        url:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        description:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.description = supportLine.match(/^        description:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        website_id:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.website_id = supportLine.match(/^        website_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        widget_id:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.widget_id = supportLine.match(/^        widget_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        property_id:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.property_id = supportLine.match(/^        property_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        }
+                    }
+                }
+            }
+            if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
+            renderSupportItems();
+        }
+
+        function formToYaml() {
+            var yaml = document.getElementById('editor').value;
+            if (!yaml.trim()) return;
+            var updateValue = function(key, value) {
+                var re = new RegExp('(' + key + ':\\s*)(.*)');
+                if (yaml.match(re)) {
+                    yaml = yaml.replace(re, '$1' + value);
+                }
+            };
+            updateValue('title', document.getElementById('appTitle').value);
+            updateValue('website', document.getElementById('appWebsite').value);
+            yaml = yaml.replace(/(logo:[\s\S]*?type:\s*)(\w+)/, '$1' + document.getElementById('logoType').value);
+            yaml = yaml.replace(/(logo:[\s\S]*?image_url:\s*)(.*)/, '$1' + document.getElementById('logoImageUrl').value);
+            yaml = yaml.replace(/(app_icon:[\s\S]*?image_url:\s*)(.*)/, '$1' + document.getElementById('appIconUrl').value);
+            updateValue('adaptive_foreground_url', document.getElementById('adaptiveForeground').value);
+            updateValue('adaptive_background', '"' + document.getElementById('adaptiveBackground').value + '"');
+            updateValue('prefer_encrypt', document.getElementById('preferEncrypt').checked);
+            updateValue('use_exclusive_mode', document.getElementById('useExclusiveMode').checked);
+            updateValue('decrypt_key', document.getElementById('decryptKey').value);
+            // 更新自动离线模式
+            var autoOfflineEnabled = document.getElementById('autoOfflineEnabled').checked;
+            yaml = yaml.replace(/(auto_offline:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*)(true|false)/, '$1' + autoOfflineEnabled);
+            // 更新订阅缓存配置
+            var subCacheEnabled = document.getElementById('subscriptionCacheEnabled').checked;
+            var subCacheTtl = document.getElementById('subscriptionCacheTtl').value || '24';
+            yaml = yaml.replace(/(subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*)(true|false)/, '$1' + subCacheEnabled);
+            yaml = yaml.replace(/(subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*)(\d+)/, '$1' + subCacheTtl);
+            // 更新多个 sources - 使用更精确的正则，匹配到下一个顶级配置项
+            collectSources();
+            var sourcesYaml = '\n';
+            sources.forEach(function(source) {
+                if (source.url) {
+                    sourcesYaml += '      - name: ' + (source.name || 'source') + '\n';
+                    sourcesYaml += '        url: ' + source.url + '\n';
+                    if (source.encryption_key) {
+                        sourcesYaml += '        encryption_key: "' + source.encryption_key + '"\n';
+                    }
+                }
+            });
+            // 替换 sources 内容：匹配从 "sources:" 到下一个以 2 空格缩进开头的配置项
+            // 使用行处理方式更可靠
+            var lines = yaml.split('\n');
+            var newLines = [];
+            var inSources = false;
+            var sourcesInserted = false;
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                // 检测 sources: 开始（4空格缩进）
+                if (/^    sources:\s*$/.test(line)) {
+                    inSources = true;
+                    newLines.push(line);
+                    // 插入新的 sources 内容
+                    sources.forEach(function(source) {
+                        if (source.url) {
+                            newLines.push('      - name: ' + (source.name || 'source'));
+                            newLines.push('        url: ' + source.url);
+                            if (source.encryption_key) {
+                                newLines.push('        encryption_key: "' + source.encryption_key + '"');
+                            }
+                        }
+                    });
+                    sourcesInserted = true;
+                    continue;
+                }
+                if (inSources) {
+                    // 跳过旧的 sources 内容，直到遇到新的顶级配置项（2空格缩进）或空行后的注释
+                    if (/^  [a-z_]+:/i.test(line) || /^  #/.test(line) || line.trim() === '') {
+                        // 检查是否是下一个顶级配置项
+                        if (/^  [a-z_]+:/i.test(line)) {
+                            inSources = false;
+                            newLines.push('');  // 添加空行分隔
+                            newLines.push(line);
+                        } else if (line.trim() === '') {
+                            // 空行可能是 sources 和下一个配置之间的分隔
+                            // 查看下一行是否是顶级配置
+                            if (i + 1 < lines.length && /^  [a-z_]+:/i.test(lines[i + 1])) {
+                                inSources = false;
+                                newLines.push(line);
+                            }
+                            // 否则跳过
+                        }
+                        // 跳过注释行
+                    }
+                    // 跳过 sources 内的内容（- name:, url:, encryption_key: 等）
+                    continue;
+                }
+                newLines.push(line);
+            }
+            yaml = newLines.join('\n');
+            
+            // 更新 online_support items
+            collectSupportItems();
+            var validItems = onlineSupportItems.filter(function(item) {
+                if (item.type === 'browser' && item.url) return true;
+                if (item.type === 'crisp' && item.website_id) return true;
+                if (item.type === 'chatway' && item.widget_id) return true;
+                if (item.type === 'tawkto' && (item.property_id || item.widget_id)) return true;
+                return false;
+            });
+            
+            // 先移除旧的 online_support 配置
+            var supportLines = yaml.split('\n');
+            var newSupportLines = [];
+            var inOnlineSupportSection = false;
+            for (var k = 0; k < supportLines.length; k++) {
+                var sLine = supportLines[k];
+                if (/^  online_support:/.test(sLine)) {
+                    inOnlineSupportSection = true;
+                    continue;
+                }
+                if (inOnlineSupportSection) {
+                    // 跳过 online_support 下的所有内容
+                    if (/^    /.test(sLine) || /^      /.test(sLine) || /^        /.test(sLine) || sLine.trim() === '') {
+                        continue;
+                    }
+                    // 遇到新的顶级配置，结束跳过
+                    if (/^  [a-z_]+:/i.test(sLine)) {
+                        inOnlineSupportSection = false;
+                        newSupportLines.push(sLine);
+                    }
+                    continue;
+                }
+                newSupportLines.push(sLine);
+            }
+            
+            // 添加 online_support 配置
+            // 去掉尾部空行
+            while (newSupportLines.length > 0 && newSupportLines[newSupportLines.length - 1].trim() === '') {
+                newSupportLines.pop();
+            }
+            newSupportLines.push('');
+            newSupportLines.push('  # 在线客服配置');
+            newSupportLines.push('  online_support:');
+            if (validItems.length > 0) {
+                newSupportLines.push('    items:');
+                validItems.forEach(function(item) {
+                    newSupportLines.push('      - type: ' + item.type);
+                    if (item.type === 'browser') {
+                        newSupportLines.push('        url: "' + item.url + '"');
+                    } else if (item.type === 'crisp') {
+                        newSupportLines.push('        website_id: "' + item.website_id + '"');
+                    } else if (item.type === 'chatway') {
+                        newSupportLines.push('        widget_id: "' + item.widget_id + '"');
+                    } else if (item.type === 'tawkto') {
+                        newSupportLines.push('        property_id: "' + (item.property_id || '') + '"');
+                        newSupportLines.push('        widget_id: "' + (item.widget_id || '') + '"');
+                    }
+                    if (item.description) {
+                        newSupportLines.push('        description: "' + item.description + '"');
+                    }
+                });
+            } else {
+                newSupportLines.push('    items: []');
+            }
+            
+            yaml = newSupportLines.join('\n');
+            
+            document.getElementById('editor').value = yaml;
+        }
+
+        function saveLocalConfig() {
+            var config = {
+                owner: document.getElementById('owner').value,
+                repo: document.getElementById('repo').value,
+                branch: document.getElementById('branch').value,
+                filepath: document.getElementById('filepath').value,
+                token: document.getElementById('token').value
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+        }
+
+        function setStatus(message, type) {
+            var status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+        }
+
+        function getConfig() {
+            return {
+                owner: document.getElementById('owner').value.trim(),
+                repo: document.getElementById('repo').value.trim(),
+                branch: document.getElementById('branch').value.trim(),
+                filepath: document.getElementById('filepath').value.trim(),
+                token: document.getElementById('token').value.trim()
+            };
+        }
+
+        async function loadConfig() {
+            var config = getConfig();
+            if (!config.owner || !config.repo || !config.filepath || !config.token) {
+                setStatus('请填写所有必填字段', 'error');
+                return;
+            }
+            saveLocalConfig();
+            setStatus('正在加载...', 'info');
+            try {
+                var url = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + config.filepath + '?ref=' + config.branch;
+                var response = await fetch(url, {
+                    headers: {
+                        'Authorization': 'token ' + config.token,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (!response.ok) {
+                    var err = await response.json();
+                    throw new Error(err.message);
+                }
+                var data = await response.json();
+                currentSha = data.sha;
+                var content = decodeURIComponent(escape(atob(data.content)));
+                document.getElementById('editor').value = content;
+                document.getElementById('saveBtn').disabled = false;
+                yamlToForm();
+                setStatus('加载成功! SHA: ' + currentSha.substring(0, 7), 'success');
+                displayBuildHistory();
+            } catch (error) {
+                setStatus('加载失败: ' + error.message, 'error');
+            }
+        }
+
+        async function saveConfig() {
+            var config = getConfig();
+            if (!currentSha) {
+                setStatus('请先加载配置文件', 'error');
+                return;
+            }
+            formToYaml();
+            var content = document.getElementById('editor').value;
+            setStatus('正在保存...', 'info');
+            try {
+                var url = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + config.filepath;
+                var response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'token ' + config.token,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: 'Update ' + config.filepath + ' via web editor',
+                        content: btoa(unescape(encodeURIComponent(content))),
+                        sha: currentSha,
+                        branch: config.branch
+                    })
+                });
+                if (!response.ok) {
+                    var err = await response.json();
+                    throw new Error(err.message);
+                }
+                var data = await response.json();
+                currentSha = data.content.sha;
+                setStatus('保存成功! 新SHA: ' + currentSha.substring(0, 7), 'success');
+            } catch (error) {
+                setStatus('保存失败: ' + error.message, 'error');
+            }
+        }
+
+        function validateYaml() {
+            var content = document.getElementById('editor').value;
+            if (!content.trim()) {
+                setStatus('编辑器为空', 'error');
+                return;
+            }
+            setStatus('YAML 基本语法检查通过', 'success');
+        }
+
+        function initPlatformCheckboxes() {
+            var allCheckbox = document.getElementById('platformAll');
+            var itemCheckboxes = document.querySelectorAll('.platformItem');
+            allCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    itemCheckboxes.forEach(function(cb) { cb.checked = false; });
+                }
+            });
+            itemCheckboxes.forEach(function(cb) {
+                cb.addEventListener('change', function() {
+                    if (this.checked) {
+                        allCheckbox.checked = false;
+                    }
+                    var anyChecked = Array.from(itemCheckboxes).some(function(c) { return c.checked; });
+                    if (!anyChecked) {
+                        allCheckbox.checked = true;
+                    }
+                });
+            });
+        }
+
+        function setBuildStatus(message, type) {
+            var status = document.getElementById('buildStatus');
+            status.textContent = message;
+            status.className = 'status ' + type;
+        }
+
+        async function triggerBuild() {
+            var token = document.getElementById('token').value.trim();
+            var buildOwner = document.getElementById('buildOwner').value.trim();
+            var buildRepo = document.getElementById('buildRepo').value.trim();
+            var buildTag = document.getElementById('buildTag').value.trim();
+            if (!token) {
+                setBuildStatus('请先填写 GitHub Token', 'error');
+                return;
+            }
+            if (!buildTag) {
+                setBuildStatus('请填写版本标签', 'error');
+                return;
+            }
+            var platforms = 'all';
+            var allCheckbox = document.getElementById('platformAll');
+            if (!allCheckbox.checked) {
+                var selected = [];
+                document.querySelectorAll('.platformItem:checked').forEach(function(cb) {
+                    selected.push(cb.value);
+                });
+                if (selected.length > 0) {
+                    platforms = selected.join(',');
+                }
+            }
+            setBuildStatus('正在触发打包...', 'info');
+            try {
+                var url = 'https://api.github.com/repos/' + buildOwner + '/' + buildRepo + '/actions/workflows/build.yaml/dispatches';
+                var response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'token ' + token,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ref: 'main',
+                        inputs: {
+                            tag: buildTag,
+                            platforms: platforms
+                        }
+                    })
+                });
+                if (response.status === 204) {
+                    setBuildStatus('打包已触发! 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
+                    await saveBuildHistory(buildTag, platforms);
+                } else {
+                    var err = await response.json();
+                    throw new Error(err.message || '触发失败');
+                }
+            } catch (error) {
+                setBuildStatus('触发失败: ' + error.message, 'error');
+            }
+        }
+
+        async function loadBuildHistory() {
+            var config = getConfig();
+            if (!config.token || !config.owner || !config.repo) return;
+            try {
+                var url = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + BUILD_HISTORY_PATH + '?ref=' + config.branch;
+                var response = await fetch(url, {
+                    headers: {
+                        'Authorization': 'token ' + config.token,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (response.ok) {
+                    var data = await response.json();
+                    buildHistorySha = data.sha;
+                    buildHistoryData = JSON.parse(decodeURIComponent(escape(atob(data.content))));
+                    displayBuildHistory();
+                }
+            } catch (error) {
+                console.log('加载版本记录失败:', error.message);
+            }
+        }
+
+        function getAppName() {
+            var appTitle = document.getElementById('appTitle').value.trim();
+            return appTitle || '未命名应用';
+        }
+
+        async function saveBuildHistory(tag, platforms) {
+            var config = getConfig();
+            if (!config.token || !config.owner || !config.repo) return;
+            var appName = getAppName();
+            try {
+                buildHistoryData[appName] = {
+                    version: tag,
+                    platforms: platforms,
+                    time: new Date().toLocaleString('zh-CN')
+                };
+                var content = btoa(unescape(encodeURIComponent(JSON.stringify(buildHistoryData, null, 2))));
+                var url = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + BUILD_HISTORY_PATH;
+                var body = {
+                    message: '更新打包版本记录: ' + appName + ' ' + tag,
+                    content: content,
+                    branch: config.branch
+                };
+                if (buildHistorySha) {
+                    body.sha = buildHistorySha;
+                }
+                var response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'token ' + config.token,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+                if (response.ok) {
+                    var data = await response.json();
+                    buildHistorySha = data.content.sha;
+                    displayBuildHistory();
+                }
+            } catch (error) {
+                console.log('保存版本记录失败:', error.message);
+            }
+        }
+
+        function displayBuildHistory() {
+            var appName = getAppName();
+            var info = document.getElementById('lastBuildInfo');
+            var content = document.getElementById('lastBuildContent');
+            if (buildHistoryData && buildHistoryData[appName]) {
+                var build = buildHistoryData[appName];
+                content.innerHTML = '<span style="color:#ffaa00;">' + appName + '</span> | ' +
+                    '<span style="color:#00ff88;">版本: ' + build.version + '</span> | ' +
+                    '<span style="color:#00d4ff;">平台: ' + build.platforms + '</span> | ' +
+                    '<span style="color:#aaa;">时间: ' + build.time + '</span>';
+                info.style.display = 'block';
+            } else {
+                content.innerHTML = '<span style="color:#aaa;">' + appName + ' 暂无打包记录</span>';
+                info.style.display = 'block';
+            }
+        }
+
+        // ========== 配置档案管理功能 ==========
+        
+        async function loadProfiles() {
+            var config = getConfig();
+            if (!config.token || !config.owner || !config.repo) return;
+            try {
+                var url = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + PROFILES_PATH + '?ref=' + config.branch;
+                var response = await fetch(url, {
+                    headers: {
+                        'Authorization': 'token ' + config.token,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (response.ok) {
+                    var data = await response.json();
+                    profilesSha = data.sha;
+                    profilesData = JSON.parse(decodeURIComponent(escape(atob(data.content))));
+                    renderProfileSelect();
+                } else if (response.status === 404) {
+                    // 文件不存在，初始化空对象
+                    profilesData = {};
+                    profilesSha = null;
+                    renderProfileSelect();
+                }
+            } catch (error) {
+                console.log('加载配置档案失败:', error.message);
+            }
+        }
+
+        function renderProfileSelect() {
+            var select = document.getElementById('profileSelect');
+            var currentValue = select.value;
+            select.innerHTML = '<option value="">-- 请选择档案 --</option>';
+            Object.keys(profilesData).forEach(function(name) {
+                var option = document.createElement('option');
+                option.value = name;
+                option.textContent = name + ' (' + (profilesData[name].last_updated || '未知时间') + ')';
+                select.appendChild(option);
+            });
+            // 恢复之前的选择
+            if (currentValue && profilesData[currentValue]) {
+                select.value = currentValue;
+            }
+        }
+
+        async function loadProfile() {
+            var select = document.getElementById('profileSelect');
+            var profileName = select.value;
+            if (!profileName) {
+                setStatus('请先选择一个配置档案', 'error');
+                return;
+            }
+            var profile = profilesData[profileName];
+            if (!profile || !profile.yaml_content) {
+                setStatus('档案数据无效', 'error');
+                return;
+            }
+            
+            // 先获取当前配置文件的 SHA（用于后续保存）
+            var config = getConfig();
+            if (config.token && config.owner && config.repo && config.filepath) {
+                try {
+                    var url = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + config.filepath + '?ref=' + config.branch;
+                    var response = await fetch(url, {
+                        headers: {
+                            'Authorization': 'token ' + config.token,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+                    if (response.ok) {
+                        var data = await response.json();
+                        currentSha = data.sha;
+                    }
+                } catch (e) {
+                    console.log('获取文件SHA失败:', e.message);
+                }
+            }
+            
+            // 加载 YAML 内容到编辑器
+            document.getElementById('editor').value = profile.yaml_content;
+            yamlToForm();
+            setStatus('已加载档案: ' + profileName, 'success');
+            displayBuildHistory();
+        }
+
+        function showSaveProfileInput() {
+            var appTitle = document.getElementById('appTitle').value.trim();
+            document.getElementById('newProfileName').value = appTitle || '';
+            document.getElementById('newProfileInput').classList.add('active');
+        }
+
+        function hideSaveProfileInput() {
+            document.getElementById('newProfileInput').classList.remove('active');
+            document.getElementById('newProfileName').value = '';
+        }
+
+        async function confirmSaveProfile() {
+            var profileName = document.getElementById('newProfileName').value.trim();
+            if (!profileName) {
+                setStatus('请输入档案名称', 'error');
+                return;
+            }
+            var config = getConfig();
+            if (!config.token) {
+                setStatus('请先填写 GitHub Token', 'error');
+                return;
+            }
+            // 同步表单到 YAML
+            formToYaml();
+            var yamlContent = document.getElementById('editor').value;
+            if (!yamlContent.trim()) {
+                setStatus('配置内容为空，无法保存', 'error');
+                return;
+            }
+            
+            setStatus('正在保存...', 'info');
+            
+            try {
+                // 1. 先保存到 GitHub 配置文件
+                var configUrl = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + config.filepath;
+                
+                // 如果没有 currentSha，先获取
+                if (!currentSha) {
+                    var getResponse = await fetch(configUrl + '?ref=' + config.branch, {
+                        headers: {
+                            'Authorization': 'token ' + config.token,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+                    if (getResponse.ok) {
+                        var getData = await getResponse.json();
+                        currentSha = getData.sha;
+                    }
+                }
+                
+                if (currentSha) {
+                    var configResponse = await fetch(configUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': 'token ' + config.token,
+                            'Accept': 'application/vnd.github.v3+json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: '更新配置: ' + profileName,
+                            content: btoa(unescape(encodeURIComponent(yamlContent))),
+                            sha: currentSha,
+                            branch: config.branch
+                        })
+                    });
+                    if (configResponse.ok) {
+                        var configData = await configResponse.json();
+                        currentSha = configData.content.sha;
+                    }
+                }
+                
+                // 2. 保存到档案文件
+                profilesData[profileName] = {
+                    yaml_content: yamlContent,
+                    last_updated: new Date().toLocaleString('zh-CN')
+                };
+                var profileContent = btoa(unescape(encodeURIComponent(JSON.stringify(profilesData, null, 2))));
+                var profileUrl = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + PROFILES_PATH;
+                var profileBody = {
+                    message: '保存配置档案: ' + profileName,
+                    content: profileContent,
+                    branch: config.branch
+                };
+                if (profilesSha) {
+                    profileBody.sha = profilesSha;
+                }
+                var profileResponse = await fetch(profileUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'token ' + config.token,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(profileBody)
+                });
+                if (profileResponse.ok) {
+                    var profileData = await profileResponse.json();
+                    profilesSha = profileData.content.sha;
+                    renderProfileSelect();
+                    document.getElementById('profileSelect').value = profileName;
+                    hideSaveProfileInput();
+                    setStatus('保存成功: ' + profileName + ' (配置文件 + 档案)', 'success');
+                } else {
+                    var err = await profileResponse.json();
+                    throw new Error(err.message);
+                }
+            } catch (error) {
+                setStatus('保存失败: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteProfile() {
+            var select = document.getElementById('profileSelect');
+            var profileName = select.value;
+            if (!profileName) {
+                setStatus('请先选择要删除的档案', 'error');
+                return;
+            }
+            if (!confirm('确定要删除档案 "' + profileName + '" 吗？此操作不可恢复。')) {
+                return;
+            }
+            var config = getConfig();
+            if (!config.token) {
+                setStatus('请先填写 GitHub Token', 'error');
+                return;
+            }
+            setStatus('正在删除档案...', 'info');
+            try {
+                delete profilesData[profileName];
+                var content = btoa(unescape(encodeURIComponent(JSON.stringify(profilesData, null, 2))));
+                var url = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + PROFILES_PATH;
+                var body = {
+                    message: '删除配置档案: ' + profileName,
+                    content: content,
+                    branch: config.branch
+                };
+                if (profilesSha) {
+                    body.sha = profilesSha;
+                }
+                var response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'token ' + config.token,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+                if (response.ok) {
+                    var data = await response.json();
+                    profilesSha = data.content.sha;
+                    renderProfileSelect();
+                    setStatus('档案已删除: ' + profileName, 'success');
+                } else {
+                    var err = await response.json();
+                    throw new Error(err.message);
+                }
+            } catch (error) {
+                setStatus('删除档案失败: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
