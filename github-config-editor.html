@@ -1210,11 +1210,12 @@
             var config = getConfig();
             if (!config.token || !config.owner || !config.repo) return;
             try {
-                var url = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + PROFILES_PATH + '?ref=' + config.branch;
+                var url = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + PROFILES_PATH + '?ref=' + config.branch + '&t=' + Date.now();
                 var response = await fetch(url, {
                     headers: {
                         'Authorization': 'token ' + config.token,
-                        'Accept': 'application/vnd.github.v3+json'
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Cache-Control': 'no-cache'
                     }
                 });
                 if (response.ok) {
