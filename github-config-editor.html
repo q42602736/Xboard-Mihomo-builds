@@ -216,12 +216,13 @@
                     <div class="section-title">应用信息</div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>应用名称</label>
-                            <input type="text" id="appTitle" placeholder="如: 软件云">
+                            <label>提供商标识 (provider)</label>
+                            <input type="text" id="provider" placeholder="如: 软件云、Bluetile">
+                            <div class="help-text">必须与远程配置 panels 对象中的键名一致</div>
                         </div>
                         <div class="form-group">
-                            <label>网站地址</label>
-                            <input type="text" id="appWebsite" placeholder="如: example.com">
+                            <label>应用名称</label>
+                            <input type="text" id="appTitle" placeholder="如: 软件云">
                         </div>
                         <div class="form-group">
                             <label>Logo类型</label>
@@ -243,16 +244,6 @@
                         <label>图标图片地址</label>
                         <input type="text" id="appIconUrl" placeholder="https://example.com/icon.png">
                         <div class="help-text">建议1024x1024像素PNG图片</div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Android前景图</label>
-                            <input type="text" id="adaptiveForeground" placeholder="可选">
-                        </div>
-                        <div class="form-group">
-                            <label>Android背景色</label>
-                            <input type="text" id="adaptiveBackground" value="#FFFFFF" placeholder="#FFFFFF">
-                        </div>
                     </div>
                 </div>
                 <div class="section">
@@ -565,6 +556,8 @@
             document.getElementById('addSupportBtn').addEventListener('click', addSupportItem);
             document.getElementById('buildBtn').addEventListener('click', triggerBuild);
             document.getElementById('appTitle').addEventListener('change', displayBuildHistory);
+            // provider 字段变化时同步到 YAML
+            document.getElementById('provider').addEventListener('change', formToYaml);
             // 配置档案相关事件
             document.getElementById('loadProfileBtn').addEventListener('click', loadProfile);
             document.getElementById('saveProfileBtn').addEventListener('click', showSaveProfileInput);
@@ -624,15 +617,17 @@
                 var v = getValue(key);
                 return v === 'true';
             };
+            // 解析 provider 字段（在 xboard: 下面）
+            var providerMatch = yaml.match(/xboard:\s*\n(?:\s*#[^\n]*\n)*\s*provider:\s*(.*)/);
+            if (providerMatch) {
+                document.getElementById('provider').value = providerMatch[1].trim().replace(/^["']|["']$/g, '');
+            }
             document.getElementById('appTitle').value = getValue('title');
-            document.getElementById('appWebsite').value = getValue('website');
             document.getElementById('logoType').value = getValue('type') || 'text';
             var logoMatch = yaml.match(/logo:[\s\S]*?image_url:\s*(.*)/);
             if (logoMatch) document.getElementById('logoImageUrl').value = logoMatch[1].trim();
             var iconMatch = yaml.match(/app_icon:[\s\S]*?image_url:\s*(.*)/);
             if (iconMatch) document.getElementById('appIconUrl').value = iconMatch[1].trim();
-            document.getElementById('adaptiveForeground').value = getValue('adaptive_foreground_url');
-            document.getElementById('adaptiveBackground').value = getValue('adaptive_background') || '#FFFFFF';
             document.getElementById('preferEncrypt').checked = getBool('prefer_encrypt');
             document.getElementById('preferEncryptLabel').textContent = getBool('prefer_encrypt') ? '开启' : '关闭';
             document.getElementById('useExclusiveMode').checked = getBool('use_exclusive_mode');
@@ -774,13 +769,13 @@
                     yaml = yaml.replace(re, '$1' + value);
                 }
             };
+            // 更新 provider 字段
+            var providerValue = document.getElementById('provider').value.trim();
+            yaml = yaml.replace(/(xboard:\s*\n(?:\s*#[^\n]*\n)*\s*provider:\s*)(.*)/, '$1' + providerValue);
             updateValue('title', document.getElementById('appTitle').value);
-            updateValue('website', document.getElementById('appWebsite').value);
             yaml = yaml.replace(/(logo:[\s\S]*?type:\s*)(\w+)/, '$1' + document.getElementById('logoType').value);
             yaml = yaml.replace(/(logo:[\s\S]*?image_url:\s*)(.*)/, '$1' + document.getElementById('logoImageUrl').value);
             yaml = yaml.replace(/(app_icon:[\s\S]*?image_url:\s*)(.*)/, '$1' + document.getElementById('appIconUrl').value);
-            updateValue('adaptive_foreground_url', document.getElementById('adaptiveForeground').value);
-            updateValue('adaptive_background', '"' + document.getElementById('adaptiveBackground').value + '"');
             updateValue('prefer_encrypt', document.getElementById('preferEncrypt').checked);
             updateValue('use_exclusive_mode', document.getElementById('useExclusiveMode').checked);
             updateValue('decrypt_key', document.getElementById('decryptKey').value);
