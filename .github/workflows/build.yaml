@@ -225,6 +225,12 @@ jobs:
           go-version: "stable"
           cache-dependency-path: source/core/go.sum
 
+      - name: Update Go dependencies
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          cd source/core/Clash.Meta
+          go mod tidy
+
       - name: Setup Flutter (Windows x64)
         if: steps.check.outputs.should_run == 'true' && matrix.platform == 'windows' && matrix.arch == 'amd64'
         uses: subosito/flutter-action@v2
