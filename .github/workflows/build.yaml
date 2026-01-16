@@ -591,7 +591,7 @@ jobs:
           APP_NAME="${{ steps.config.outputs.app_name }}"
           VERSION="${{ github.event.inputs.tag }}"
           
-          echo "📦 Uploading files to Telegram..."
+          echo "Uploading files to Telegram..."
           
           cd ./dist
           for file in $(find . -type f -name "*.apk" -o -name "*.dmg" -o -name "*.exe" -o -name "*.zip" | head -20); do
@@ -603,12 +603,9 @@ jobs:
             curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
               -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
               -F document=@"$file" \
-              -F caption="📦 ${APP_NAME} ${VERSION}
-📄 ${filename}
-📊 ${filesize}" \
-              -F parse_mode="Markdown" || echo "Failed to upload $filename"
+              -F caption="${APP_NAME} ${VERSION} - ${filename} (${filesize})" || echo "Failed to upload $filename"
             
             sleep 1
           done
           
-          echo "✅ Upload complete!"
+          echo "Upload complete!"
