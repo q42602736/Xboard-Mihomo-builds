@@ -306,7 +306,7 @@
                     <div class="section-title">在线客服配置</div>
                     <div id="onlineSupportContainer"></div>
                     <button type="button" class="btn btn-primary" id="addSupportBtn" style="margin-top: 10px;">+ 添加客服类型</button>
-                    <div class="help-text" style="margin-top: 10px;">支持类型: browser(网页), crisp, chatway, tawkto。第一个有效配置会被使用。</div>
+                    <div class="help-text" style="margin-top: 10px;">支持类型: browser(网页), crisp, chatway, tawkto, chatwoot。第一个有效配置会被使用。</div>
                 </div>
             </div>
             <div id="yamlTab" class="tab-content">
@@ -436,7 +436,7 @@
 
         // 在线客服配置相关函数
         function createSupportItem(index, item) {
-            item = item || { type: 'browser', url: '', description: '', website_id: '', widget_id: '', property_id: '' };
+            item = item || { type: 'browser', url: '', description: '', website_id: '', widget_id: '', property_id: '', website_token: '', base_url: '' };
             var div = document.createElement('div');
             div.className = 'support-item';
             div.dataset.index = index;
@@ -449,6 +449,7 @@
                             '<option value="crisp"' + (item.type === 'crisp' ? ' selected' : '') + '>crisp</option>' +
                             '<option value="chatway"' + (item.type === 'chatway' ? ' selected' : '') + '>chatway</option>' +
                             '<option value="tawkto"' + (item.type === 'tawkto' ? ' selected' : '') + '>tawkto</option>' +
+                            '<option value="chatwoot"' + (item.type === 'chatwoot' ? ' selected' : '') + '>chatwoot</option>' +
                         '</select>' +
                     '</div>' +
                     '<div class="form-group"><label>描述</label>' +
@@ -477,6 +478,16 @@
                         '</div>' +
                         '<div class="form-group"><label>Widget ID</label>' +
                             '<input type="text" class="support-tawkto-widget-id" value="' + (item.widget_id || '') + '" placeholder="Tawk.to Widget ID">' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="support-fields chatwoot-fields' + (item.type === 'chatwoot' ? ' active' : '') + '">' +
+                    '<div class="form-row">' +
+                        '<div class="form-group"><label>Website Token</label>' +
+                            '<input type="text" class="support-website-token" value="' + (item.website_token || '') + '" placeholder="Chatwoot Website Token">' +
+                        '</div>' +
+                        '<div class="form-group"><label>Base URL</label>' +
+                            '<input type="text" class="support-base-url" value="' + (item.base_url || '') + '" placeholder="https://your-chatwoot.com">' +
                         '</div>' +
                     '</div>' +
                 '</div>';
@@ -533,6 +544,9 @@
                 } else if (type === 'tawkto') {
                     obj.property_id = item.querySelector('.support-property-id').value.trim();
                     obj.widget_id = item.querySelector('.support-tawkto-widget-id').value.trim();
+                } else if (type === 'chatwoot') {
+                    obj.website_token = item.querySelector('.support-website-token').value.trim();
+                    obj.base_url = item.querySelector('.support-base-url').value.trim();
                 }
                 onlineSupportItems.push(obj);
             });
@@ -752,6 +766,10 @@
                             currentSupportItem.widget_id = supportLine.match(/^        widget_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
                         } else if (/^        property_id:\s*(.*)/.test(supportLine)) {
                             currentSupportItem.property_id = supportLine.match(/^        property_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        website_token:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.website_token = supportLine.match(/^        website_token:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        base_url:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.base_url = supportLine.match(/^        base_url:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
                         }
                     }
                 }
@@ -919,6 +937,9 @@
                     } else if (item.type === 'tawkto') {
                         newSupportLines.push('        property_id: "' + (item.property_id || '') + '"');
                         newSupportLines.push('        widget_id: "' + (item.widget_id || '') + '"');
+                    } else if (item.type === 'chatwoot') {
+                        newSupportLines.push('        website_token: "' + (item.website_token || '') + '"');
+                        newSupportLines.push('        base_url: "' + (item.base_url || '') + '"');
                     }
                     if (item.description) {
                         newSupportLines.push('        description: "' + item.description + '"');
