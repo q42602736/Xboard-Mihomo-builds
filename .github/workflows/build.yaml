@@ -125,6 +125,7 @@ jobs:
           git submodule update --init --recursive
 
       - name: Apply profile config
+        id: config
         if: steps.check.outputs.should_run == 'true'
         run: |
           cd source
@@ -137,8 +138,8 @@ jobs:
             exit 1
           fi
           
-          # 使用 node 提取 yaml_content（更可靠处理多行内容）
-          node -e "
+          # 使用 node 提取 yaml_content 并获取应用名称
+          APP_NAME=$(node -e "
             const fs = require('fs');
             const profiles = JSON.parse(fs.readFileSync('config-profiles.json', 'utf8'));
             const profile = profiles['$PROFILE_NAME'];
@@ -147,8 +148,16 @@ jobs:
               process.exit(1);
             }
             fs.writeFileSync('assets/config/xboard.config.yaml', profile.yaml_content);
-            console.log('Successfully applied profile: $PROFILE_NAME');
-          "
+            
+            // 提取应用名称
+            const yaml = profile.yaml_content;
+            const match = yaml.match(/title:\s*['\"]?([^'\"\\n]+)['\"]?/);
+            const appName = match ? match[1].trim() : '$PROFILE_NAME';
+            console.log(appName);
+          ")
+          
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "Successfully applied profile: $PROFILE_NAME, App Name: $APP_NAME"
           
           echo ""
           echo "=== Config file content (first 30 lines) ==="
@@ -503,7 +512,7 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
+          name: ${{ steps.config.outputs.app_name }}-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
           path: ./source/dist
           overwrite: true
 
@@ -513,11 +522,40 @@ jobs:
     needs: [ build ]
     if: ${{ always() && !cancelled() }}
     steps:
+      - name: Checkout source for config
+        uses: actions/checkout@v4
+        with:
+          repository: q42602736/Xboard-Mihomo_sub
+          token: ${{ secrets.WORKFLOW_TOKEN }}
+          path: source
+          submodules: false
+      
+      - name: Get app name from config
+        id: config
+        run: |
+          cd source
+          PROFILE_NAME="${{ github.event.inputs.profile }}"
+          APP_NAME=$(node -e "
+            const fs = require('fs');
+            const profiles = JSON.parse(fs.readFileSync('config-profiles.json', 'utf8'));
+            const profile = profiles['$PROFILE_NAME'];
+            if (!profile || !profile.yaml_content) {
+              console.log('$PROFILE_NAME');
+              process.exit(0);
+            }
+            const yaml = profile.yaml_content;
+            const match = yaml.match(/title:\s*['\"]?([^'\"\\n]+)['\"]?/);
+            const appName = match ? match[1].trim() : '$PROFILE_NAME';
+            console.log(appName);
+          ")
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "App Name: $APP_NAME"
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./dist/
-          pattern: artifact-*
+          pattern: ${{ steps.config.outputs.app_name }}-*
           merge-multiple: true
 
       - name: Check artifacts
@@ -544,6 +582,6 @@ jobs:
         if: steps.check.outputs.has_artifacts == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: all-platforms-${{ github.event.inputs.tag }}
+          name: ${{ steps.config.outputs.app_name }}-${{ github.event.inputs.tag }}
           path: ./dist/*
           retention-days: 30
