@@ -522,22 +522,20 @@ jobs:
     needs: [ build ]
     if: ${{ always() && !cancelled() }}
     steps:
-      - name: Checkout source for config
-        uses: actions/checkout@v4
-        with:
-          repository: q42602736/Xboard-Mihomo_sub
-          token: ${{ secrets.WORKFLOW_TOKEN }}
-          path: source
-          submodules: false
-      
       - name: Get app name from config
         id: config
         run: |
-          cd source
           PROFILE_NAME="${{ github.event.inputs.profile }}"
-          APP_NAME=$(node -e "
+          
+          # 通过 GitHub API 获取 config-profiles.json
+          CONFIG_JSON=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
+            "https://api.github.com/repos/q42602736/Xboard-Mihomo_sub/contents/config-profiles.json" \
+            | node -e "const d=require('fs').readFileSync(0,'utf8');const j=JSON.parse(d);console.log(Buffer.from(j.content,'base64').toString())")
+          
+          APP_NAME=$(echo "$CONFIG_JSON" | node -e "
             const fs = require('fs');
-            const profiles = JSON.parse(fs.readFileSync('config-profiles.json', 'utf8'));
+            const input = fs.readFileSync(0, 'utf8');
+            const profiles = JSON.parse(input);
             const profile = profiles['$PROFILE_NAME'];
             if (!profile || !profile.yaml_content) {
               console.log('$PROFILE_NAME');
@@ -548,6 +546,7 @@ jobs:
             const appName = match ? match[1].trim() : '$PROFILE_NAME';
             console.log(appName);
           ")
+          
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
           echo "App Name: $APP_NAME"
 
