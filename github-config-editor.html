@@ -1325,6 +1325,22 @@
                 return;
             }
             
+            // 自动将旧的 config_cache 转换为 subscription_cache
+            yamlContent = yamlContent.replace(/# 配置文件缓存设置/g, '# 订阅缓存配置（控制订阅自动更新间隔）');
+            yamlContent = yamlContent.replace(/config_cache:/g, 'subscription_cache:');
+            yamlContent = yamlContent.replace(/# 是否启用配置文件缓存/g, '# 是否启用订阅自动更新');
+            yamlContent = yamlContent.replace(/# true: 启用缓存，配置文件在缓存有效期内不会重新加载/g, '# true: 启用自动更新，在指定时间间隔后自动拉取最新订阅');
+            yamlContent = yamlContent.replace(/# false: 禁用缓存，每次都重新加载配置文件/g, '# false: 禁用自动更新，只能手动更新订阅');
+            yamlContent = yamlContent.replace(/# 缓存过期时间（单位：小时）/g, '# 订阅自动更新间隔（单位：小时）');
+            yamlContent = yamlContent.replace(/# 设置配置文件缓存的有效期，单位为小时，无上限/g, '# 设置订阅配置的缓存有效期，在此期间内不会重复拉取订阅');
+            yamlContent = yamlContent.replace(/#   24  - 缓存 24 小时（1天）/g, '#   24  - 每 24 小时（1天）自动更新一次');
+            yamlContent = yamlContent.replace(/#   168 - 缓存 168 小时（7天）/g, '#   168 - 每 168 小时（7天）自动更新一次');
+            yamlContent = yamlContent.replace(/#   720 - 缓存 720 小时（30天）/g, '#   720 - 每 720 小时（30天）自动更新一次');
+            yamlContent = yamlContent.replace(/# 设置为 0 表示禁用缓存（等同于 enabled: false）/g, '# 设置为 0 表示禁用自动更新（等同于 enabled: false）');
+            
+            // 更新编辑器内容
+            document.getElementById('editor').value = yamlContent;
+            
             setStatus('正在保存...', 'info');
             
             try {
