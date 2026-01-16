@@ -3,6 +3,10 @@ name: build
 on:
   workflow_dispatch:
     inputs:
+      profile:
+        description: '配置档案名称（从 config-profiles.json 中选择）'
+        required: true
+        type: string
       tag:
         description: 'Tag to build (e.g., v0.1.0)'
         required: true
@@ -119,6 +123,36 @@ jobs:
           cd source
           git checkout ${{ github.event.inputs.tag }} || git checkout main
           git submodule update --init --recursive
+
+      - name: Apply profile config
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          cd source
+          PROFILE_NAME="${{ github.event.inputs.profile }}"
+          echo "=== Applying profile: $PROFILE_NAME ==="
+          
+          # 检查 config-profiles.json 是否存在
+          if [ ! -f "config-profiles.json" ]; then
+            echo "Error: config-profiles.json not found"
+            exit 1
+          fi
+          
+          # 使用 node 提取 yaml_content（更可靠处理多行内容）
+          node -e "
+            const fs = require('fs');
+            const profiles = JSON.parse(fs.readFileSync('config-profiles.json', 'utf8'));
+            const profile = profiles['$PROFILE_NAME'];
+            if (!profile || !profile.yaml_content) {
+              console.error('Error: Profile \"$PROFILE_NAME\" not found or has no yaml_content');
+              process.exit(1);
+            }
+            fs.writeFileSync('assets/config/xboard.config.yaml', profile.yaml_content);
+            console.log('Successfully applied profile: $PROFILE_NAME');
+          "
+          
+          echo ""
+          echo "=== Config file content (first 30 lines) ==="
+          head -30 assets/config/xboard.config.yaml
 
       - name: Setup Android Signing
         if: steps.check.outputs.should_run == 'true' && matrix.platform == 'android'
