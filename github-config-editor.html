@@ -1347,39 +1347,43 @@
                 // 1. 先保存到 GitHub 配置文件
                 var configUrl = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + config.filepath;
                 
-                // 如果没有 currentSha，先获取
-                if (!currentSha) {
-                    var getResponse = await fetch(configUrl + '?ref=' + config.branch, {
-                        headers: {
-                            'Authorization': 'token ' + config.token,
-                            'Accept': 'application/vnd.github.v3+json'
-                        }
-                    });
-                    if (getResponse.ok) {
-                        var getData = await getResponse.json();
-                        currentSha = getData.sha;
+                // 始终先获取最新的 SHA（防止冲突）
+                var getResponse = await fetch(configUrl + '?ref=' + config.branch + '&t=' + Date.now(), {
+                    headers: {
+                        'Authorization': 'token ' + config.token,
+                        'Accept': 'application/vnd.github.v3+json'
                     }
+                });
+                if (getResponse.ok) {
+                    var getData = await getResponse.json();
+                    currentSha = getData.sha;
+                } else if (getResponse.status !== 404) {
+                    // 如果不是404（文件不存在），则抛出错误
+                    var errData = await getResponse.json();
+                    throw new Error('获取配置文件失败: ' + (errData.message || getResponse.status));
                 }
                 
-                if (currentSha) {
-                    var configResponse = await fetch(configUrl, {
-                        method: 'PUT',
-                        headers: {
-                            'Authorization': 'token ' + config.token,
-                            'Accept': 'application/vnd.github.v3+json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            message: '更新配置: ' + profileName,
-                            content: btoa(unescape(encodeURIComponent(yamlContent))),
-                            sha: currentSha,
-                            branch: config.branch
-                        })
-                    });
-                    if (configResponse.ok) {
-                        var configData = await configResponse.json();
-                        currentSha = configData.content.sha;
-                    }
+                // 保存配置文件
+                var configResponse = await fetch(configUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'token ' + config.token,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: '更新配置: ' + profileName,
+                        content: btoa(unescape(encodeURIComponent(yamlContent))),
+                        sha: currentSha,
+                        branch: config.branch
+                    })
+                });
+                if (configResponse.ok) {
+                    var configData = await configResponse.json();
+                    currentSha = configData.content.sha;
+                } else {
+                    var errData = await configResponse.json();
+                    throw new Error('保存配置文件失败: ' + (errData.message || configResponse.status));
                 }
                 
                 // 2. 保存到档案文件（先刷新 SHA 防止冲突）
