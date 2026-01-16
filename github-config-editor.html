@@ -652,18 +652,12 @@
             var autoOfflineEnabled = autoOfflineMatch ? autoOfflineMatch[1] === 'true' : false;
             document.getElementById('autoOfflineEnabled').checked = autoOfflineEnabled;
             document.getElementById('autoOfflineEnabledLabel').textContent = autoOfflineEnabled ? '开启' : '关闭';
-            // 解析订阅缓存配置 - 同时支持新的 subscription_cache 和旧的 config_cache
+            // 解析订阅缓存配置
             var subCacheEnabledMatch = yaml.match(/subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
-            if (!subCacheEnabledMatch) {
-                subCacheEnabledMatch = yaml.match(/config_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
-            }
             var subCacheEnabled = subCacheEnabledMatch ? subCacheEnabledMatch[1] === 'true' : false;
             document.getElementById('subscriptionCacheEnabled').checked = subCacheEnabled;
             document.getElementById('subscriptionCacheEnabledLabel').textContent = subCacheEnabled ? '开启' : '关闭';
             var subCacheTtlMatch = yaml.match(/subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*(\d+)/);
-            if (!subCacheTtlMatch) {
-                subCacheTtlMatch = yaml.match(/config_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*(\d+)/);
-            }
             var subCacheTtl = subCacheTtlMatch ? parseInt(subCacheTtlMatch[1]) : 24;
             document.getElementById('subscriptionCacheTtl').value = subCacheTtl;
             // 解析多个 sources
@@ -800,20 +794,11 @@
             // 更新自动离线模式
             var autoOfflineEnabled = document.getElementById('autoOfflineEnabled').checked;
             yaml = yaml.replace(/(auto_offline:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*)(true|false)/, '$1' + autoOfflineEnabled);
-            // 更新订阅缓存配置 - 同时支持新的 subscription_cache 和旧的 config_cache
+            // 更新订阅缓存配置
             var subCacheEnabled = document.getElementById('subscriptionCacheEnabled').checked;
             var subCacheTtl = document.getElementById('subscriptionCacheTtl').value || '24';
-            // 先尝试更新 subscription_cache
-            var hasSubscriptionCache = yaml.match(/subscription_cache:\s*\n/);
-            var hasConfigCache = yaml.match(/config_cache:\s*\n/);
-            if (hasSubscriptionCache) {
-                yaml = yaml.replace(/(subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*)(true|false)/, '$1' + subCacheEnabled);
-                yaml = yaml.replace(/(subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*)(\d+)/, '$1' + subCacheTtl);
-            }
-            if (hasConfigCache) {
-                yaml = yaml.replace(/(config_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*)(true|false)/, '$1' + subCacheEnabled);
-                yaml = yaml.replace(/(config_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*)(\d+)/, '$1' + subCacheTtl);
-            }
+            yaml = yaml.replace(/(subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*)(true|false)/, '$1' + subCacheEnabled);
+            yaml = yaml.replace(/(subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*)(\d+)/, '$1' + subCacheTtl);
             // 更新多个 sources - 使用更精确的正则，匹配到下一个顶级配置项
             collectSources();
             var sourcesYaml = '\n';
