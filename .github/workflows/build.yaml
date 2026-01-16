@@ -528,24 +528,39 @@ jobs:
           PROFILE_NAME="${{ github.event.inputs.profile }}"
           
           # 通过 GitHub API 获取 config-profiles.json
-          CONFIG_JSON=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
-            "https://api.github.com/repos/q42602736/Xboard-Mihomo_sub/contents/config-profiles.json" \
-            | node -e "const d=require('fs').readFileSync(0,'utf8');const j=JSON.parse(d);console.log(Buffer.from(j.content,'base64').toString())")
+          API_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
+            "https://api.github.com/repos/q42602736/Xboard-Mihomo_sub/contents/config-profiles.json")
           
-          APP_NAME=$(echo "$CONFIG_JSON" | node -e "
-            const fs = require('fs');
-            const input = fs.readFileSync(0, 'utf8');
-            const profiles = JSON.parse(input);
-            const profile = profiles['$PROFILE_NAME'];
-            if (!profile || !profile.yaml_content) {
-              console.log('$PROFILE_NAME');
-              process.exit(0);
-            }
-            const yaml = profile.yaml_content;
-            const match = yaml.match(/title:\s*['\"]?([^'\"\\n]+)['\"]?/);
-            const appName = match ? match[1].trim() : '$PROFILE_NAME';
-            console.log(appName);
-          ")
+          # 检查是否成功获取
+          if echo "$API_RESPONSE" | grep -q '"content"'; then
+            CONFIG_JSON=$(echo "$API_RESPONSE" | node -e "
+              const d=require('fs').readFileSync(0,'utf8');
+              const j=JSON.parse(d);
+              if(j.content) console.log(Buffer.from(j.content,'base64').toString());
+              else console.log('{}');
+            ")
+            
+            APP_NAME=$(echo "$CONFIG_JSON" | node -e "
+              const fs = require('fs');
+              const input = fs.readFileSync(0, 'utf8');
+              try {
+                const profiles = JSON.parse(input);
+                const profile = profiles['$PROFILE_NAME'];
+                if (profile && profile.yaml_content) {
+                  const yaml = profile.yaml_content;
+                  const match = yaml.match(/title:\s*['\"]?([^'\"\\n]+)['\"]?/);
+                  console.log(match ? match[1].trim() : '$PROFILE_NAME');
+                } else {
+                  console.log('$PROFILE_NAME');
+                }
+              } catch(e) {
+                console.log('$PROFILE_NAME');
+              }
+            ")
+          else
+            echo "Failed to get config, using profile name as app name"
+            APP_NAME="$PROFILE_NAME"
+          fi
           
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
           echo "App Name: $APP_NAME"
