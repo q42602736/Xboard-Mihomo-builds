@@ -228,7 +228,7 @@ jobs:
       - name: Update Go dependencies
         if: steps.check.outputs.should_run == 'true'
         run: |
-          cd source/core/Clash.Meta
+          cd source/core
           go mod tidy
 
       - name: Setup Flutter (Windows x64)
