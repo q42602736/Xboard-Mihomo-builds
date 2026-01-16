@@ -600,27 +600,53 @@ jobs:
           path: ./dist/*
           retention-days: 30
 
-      - name: Upload to Telegram
+      - name: Create Draft Release
         if: steps.check.outputs.has_artifacts == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
         run: |
           APP_NAME="${{ steps.config.outputs.app_name }}"
           VERSION="${{ github.event.inputs.tag }}"
           
-          echo "Uploading files to Telegram..."
+          echo "Creating draft release: ${APP_NAME} ${VERSION}"
           
+          # 检查 release 是否已存在
+          EXISTING=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
+            "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/tags/${VERSION}" | grep -c '"id"' || true)
+          
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "Release ${VERSION} already exists, deleting..."
+            RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
+              "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/tags/${VERSION}" | grep '"id"' | head -1 | grep -o '[0-9]*')
+            curl -s -X DELETE -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
+              "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/${RELEASE_ID}"
+          fi
+          
+          # 创建 draft release
+          RELEASE_RESPONSE=$(curl -s -X POST -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases" \
+            -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${APP_NAME} ${VERSION}\",\"draft\":true,\"body\":\"${APP_NAME} ${VERSION} 构建产物\"}")
+          
+          RELEASE_ID=$(echo "$RELEASE_RESPONSE" | grep '"id"' | head -1 | grep -o '[0-9]*')
+          UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | grep '"upload_url"' | sed 's/.*"upload_url": "\([^"]*\)".*/\1/' | sed 's/{.*}//')
+          
+          echo "Release ID: $RELEASE_ID"
+          echo "Upload URL: $UPLOAD_URL"
+          
+          # 上传文件
           cd ./dist
-          for file in $(find . -type f -name "*.apk" -o -name "*.dmg" -o -name "*.exe" -o -name "*.zip" | head -20); do
+          for file in $(find . -type f \( -name "*.apk" -o -name "*.dmg" -o -name "*.exe" -o -name "*.zip" \) | head -20); do
             filename=$(basename "$file")
             filesize=$(du -h "$file" | cut -f1)
             
             echo "Uploading: $filename ($filesize)"
             
-            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
-              -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-              -F document=@"$file" \
-              -F caption="${APP_NAME} ${VERSION} - ${filename} (${filesize})" || echo "Failed to upload $filename"
-            
-            sleep 1
+            curl -s -X POST -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
+              -H "Content-Type: application/octet-stream" \
+              "${UPLOAD_URL}?name=${filename}" \
+              --data-binary @"$file" || echo "Failed to upload $filename"
           done
           
-          echo "Upload complete!"
+          echo "Draft release created successfully!"
+          echo "View at: https://github.com/q42602736/Xboard-Mihomo-builds/releases"
