@@ -884,6 +884,7 @@
                 if (item.type === 'crisp' && item.website_id) return true;
                 if (item.type === 'chatway' && item.widget_id) return true;
                 if (item.type === 'tawkto' && (item.property_id || item.widget_id)) return true;
+                if (item.type === 'chatwoot' && (item.website_token || item.base_url)) return true;
                 return false;
             });
             
