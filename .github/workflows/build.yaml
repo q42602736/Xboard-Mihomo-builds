@@ -512,7 +512,7 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.config.outputs.app_name }}-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
+          name: ${{ github.event.inputs.profile }}-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
           path: ./source/dist
           overwrite: true
 
@@ -569,7 +569,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./dist/
-          pattern: ${{ steps.config.outputs.app_name }}-*
+          pattern: ${{ github.event.inputs.profile }}-*
           merge-multiple: true
 
       - name: Check artifacts
@@ -596,7 +596,7 @@ jobs:
         if: steps.check.outputs.has_artifacts == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.config.outputs.app_name }}-${{ github.event.inputs.tag }}
+          name: ${{ github.event.inputs.profile }}-${{ github.event.inputs.tag }}
           path: ./dist/*
           retention-days: 30
 
@@ -640,11 +640,13 @@ jobs:
             filename=$(basename "$file")
             filesize=$(du -h "$file" | cut -f1)
             
-            # URL 编码文件名（处理中文字符）
-            encoded_filename=$(node -e "console.log(encodeURIComponent('$filename'))")
+            # 将文件名中的中文应用名替换为英文 profile 名称
+            safe_filename=$(python3 -c "import sys; print(sys.argv[1].replace(sys.argv[2], sys.argv[3]))" "$filename" "$APP_NAME" "$PROFILE_NAME")
             
-            echo "Uploading: $filename ($filesize)"
-            echo "Encoded name: $encoded_filename"
+            echo "Uploading: $filename -> $safe_filename ($filesize)"
+            
+            # URL 编码文件名
+            encoded_filename=$(node -e "console.log(encodeURIComponent('$safe_filename'))")
             
             curl -s -X POST -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
               -H "Content-Type: application/octet-stream" \
