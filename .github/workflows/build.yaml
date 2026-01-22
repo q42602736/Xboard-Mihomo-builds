@@ -640,11 +640,15 @@ jobs:
             filename=$(basename "$file")
             filesize=$(du -h "$file" | cut -f1)
             
+            # URL 编码文件名（处理中文字符）
+            encoded_filename=$(node -e "console.log(encodeURIComponent('$filename'))")
+            
             echo "Uploading: $filename ($filesize)"
+            echo "Encoded name: $encoded_filename"
             
             curl -s -X POST -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
               -H "Content-Type: application/octet-stream" \
-              "${UPLOAD_URL}?name=${filename}" \
+              "${UPLOAD_URL}?name=${encoded_filename}" \
               --data-binary @"$file" || echo "Failed to upload $filename"
           done
           
