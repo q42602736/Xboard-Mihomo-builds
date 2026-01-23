@@ -575,7 +575,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./dist/
-          pattern: ${{ steps.check.outputs.profile_name_safe }}-*
           merge-multiple: true
 
       - name: Check artifacts
