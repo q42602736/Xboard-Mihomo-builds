@@ -267,7 +267,7 @@ jobs:
           cat lib/generated/executable_names.dart
           
           # 从生成的文件中提取拼音应用名称
-          PINYIN_NAME=$(grep "const appName = '" lib/generated/executable_names.dart | sed "s/.*const appName = '\([^']*\)'.*/\1/")
+          PINYIN_NAME=$(grep "const String executableAppName = '" lib/generated/executable_names.dart | sed "s/.*const String executableAppName = '\([^']*\)'.*/\1/")
           echo "profile_name_safe=$PINYIN_NAME" >> $GITHUB_OUTPUT
           echo "Extracted pinyin name: $PINYIN_NAME"
 
