@@ -257,6 +257,7 @@ jobs:
 
       - name: Generate Executable Names
         if: steps.check.outputs.should_run == 'true'
+        id: executable_names
         run: |
           cd source
           echo "=== Generating Executable Names ==="
@@ -264,6 +265,11 @@ jobs:
           echo ""
           echo "=== Generated Executable Names ==="
           cat lib/generated/executable_names.dart
+          
+          # 从生成的文件中提取拼音应用名称
+          PINYIN_NAME=$(grep "const appName = '" lib/generated/executable_names.dart | sed "s/.*const appName = '\([^']*\)'.*/\1/")
+          echo "profile_name_safe=$PINYIN_NAME" >> $GITHUB_OUTPUT
+          echo "Extracted pinyin name: $PINYIN_NAME"
 
       - name: Generate SDK Code
         if: steps.check.outputs.should_run == 'true'
@@ -512,7 +518,7 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event.inputs.profile }}-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
+          name: ${{ steps.executable_names.outputs.profile_name_safe }}-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
           path: ./source/dist
           overwrite: true
 
@@ -569,7 +575,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./dist/
-          pattern: ${{ github.event.inputs.profile }}-*
+          pattern: ${{ steps.check.outputs.profile_name_safe }}-*
           merge-multiple: true
 
       - name: Check artifacts
@@ -579,6 +585,20 @@ jobs:
             echo "has_artifacts=true" >> $GITHUB_OUTPUT
             echo "Found artifacts:"
             ls -la ./dist/
+            
+            # 从构建产物文件名中提取拼音应用名称
+            # 例如：Qieyun-1.0.0-android-arm64-v8a.apk -> Qieyun
+            FIRST_FILE=$(find ./dist -type f \( -name "*.apk" -o -name "*.dmg" -o -name "*.exe" \) | head -1)
+            if [ -n "$FIRST_FILE" ]; then
+              FILENAME=$(basename "$FIRST_FILE")
+              # 提取第一个 - 之前的部分作为拼音应用名称
+              PINYIN_NAME=$(echo "$FILENAME" | sed 's/-.*$//')
+              echo "profile_name_safe=$PINYIN_NAME" >> $GITHUB_OUTPUT
+              echo "Extracted pinyin name: $PINYIN_NAME"
+            else
+              echo "profile_name_safe=app" >> $GITHUB_OUTPUT
+              echo "No suitable file found, using default name"
+            fi
           else
             echo "has_artifacts=false" >> $GITHUB_OUTPUT
             echo "No artifacts found"
@@ -596,7 +616,7 @@ jobs:
         if: steps.check.outputs.has_artifacts == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event.inputs.profile }}-${{ github.event.inputs.tag }}
+          name: ${{ steps.check.outputs.profile_name_safe }}-${{ github.event.inputs.tag }}
           path: ./dist/*
           retention-days: 30
 
