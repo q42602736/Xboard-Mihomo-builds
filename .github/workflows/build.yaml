@@ -11,6 +11,11 @@ on:
         description: 'Tag to build (e.g., v0.1.0)'
         required: true
         type: string
+      branch:
+        description: '源码分支（如: main, feature/sspanel）'
+        required: false
+        type: string
+        default: 'main'
       platforms:
         description: '选择要编译的平台（多选用逗号分隔，如: windows,android）'
         required: true
@@ -121,7 +126,7 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           git clone git@github.com:${{ env.PRIVATE_REPO }}.git source
           cd source
-          git checkout ${{ github.event.inputs.tag }} || git checkout main
+          git checkout ${{ github.event.inputs.tag }} || git checkout ${{ github.event.inputs.branch }}
           git submodule update --init --recursive
 
       - name: Apply profile config
