@@ -327,7 +327,9 @@
                     </div>
                     <div class="form-group">
                         <label>源码分支</label>
-                        <input type="text" id="buildBranch" value="main" placeholder="如: main, feature/sspanel">
+                        <select id="buildBranch">
+                            <option value="main">main</option>
+                        </select>
                         <div class="help-text">选择要打包的源码分支</div>
                     </div>
                 </div>
@@ -1137,6 +1139,40 @@
                 }
             } catch (error) {
                 setBuildStatus('触发失败: ' + error.message, 'error');
+            }
+        }
+
+        async function loadBranches() {
+            var config = getConfig();
+            if (!config.token || !config.owner || !config.repo) return;
+            try {
+                var url = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/branches';
+                var response = await fetch(url, {
+                    headers: {
+                        'Authorization': 'token ' + config.token,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (response.ok) {
+                    var branches = await response.json();
+                    var select = document.getElementById('buildBranch');
+                    var currentValue = select.value;
+                    select.innerHTML = '';
+                    branches.forEach(function(branch) {
+                        var option = document.createElement('option');
+                        option.value = branch.name;
+                        option.textContent = branch.name;
+                        select.appendChild(option);
+                    });
+                    // 恢复之前的选择，如果不存在则选择 main
+                    if (currentValue && Array.from(select.options).some(opt => opt.value === currentValue)) {
+                        select.value = currentValue;
+                    } else if (Array.from(select.options).some(opt => opt.value === 'main')) {
+                        select.value = 'main';
+                    }
+                }
+            } catch (error) {
+                console.log('加载分支列表失败:', error.message);
             }
         }
 
