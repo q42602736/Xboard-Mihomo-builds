@@ -137,16 +137,19 @@ jobs:
           PROFILE_NAME="${{ github.event.inputs.profile }}"
           echo "=== Applying profile: $PROFILE_NAME ==="
           
-          # 检查 config-profiles.json 是否存在
-          if [ ! -f "config-profiles.json" ]; then
-            echo "Error: config-profiles.json not found"
+          # 从 main 分支读取配置档案（确保所有分支都能使用完整的配置档案列表）
+          echo "Reading config-profiles.json from main branch..."
+          git show main:config-profiles.json > /tmp/config-profiles.json
+          
+          if [ ! -f "/tmp/config-profiles.json" ]; then
+            echo "Error: Failed to read config-profiles.json from main branch"
             exit 1
           fi
           
           # 使用 node 提取 yaml_content 并获取应用名称
           APP_NAME=$(node -e "
             const fs = require('fs');
-            const profiles = JSON.parse(fs.readFileSync('config-profiles.json', 'utf8'));
+            const profiles = JSON.parse(fs.readFileSync('/tmp/config-profiles.json', 'utf8'));
             const profile = profiles['$PROFILE_NAME'];
             if (!profile || !profile.yaml_content) {
               console.error('Error: Profile \"$PROFILE_NAME\" not found or has no yaml_content');
