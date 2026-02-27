@@ -139,9 +139,9 @@ jobs:
           
           # 从 main 分支读取配置档案（确保所有分支都能使用完整的配置档案列表）
           echo "Reading config-profiles.json from main branch..."
-          git show main:config-profiles.json > "$RUNNER_TEMP/config-profiles.json"
+          git show main:config-profiles.json > .config-profiles-temp.json
           
-          if [ ! -f "$RUNNER_TEMP/config-profiles.json" ]; then
+          if [ ! -f ".config-profiles-temp.json" ]; then
             echo "Error: Failed to read config-profiles.json from main branch"
             exit 1
           fi
@@ -149,7 +149,7 @@ jobs:
           # 使用 node 提取 yaml_content 并获取应用名称
           APP_NAME=$(node -e "
             const fs = require('fs');
-            const profiles = JSON.parse(fs.readFileSync('$RUNNER_TEMP/config-profiles.json', 'utf8'));
+            const profiles = JSON.parse(fs.readFileSync('.config-profiles-temp.json', 'utf8'));
             const profile = profiles['$PROFILE_NAME'];
             if (!profile || !profile.yaml_content) {
               console.error('Error: Profile \"$PROFILE_NAME\" not found or has no yaml_content');
@@ -163,6 +163,9 @@ jobs:
             const appName = match ? match[1].trim() : '$PROFILE_NAME';
             console.log(appName);
           ")
+          
+          # 清理临时文件
+          rm -f .config-profiles-temp.json
           
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
           echo "Successfully applied profile: $PROFILE_NAME, App Name: $APP_NAME"
