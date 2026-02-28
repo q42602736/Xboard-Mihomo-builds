@@ -298,6 +298,17 @@
                     <div class="help-text">启用后，订阅配置将被缓存，在有效期内不会重复拉取。设置为0表示禁用缓存。</div>
                 </div>
                 <div class="section">
+                    <div class="section-title">UI 界面配置</div>
+                    <div class="form-group">
+                        <label>隐藏流量详情标签页</label>
+                        <div class="switch-group">
+                            <label class="switch"><input type="checkbox" id="hideTrafficDetails"><span class="slider"></span></label>
+                            <span id="hideTrafficDetailsLabel">关闭</span>
+                        </div>
+                        <div class="help-text">启用后，将隐藏流量详情标签页和页面</div>
+                    </div>
+                </div>
+                <div class="section">
                     <div class="section-title">远程配置源</div>
                     <div id="sourcesContainer"></div>
                     <button type="button" class="btn btn-primary" id="addSourceBtn" style="margin-top: 10px;">+ 添加配置源</button>
@@ -613,7 +624,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -668,6 +679,11 @@
             var subCacheTtlMatch = yaml.match(/subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*(\d+)/);
             var subCacheTtl = subCacheTtlMatch ? parseInt(subCacheTtlMatch[1]) : 24;
             document.getElementById('subscriptionCacheTtl').value = subCacheTtl;
+            // 解析 UI 配置
+            var hideTrafficDetailsMatch = yaml.match(/ui:\s*\n(?:\s*#[^\n]*\n)*\s*hide_traffic_details:\s*(true|false)/);
+            var hideTrafficDetails = hideTrafficDetailsMatch ? hideTrafficDetailsMatch[1] === 'true' : false;
+            document.getElementById('hideTrafficDetails').checked = hideTrafficDetails;
+            document.getElementById('hideTrafficDetailsLabel').textContent = hideTrafficDetails ? '开启' : '关闭';
             // 解析多个 sources
             sources = [];
             var lines = yaml.split('\n');
@@ -807,6 +823,9 @@
             var subCacheTtl = document.getElementById('subscriptionCacheTtl').value || '24';
             yaml = yaml.replace(/(subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*)(true|false)/, '$1' + subCacheEnabled);
             yaml = yaml.replace(/(subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*)(\d+)/, '$1' + subCacheTtl);
+            // 更新 UI 配置
+            var hideTrafficDetails = document.getElementById('hideTrafficDetails').checked;
+            yaml = yaml.replace(/(ui:\s*\n(?:\s*#[^\n]*\n)*\s*hide_traffic_details:\s*)(true|false)/, '$1' + hideTrafficDetails);
             // 更新多个 sources - 使用更精确的正则，匹配到下一个顶级配置项
             collectSources();
             var sourcesYaml = '\n';
