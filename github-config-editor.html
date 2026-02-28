@@ -964,6 +964,50 @@
             
             yaml = newSupportLines.join('\n');
             
+            // 更新或插入 UI 配置
+            var hideTrafficDetails = document.getElementById('hideTrafficDetails').checked;
+            var uiLines = yaml.split('\n');
+            var newUiLines = [];
+            var inUiSection = false;
+            var uiSectionFound = false;
+            
+            for (var u = 0; u < uiLines.length; u++) {
+                var uLine = uiLines[u];
+                // 检测 ui: 配置块
+                if (/^  ui:/.test(uLine)) {
+                    uiSectionFound = true;
+                    inUiSection = true;
+                    newUiLines.push(uLine);
+                    continue;
+                }
+                if (inUiSection) {
+                    // 替换 hide_traffic_details 配置
+                    if (/^\s*hide_traffic_details:/.test(uLine)) {
+                        newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                        continue;
+                    }
+                    // 遇到新的顶级配置，结束 ui 区块
+                    if (/^  [a-z_]+:/i.test(uLine)) {
+                        inUiSection = false;
+                    }
+                }
+                newUiLines.push(uLine);
+            }
+            
+            // 如果没有找到 ui 配置块，在文件末尾添加
+            if (!uiSectionFound) {
+                // 去掉尾部空行
+                while (newUiLines.length > 0 && newUiLines[newUiLines.length - 1].trim() === '') {
+                    newUiLines.pop();
+                }
+                newUiLines.push('');
+                newUiLines.push('  # UI 配置');
+                newUiLines.push('  ui:');
+                newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+            }
+            
+            yaml = newUiLines.join('\n');
+            
             document.getElementById('editor').value = yaml;
         }
 
