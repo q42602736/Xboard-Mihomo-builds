@@ -857,13 +857,10 @@
             renderSources();
             renderSupportItems();
 
-            loadProfiles();
+            loadProfiles().then(function() { checkActiveBuild(); });
             loadBuildHistory();
             loadBranches();
             loadBuildQueue();
-
-            // 档案加载完成后检查是否有活跃构建
-            setTimeout(checkActiveBuild, 2000);
         };
 
         function getDefaultYamlTemplate() {
@@ -1168,7 +1165,7 @@
                 setBuildStatus('打包已触发! 档案: ' + profileName + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
                 await loadBuildHistory();
                 loadBuildQueue();
-                startBuildPolling(profileName);
+                startBuildPolling(profileName, false);
             } catch (e) {
                 setBuildStatus('触发失败: ' + e.message, 'error');
             }
@@ -1718,21 +1715,41 @@
         }
 
         // ==================== 构建进度追踪 ====================
+        var BUILD_POLL_KEY = 'xboard_building_profile';
         var buildPollTimer = null;
         var buildPollProfile = '';
 
-        function startBuildPolling(profile) {
+        function saveBuildingProfile(profile) {
+            if (profile) {
+                sessionStorage.setItem(BUILD_POLL_KEY, profile);
+            } else {
+                sessionStorage.removeItem(BUILD_POLL_KEY);
+            }
+        }
+
+        function getSavedBuildingProfile() {
+            return sessionStorage.getItem(BUILD_POLL_KEY) || '';
+        }
+
+        function startBuildPolling(profile, isResume) {
             stopBuildPolling();
             buildPollProfile = profile;
+            saveBuildingProfile(profile);
             document.getElementById('buildProgressPanel').style.display = 'block';
             document.getElementById('buildProgressTitle').textContent = '构建进度 - ' + profile;
-            document.getElementById('buildProgressText').textContent = '等待 GitHub 创建运行...';
-            document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
             document.getElementById('buildProgressLink').style.display = 'none';
             document.getElementById('buildJobsList').innerHTML = '';
             document.getElementById('buildProgressTime').textContent = '';
-            // 延迟几秒再开始轮询，给 GitHub 时间创建 run
-            setTimeout(function() { pollBuildStatus(); }, 5000);
+
+            if (isResume) {
+                document.getElementById('buildProgressText').textContent = '正在查询构建状态...';
+                document.getElementById('buildProgressIcon').className = 'build-progress-status-icon in_progress';
+                pollBuildStatus();
+            } else {
+                document.getElementById('buildProgressText').textContent = '等待 GitHub 创建运行...';
+                document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
+                setTimeout(function() { pollBuildStatus(); }, 5000);
+            }
         }
 
         function stopBuildPolling() {
@@ -1755,6 +1772,8 @@
                 } else if (!data.found) {
                     buildPollTimer = setTimeout(pollBuildStatus, 10000);
                 } else {
+                    // 构建完成，清除持久化的 profile
+                    saveBuildingProfile(null);
                     loadBuildQueue();
                 }
             } catch (e) {
@@ -1841,13 +1860,11 @@
                 link.style.display = 'inline-block';
             }
 
-            // 渲染 jobs
             var jobsHtml = '';
             if (data.jobs && data.jobs.length > 0) {
                 data.jobs.forEach(function(job) {
                     var jobClass = getStatusClass(job.status, job.conclusion);
                     var jobIcon = getStatusIcon(job.status, job.conclusion);
-                    // 简化 job 名称
                     var jobName = job.name.replace(/^build\s*\(/, '').replace(/\)$/, '');
                     jobsHtml += '<div class="build-job-item ' + jobClass + '">' +
                         '<span class="build-job-icon">' + jobIcon + '</span>' +
@@ -1858,18 +1875,27 @@
             document.getElementById('buildJobsList').innerHTML = jobsHtml;
         }
 
-        // 页面加载时检查当前 profile 是否有活跃构建
+        // 页面加载时恢复构建进度追踪
         function checkActiveBuild() {
+            // 优先从 sessionStorage 恢复（刷新页面后保持追踪）
+            var savedProfile = getSavedBuildingProfile();
+            if (savedProfile) {
+                startBuildPolling(savedProfile, true);
+                return;
+            }
+            // 否则检查当前选中 profile 是否有活跃构建
             var profile = document.getElementById('profileSelect').value;
             if (profile) {
                 api('GET', '/build/status?profile=' + encodeURIComponent(profile)).then(function(response) {
                     if (!response) return;
                     return response.json();
                 }).then(function(data) {
-                    if (data && data.found && data.status !== 'completed') {
-                        startBuildPolling(profile);
-                    } else if (data && data.found) {
-                        renderBuildProgress(data);
+                    if (data && data.found) {
+                        if (data.status !== 'completed') {
+                            startBuildPolling(profile, true);
+                        } else {
+                            renderBuildProgress(data);
+                        }
                     }
                 }).catch(function() {});
             }
