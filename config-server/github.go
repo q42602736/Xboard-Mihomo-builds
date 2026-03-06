@@ -204,13 +204,22 @@ type WorkflowRun struct {
 	Event      string            `json:"event"`
 }
 
-// WorkflowJob 表示工作流中的一个 job
-type WorkflowJob struct {
-	ID         int64   `json:"id"`
+// WorkflowStep 表示 job 中的一个步骤
+type WorkflowStep struct {
 	Name       string  `json:"name"`
 	Status     string  `json:"status"`
 	Conclusion *string `json:"conclusion"`
-	StartedAt  string  `json:"started_at"`
+	Number     int     `json:"number"`
+}
+
+// WorkflowJob 表示工作流中的一个 job
+type WorkflowJob struct {
+	ID         int64          `json:"id"`
+	Name       string         `json:"name"`
+	Status     string         `json:"status"`
+	Conclusion *string        `json:"conclusion"`
+	StartedAt  string         `json:"started_at"`
+	Steps      []WorkflowStep `json:"steps"`
 }
 
 // GetRecentWorkflowRuns 获取最近的工作流运行列表

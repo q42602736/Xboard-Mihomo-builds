@@ -456,7 +456,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		result["inputs"] = matchedInputs
 	}
 
-	// 获取 job 详情
+	// 获取 job 及 step 详情
 	jobs, err := h.gh.GetWorkflowRunJobs(cfg.BuildOwner, cfg.BuildRepo, matchedRun.ID)
 	if err == nil {
 		jobList := []map[string]interface{}{}
@@ -465,10 +465,24 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			if job.Conclusion != nil {
 				jobConclusion = *job.Conclusion
 			}
+			stepList := []map[string]interface{}{}
+			for _, step := range job.Steps {
+				stepConclusion := ""
+				if step.Conclusion != nil {
+					stepConclusion = *step.Conclusion
+				}
+				stepList = append(stepList, map[string]interface{}{
+					"name":       step.Name,
+					"status":     step.Status,
+					"conclusion": stepConclusion,
+					"number":     step.Number,
+				})
+			}
 			jobList = append(jobList, map[string]interface{}{
 				"name":       job.Name,
 				"status":     job.Status,
 				"conclusion": jobConclusion,
+				"steps":      stepList,
 			})
 		}
 		result["jobs"] = jobList

@@ -453,18 +453,20 @@
         }
         .build-jobs-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 8px;
         }
         .build-job-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
             padding: 10px 12px;
             background: rgba(0,0,0,0.15);
             border-radius: 6px;
             font-size: 13px;
             border-left: 3px solid transparent;
+        }
+        .build-job-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .build-job-item.queued { border-left-color: #ffaa00; }
         .build-job-item.in_progress { border-left-color: #00d4ff; }
@@ -479,6 +481,39 @@
         }
         .build-job-name {
             color: #ccc;
+            flex: 1;
+        }
+        .build-job-step-hint {
+            font-size: 11px;
+            color: #666;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+        .build-job-item.in_progress .build-job-step-hint {
+            color: #00d4ff;
+        }
+        .build-job-steps {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .build-step-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 0;
+            font-size: 12px;
+            color: #666;
+        }
+        .build-step-item.completed-success { color: #558855; }
+        .build-step-item.in_progress { color: #00d4ff; font-weight: 500; }
+        .build-step-item.completed-failure { color: #ff6b6b; }
+        .build-step-item.completed-skipped { color: #555; }
+        .build-step-icon {
+            width: 14px;
+            text-align: center;
+            flex-shrink: 0;
+            font-size: 11px;
         }
 
         .switch-card {
@@ -1897,6 +1932,35 @@
             return '已运行 ' + secs + '秒';
         }
 
+        function getStepIcon(status, conclusion) {
+            if (status === 'completed') {
+                if (conclusion === 'success') return '✓';
+                if (conclusion === 'failure') return '✗';
+                if (conclusion === 'skipped') return '⊘';
+                return '—';
+            }
+            if (status === 'in_progress') return '▶';
+            return '·';
+        }
+
+        function getStepClass(status, conclusion) {
+            if (status === 'completed') return 'completed-' + (conclusion || 'success');
+            if (status === 'in_progress') return 'in_progress';
+            return 'queued';
+        }
+
+        function getCurrentStepName(steps) {
+            if (!steps || steps.length === 0) return '';
+            for (var i = 0; i < steps.length; i++) {
+                if (steps[i].status === 'in_progress') return steps[i].name;
+            }
+            var lastCompleted = '';
+            for (var j = 0; j < steps.length; j++) {
+                if (steps[j].status === 'completed') lastCompleted = steps[j].name;
+            }
+            return lastCompleted ? lastCompleted : '';
+        }
+
         function renderBuildProgress(data) {
             var panel = document.getElementById('buildProgressPanel');
             panel.style.display = 'block';
@@ -1905,7 +1969,7 @@
 
             if (!data.found) {
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
-                document.getElementById('buildProgressText').textContent = '正在等待 GitHub 创建构建运行...';
+                document.getElementById('buildProgressText').textContent = '正在等待 GitHub 创建构建运行... (' + buildNotFoundCount + '/' + maxNotFoundRetries + ')';
                 document.getElementById('buildProgressTime').textContent = '';
                 document.getElementById('buildProgressLink').style.display = 'none';
                 document.getElementById('buildJobsList').innerHTML = '';
@@ -1913,7 +1977,6 @@
                 return;
             }
 
-            // 显示构建参数，便于用户确认是自己的构建
             if (data.inputs) {
                 var paramsHtml = '';
                 if (data.inputs.tag) {
@@ -1924,9 +1987,6 @@
                 }
                 if (data.inputs.branch) {
                     paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">分支</span><span class="param-value">' + data.inputs.branch + '</span></span>';
-                }
-                if (data.run_id) {
-                    paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">Run</span><span class="param-value">#' + data.run_id + '</span></span>';
                 }
                 paramsEl.innerHTML = paramsHtml;
                 paramsEl.style.display = 'flex';
@@ -1958,10 +2018,40 @@
                     var jobClass = getStatusClass(job.status, job.conclusion);
                     var jobIcon = getStatusIcon(job.status, job.conclusion);
                     var jobName = job.name.replace(/^build\s*\(/, '').replace(/\)$/, '');
-                    jobsHtml += '<div class="build-job-item ' + jobClass + '">' +
-                        '<span class="build-job-icon">' + jobIcon + '</span>' +
-                        '<span class="build-job-name">' + jobName + '</span>' +
-                    '</div>';
+
+                    var currentStep = getCurrentStepName(job.steps);
+                    var stepHint = '';
+                    if (job.status === 'in_progress' && currentStep) {
+                        stepHint = '<span class="build-job-step-hint">' + currentStep + '</span>';
+                    } else if (job.status === 'completed' && job.conclusion === 'success') {
+                        stepHint = '<span class="build-job-step-hint">已完成</span>';
+                    } else if (job.status === 'completed' && job.conclusion === 'failure') {
+                        stepHint = '<span class="build-job-step-hint">失败</span>';
+                    }
+
+                    jobsHtml += '<div class="build-job-item ' + jobClass + '">';
+                    jobsHtml += '<div class="build-job-header">';
+                    jobsHtml += '<span class="build-job-icon">' + jobIcon + '</span>';
+                    jobsHtml += '<span class="build-job-name">' + jobName + '</span>';
+                    jobsHtml += stepHint;
+                    jobsHtml += '</div>';
+
+                    // 对正在运行或失败的 job 展示 steps 详情
+                    if (job.steps && job.steps.length > 0 && (job.status === 'in_progress' || (job.status === 'completed' && job.conclusion === 'failure'))) {
+                        jobsHtml += '<div class="build-job-steps">';
+                        job.steps.forEach(function(step) {
+                            if (step.name === 'Set up job' || step.name === 'Post Setup SSH' || step.name === 'Complete job') return;
+                            var stepClass = getStepClass(step.status, step.conclusion);
+                            var stepIcon = getStepIcon(step.status, step.conclusion);
+                            jobsHtml += '<div class="build-step-item ' + stepClass + '">';
+                            jobsHtml += '<span class="build-step-icon">' + stepIcon + '</span>';
+                            jobsHtml += '<span>' + step.name + '</span>';
+                            jobsHtml += '</div>';
+                        });
+                        jobsHtml += '</div>';
+                    }
+
+                    jobsHtml += '</div>';
                 });
             }
             document.getElementById('buildJobsList').innerHTML = jobsHtml;
