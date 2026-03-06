@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -365,29 +366,54 @@ func (g *GitHubClient) SaveFileWithRetry(filePath string, contentFn func(existin
 }
 
 func (g *GitHubClient) GetReleaseByTag(buildOwner, buildRepo, tag string) (*Release, error) {
-	url := fmt.Sprintf(
+	lookupURL := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/releases/tags/%s",
-		buildOwner, buildRepo, tag,
+		buildOwner, buildRepo, url.PathEscape(tag),
 	)
-	resp, err := g.doRequest("GET", url, nil)
+	resp, err := g.doRequest("GET", lookupURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
+	if resp.StatusCode == http.StatusOK {
+		var release Release
+		if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+			return nil, err
+		}
+		return &release, nil
 	}
-	if resp.StatusCode != http.StatusOK {
+
+	if resp.StatusCode != http.StatusNotFound {
 		respBody, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("获取 Release 失败 (%d): %s", resp.StatusCode, string(respBody))
 	}
 
-	var release Release
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+	listURL := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/releases?per_page=100",
+		buildOwner, buildRepo,
+	)
+	listResp, err := g.doRequest("GET", listURL, nil)
+	if err != nil {
 		return nil, err
 	}
-	return &release, nil
+	defer listResp.Body.Close()
+
+	if listResp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(listResp.Body)
+		return nil, fmt.Errorf("获取 Release 列表失败 (%d): %s", listResp.StatusCode, string(respBody))
+	}
+
+	var releases []Release
+	if err := json.NewDecoder(listResp.Body).Decode(&releases); err != nil {
+		return nil, err
+	}
+	for i := range releases {
+		if releases[i].TagName == tag {
+			return &releases[i], nil
+		}
+	}
+	return nil, nil
 }
 
 func (g *GitHubClient) DownloadReleaseAsset(buildOwner, buildRepo string, assetID int64) (*http.Response, error) {
