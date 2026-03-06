@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       tag:
-        description: 'Tag to build (e.g., v0.1.0)'
+        description: '构建版本号/产物标签（用于 setup.dart --version 和产物命名，例如 v0.1.0）'
         required: true
         type: string
       branch:
@@ -126,7 +126,13 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           git clone git@github.com:${{ env.PRIVATE_REPO }}.git source
           cd source
-          git checkout ${{ github.event.inputs.tag }} || git checkout ${{ github.event.inputs.branch }}
+          SOURCE_REF="${{ github.event.inputs.branch }}"
+          if [ -z "$SOURCE_REF" ]; then
+            SOURCE_REF="${{ github.event.inputs.tag }}"
+          fi
+          echo "Checking out source ref: $SOURCE_REF"
+          git checkout "$SOURCE_REF"
+          echo "Checked out commit: $(git rev-parse HEAD)"
           git submodule update --init --recursive
 
       - name: Apply profile config
