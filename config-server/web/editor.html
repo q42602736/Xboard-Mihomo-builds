@@ -381,6 +381,27 @@
             color: #00d4ff;
             border-color: rgba(0,212,255,0.3);
         }
+        .build-progress-params {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .build-progress-param-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .build-progress-param-tag .param-label {
+            color: #666;
+        }
+        .build-progress-param-tag .param-value {
+            color: #00d4ff;
+        }
         .build-progress-overall {
             display: flex;
             align-items: center;
@@ -736,6 +757,7 @@
                             <h3 id="buildProgressTitle">构建进度</h3>
                             <a id="buildProgressLink" href="#" target="_blank" class="build-progress-link" style="display:none;">在 GitHub 查看</a>
                         </div>
+                        <div id="buildProgressParams" class="build-progress-params" style="display:none;"></div>
                         <div class="build-progress-overall">
                             <span id="buildProgressIcon" class="build-progress-status-icon"></span>
                             <span id="buildProgressText">查询中...</span>
@@ -1833,13 +1855,37 @@
             var panel = document.getElementById('buildProgressPanel');
             panel.style.display = 'block';
 
+            var paramsEl = document.getElementById('buildProgressParams');
+
             if (!data.found) {
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
                 document.getElementById('buildProgressText').textContent = '正在等待 GitHub 创建构建运行...';
                 document.getElementById('buildProgressTime').textContent = '';
                 document.getElementById('buildProgressLink').style.display = 'none';
                 document.getElementById('buildJobsList').innerHTML = '';
+                paramsEl.style.display = 'none';
                 return;
+            }
+
+            // 显示构建参数，便于用户确认是自己的构建
+            if (data.inputs) {
+                var paramsHtml = '';
+                if (data.inputs.tag) {
+                    paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">版本</span><span class="param-value">' + data.inputs.tag + '</span></span>';
+                }
+                if (data.inputs.platforms) {
+                    paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">平台</span><span class="param-value">' + data.inputs.platforms + '</span></span>';
+                }
+                if (data.inputs.branch) {
+                    paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">分支</span><span class="param-value">' + data.inputs.branch + '</span></span>';
+                }
+                if (data.run_id) {
+                    paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">Run</span><span class="param-value">#' + data.run_id + '</span></span>';
+                }
+                paramsEl.innerHTML = paramsHtml;
+                paramsEl.style.display = 'flex';
+            } else {
+                paramsEl.style.display = 'none';
             }
 
             var statusClass = getStatusClass(data.status, data.conclusion);

@@ -259,6 +259,9 @@ const buildHistoryPath = "build-versions.json"
 
 const maxConcurrentBuilds = 3
 
+// 缓存 profile 对应的最近 run_id，避免每次轮询都搜索所有 runs
+var profileRunCache = make(map[string]int64)
+
 func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Profile   string `json:"profile"`
@@ -307,6 +310,9 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, err.Error(), 500)
 		return
 	}
+
+	// 清除旧的 run 缓存，下次轮询会重新搜索新的 run
+	delete(profileRunCache, req.Profile)
 
 	go h.saveBuildHistory(req.Profile, req.Tag, req.Platforms)
 
@@ -368,35 +374,66 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", 10)
-	if err != nil {
-		jsonError(w, "查询构建状态失败", 500)
-		return
-	}
-
-	// 查找匹配该 profile 的最新运行（优先活跃的）
 	var matchedRun *WorkflowRun
-	for i := range runs {
-		run := &runs[i]
-		// 优先找正在运行或排队的
-		if run.Status == "in_progress" || run.Status == "queued" {
-			inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
-			if err == nil && inputs["profile"] == profile {
-				matchedRun = run
-				break
+	var matchedInputs map[string]string
+
+	// 1. 先检查缓存的 run_id，直接查询单个 run 状态（只需 1 次 API 调用）
+	if cachedRunID, ok := profileRunCache[profile]; ok {
+		inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, cachedRunID)
+		if err == nil && inputs["profile"] == profile {
+			runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", 10)
+			if err == nil {
+				for i := range runs {
+					if runs[i].ID == cachedRunID {
+						matchedRun = &runs[i]
+						matchedInputs = inputs
+						// 如果已完成，清除缓存以便下次搜索新的 run
+						if matchedRun.Status == "completed" {
+							delete(profileRunCache, profile)
+						}
+						break
+					}
+				}
 			}
+		}
+		if matchedRun == nil {
+			delete(profileRunCache, profile)
 		}
 	}
 
-	// 没有活跃的，找最近完成的
+	// 2. 缓存没有命中，搜索最近的 runs
 	if matchedRun == nil {
+		runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", 10)
+		if err != nil {
+			jsonError(w, "查询构建状态失败", 500)
+			return
+		}
+
+		// 优先找正在运行或排队的
 		for i := range runs {
 			run := &runs[i]
-			if run.Status == "completed" {
+			if run.Status == "in_progress" || run.Status == "queued" {
 				inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
 				if err == nil && inputs["profile"] == profile {
 					matchedRun = run
+					matchedInputs = inputs
+					profileRunCache[profile] = run.ID
 					break
+				}
+			}
+		}
+
+		// 没有活跃的，找最近完成的
+		if matchedRun == nil {
+			for i := range runs {
+				run := &runs[i]
+				if run.Status == "completed" {
+					inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+					if err == nil && inputs["profile"] == profile {
+						matchedRun = run
+						matchedInputs = inputs
+						break
+					}
 				}
 			}
 		}
@@ -422,6 +459,11 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		"html_url":   matchedRun.HTMLURL,
 		"created_at": matchedRun.CreatedAt,
 		"updated_at": matchedRun.UpdatedAt,
+	}
+
+	// 返回构建参数，让前端展示确认是哪次构建
+	if matchedInputs != nil {
+		result["inputs"] = matchedInputs
 	}
 
 	// 获取 job 详情
