@@ -682,17 +682,7 @@ jobs:
             curl -s -X DELETE -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/${RELEASE_ID}"
           fi
 
-          RELEASE_PAYLOAD=$(node -e '
-            const [appName, version, releaseTag, profileName] = process.argv.slice(1);
-            process.stdout.write(JSON.stringify({
-              tag_name: releaseTag,
-              name: `${appName} ${version}`,
-              draft: true,
-              body: `${appName} ${version} 构建产物
-
-档案: ${profileName}`
-            }));
-          ' "$APP_NAME" "$VERSION" "$RELEASE_TAG" "$PROFILE_NAME")
+          RELEASE_PAYLOAD=$(node -e 'const [appName, version, releaseTag, profileName] = process.argv.slice(1); process.stdout.write(JSON.stringify({ tag_name: releaseTag, name: `${appName} ${version}`, draft: true, body: `${appName} ${version} 构建产物\n\n档案: ${profileName}` }));' "$APP_NAME" "$VERSION" "$RELEASE_TAG" "$PROFILE_NAME")
 
           RELEASE_RESPONSE=$(curl -s -X POST -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" -H "Content-Type: application/json" "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases" -d "$RELEASE_PAYLOAD")
 
