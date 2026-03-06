@@ -817,7 +817,6 @@
                         <div class="build-progress-header">
                             <h3 id="buildProgressTitle">构建进度</h3>
                             <div style="display:flex; align-items:center; gap:8px;">
-                                <a id="buildProgressLink" href="#" target="_blank" class="build-progress-link" style="display:none;">在 GitHub 查看</a>
                                 <button onclick="dismissBuildProgress()" class="build-progress-close" title="关闭">✕</button>
                             </div>
                         </div>
@@ -1207,9 +1206,6 @@
             }
 
             var html = '';
-            if (data.release_url) {
-                html += '<div style="margin-bottom:8px;"><a href="' + data.release_url + '" target="_blank" style="color:#00d4ff; font-size:12px;">在 GitHub Release 查看</a></div>';
-            }
             data.assets.forEach(function(asset) {
                 html += '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid rgba(255,255,255,0.06);">';
                 html += '<div style="display:flex; flex-direction:column; gap:4px; min-width:0;">';
@@ -2057,7 +2053,6 @@
             saveBuildingProfile(normalized);
             document.getElementById('buildProgressPanel').style.display = 'block';
             document.getElementById('buildProgressTitle').textContent = '构建进度 - ' + normalized.profile;
-            document.getElementById('buildProgressLink').style.display = 'none';
             document.getElementById('buildJobsList').innerHTML = '';
             document.getElementById('buildProgressTime').textContent = '';
             renderBuildProgressParams();
@@ -2253,12 +2248,6 @@
                 document.getElementById('buildProgressTime').textContent = formatDuration(data.created_at);
             } else {
                 document.getElementById('buildProgressTime').textContent = '';
-            }
-
-            if (data.html_url) {
-                var link = document.getElementById('buildProgressLink');
-                link.href = data.html_url;
-                link.style.display = 'inline-block';
             }
 
             var jobsHtml = '';
