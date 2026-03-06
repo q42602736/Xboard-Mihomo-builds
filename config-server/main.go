@@ -97,6 +97,7 @@ func main() {
 		r.Post("/api/build/trigger", h.TriggerBuild)
 		r.Get("/api/build/history", h.GetBuildHistory)
 		r.Get("/api/build/queue", h.GetBuildQueue)
+		r.Get("/api/build/status", h.GetBuildStatus)
 	})
 
 	// 管理员 API

@@ -350,6 +350,97 @@
         .support-fields { display: none; margin-top: 10px; }
         .support-fields.active { display: block; }
 
+        .build-progress-panel {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .build-progress-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .build-progress-header h3 {
+            color: #00d4ff;
+            font-size: 16px;
+            margin: 0;
+        }
+        .build-progress-link {
+            font-size: 12px;
+            color: #888;
+            text-decoration: none;
+            padding: 4px 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .build-progress-link:hover {
+            color: #00d4ff;
+            border-color: rgba(0,212,255,0.3);
+        }
+        .build-progress-overall {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        .build-progress-status-icon {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .build-progress-status-icon.queued { background: #ffaa00; }
+        .build-progress-status-icon.in_progress { background: #00d4ff; animation: pulse 1.5s infinite; }
+        .build-progress-status-icon.success { background: #00ff88; }
+        .build-progress-status-icon.failure { background: #ff4444; }
+        .build-progress-status-icon.cancelled { background: #888; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .build-progress-time {
+            margin-left: auto;
+            font-size: 12px;
+            color: #666;
+        }
+        .build-jobs-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 8px;
+        }
+        .build-job-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: rgba(0,0,0,0.15);
+            border-radius: 6px;
+            font-size: 13px;
+            border-left: 3px solid transparent;
+        }
+        .build-job-item.queued { border-left-color: #ffaa00; }
+        .build-job-item.in_progress { border-left-color: #00d4ff; }
+        .build-job-item.success { border-left-color: #00ff88; }
+        .build-job-item.failure { border-left-color: #ff4444; }
+        .build-job-item.skipped { border-left-color: #555; opacity: 0.6; }
+        .build-job-icon {
+            font-size: 14px;
+            flex-shrink: 0;
+            width: 18px;
+            text-align: center;
+        }
+        .build-job-name {
+            color: #ccc;
+        }
+
         .switch-card {
             background: rgba(0,0,0,0.15);
             border: 1px solid rgba(255,255,255,0.06);
@@ -638,6 +729,20 @@
                         </div>
                         <button class="btn btn-build" id="buildBtn" style="margin-top: 15px;">触发打包</button>
                     </div>
+
+                    <!-- 构建进度面板 -->
+                    <div id="buildProgressPanel" class="build-progress-panel" style="display:none;">
+                        <div class="build-progress-header">
+                            <h3 id="buildProgressTitle">构建进度</h3>
+                            <a id="buildProgressLink" href="#" target="_blank" class="build-progress-link" style="display:none;">在 GitHub 查看</a>
+                        </div>
+                        <div class="build-progress-overall">
+                            <span id="buildProgressIcon" class="build-progress-status-icon"></span>
+                            <span id="buildProgressText">查询中...</span>
+                            <span id="buildProgressTime" class="build-progress-time"></span>
+                        </div>
+                        <div id="buildJobsList" class="build-jobs-list"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -756,6 +861,9 @@
             loadBuildHistory();
             loadBranches();
             loadBuildQueue();
+
+            // 档案加载完成后检查是否有活跃构建
+            setTimeout(checkActiveBuild, 2000);
         };
 
         function getDefaultYamlTemplate() {
@@ -1060,6 +1168,7 @@
                 setBuildStatus('打包已触发! 档案: ' + profileName + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
                 await loadBuildHistory();
                 loadBuildQueue();
+                startBuildPolling(profileName);
             } catch (e) {
                 setBuildStatus('触发失败: ' + e.message, 'error');
             }
@@ -1606,6 +1715,164 @@
             yaml = newUiLines.join('\n');
 
             document.getElementById('editor').value = yaml;
+        }
+
+        // ==================== 构建进度追踪 ====================
+        var buildPollTimer = null;
+        var buildPollProfile = '';
+
+        function startBuildPolling(profile) {
+            stopBuildPolling();
+            buildPollProfile = profile;
+            document.getElementById('buildProgressPanel').style.display = 'block';
+            document.getElementById('buildProgressTitle').textContent = '构建进度 - ' + profile;
+            document.getElementById('buildProgressText').textContent = '等待 GitHub 创建运行...';
+            document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
+            document.getElementById('buildProgressLink').style.display = 'none';
+            document.getElementById('buildJobsList').innerHTML = '';
+            document.getElementById('buildProgressTime').textContent = '';
+            // 延迟几秒再开始轮询，给 GitHub 时间创建 run
+            setTimeout(function() { pollBuildStatus(); }, 5000);
+        }
+
+        function stopBuildPolling() {
+            if (buildPollTimer) {
+                clearTimeout(buildPollTimer);
+                buildPollTimer = null;
+            }
+        }
+
+        async function pollBuildStatus() {
+            if (!buildPollProfile) return;
+            try {
+                var response = await api('GET', '/build/status?profile=' + encodeURIComponent(buildPollProfile));
+                if (!response) return;
+                var data = await response.json();
+                renderBuildProgress(data);
+
+                if (data.found && data.status !== 'completed') {
+                    buildPollTimer = setTimeout(pollBuildStatus, 15000);
+                } else if (!data.found) {
+                    buildPollTimer = setTimeout(pollBuildStatus, 10000);
+                } else {
+                    loadBuildQueue();
+                }
+            } catch (e) {
+                buildPollTimer = setTimeout(pollBuildStatus, 20000);
+            }
+        }
+
+        function getStatusIcon(status, conclusion) {
+            if (status === 'completed') {
+                if (conclusion === 'success') return '✓';
+                if (conclusion === 'failure') return '✗';
+                if (conclusion === 'cancelled') return '—';
+                if (conclusion === 'skipped') return '⊘';
+                return '?';
+            }
+            if (status === 'in_progress') return '⟳';
+            if (status === 'queued' || status === 'waiting') return '◦';
+            return '…';
+        }
+
+        function getStatusClass(status, conclusion) {
+            if (status === 'completed') {
+                if (conclusion === 'success') return 'success';
+                if (conclusion === 'failure') return 'failure';
+                if (conclusion === 'skipped') return 'skipped';
+                if (conclusion === 'cancelled') return 'skipped';
+                return '';
+            }
+            if (status === 'in_progress') return 'in_progress';
+            return 'queued';
+        }
+
+        function getStatusText(status, conclusion) {
+            if (status === 'completed') {
+                if (conclusion === 'success') return '构建成功';
+                if (conclusion === 'failure') return '构建失败';
+                if (conclusion === 'cancelled') return '已取消';
+                return '已完成';
+            }
+            if (status === 'in_progress') return '正在构建...';
+            if (status === 'queued' || status === 'waiting') return '排队等待中...';
+            return status;
+        }
+
+        function formatDuration(createdAt) {
+            if (!createdAt) return '';
+            var start = new Date(createdAt);
+            var now = new Date();
+            var diffMs = now - start;
+            var mins = Math.floor(diffMs / 60000);
+            var secs = Math.floor((diffMs % 60000) / 1000);
+            if (mins > 0) return '已运行 ' + mins + '分' + secs + '秒';
+            return '已运行 ' + secs + '秒';
+        }
+
+        function renderBuildProgress(data) {
+            var panel = document.getElementById('buildProgressPanel');
+            panel.style.display = 'block';
+
+            if (!data.found) {
+                document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
+                document.getElementById('buildProgressText').textContent = '正在等待 GitHub 创建构建运行...';
+                document.getElementById('buildProgressTime').textContent = '';
+                document.getElementById('buildProgressLink').style.display = 'none';
+                document.getElementById('buildJobsList').innerHTML = '';
+                return;
+            }
+
+            var statusClass = getStatusClass(data.status, data.conclusion);
+            var statusText = getStatusText(data.status, data.conclusion);
+
+            document.getElementById('buildProgressIcon').className = 'build-progress-status-icon ' + statusClass;
+            document.getElementById('buildProgressText').textContent = statusText;
+
+            if (data.status !== 'completed') {
+                document.getElementById('buildProgressTime').textContent = formatDuration(data.created_at);
+            } else {
+                document.getElementById('buildProgressTime').textContent = '';
+            }
+
+            if (data.html_url) {
+                var link = document.getElementById('buildProgressLink');
+                link.href = data.html_url;
+                link.style.display = 'inline-block';
+            }
+
+            // 渲染 jobs
+            var jobsHtml = '';
+            if (data.jobs && data.jobs.length > 0) {
+                data.jobs.forEach(function(job) {
+                    var jobClass = getStatusClass(job.status, job.conclusion);
+                    var jobIcon = getStatusIcon(job.status, job.conclusion);
+                    // 简化 job 名称
+                    var jobName = job.name.replace(/^build\s*\(/, '').replace(/\)$/, '');
+                    jobsHtml += '<div class="build-job-item ' + jobClass + '">' +
+                        '<span class="build-job-icon">' + jobIcon + '</span>' +
+                        '<span class="build-job-name">' + jobName + '</span>' +
+                    '</div>';
+                });
+            }
+            document.getElementById('buildJobsList').innerHTML = jobsHtml;
+        }
+
+        // 页面加载时检查当前 profile 是否有活跃构建
+        function checkActiveBuild() {
+            var profile = document.getElementById('profileSelect').value;
+            if (profile) {
+                api('GET', '/build/status?profile=' + encodeURIComponent(profile)).then(function(response) {
+                    if (!response) return;
+                    return response.json();
+                }).then(function(data) {
+                    if (data && data.found && data.status !== 'completed') {
+                        startBuildPolling(profile);
+                    } else if (data && data.found) {
+                        renderBuildProgress(data);
+                    }
+                }).catch(function() {});
+            }
         }
     </script>
 </body>

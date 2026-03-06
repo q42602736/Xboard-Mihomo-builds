@@ -191,6 +191,101 @@ func (g *GitHubClient) GetRunningWorkflowCount(buildOwner, buildRepo, workflow s
 	return total, nil
 }
 
+// WorkflowRun 表示一个 GitHub Actions 工作流运行实例
+type WorkflowRun struct {
+	ID         int64             `json:"id"`
+	Status     string            `json:"status"`
+	Conclusion *string           `json:"conclusion"`
+	HTMLURL    string            `json:"html_url"`
+	CreatedAt  string            `json:"created_at"`
+	UpdatedAt  string            `json:"updated_at"`
+	Name       string            `json:"name"`
+	RunNumber  int               `json:"run_number"`
+	Event      string            `json:"event"`
+}
+
+// WorkflowJob 表示工作流中的一个 job
+type WorkflowJob struct {
+	ID         int64   `json:"id"`
+	Name       string  `json:"name"`
+	Status     string  `json:"status"`
+	Conclusion *string `json:"conclusion"`
+	StartedAt  string  `json:"started_at"`
+}
+
+// GetRecentWorkflowRuns 获取最近的工作流运行列表
+func (g *GitHubClient) GetRecentWorkflowRuns(buildOwner, buildRepo, workflow string, count int) ([]WorkflowRun, error) {
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/actions/workflows/%s/runs?per_page=%d&event=workflow_dispatch",
+		buildOwner, buildRepo, workflow, count,
+	)
+	resp, err := g.doRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("获取工作流运行列表失败 (%d)", resp.StatusCode)
+	}
+
+	var result struct {
+		WorkflowRuns []WorkflowRun `json:"workflow_runs"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
+	return result.WorkflowRuns, nil
+}
+
+// GetWorkflowRunJobs 获取指定运行的 job 列表
+func (g *GitHubClient) GetWorkflowRunJobs(buildOwner, buildRepo string, runID int64) ([]WorkflowJob, error) {
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/actions/runs/%d/jobs",
+		buildOwner, buildRepo, runID,
+	)
+	resp, err := g.doRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("获取 job 列表失败 (%d)", resp.StatusCode)
+	}
+
+	var result struct {
+		Jobs []WorkflowJob `json:"jobs"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
+	return result.Jobs, nil
+}
+
+// GetWorkflowRunInputs 获取单个 run 的 workflow_dispatch 输入参数
+func (g *GitHubClient) GetWorkflowRunInputs(buildOwner, buildRepo string, runID int64) (map[string]string, error) {
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/actions/runs/%d",
+		buildOwner, buildRepo, runID,
+	)
+	resp, err := g.doRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("获取运行详情失败 (%d)", resp.StatusCode)
+	}
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	var runDetail map[string]json.RawMessage
+	json.Unmarshal(bodyBytes, &runDetail)
+
+	inputs := make(map[string]string)
+	if rawInputs, ok := runDetail["inputs"]; ok {
+		json.Unmarshal(rawInputs, &inputs)
+	}
+	return inputs, nil
+}
+
 // SaveFileWithRetry 带冲突重试的文件保存，解决并发写入 SHA 不匹配的问题
 func (g *GitHubClient) SaveFileWithRetry(filePath string, contentFn func(existing string) string, message string, maxRetries int) error {
 	for i := 0; i < maxRetries; i++ {

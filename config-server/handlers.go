@@ -361,6 +361,90 @@ func (h *Handlers) ListBranches(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, branches)
 }
 
+func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
+	profile := r.URL.Query().Get("profile")
+	if profile == "" {
+		jsonError(w, "缺少 profile 参数", 400)
+		return
+	}
+
+	runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", 10)
+	if err != nil {
+		jsonError(w, "查询构建状态失败", 500)
+		return
+	}
+
+	// 查找匹配该 profile 的最新运行（优先活跃的）
+	var matchedRun *WorkflowRun
+	for i := range runs {
+		run := &runs[i]
+		// 优先找正在运行或排队的
+		if run.Status == "in_progress" || run.Status == "queued" {
+			inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+			if err == nil && inputs["profile"] == profile {
+				matchedRun = run
+				break
+			}
+		}
+	}
+
+	// 没有活跃的，找最近完成的
+	if matchedRun == nil {
+		for i := range runs {
+			run := &runs[i]
+			if run.Status == "completed" {
+				inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+				if err == nil && inputs["profile"] == profile {
+					matchedRun = run
+					break
+				}
+			}
+		}
+	}
+
+	if matchedRun == nil {
+		jsonResponse(w, map[string]interface{}{
+			"found": false,
+		})
+		return
+	}
+
+	conclusion := ""
+	if matchedRun.Conclusion != nil {
+		conclusion = *matchedRun.Conclusion
+	}
+
+	result := map[string]interface{}{
+		"found":      true,
+		"run_id":     matchedRun.ID,
+		"status":     matchedRun.Status,
+		"conclusion": conclusion,
+		"html_url":   matchedRun.HTMLURL,
+		"created_at": matchedRun.CreatedAt,
+		"updated_at": matchedRun.UpdatedAt,
+	}
+
+	// 获取 job 详情
+	jobs, err := h.gh.GetWorkflowRunJobs(cfg.BuildOwner, cfg.BuildRepo, matchedRun.ID)
+	if err == nil {
+		jobList := []map[string]interface{}{}
+		for _, job := range jobs {
+			jobConclusion := ""
+			if job.Conclusion != nil {
+				jobConclusion = *job.Conclusion
+			}
+			jobList = append(jobList, map[string]interface{}{
+				"name":       job.Name,
+				"status":     job.Status,
+				"conclusion": jobConclusion,
+			})
+		}
+		result["jobs"] = jobList
+	}
+
+	jsonResponse(w, result)
+}
+
 func (h *Handlers) GetBuildQueue(w http.ResponseWriter, r *http.Request) {
 	running, err := h.gh.GetRunningWorkflowCount(cfg.BuildOwner, cfg.BuildRepo, "build.yaml")
 	if err != nil {
