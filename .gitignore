@@ -19,6 +19,7 @@ local.properties
 # macOS 系统文件
 # ============================================
 .DS_Store
+.github/.DS_Store
 .AppleDouble
 .LSOverride
 Icon
@@ -89,3 +90,4 @@ config-server/.env
 config-server/data/
 config-server/config-server
 config-server/xboard-config-server
+.serena/
