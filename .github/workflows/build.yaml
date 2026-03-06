@@ -23,6 +23,10 @@ on:
         default: 'all'
         # 可选值: all, windows, android, macos, macos-arm64, macos-amd64
         # 示例: windows,android 或 macos-arm64,windows
+      request_id:
+        description: '构建请求唯一标识（由配置服务器生成，用于匹配本次构建运行）'
+        required: false
+        type: string
 
 concurrency:
   group: build-${{ github.event.inputs.profile }}
@@ -648,7 +652,7 @@ jobs:
           APP_NAME="${{ steps.config.outputs.app_name }}"
           PROFILE_NAME="${{ github.event.inputs.profile }}"
           VERSION="${{ github.event.inputs.tag }}"
-          RELEASE_TAG="${PROFILE_NAME}-${VERSION}"
+          RELEASE_TAG="${PROFILE_NAME}-${VERSION}-${{ github.run_id }}"
           
           echo "Creating draft release: ${APP_NAME} ${VERSION} (tag: ${RELEASE_TAG})"
           

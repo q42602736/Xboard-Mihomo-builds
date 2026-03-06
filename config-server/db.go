@@ -53,6 +53,24 @@ func initDB() {
 			ip_address TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
+
+		CREATE TABLE IF NOT EXISTS build_records (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			code_id INTEGER NOT NULL,
+			code_name TEXT NOT NULL,
+			profile TEXT NOT NULL,
+			tag TEXT NOT NULL,
+			branch TEXT NOT NULL,
+			platforms TEXT NOT NULL,
+			run_id INTEGER DEFAULT 0,
+			status TEXT NOT NULL DEFAULT 'queued',
+			conclusion TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_build_records_code_id_created_at
+		ON build_records (code_id, created_at DESC);
 	`)
 	// 兼容旧表：如果 allowed_profiles 列不存在则添加
 	db.Exec("ALTER TABLE activation_codes ADD COLUMN allowed_profiles TEXT DEFAULT '[]'")
@@ -72,6 +90,127 @@ type ActivationCode struct {
 	ExpiresAt       *string  `json:"expires_at"`
 	CreatedAt       string   `json:"created_at"`
 	IsActive        bool     `json:"is_active"`
+}
+
+type BuildRecord struct {
+	ID         int64  `json:"id"`
+	CodeID     int    `json:"code_id"`
+	CodeName   string `json:"code_name"`
+	Profile    string `json:"profile"`
+	Tag        string `json:"tag"`
+	Branch     string `json:"branch"`
+	Platforms  string `json:"platforms"`
+	RunID      int64  `json:"run_id"`
+	Status     string `json:"status"`
+	Conclusion string `json:"conclusion"`
+	CreatedAt  string `json:"created_at"`
+	UpdatedAt  string `json:"updated_at"`
+}
+
+func createBuildRecord(codeID int, codeName, profile, tag, branch, platforms string) (*BuildRecord, error) {
+	result, err := db.Exec(
+		`INSERT INTO build_records (code_id, code_name, profile, tag, branch, platforms, status, conclusion)
+		 VALUES (?, ?, ?, ?, ?, ?, 'queued', '')`,
+		codeID, codeName, profile, tag, branch, platforms,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	recordID, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	return getBuildRecord(recordID)
+}
+
+func updateBuildRecordStatus(recordID, runID int64, status, conclusion string) error {
+	if recordID <= 0 {
+		return nil
+	}
+
+	_, err := db.Exec(
+		`UPDATE build_records
+		 SET run_id = CASE WHEN ? > 0 THEN ? ELSE run_id END,
+		     status = CASE WHEN ? != '' THEN ? ELSE status END,
+		     conclusion = ?,
+		     updated_at = CURRENT_TIMESTAMP
+		 WHERE id = ?`,
+		runID, runID, status, status, conclusion, recordID,
+	)
+	return err
+}
+
+func getBuildRecord(recordID int64) (*BuildRecord, error) {
+	var record BuildRecord
+	row := db.QueryRow(
+		`SELECT id, code_id, code_name, profile, tag, branch, platforms, run_id, status, conclusion, created_at, updated_at
+		 FROM build_records WHERE id = ?`,
+		recordID,
+	)
+	if err := row.Scan(
+		&record.ID,
+		&record.CodeID,
+		&record.CodeName,
+		&record.Profile,
+		&record.Tag,
+		&record.Branch,
+		&record.Platforms,
+		&record.RunID,
+		&record.Status,
+		&record.Conclusion,
+		&record.CreatedAt,
+		&record.UpdatedAt,
+	); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func listBuildRecords(codeID int, isAdmin bool, limit int) ([]BuildRecord, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	query := `SELECT id, code_id, code_name, profile, tag, branch, platforms, run_id, status, conclusion, created_at, updated_at
+		FROM build_records`
+	args := []interface{}{}
+	if !isAdmin {
+		query += ` WHERE code_id = ?`
+		args = append(args, codeID)
+	}
+	query += ` ORDER BY created_at DESC LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	records := []BuildRecord{}
+	for rows.Next() {
+		var record BuildRecord
+		if err := rows.Scan(
+			&record.ID,
+			&record.CodeID,
+			&record.CodeName,
+			&record.Profile,
+			&record.Tag,
+			&record.Branch,
+			&record.Platforms,
+			&record.RunID,
+			&record.Status,
+			&record.Conclusion,
+			&record.CreatedAt,
+			&record.UpdatedAt,
+		); err != nil {
+			continue
+		}
+		records = append(records, record)
+	}
+	return records, nil
 }
 
 func validateCode(code string) (*ActivationCode, error) {

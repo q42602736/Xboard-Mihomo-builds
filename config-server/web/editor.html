@@ -803,6 +803,13 @@
                             <div id="lastBuildContent" style="margin-top: 5px; font-size: 13px;"></div>
                         </div>
                         <button class="btn btn-build" id="buildBtn" style="margin-top: 15px;">触发打包</button>
+                        <div id="myBuildRecordsPanel" style="margin-top: 18px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+                                <div style="color:#aaa; font-size:12px;">我的构建记录</div>
+                                <button type="button" class="btn btn-secondary" onclick="loadMyBuildRecords()" style="padding:6px 10px; font-size:12px;">刷新</button>
+                            </div>
+                            <div id="myBuildRecordsList" style="display:flex; flex-direction:column; gap:10px;"></div>
+                        </div>
                     </div>
 
                     <!-- 构建进度面板 -->
@@ -885,6 +892,7 @@
         var onlineSupportItems = [];
         var profilesCache = [];
         var buildHistoryData = {};
+        var buildAssetCache = {};
 
         // ==================== 导航切换 ====================
         function switchSection(sectionName) {
@@ -938,6 +946,7 @@
 
             loadProfiles().then(function() { checkActiveBuild(); });
             loadBuildHistory();
+            loadMyBuildRecords();
             loadBranches();
             loadBuildQueue();
         };
@@ -1177,6 +1186,151 @@
             }
         }
 
+        function formatFileSize(size) {
+            if (!size || size <= 0) return '-';
+            var units = ['B', 'KB', 'MB', 'GB'];
+            var index = 0;
+            var value = size;
+            while (value >= 1024 && index < units.length - 1) {
+                value = value / 1024;
+                index++;
+            }
+            return value.toFixed(value >= 10 || index === 0 ? 0 : 1) + ' ' + units[index];
+        }
+
+        function renderBuildAssets(recordId, data) {
+            var container = document.getElementById('buildAssets-' + recordId);
+            if (!container) return;
+            if (!data.available || !data.assets || data.assets.length === 0) {
+                container.innerHTML = '<div style="color:#aaa; font-size:12px;">产物暂未就绪，请稍后再试。</div>';
+                return;
+            }
+
+            var html = '';
+            if (data.release_url) {
+                html += '<div style="margin-bottom:8px;"><a href="' + data.release_url + '" target="_blank" style="color:#00d4ff; font-size:12px;">在 GitHub Release 查看</a></div>';
+            }
+            data.assets.forEach(function(asset) {
+                html += '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid rgba(255,255,255,0.06);">';
+                html += '<div style="display:flex; flex-direction:column; gap:4px; min-width:0;">';
+                html += '<span style="color:#fff; font-size:13px; word-break:break-all;">' + asset.name + '</span>';
+                html += '<span style="color:#aaa; font-size:12px;">' + formatFileSize(asset.size) + ' · 下载 ' + asset.download_count + ' 次</span>';
+                html += '</div>';
+                html += '<button type="button" class="btn btn-primary" style="padding:6px 10px; font-size:12px;" onclick=\'downloadBuildAsset(' + recordId + ', ' + asset.id + ', ' + JSON.stringify(asset.name) + ')\'>下载</button>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        async function downloadBuildAsset(recordId, assetId, fileName) {
+            var token = getToken();
+            if (!token) return;
+            try {
+                setBuildStatus('正在下载构建产物...', 'info');
+                var response = await fetch('/api/build/records/' + recordId + '/download/' + assetId, {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                if (!response.ok) {
+                    var errorText = await response.text();
+                    throw new Error(errorText || '下载失败');
+                }
+                var blob = await response.blob();
+                var url = URL.createObjectURL(blob);
+                var link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                setBuildStatus('下载已开始: ' + fileName, 'success');
+            } catch (e) {
+                setBuildStatus('下载失败: ' + e.message, 'error');
+            }
+        }
+
+        async function toggleBuildAssets(recordId) {
+            var container = document.getElementById('buildAssets-' + recordId);
+            if (!container) return;
+            if (container.style.display === 'block') {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'block';
+            if (buildAssetCache[recordId]) {
+                renderBuildAssets(recordId, buildAssetCache[recordId]);
+                return;
+            }
+            container.innerHTML = '<div style="color:#aaa; font-size:12px;">正在加载产物列表...</div>';
+            try {
+                var response = await api('GET', '/build/records/' + recordId + '/assets');
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '加载产物失败');
+                }
+                if (data.available && data.assets && data.assets.length > 0) {
+                    buildAssetCache[recordId] = data;
+                }
+                renderBuildAssets(recordId, data);
+            } catch (e) {
+                container.innerHTML = '<div style="color:#ff6b6b; font-size:12px;">' + e.message + '</div>';
+            }
+        }
+
+        function renderMyBuildRecords(records) {
+            var container = document.getElementById('myBuildRecordsList');
+            if (!container) return;
+            if (!records || records.length === 0) {
+                container.innerHTML = '<div style="color:#aaa; font-size:12px;">暂无构建记录</div>';
+                return;
+            }
+
+            var html = '';
+            records.forEach(function(record) {
+                var statusText = getStatusText(record.status, record.conclusion || '');
+                var statusColor = '#00d4ff';
+                if (record.status === 'completed' && record.conclusion === 'success') statusColor = '#00ff88';
+                if (record.status === 'completed' && record.conclusion === 'failure') statusColor = '#ff6b6b';
+                if (record.status === 'completed' && record.conclusion === 'trigger_failed') statusColor = '#ff6b6b';
+                html += '<div style="padding:10px 12px; background:rgba(255,255,255,0.03); border-radius:8px;">';
+                html += '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">';
+                html += '<div style="display:flex; flex-direction:column; gap:6px; min-width:0;">';
+                html += '<div style="color:#fff; font-size:13px;">' + record.profile + ' · ' + record.tag + '</div>';
+                html += '<div style="color:#aaa; font-size:12px;">分支: ' + record.branch + ' · 平台: ' + record.platforms + '</div>';
+                html += '<div style="color:#888; font-size:12px;">创建时间: ' + record.created_at + '</div>';
+                html += '</div>';
+                html += '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex-shrink:0;">';
+                html += '<span style="color:' + statusColor + '; font-size:12px;">' + statusText + '</span>';
+                html += '<button type="button" class="btn btn-secondary" style="padding:6px 10px; font-size:12px;" onclick="toggleBuildAssets(' + record.id + ')">' + (record.download_ready ? '查看下载' : '查看产物') + '</button>';
+                html += '</div>';
+                html += '</div>';
+                html += '<div id="buildAssets-' + record.id + '" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.06);"></div>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        async function loadMyBuildRecords() {
+            try {
+                buildAssetCache = {};
+                var response = await api('GET', '/build/records?limit=20');
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '加载构建记录失败');
+                }
+                renderMyBuildRecords(data.records || []);
+            } catch (e) {
+                var container = document.getElementById('myBuildRecordsList');
+                if (container) {
+                    container.innerHTML = '<div style="color:#ff6b6b; font-size:12px;">' + e.message + '</div>';
+                }
+            }
+        }
+
         async function loadBuildQueue() {
             try {
                 var response = await api('GET', '/build/queue');
@@ -1237,14 +1391,22 @@
                     loadBuildQueue();
                     return;
                 }
+                var result = await response.json();
                 if (!response.ok) {
-                    var err = await response.json();
-                    throw new Error(err.error || '触发失败');
+                    throw new Error(result.error || '触发失败');
                 }
                 setBuildStatus('打包已触发! 档案: ' + profileName + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
                 await loadBuildHistory();
                 loadBuildQueue();
-                startBuildPolling(profileName, false);
+                loadMyBuildRecords();
+                startBuildPolling({
+                    profile: profileName,
+                    tag: buildTag,
+                    branch: buildBranch,
+                    platforms: platforms,
+                    requestId: result.request_id || '',
+                    buildRecordId: result.record_id || 0
+                }, false);
             } catch (e) {
                 setBuildStatus('触发失败: ' + e.message, 'error');
             }
@@ -1796,47 +1958,116 @@
         // ==================== 构建进度追踪 ====================
         var BUILD_POLL_KEY = 'xboard_building_profile';
         var buildPollTimer = null;
-        var buildPollProfile = '';
+        var buildPollContext = null;
         var buildNotFoundCount = 0;
         var maxNotFoundRetries = 6;
 
-        function saveBuildingProfile(profile) {
-            if (profile) {
-                sessionStorage.setItem(BUILD_POLL_KEY, profile);
+        function normalizeBuildPollContext(context) {
+            if (!context) return null;
+            if (typeof context === 'string') {
+                return {
+                    profile: context,
+                    tag: '',
+                    branch: 'main',
+                    platforms: 'all',
+                    requestId: '',
+                    buildRecordId: 0
+                };
+            }
+            if (!context.profile) return null;
+            return {
+                profile: context.profile,
+                tag: context.tag || '',
+                branch: context.branch || 'main',
+                platforms: context.platforms || 'all',
+                requestId: context.requestId || context.request_id || '',
+                buildRecordId: context.buildRecordId || context.build_record_id || 0
+            };
+        }
+
+        function saveBuildingProfile(context) {
+            var normalized = normalizeBuildPollContext(context);
+            if (normalized) {
+                sessionStorage.setItem(BUILD_POLL_KEY, JSON.stringify(normalized));
             } else {
                 sessionStorage.removeItem(BUILD_POLL_KEY);
             }
         }
 
         function getSavedBuildingProfile() {
-            return sessionStorage.getItem(BUILD_POLL_KEY) || '';
+            var raw = sessionStorage.getItem(BUILD_POLL_KEY);
+            if (!raw) return null;
+            try {
+                return normalizeBuildPollContext(JSON.parse(raw));
+            } catch (e) {
+                return normalizeBuildPollContext(raw);
+            }
+        }
+
+        function renderBuildProgressParams(data) {
+            var paramsEl = document.getElementById('buildProgressParams');
+            var params = data && data.inputs ? data.inputs : null;
+            if (!params && buildPollContext) {
+                params = {
+                    tag: buildPollContext.tag,
+                    platforms: buildPollContext.platforms,
+                    branch: buildPollContext.branch
+                };
+            }
+            if (!params) {
+                paramsEl.style.display = 'none';
+                paramsEl.innerHTML = '';
+                return;
+            }
+
+            var paramsHtml = '';
+            if (params.tag) {
+                paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">版本</span><span class="param-value">' + params.tag + '</span></span>';
+            }
+            if (params.platforms) {
+                paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">平台</span><span class="param-value">' + params.platforms + '</span></span>';
+            }
+            if (params.branch) {
+                paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">分支</span><span class="param-value">' + params.branch + '</span></span>';
+            }
+            if (paramsHtml) {
+                paramsEl.innerHTML = paramsHtml;
+                paramsEl.style.display = 'flex';
+            } else {
+                paramsEl.style.display = 'none';
+                paramsEl.innerHTML = '';
+            }
         }
 
         function dismissBuildProgress() {
             stopBuildPolling();
-            buildPollProfile = '';
+            buildPollContext = null;
             buildNotFoundCount = 0;
             saveBuildingProfile(null);
             document.getElementById('buildProgressPanel').style.display = 'none';
         }
 
-        function startBuildPolling(profile, isResume) {
+        function startBuildPolling(context, isResume) {
+            var normalized = normalizeBuildPollContext(context);
+            if (!normalized) return;
+
             stopBuildPolling();
-            buildPollProfile = profile;
+            buildPollContext = normalized;
             buildNotFoundCount = 0;
-            saveBuildingProfile(profile);
+            saveBuildingProfile(normalized);
             document.getElementById('buildProgressPanel').style.display = 'block';
-            document.getElementById('buildProgressTitle').textContent = '构建进度 - ' + profile;
+            document.getElementById('buildProgressTitle').textContent = '构建进度 - ' + normalized.profile;
             document.getElementById('buildProgressLink').style.display = 'none';
             document.getElementById('buildJobsList').innerHTML = '';
             document.getElementById('buildProgressTime').textContent = '';
+            renderBuildProgressParams();
 
             if (isResume) {
                 document.getElementById('buildProgressText').textContent = '正在查询构建状态...';
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon in_progress';
                 pollBuildStatus();
             } else {
-                document.getElementById('buildProgressText').textContent = '等待 GitHub 创建运行...';
+                document.getElementById('buildProgressText').textContent = '正在匹配本次 GitHub 构建运行...';
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
                 setTimeout(function() { pollBuildStatus(); }, 5000);
             }
@@ -1850,12 +2081,45 @@
         }
 
         async function pollBuildStatus() {
-            if (!buildPollProfile) return;
+            if (!buildPollContext || !buildPollContext.profile) return;
             try {
-                var response = await api('GET', '/build/status?profile=' + encodeURIComponent(buildPollProfile));
+                var query = '/build/status?profile=' + encodeURIComponent(buildPollContext.profile);
+                if (buildPollContext.tag) {
+                    query += '&tag=' + encodeURIComponent(buildPollContext.tag);
+                }
+                if (buildPollContext.branch) {
+                    query += '&branch=' + encodeURIComponent(buildPollContext.branch);
+                }
+                if (buildPollContext.platforms) {
+                    query += '&platforms=' + encodeURIComponent(buildPollContext.platforms);
+                }
+                if (buildPollContext.requestId) {
+                    query += '&request_id=' + encodeURIComponent(buildPollContext.requestId);
+                }
+                if (buildPollContext.buildRecordId) {
+                    query += '&record_id=' + encodeURIComponent(buildPollContext.buildRecordId);
+                }
+                var response = await api('GET', query);
                 if (!response) return;
                 var data = await response.json();
+                if (data.request_id && buildPollContext.requestId !== data.request_id) {
+                    buildPollContext.requestId = data.request_id;
+                    saveBuildingProfile(buildPollContext);
+                }
+                if (data.record_id && buildPollContext.buildRecordId !== data.record_id) {
+                    buildPollContext.buildRecordId = data.record_id;
+                    saveBuildingProfile(buildPollContext);
+                }
+                if (data.inputs) {
+                    buildPollContext.tag = data.inputs.tag || buildPollContext.tag;
+                    buildPollContext.branch = data.inputs.branch || buildPollContext.branch;
+                    buildPollContext.platforms = data.inputs.platforms || buildPollContext.platforms;
+                    saveBuildingProfile(buildPollContext);
+                }
                 renderBuildProgress(data);
+                if (buildPollContext.buildRecordId) {
+                    loadMyBuildRecords();
+                }
 
                 if (data.found && data.status !== 'completed') {
                     buildNotFoundCount = 0;
@@ -1869,6 +2133,7 @@
                     }
                 } else {
                     saveBuildingProfile(null);
+                    buildPollContext = null;
                     loadBuildQueue();
                 }
             } catch (e) {
@@ -1879,28 +2144,29 @@
         function renderBuildNotFound() {
             stopBuildPolling();
             saveBuildingProfile(null);
+            buildPollContext = null;
             document.getElementById('buildProgressIcon').className = 'build-progress-status-icon cancelled';
-            document.getElementById('buildProgressText').textContent = '未找到活跃的构建运行（可能已被取消或尚未创建）';
+            document.getElementById('buildProgressText').textContent = '暂时还没匹配到本次 GitHub 构建运行，GitHub 侧可能仍在排队，请稍后重试';
             document.getElementById('buildProgressTime').textContent = '';
         }
 
         function getStatusIcon(status, conclusion) {
             if (status === 'completed') {
                 if (conclusion === 'success') return '✓';
-                if (conclusion === 'failure') return '✗';
+                if (conclusion === 'failure' || conclusion === 'trigger_failed') return '✗';
                 if (conclusion === 'cancelled') return '—';
                 if (conclusion === 'skipped') return '⊘';
                 return '?';
             }
             if (status === 'in_progress') return '⟳';
-            if (status === 'queued' || status === 'waiting') return '◦';
+            if (status === 'queued' || status === 'waiting' || status === 'requested' || status === 'pending') return '◦';
             return '…';
         }
 
         function getStatusClass(status, conclusion) {
             if (status === 'completed') {
                 if (conclusion === 'success') return 'success';
-                if (conclusion === 'failure') return 'failure';
+                if (conclusion === 'failure' || conclusion === 'trigger_failed') return 'failure';
                 if (conclusion === 'skipped') return 'skipped';
                 if (conclusion === 'cancelled') return 'skipped';
                 return '';
@@ -1913,11 +2179,12 @@
             if (status === 'completed') {
                 if (conclusion === 'success') return '构建成功';
                 if (conclusion === 'failure') return '构建失败';
+                if (conclusion === 'trigger_failed') return '触发失败';
                 if (conclusion === 'cancelled') return '已取消';
                 return '已完成';
             }
             if (status === 'in_progress') return '正在构建...';
-            if (status === 'queued' || status === 'waiting') return '排队等待中...';
+            if (status === 'queued' || status === 'waiting' || status === 'requested' || status === 'pending') return '排队等待中...';
             return status;
         }
 
@@ -1965,33 +2232,15 @@
             var panel = document.getElementById('buildProgressPanel');
             panel.style.display = 'block';
 
-            var paramsEl = document.getElementById('buildProgressParams');
+            renderBuildProgressParams(data);
 
             if (!data.found) {
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
-                document.getElementById('buildProgressText').textContent = '正在等待 GitHub 创建构建运行... (' + buildNotFoundCount + '/' + maxNotFoundRetries + ')';
+                document.getElementById('buildProgressText').textContent = '正在匹配 GitHub 构建运行... (' + buildNotFoundCount + '/' + maxNotFoundRetries + ')';
                 document.getElementById('buildProgressTime').textContent = '';
                 document.getElementById('buildProgressLink').style.display = 'none';
                 document.getElementById('buildJobsList').innerHTML = '';
-                paramsEl.style.display = 'none';
                 return;
-            }
-
-            if (data.inputs) {
-                var paramsHtml = '';
-                if (data.inputs.tag) {
-                    paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">版本</span><span class="param-value">' + data.inputs.tag + '</span></span>';
-                }
-                if (data.inputs.platforms) {
-                    paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">平台</span><span class="param-value">' + data.inputs.platforms + '</span></span>';
-                }
-                if (data.inputs.branch) {
-                    paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">分支</span><span class="param-value">' + data.inputs.branch + '</span></span>';
-                }
-                paramsEl.innerHTML = paramsHtml;
-                paramsEl.style.display = 'flex';
-            } else {
-                paramsEl.style.display = 'none';
             }
 
             var statusClass = getStatusClass(data.status, data.conclusion);
@@ -2073,8 +2322,16 @@
                     return response.json();
                 }).then(function(data) {
                     if (data && data.found) {
+                        var context = {
+                            profile: profile,
+                            tag: data.inputs && data.inputs.tag ? data.inputs.tag : '',
+                            branch: data.inputs && data.inputs.branch ? data.inputs.branch : 'main',
+                            platforms: data.inputs && data.inputs.platforms ? data.inputs.platforms : 'all',
+                            requestId: data.request_id || (data.inputs && data.inputs.request_id ? data.inputs.request_id : ''),
+                            buildRecordId: data.record_id || 0
+                        };
                         if (data.status !== 'completed') {
-                            startBuildPolling(profile, true);
+                            startBuildPolling(context, true);
                         } else {
                             renderBuildProgress(data);
                         }

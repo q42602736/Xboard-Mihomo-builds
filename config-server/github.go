@@ -167,7 +167,7 @@ func (g *GitHubClient) ListBranches() ([]Branch, error) {
 // GetRunningWorkflowCount 查询指定仓库中正在运行和排队中的工作流数量
 func (g *GitHubClient) GetRunningWorkflowCount(buildOwner, buildRepo, workflow string) (int, error) {
 	total := 0
-	for _, status := range []string{"in_progress", "queued"} {
+	for _, status := range []string{"in_progress", "queued", "waiting", "pending", "requested"} {
 		url := fmt.Sprintf(
 			"https://api.github.com/repos/%s/%s/actions/workflows/%s/runs?status=%s&per_page=1",
 			buildOwner, buildRepo, workflow, status,
@@ -193,15 +193,15 @@ func (g *GitHubClient) GetRunningWorkflowCount(buildOwner, buildRepo, workflow s
 
 // WorkflowRun 表示一个 GitHub Actions 工作流运行实例
 type WorkflowRun struct {
-	ID         int64             `json:"id"`
-	Status     string            `json:"status"`
-	Conclusion *string           `json:"conclusion"`
-	HTMLURL    string            `json:"html_url"`
-	CreatedAt  string            `json:"created_at"`
-	UpdatedAt  string            `json:"updated_at"`
-	Name       string            `json:"name"`
-	RunNumber  int               `json:"run_number"`
-	Event      string            `json:"event"`
+	ID         int64   `json:"id"`
+	Status     string  `json:"status"`
+	Conclusion *string `json:"conclusion"`
+	HTMLURL    string  `json:"html_url"`
+	CreatedAt  string  `json:"created_at"`
+	UpdatedAt  string  `json:"updated_at"`
+	Name       string  `json:"name"`
+	RunNumber  int     `json:"run_number"`
+	Event      string  `json:"event"`
 }
 
 // WorkflowStep 表示 job 中的一个步骤
@@ -220,6 +220,27 @@ type WorkflowJob struct {
 	Conclusion *string        `json:"conclusion"`
 	StartedAt  string         `json:"started_at"`
 	Steps      []WorkflowStep `json:"steps"`
+}
+
+type ReleaseAsset struct {
+	ID                 int64  `json:"id"`
+	Name               string `json:"name"`
+	Label              string `json:"label"`
+	State              string `json:"state"`
+	ContentType        string `json:"content_type"`
+	Size               int64  `json:"size"`
+	DownloadCount      int64  `json:"download_count"`
+	BrowserDownloadURL string `json:"browser_download_url"`
+	UpdatedAt          string `json:"updated_at"`
+}
+
+type Release struct {
+	ID      int64          `json:"id"`
+	TagName string         `json:"tag_name"`
+	Name    string         `json:"name"`
+	HTMLURL string         `json:"html_url"`
+	Draft   bool           `json:"draft"`
+	Assets  []ReleaseAsset `json:"assets"`
 }
 
 // GetRecentWorkflowRuns 获取最近的工作流运行列表
@@ -341,4 +362,57 @@ func (g *GitHubClient) SaveFileWithRetry(filePath string, contentFn func(existin
 		// SHA 冲突，重试
 	}
 	return fmt.Errorf("保存文件失败: 重试 %d 次后仍有冲突", maxRetries)
+}
+
+func (g *GitHubClient) GetReleaseByTag(buildOwner, buildRepo, tag string) (*Release, error) {
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/releases/tags/%s",
+		buildOwner, buildRepo, tag,
+	)
+	resp, err := g.doRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("获取 Release 失败 (%d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var release Release
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return nil, err
+	}
+	return &release, nil
+}
+
+func (g *GitHubClient) DownloadReleaseAsset(buildOwner, buildRepo string, assetID int64) (*http.Response, error) {
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/releases/assets/%d",
+		buildOwner, buildRepo, assetID,
+	)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "token "+g.Token)
+	req.Header.Set("Accept", "application/octet-stream")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusTemporaryRedirect {
+			return resp, nil
+		}
+		defer resp.Body.Close()
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("下载 Release 资源失败 (%d): %s", resp.StatusCode, string(respBody))
+	}
+	return resp, nil
 }
