@@ -2245,7 +2245,6 @@
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
                 document.getElementById('buildProgressText').textContent = '正在匹配 GitHub 构建运行... (' + buildNotFoundCount + '/' + maxNotFoundRetries + ')';
                 document.getElementById('buildProgressTime').textContent = '';
-                document.getElementById('buildProgressLink').style.display = 'none';
                 document.getElementById('buildJobsList').innerHTML = '';
                 return;
             }

@@ -722,7 +722,6 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		"run_id":     matchedRun.ID,
 		"status":     matchedRun.Status,
 		"conclusion": conclusion,
-		"html_url":   matchedRun.HTMLURL,
 		"created_at": matchedRun.CreatedAt,
 		"updated_at": matchedRun.UpdatedAt,
 	}
@@ -902,7 +901,6 @@ func (h *Handlers) GetBuildRecordAssets(w http.ResponseWriter, r *http.Request) 
 			"content_type":   asset.ContentType,
 			"download_count": asset.DownloadCount,
 			"updated_at":     asset.UpdatedAt,
-			"download_url":   fmt.Sprintf("/api/build/records/%d/download/%d", record.ID, asset.ID),
 		})
 	}
 
@@ -910,7 +908,6 @@ func (h *Handlers) GetBuildRecordAssets(w http.ResponseWriter, r *http.Request) 
 		"record":      buildRecordResponse(*record),
 		"available":   true,
 		"release_tag": release.TagName,
-		"release_url": release.HTMLURL,
 		"assets":      assets,
 	})
 }
@@ -979,6 +976,9 @@ func (h *Handlers) DownloadBuildRecordAsset(w http.ResponseWriter, r *http.Reque
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", matchedAsset.Name))
+	w.Header().Set("Cache-Control", "private, no-store, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	if matchedAsset.Size > 0 {
 		w.Header().Set("Content-Length", strconv.FormatInt(matchedAsset.Size, 10))
 	}
