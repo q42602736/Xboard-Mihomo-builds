@@ -291,6 +291,8 @@
         .btn-success { background: linear-gradient(135deg, #00ff88, #00cc6a); color: #000; }
         .btn-warning { background: linear-gradient(135deg, #ffaa00, #ff8800); color: #000; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-build:disabled { background: linear-gradient(135deg, #666, #444); color: #bbb; opacity: 1; box-shadow: none; }
+        .btn-build:disabled:hover { background: linear-gradient(135deg, #666, #444); }
         .editor-container { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; padding: 24px; }
         .section { margin-bottom: 25px; }
         .section:last-child { margin-bottom: 0; }
@@ -802,7 +804,7 @@
                             <div style="color: #aaa; font-size: 12px;">上次打包记录：</div>
                             <div id="lastBuildContent" style="margin-top: 5px; font-size: 13px;"></div>
                         </div>
-                        <button class="btn btn-build" id="buildBtn" style="margin-top: 15px;">触发打包</button>
+                        <button class="btn btn-build" id="buildBtn" style="margin-top: 15px;" disabled>触发打包</button>
                         <div id="myBuildRecordsPanel" style="margin-top: 18px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
                             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
                                 <div style="color:#aaa; font-size:12px;">我的构建记录</div>
@@ -1328,25 +1330,35 @@
         }
 
         async function loadBuildQueue() {
+            var el = document.getElementById('buildQueueInfo');
+            var btn = document.getElementById('buildBtn');
             try {
                 var response = await api('GET', '/build/queue');
                 if (!response) return;
                 var data = await response.json();
-                var el = document.getElementById('buildQueueInfo');
-                var btn = document.getElementById('buildBtn');
                 if (data.available) {
                     el.innerHTML = '<span style="color:#00ff88;">' + data.running + '/' + data.max + ' 运行中</span> · 可提交新构建';
                     btn.disabled = false;
+                    btn.title = '';
                 } else {
                     el.innerHTML = '<span style="color:#ff6b6b;">' + data.running + '/' + data.max + ' 运行中</span> · 队列已满，请稍后';
                     btn.disabled = true;
+                    btn.title = '当前构建队列已满，请稍后再试';
                 }
             } catch (e) {
                 document.getElementById('buildQueueInfo').textContent = '无法获取队列状态';
+                btn.disabled = false;
+                btn.title = '';
             }
         }
 
         async function triggerBuild() {
+            var buildBtn = document.getElementById('buildBtn');
+            if (buildBtn && buildBtn.disabled) {
+                setBuildStatus('当前构建队列已满，请稍后再试', 'error');
+                return;
+            }
+
             var profileName = document.getElementById('profileSelect').value;
             var buildBranch = document.getElementById('buildBranch').value.trim() || 'main';
             var buildTag = document.getElementById('buildTag').value.trim();
