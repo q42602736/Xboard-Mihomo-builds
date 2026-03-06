@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexGen Client - 登录</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #e0e0e0;
+        }
+        .login-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 40px;
+            width: 400px;
+            max-width: 90vw;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            text-align: center;
+            color: #00d4ff;
+            margin-bottom: 8px;
+            font-size: 24px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 14px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 16px;
+            letter-spacing: 2px;
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 12px rgba(0,212,255,0.2);
+        }
+        .form-group input::placeholder {
+            letter-spacing: 0;
+            font-size: 14px;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #000;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        .btn-login:hover { opacity: 0.9; }
+        .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+        .error-msg {
+            background: rgba(255,68,68,0.1);
+            border: 1px solid rgba(255,68,68,0.3);
+            color: #ff4444;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>NexGen Client</h1>
+        <p class="subtitle">请输入激活码登录</p>
+        <div id="error" class="error-msg"></div>
+        <div class="form-group">
+            <label>激活码</label>
+            <input type="text" id="code" placeholder="请输入激活码" autofocus>
+        </div>
+        <button class="btn-login" id="loginBtn" onclick="login()">登 录</button>
+    </div>
+
+    <script>
+        var SESSION_KEY = 'xboard_session';
+
+        if (sessionStorage.getItem(SESSION_KEY)) {
+            var session = JSON.parse(sessionStorage.getItem(SESSION_KEY));
+            if (session && session.token) {
+                window.location.href = session.permissions === 'admin' ? '/admin.html' : '/editor.html';
+            }
+        }
+
+        document.getElementById('code').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') login();
+        });
+
+        async function login() {
+            var code = document.getElementById('code').value.trim();
+            if (!code) return;
+
+            var btn = document.getElementById('loginBtn');
+            var errorEl = document.getElementById('error');
+            btn.disabled = true;
+            btn.textContent = '登录中...';
+            errorEl.style.display = 'none';
+
+            try {
+                var response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code })
+                });
+
+                var data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || '登录失败');
+                }
+
+                sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+                    token: data.token,
+                    name: data.name,
+                    permissions: data.permissions
+                }));
+
+                window.location.href = data.permissions === 'admin' ? '/admin.html' : '/editor.html';
+            } catch (e) {
+                errorEl.textContent = e.message;
+                errorEl.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = '登 录';
+            }
+        }
+    </script>
+</body>
+</html>

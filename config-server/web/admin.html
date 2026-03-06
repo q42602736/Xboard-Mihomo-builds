@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexGen Client 管理后台</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 20px; color: #00d4ff; }
+        .user-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .user-bar a {
+            padding: 5px 14px;
+            border: 1px solid rgba(0,212,255,0.4);
+            border-radius: 4px;
+            background: transparent;
+            color: #00d4ff;
+            cursor: pointer;
+            font-size: 12px;
+            text-decoration: none;
+        }
+        .user-bar a:hover { background: rgba(0,212,255,0.1); }
+        .user-bar .btn-logout {
+            padding: 5px 14px;
+            border: 1px solid rgba(255,68,68,0.4);
+            border-radius: 4px;
+            background: transparent;
+            color: #ff6b6b;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .panel {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .panel h3 { color: #00d4ff; margin-bottom: 15px; }
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #aaa; font-size: 13px; }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #00d4ff; }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .btn-primary { background: linear-gradient(135deg, #00d4ff, #0099cc); color: #000; }
+        .btn-danger {
+            background: rgba(255,68,68,0.2);
+            color: #ff4444;
+            border: 1px solid rgba(255,68,68,0.3);
+            padding: 5px 12px;
+            font-size: 12px;
+        }
+        .btn-danger:hover { background: rgba(255,68,68,0.4); }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            text-align: left;
+            padding: 10px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            color: #888;
+            font-weight: 500;
+        }
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .code-text {
+            font-family: Monaco, monospace;
+            background: rgba(0,212,255,0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: #00d4ff;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .code-text:hover { background: rgba(0,212,255,0.2); }
+        .status-msg {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            display: none;
+        }
+        .status-msg.success { display: block; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); color: #00ff88; }
+        .status-msg.error { display: block; background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: #ff4444; }
+        .tabs { display: flex; gap: 0; margin-bottom: 20px; }
+        .tab-btn {
+            padding: 10px 24px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #888;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .tab-btn:first-child { border-radius: 8px 0 0 8px; }
+        .tab-btn:last-child { border-radius: 0 8px 8px 0; }
+        .tab-btn.active { background: rgba(0,212,255,0.1); border-color: rgba(0,212,255,0.3); color: #00d4ff; }
+        .tab-page { display: none; }
+        .tab-page.active { display: block; }
+        .empty { color: #555; text-align: center; padding: 30px; }
+        .log-action { font-weight: 500; color: #00d4ff; }
+        .log-time { color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <!-- 管理员登录框 -->
+    <div class="container" id="loginView" style="display:none;">
+        <div style="max-width:400px;margin:120px auto;">
+            <h1 style="text-align:center;color:#00d4ff;margin-bottom:8px;">NexGen Client 管理后台</h1>
+            <p style="text-align:center;color:#666;margin-bottom:30px;font-size:14px;">请输入管理员密码</p>
+            <div id="loginError" class="status-msg" style="margin-bottom:15px;"></div>
+            <div class="form-group" style="margin-bottom:20px;">
+                <input type="password" id="adminPassword" placeholder="管理员密码" style="text-align:center;font-size:16px;padding:14px;">
+            </div>
+            <button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" onclick="adminLogin()">登 录</button>
+        </div>
+    </div>
+
+    <!-- 管理后台主界面 -->
+    <div class="container" id="mainView" style="display:none;">
+        <div class="user-bar">
+            <a href="/editor.html">配置编辑器</a>
+            <button class="btn-logout" onclick="logout()">退出登录</button>
+        </div>
+
+        <h1>NexGen Client 管理后台</h1>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('codes')">激活码管理</button>
+            <button class="tab-btn" onclick="switchTab('logs')">操作日志</button>
+        </div>
+
+        <div id="codesTab" class="tab-page active">
+            <div class="panel">
+                <h3>创建激活码</h3>
+                <div id="createStatus" class="status-msg"></div>
+                <div class="form-row" style="grid-template-columns: 2fr 1fr;">
+                    <div class="form-group">
+                        <label>备注名称</label>
+                        <input type="text" id="codeName" placeholder="如：客户A、测试用">
+                    </div>
+                    <div class="form-group">
+                        <label>可用次数 (-1=无限)</label>
+                        <input type="number" id="codeMaxUses" value="-1" min="-1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>绑定配置档案（用户只能看到绑定的档案）</label>
+                    <div id="profileCheckboxes" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;min-height:36px;">
+                        <span style="color:#555;font-size:13px;">加载档案列表中...</span>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <input type="text" id="manualProfiles" placeholder="手动输入档案名称，多个用逗号分隔（如：软件云,企鹅云）" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:#fff;font-size:14px;">
+                        <div style="font-size:12px;color:#666;margin-top:5px;">可与上方复选框配合使用，适用于尚未创建的档案</div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="createCode()">生成激活码</button>
+            </div>
+
+            <div class="panel">
+                <h3>激活码列表</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>激活码</th>
+                            <th>备注</th>
+                            <th>绑定档案</th>
+                            <th>使用次数</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="codesTable">
+                        <tr><td colspan="6" class="empty">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="logsTab" class="tab-page">
+            <div class="panel">
+                <h3>操作日志</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>用户</th>
+                            <th>操作</th>
+                            <th>详情</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTable">
+                        <tr><td colspan="5" class="empty">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var SESSION_KEY = 'xboard_admin_session';
+
+        function getSession() {
+            try { return JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch(e) { return null; }
+        }
+
+        function getToken() {
+            var s = getSession();
+            if (!s || !s.token || s.permissions !== 'admin') {
+                return null;
+            }
+            return s.token;
+        }
+
+        function showLogin() {
+            document.getElementById('loginView').style.display = 'block';
+            document.getElementById('mainView').style.display = 'none';
+        }
+
+        function showMain() {
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('mainView').style.display = 'block';
+        }
+
+        function logout() {
+            sessionStorage.removeItem(SESSION_KEY);
+            showLogin();
+        }
+
+        async function adminLogin() {
+            var password = document.getElementById('adminPassword').value.trim();
+            if (!password) return;
+            var errorEl = document.getElementById('loginError');
+            errorEl.className = 'status-msg';
+
+            try {
+                var response = await fetch('/api/auth/admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: password })
+                });
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '登录失败');
+                }
+                sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+                    token: data.token,
+                    name: data.name,
+                    permissions: data.permissions
+                }));
+                showMain();
+                loadCodes();
+                loadProfileList();
+            } catch (e) {
+                errorEl.className = 'status-msg error';
+                errorEl.textContent = e.message;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('adminPassword').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') adminLogin();
+            });
+        });
+
+        async function api(method, path, body) {
+            var token = getToken();
+            if (!token) { showLogin(); return null; }
+            var options = {
+                method: method,
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+            };
+            if (body) options.body = JSON.stringify(body);
+            var response = await fetch('/api' + path, options);
+            if (response.status === 401 || response.status === 403) {
+                sessionStorage.removeItem(SESSION_KEY);
+                showLogin();
+                return null;
+            }
+            return response;
+        }
+
+        function switchTab(name) {
+            document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            document.querySelectorAll('.tab-page').forEach(function(p) { p.classList.remove('active'); });
+            document.getElementById(name + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+            if (name === 'logs') loadLogs();
+        }
+
+        function copyCode(code) {
+            navigator.clipboard.writeText(code).then(function() {
+                alert('已复制: ' + code);
+            });
+        }
+
+        var allProfiles = [];
+
+        async function loadProfileList() {
+            try {
+                var response = await api('GET', '/profiles');
+                if (!response) return;
+                var data = await response.json();
+                allProfiles = (data.profiles || []).map(function(p) { return p.name; });
+                renderProfileCheckboxes();
+            } catch (e) {
+                console.log('加载档案列表失败:', e);
+            }
+        }
+
+        function renderProfileCheckboxes() {
+            var container = document.getElementById('profileCheckboxes');
+            if (allProfiles.length === 0) {
+                container.innerHTML = '<span style="color:#555;font-size:13px;">暂无已有档案，请在下方手动输入</span>';
+                return;
+            }
+            container.innerHTML = '';
+            allProfiles.forEach(function(name) {
+                var label = document.createElement('label');
+                label.style.cssText = 'display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.2);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;';
+                label.innerHTML = '<input type="checkbox" class="profile-cb" value="' + name + '"><span style="white-space:nowrap;">' + name + '</span>';
+                container.appendChild(label);
+            });
+        }
+
+        function getSelectedProfiles() {
+            var result = [];
+            var seen = {};
+            // 从复选框获取
+            document.querySelectorAll('.profile-cb:checked').forEach(function(cb) {
+                var v = cb.value.trim();
+                if (v && !seen[v]) { result.push(v); seen[v] = true; }
+            });
+            // 从手动输入获取
+            var manual = (document.getElementById('manualProfiles').value || '').split(/[,，]/);
+            manual.forEach(function(s) {
+                var v = s.trim();
+                if (v && !seen[v]) { result.push(v); seen[v] = true; }
+            });
+            return result;
+        }
+
+        async function loadCodes() {
+            try {
+                var response = await api('GET', '/admin/codes');
+                if (!response) return;
+                var codes = await response.json();
+                var tbody = document.getElementById('codesTable');
+
+                if (!codes || codes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无激活码</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                codes.forEach(function(c) {
+                    var maxUsesText = c.max_uses === -1 ? '无限' : c.max_uses;
+                    var profilesText = (c.allowed_profiles && c.allowed_profiles.length > 0)
+                        ? c.allowed_profiles.join(', ')
+                        : '<span style="color:#555">未绑定</span>';
+
+                    var tr = document.createElement('tr');
+                    tr.innerHTML =
+                        '<td><span class="code-text" onclick="copyCode(\'' + c.code + '\')" title="点击复制">' + c.code + '</span></td>' +
+                        '<td>' + (c.name || '-') + '</td>' +
+                        '<td style="font-size:12px;">' + profilesText + '</td>' +
+                        '<td>' + c.used_count + ' / ' + maxUsesText + '</td>' +
+                        '<td style="font-size:12px;color:#888;">' + (c.created_at || '') + '</td>' +
+                        '<td><button class="btn btn-danger" onclick="deleteCode(' + c.id + ')">删除</button></td>';
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.log('加载激活码失败:', e);
+            }
+        }
+
+        async function createCode() {
+            var name = document.getElementById('codeName').value.trim();
+            var maxUses = parseInt(document.getElementById('codeMaxUses').value) || -1;
+            var selectedProfiles = getSelectedProfiles();
+            var statusEl = document.getElementById('createStatus');
+
+            if (selectedProfiles.length === 0) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '请至少绑定一个档案（勾选已有档案或手动输入）';
+                return;
+            }
+
+            try {
+                var response = await api('POST', '/admin/codes', {
+                    name: name,
+                    max_uses: maxUses,
+                    allowed_profiles: selectedProfiles
+                });
+                if (!response) return;
+                var data = await response.json();
+
+                if (!response.ok) {
+                    statusEl.className = 'status-msg error';
+                    statusEl.textContent = data.error || '创建失败';
+                    return;
+                }
+
+                statusEl.className = 'status-msg success';
+                statusEl.textContent = '激活码已创建: ' + data.code + ' (绑定: ' + selectedProfiles.join(', ') + ')';
+                document.getElementById('codeName').value = '';
+                document.getElementById('manualProfiles').value = '';
+                document.querySelectorAll('.profile-cb').forEach(function(cb) { cb.checked = false; });
+                loadCodes();
+            } catch (e) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '创建失败: ' + e.message;
+            }
+        }
+
+        async function deleteCode(id) {
+            if (!confirm('确定要删除这个激活码吗？')) return;
+            try {
+                await api('DELETE', '/admin/codes/' + id);
+                loadCodes();
+            } catch (e) {
+                console.log('删除失败:', e);
+            }
+        }
+
+        var actionLabels = {
+            'login': '登录',
+            'load_profile': '加载档案',
+            'save_profile': '保存档案',
+            'delete_profile': '删除档案',
+            'trigger_build': '触发构建',
+            'create_code': '创建激活码',
+            'delete_code': '删除激活码'
+        };
+
+        async function loadLogs() {
+            try {
+                var response = await api('GET', '/admin/logs?limit=200');
+                if (!response) return;
+                var logs = await response.json();
+                var tbody = document.getElementById('logsTable');
+
+                if (!logs || logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty">暂无日志</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                logs.forEach(function(log) {
+                    var tr = document.createElement('tr');
+                    tr.innerHTML =
+                        '<td class="log-time">' + (log.created_at || '') + '</td>' +
+                        '<td>' + (log.code_name || '-') + '</td>' +
+                        '<td class="log-action">' + (actionLabels[log.action] || log.action) + '</td>' +
+                        '<td style="font-size:12px;">' + (log.details || '-') + '</td>' +
+                        '<td style="font-size:12px;color:#666;">' + (log.ip || '-') + '</td>';
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.log('加载日志失败:', e);
+            }
+        }
+
+        window.onload = function() {
+            if (getToken()) {
+                showMain();
+                loadCodes();
+                loadProfileList();
+            } else {
+                showLogin();
+            }
+        };
+    </script>
+</body>
+</html>

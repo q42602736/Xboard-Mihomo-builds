@@ -77,6 +77,15 @@ yarn-error.log*
 *.cache
 
 # ============================================
-# 依赖===========================================
+# 依赖
+# ============================================
 node_modules/
 vendor/
+
+# ============================================
+# config-server 敏感/生成文件
+# ============================================
+config-server/.env
+config-server/data/
+config-server/config-server
+config-server/xboard-config-server

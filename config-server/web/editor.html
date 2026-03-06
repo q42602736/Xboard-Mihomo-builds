@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexGen Client 配置编辑器</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #1a1a2e;
+            min-height: 100vh;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(180deg, #16213e 0%, #0f1419 100%);
+            border-right: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-header h1 {
+            font-size: 18px;
+            color: #00d4ff;
+            margin-bottom: 8px;
+        }
+        .sidebar-header .user-info {
+            font-size: 12px;
+            color: #888;
+        }
+        .sidebar-header .user-name {
+            color: #00d4ff;
+            font-weight: 500;
+        }
+
+        /* 侧边栏档案管理区域 */
+        .sidebar-profiles {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        .sidebar-profiles select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 13px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        .sidebar-profiles select:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+        .sidebar-profile-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .sidebar-profile-actions .btn-sm {
+            flex: 1;
+            padding: 7px 0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .btn-sm.btn-load {
+            background: rgba(0,212,255,0.15);
+            color: #00d4ff;
+            border: 1px solid rgba(0,212,255,0.3);
+        }
+        .btn-sm.btn-load:hover { background: rgba(0,212,255,0.25); }
+        .btn-sm.btn-save {
+            background: rgba(0,255,136,0.15);
+            color: #00ff88;
+            border: 1px solid rgba(0,255,136,0.3);
+        }
+        .btn-sm.btn-save:hover { background: rgba(0,255,136,0.25); }
+        .btn-sm.btn-del {
+            background: rgba(255,68,68,0.15);
+            color: #ff6b6b;
+            border: 1px solid rgba(255,68,68,0.3);
+        }
+        .btn-sm.btn-del:hover { background: rgba(255,68,68,0.25); }
+        .sidebar-new-profile {
+            display: none;
+            margin-top: 8px;
+            padding: 10px;
+            background: rgba(0,255,136,0.08);
+            border: 1px solid rgba(0,255,136,0.2);
+            border-radius: 6px;
+        }
+        .sidebar-new-profile.active { display: block; }
+        .sidebar-new-profile input {
+            width: 100%;
+            padding: 7px 10px;
+            border: 1px solid rgba(0,255,136,0.3);
+            border-radius: 5px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+        .sidebar-new-profile input:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+        .sidebar-new-profile-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .sidebar-new-profile-actions .btn-sm {
+            flex: 1;
+        }
+        .sidebar-status {
+            margin-top: 8px;
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            line-height: 1.4;
+            word-break: break-all;
+        }
+        .sidebar-status.info { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2); color: #88ccdd; }
+        .sidebar-status.success { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.2); color: #00ff88; }
+        .sidebar-status.error { background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.2); color: #ff6b6b; }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 10px 0;
+        }
+        .nav-section-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #555;
+            padding: 8px 20px 6px;
+            font-weight: 600;
+        }
+        .nav-item {
+            padding: 10px 20px;
+            cursor: pointer;
+            color: #aaa;
+            font-size: 13px;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-item:hover {
+            background: rgba(0,212,255,0.05);
+            color: #00d4ff;
+        }
+        .nav-item.active {
+            background: rgba(0,212,255,0.1);
+            color: #00d4ff;
+            border-left-color: #00d4ff;
+        }
+        .nav-item-icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.6;
+            flex-shrink: 0;
+        }
+        .nav-item.active .nav-item-icon {
+            opacity: 1;
+        }
+        .nav-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.06);
+            margin: 6px 16px;
+        }
+        .sidebar-footer {
+            padding: 15px 16px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-footer .btn-logout {
+            width: 100%;
+            padding: 9px;
+            border: 1px solid rgba(255,68,68,0.4);
+            border-radius: 6px;
+            background: transparent;
+            color: #ff6b6b;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .sidebar-footer .btn-logout:hover {
+            background: rgba(255,68,68,0.1);
+        }
+        .sidebar-footer .btn-admin {
+            width: 100%;
+            padding: 9px;
+            border: 1px solid rgba(0,212,255,0.4);
+            border-radius: 6px;
+            background: transparent;
+            color: #00d4ff;
+            cursor: pointer;
+            font-size: 12px;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+        .sidebar-footer .btn-admin:hover {
+            background: rgba(0,212,255,0.1);
+        }
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 30px;
+            max-width: calc(100% - 280px);
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .page-header {
+            margin-bottom: 25px;
+        }
+        .page-header h2 {
+            font-size: 24px;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+        .page-header .subtitle {
+            font-size: 14px;
+            color: #888;
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+        }
+        h1 { text-align: center; margin-bottom: 20px; color: #00d4ff; display: none; }
+        .user-bar { display: none; }
+        .config-panel {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .config-panel h3 { color: #00d4ff; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #aaa; font-size: 13px; }
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 14px;
+        }
+        .form-group input:focus { outline: none; border-color: #00d4ff; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .btn-primary { background: linear-gradient(135deg, #00d4ff, #0099cc); color: #000; }
+        .btn-success { background: linear-gradient(135deg, #00ff88, #00cc6a); color: #000; }
+        .btn-warning { background: linear-gradient(135deg, #ffaa00, #ff8800); color: #000; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .editor-container { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; padding: 24px; }
+        .section { margin-bottom: 25px; }
+        .section:last-child { margin-bottom: 0; }
+        .section-title { color: #00d4ff; font-size: 15px; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid rgba(0,212,255,0.2); }
+        .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 14px;
+        }
+        .form-group textarea { min-height: 80px; font-family: Monaco, monospace; resize: vertical; }
+        .switch-group { display: flex; align-items: center; gap: 10px; }
+        .switch { position: relative; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.1); border-radius: 26px; transition: 0.3s; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s; }
+        input:checked + .slider { background: #00d4ff; }
+        input:checked + .slider:before { transform: translateX(24px); }
+        .help-text { font-size: 12px; color: #666; margin-top: 5px; }
+        #editor {
+            width: 100%;
+            min-height: 400px;
+            padding: 15px;
+            border: none;
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: Monaco, Menlo, monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+        }
+        #editor:focus { outline: none; }
+        .status { padding: 12px 15px; border-radius: 6px; margin-bottom: 15px; }
+        .status.info { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.3); }
+        .status.success { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); color: #00ff88; }
+        .status.error { background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: #ff4444; }
+        .source-item { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 15px; margin-bottom: 10px; position: relative; }
+        .source-item .form-row { grid-template-columns: 1fr 2fr 2fr; }
+        .source-item .btn-remove { position: absolute; top: 10px; right: 10px; background: rgba(255,68,68,0.3); color: #ff4444; border: 1px solid rgba(255,68,68,0.5); padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; }
+        .source-item .btn-remove:hover { background: rgba(255,68,68,0.5); }
+        .source-index { color: #00d4ff; font-weight: bold; margin-bottom: 10px; }
+        .build-panel { background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 12px; padding: 20px; margin-top: 0; }
+        .build-panel h3 { color: #00ff88; margin-bottom: 15px; }
+        .platform-checkboxes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .platform-checkbox { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); padding: 9px 16px; border-radius: 6px; cursor: pointer; }
+        .platform-checkbox input { cursor: pointer; order: -1; flex-shrink: 0; width: 16px; height: 16px; margin: 0; }
+        .platform-checkbox:hover { background: rgba(0,255,136,0.1); }
+        .btn-build { background: linear-gradient(135deg, #ff6b6b, #ee5a5a); color: #fff; }
+        .btn-build:hover { background: linear-gradient(135deg, #ff5252, #e04545); }
+        .support-item { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 15px; margin-bottom: 10px; position: relative; }
+        .support-item .btn-remove { position: absolute; top: 10px; right: 10px; background: rgba(255,68,68,0.3); color: #ff4444; border: 1px solid rgba(255,68,68,0.5); padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; }
+        .support-item .btn-remove:hover { background: rgba(255,68,68,0.5); }
+        .support-index { color: #00d4ff; font-weight: bold; margin-bottom: 10px; }
+        .support-fields { display: none; margin-top: 10px; }
+        .support-fields.active { display: block; }
+
+        .switch-card {
+            background: rgba(0,0,0,0.15);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+        .switch-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .switch-card-label {
+            font-size: 14px;
+            color: #ddd;
+        }
+        .switch-card .help-text {
+            margin-top: 8px;
+        }
+        .switch-card-extra {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <!-- 左侧边栏 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>NexGen Client</h1>
+                <div class="user-info">
+                    <span class="user-name" id="userName"></span>
+                    <span id="userPerm"></span>
+                </div>
+            </div>
+
+            <!-- 档案管理 -->
+            <div class="sidebar-profiles">
+                <div class="sidebar-section-title">配置档案</div>
+                <select id="profileSelect">
+                    <option value="">-- 请选择档案 --</option>
+                </select>
+                <div class="sidebar-profile-actions">
+                    <button class="btn-sm btn-load" id="loadProfileBtn">加载</button>
+                    <button class="btn-sm btn-save" id="saveProfileBtn">保存</button>
+                    <button class="btn-sm btn-del" id="deleteProfileBtn">删除</button>
+                </div>
+                <div class="sidebar-new-profile" id="newProfileInput">
+                    <input type="text" id="newProfileName" placeholder="输入档案名称">
+                    <div class="sidebar-new-profile-actions">
+                        <button class="btn-sm btn-save" id="confirmSaveProfileBtn">确认</button>
+                        <button class="btn-sm btn-del" id="cancelSaveProfileBtn">取消</button>
+                    </div>
+                </div>
+                <div id="status" class="sidebar-status info">请选择档案加载</div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <div class="nav-section-label">配置编辑</div>
+                <div class="nav-item active" onclick="switchSection('basic')">
+                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+                    基础设置
+                </div>
+                <div class="nav-item" onclick="switchSection('subscription')">
+                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                    订阅设置
+                </div>
+                <div class="nav-item" onclick="switchSection('sources')">
+                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"/></svg>
+                    远程配置源
+                </div>
+                <div class="nav-item" onclick="switchSection('support')">
+                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"/></svg>
+                    在线客服
+                </div>
+                <div class="nav-divider"></div>
+                <div class="nav-item" onclick="switchSection('build')">
+                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/></svg>
+                    触发构建
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <a href="/admin.html" class="btn-admin" id="adminLink" style="display:none;">管理后台</a>
+                <button class="btn-logout" onclick="logout()">退出登录</button>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <div class="container">
+
+                <!-- 基础设置 -->
+                <div class="content-section active" id="basicSection">
+                    <div class="page-header">
+                        <h2>基础设置</h2>
+                        <p class="subtitle">应用信息、Logo、图标与界面配置</p>
+                    </div>
+                    <div class="editor-container">
+                        <div class="section">
+                            <div class="section-title">应用信息</div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>提供商标识 (provider)</label>
+                                    <input type="text" id="provider" placeholder="如: 软件云、Bluetile">
+                                    <div class="help-text">必须与远程配置 panels 对象中的键名一致</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>应用名称</label>
+                                    <input type="text" id="appTitle" placeholder="如: 软件云">
+                                </div>
+                                <div class="form-group">
+                                    <label>Logo类型</label>
+                                    <select id="logoType">
+                                        <option value="text">文字Logo</option>
+                                        <option value="image">图片Logo</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Logo图片地址</label>
+                                <input type="text" id="logoImageUrl" placeholder="https://example.com/logo.png">
+                                <div class="help-text">仅当Logo类型为"图片Logo"时生效</div>
+                            </div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">应用图标</div>
+                            <div class="form-group">
+                                <label>图标图片地址</label>
+                                <input type="text" id="appIconUrl" placeholder="https://example.com/icon.png">
+                                <div class="help-text">建议1024x1024像素PNG图片</div>
+                            </div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">UI 界面</div>
+                            <div class="switch-card">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">隐藏流量详情标签页</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="hideTrafficDetails"><span class="slider"></span></label>
+                                        <span id="hideTrafficDetailsLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">启用后，将隐藏流量详情标签页和页面</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 订阅设置 -->
+                <div class="content-section" id="subscriptionSection">
+                    <div class="page-header">
+                        <h2>订阅设置</h2>
+                        <p class="subtitle">订阅加密、专用模式、离线与缓存配置</p>
+                    </div>
+                    <div class="editor-container">
+                        <div class="section">
+                            <div class="section-title">订阅配置</div>
+                            <div class="form-row-2">
+                                <div class="switch-card">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">优先加密订阅</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="preferEncrypt"><span class="slider"></span></label>
+                                            <span id="preferEncryptLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="switch-card">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">专用客户端模式</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="useExclusiveMode"><span class="slider"></span></label>
+                                            <span id="useExclusiveModeLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>订阅解密密钥</label>
+                                <input type="text" id="decryptKey" placeholder="your_secret_decrypt_key_here">
+                            </div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">自动离线模式</div>
+                            <div class="switch-card">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">启用自动离线</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="autoOfflineEnabled"><span class="slider"></span></label>
+                                        <span id="autoOfflineEnabledLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">启用后，应用启动完成所有初始化请求后会自动进入离线模式</div>
+                            </div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">订阅缓存配置</div>
+                            <div class="switch-card">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">启用订阅缓存</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="subscriptionCacheEnabled"><span class="slider"></span></label>
+                                        <span id="subscriptionCacheEnabledLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="switch-card-extra">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label>缓存有效期（小时）</label>
+                                        <input type="number" id="subscriptionCacheTtl" value="24" min="0" placeholder="24">
+                                    </div>
+                                </div>
+                                <div class="help-text">启用后，订阅配置将被缓存，在有效期内不会重复拉取。设置为0表示禁用缓存。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 远程配置源 -->
+                <div class="content-section" id="sourcesSection">
+                    <div class="page-header">
+                        <h2>远程配置源</h2>
+                        <p class="subtitle">管理远程配置源地址</p>
+                    </div>
+                    <div class="editor-container">
+                        <div id="sourcesContainer"></div>
+                        <button type="button" class="btn btn-primary" id="addSourceBtn" style="margin-top: 10px;">+ 添加配置源</button>
+                    </div>
+                </div>
+
+                <!-- 在线客服 -->
+                <div class="content-section" id="supportSection">
+                    <div class="page-header">
+                        <h2>在线客服</h2>
+                        <p class="subtitle">配置在线客服接入方式</p>
+                    </div>
+                    <div class="editor-container">
+                        <div id="onlineSupportContainer"></div>
+                        <button type="button" class="btn btn-primary" id="addSupportBtn" style="margin-top: 10px;">+ 添加客服类型</button>
+                        <div class="help-text" style="margin-top: 10px;">支持类型: browser(网页), crisp, chatway, tawkto, chatwoot。第一个有效配置会被使用。</div>
+                    </div>
+                </div>
+
+                <!-- 触发构建 -->
+                <div class="content-section" id="buildSection">
+                    <div class="page-header">
+                        <h2>触发构建</h2>
+                        <p class="subtitle">配置并触发应用打包构建</p>
+                    </div>
+
+                    <div class="build-panel">
+                        <h3>构建配置</h3>
+                        <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+                            <div class="form-group">
+                                <label>源码分支</label>
+                                <select id="buildBranch">
+                                    <option value="main">main</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>版本标签</label>
+                                <input type="text" id="buildTag" placeholder="如: v0.1.0">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>选择编译平台</label>
+                            <div class="platform-checkboxes">
+                                <label class="platform-checkbox"><input type="checkbox" value="all" id="platformAll" checked> 全部平台</label>
+                                <label class="platform-checkbox"><input type="checkbox" value="windows" class="platformItem"> Windows</label>
+                                <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem"> Android</label>
+                                <label class="platform-checkbox"><input type="checkbox" value="macos" class="platformItem"> macOS (全部)</label>
+                                <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem"> macOS ARM64</label>
+                                <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem"> macOS AMD64</label>
+                            </div>
+                        </div>
+                        <div id="buildStatus" class="status info" style="margin-top: 15px;">选择平台和版本后点击"触发打包"</div>
+                        <div id="lastBuildInfo" style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; display: none;">
+                            <div style="color: #aaa; font-size: 12px;">上次打包记录：</div>
+                            <div id="lastBuildContent" style="margin-top: 5px; font-size: 13px;"></div>
+                        </div>
+                        <button class="btn btn-build" id="buildBtn" style="margin-top: 15px;">触发打包</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 隐藏的 YAML 编辑器 -->
+    <textarea id="editor" style="display:none;"></textarea>
+
+    <script>
+        // ==================== 会话管理 ====================
+        var SESSION_KEY = 'xboard_session';
+
+        function getSession() {
+            try {
+                return JSON.parse(sessionStorage.getItem(SESSION_KEY));
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function getToken() {
+            var s = getSession();
+            if (!s || !s.token) {
+                window.location.href = '/';
+                return null;
+            }
+            return s.token;
+        }
+
+        function logout() {
+            sessionStorage.removeItem(SESSION_KEY);
+            window.location.href = '/';
+        }
+
+        async function api(method, path, body) {
+            var token = getToken();
+            if (!token) return null;
+
+            var options = {
+                method: method,
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                }
+            };
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+
+            var response = await fetch('/api' + path, options);
+            if (response.status === 401) {
+                sessionStorage.removeItem(SESSION_KEY);
+                window.location.href = '/';
+                return null;
+            }
+            return response;
+        }
+
+        // ==================== 全局变量 ====================
+        var sources = [];
+        var onlineSupportItems = [];
+        var profilesCache = [];
+        var buildHistoryData = {};
+
+        // ==================== 导航切换 ====================
+        function switchSection(sectionName) {
+            document.querySelectorAll('.nav-item').forEach(function(item) {
+                item.classList.remove('active');
+            });
+            if (event && event.target) {
+                var navItem = event.target.closest('.nav-item');
+                if (navItem) navItem.classList.add('active');
+            }
+            
+            document.querySelectorAll('.content-section').forEach(function(section) {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionName + 'Section').classList.add('active');
+        }
+
+        // ==================== 初始化 ====================
+        window.onload = function() {
+            var session = getSession();
+            if (!session || !session.token) {
+                window.location.href = '/';
+                return;
+            }
+
+            document.getElementById('userName').textContent = session.name || '用户';
+            document.getElementById('userPerm').textContent = session.permissions === 'admin' ? '(管理员)' : '(普通用户)';
+            if (session.permissions === 'admin') {
+                document.getElementById('adminLink').style.display = 'inline-block';
+            } else {
+                document.getElementById('deleteProfileBtn').style.display = 'none';
+                document.getElementById('saveProfileBtn').textContent = '保存';
+            }
+
+            document.getElementById('addSourceBtn').addEventListener('click', addSource);
+            document.getElementById('addSupportBtn').addEventListener('click', addSupportItem);
+            document.getElementById('buildBtn').addEventListener('click', triggerBuild);
+            document.getElementById('provider').addEventListener('change', formToYaml);
+            document.getElementById('appTitle').addEventListener('change', displayBuildHistory);
+
+            document.getElementById('loadProfileBtn').addEventListener('click', loadProfile);
+            document.getElementById('saveProfileBtn').addEventListener('click', showSaveProfileInput);
+            document.getElementById('deleteProfileBtn').addEventListener('click', deleteProfile);
+            document.getElementById('confirmSaveProfileBtn').addEventListener('click', confirmSaveProfile);
+            document.getElementById('cancelSaveProfileBtn').addEventListener('click', hideSaveProfileInput);
+
+            initSwitches();
+            initPlatformCheckboxes();
+            renderSources();
+            renderSupportItems();
+
+            loadProfiles();
+            loadBuildHistory();
+            loadBranches();
+        };
+
+        function getDefaultYamlTemplate() {
+            return [
+                'xboard:',
+                '  provider: ""',
+                '  title: ""',
+                '  logo:',
+                '    type: text',
+                '    image_url: ""',
+                '  app_icon:',
+                '    image_url: ""',
+                '  prefer_encrypt: false',
+                '  use_exclusive_mode: false',
+                '  decrypt_key: ""',
+                '  auto_offline:',
+                '    enabled: false',
+                '  subscription_cache:',
+                '    enabled: false',
+                '    ttl_hours: 24',
+                '  remote_config:',
+                '    sources:',
+                '      - name: source',
+                '        url: ""',
+                '  online_support:',
+                '    items: []',
+                '  ui:',
+                '    hide_traffic_details: false'
+            ].join('\n');
+        }
+
+        // ==================== 配置档案 API ====================
+
+        async function loadProfiles() {
+            try {
+                var response = await api('GET', '/profiles');
+                if (!response) return;
+                var data = await response.json();
+                profilesCache = data.profiles || [];
+                renderProfileSelect();
+                if (profilesCache.length === 1) {
+                    document.getElementById('profileSelect').value = profilesCache[0].name;
+                    loadProfile();
+                }
+            } catch (e) {
+                console.log('加载档案列表失败:', e.message);
+            }
+        }
+
+        function renderProfileSelect() {
+            var select = document.getElementById('profileSelect');
+            var currentValue = select.value;
+            select.innerHTML = '<option value="">-- 请选择档案 --</option>';
+            profilesCache.forEach(function(p) {
+                var option = document.createElement('option');
+                option.value = p.name;
+                option.textContent = p.name + (p.last_updated ? ' (' + p.last_updated + ')' : ' (未创建)');
+                select.appendChild(option);
+            });
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        }
+
+        async function loadProfile() {
+            var name = document.getElementById('profileSelect').value;
+            if (!name) {
+                setStatus('请先选择一个配置档案', 'error');
+                return;
+            }
+
+            setStatus('正在加载档案...', 'info');
+            try {
+                var response = await api('GET', '/profiles/' + encodeURIComponent(name));
+                if (!response) return;
+                if (!response.ok) {
+                    var err = await response.json();
+                    throw new Error(err.error || '加载失败');
+                }
+                var data = await response.json();
+                if (data.is_new || !data.yaml_content) {
+                    document.getElementById('editor').value = getDefaultYamlTemplate();
+                    yamlToForm();
+                    setStatus('档案 "' + name + '" 尚未创建，请配置后保存', 'info');
+                } else {
+                    document.getElementById('editor').value = data.yaml_content;
+                    yamlToForm();
+                    setStatus('已加载: ' + name, 'success');
+                }
+                displayBuildHistory();
+            } catch (e) {
+                setStatus('加载失败: ' + e.message, 'error');
+            }
+        }
+
+        function showSaveProfileInput() {
+            var session = getSession();
+            var selectedProfile = document.getElementById('profileSelect').value;
+            if (session && session.permissions !== 'admin' && selectedProfile) {
+                document.getElementById('newProfileName').value = selectedProfile;
+                confirmSaveProfile();
+                return;
+            }
+            var appTitle = document.getElementById('appTitle').value.trim();
+            document.getElementById('newProfileName').value = appTitle || selectedProfile || '';
+            document.getElementById('newProfileInput').classList.add('active');
+        }
+
+        function hideSaveProfileInput() {
+            document.getElementById('newProfileInput').classList.remove('active');
+            document.getElementById('newProfileName').value = '';
+        }
+
+        async function confirmSaveProfile() {
+            var profileName = document.getElementById('newProfileName').value.trim();
+            if (!profileName) {
+                setStatus('请输入档案名称', 'error');
+                return;
+            }
+
+            formToYaml();
+            var yamlContent = document.getElementById('editor').value;
+            if (!yamlContent.trim()) {
+                setStatus('配置内容为空，无法保存', 'error');
+                return;
+            }
+
+            yamlContent = yamlContent.replace(/config_cache:/g, 'subscription_cache:');
+
+            document.getElementById('editor').value = yamlContent;
+            setStatus('正在保存...', 'info');
+
+            try {
+                var response = await api('PUT', '/profiles/' + encodeURIComponent(profileName), {
+                    yaml_content: yamlContent
+                });
+                if (!response) return;
+                if (!response.ok) {
+                    var err = await response.json();
+                    throw new Error(err.error || '保存失败');
+                }
+
+                hideSaveProfileInput();
+                await loadProfiles();
+                document.getElementById('profileSelect').value = profileName;
+                setStatus('已保存: ' + profileName, 'success');
+            } catch (e) {
+                setStatus('保存失败: ' + e.message, 'error');
+            }
+        }
+
+        async function deleteProfile() {
+            var name = document.getElementById('profileSelect').value;
+            if (!name) {
+                setStatus('请先选择要删除的档案', 'error');
+                return;
+            }
+            if (!confirm('确定要删除档案 "' + name + '" 吗？此操作不可恢复。')) {
+                return;
+            }
+
+            setStatus('正在删除...', 'info');
+            try {
+                var response = await api('DELETE', '/profiles/' + encodeURIComponent(name));
+                if (!response) return;
+                if (!response.ok) {
+                    var err = await response.json();
+                    throw new Error(err.error || '删除失败');
+                }
+                await loadProfiles();
+                setStatus('已删除: ' + name, 'success');
+            } catch (e) {
+                setStatus('删除失败: ' + e.message, 'error');
+            }
+        }
+
+        // ==================== 构建相关 API ====================
+
+        async function loadBranches() {
+            try {
+                var response = await api('GET', '/branches');
+                if (!response) return;
+                var branches = await response.json();
+                var select = document.getElementById('buildBranch');
+                var currentValue = select.value;
+                select.innerHTML = '';
+                branches.forEach(function(branch) {
+                    var option = document.createElement('option');
+                    option.value = branch.name;
+                    option.textContent = branch.name;
+                    select.appendChild(option);
+                });
+                if (currentValue && Array.from(select.options).some(function(opt) { return opt.value === currentValue; })) {
+                    select.value = currentValue;
+                } else if (Array.from(select.options).some(function(opt) { return opt.value === 'main'; })) {
+                    select.value = 'main';
+                }
+            } catch (e) {
+                console.log('加载分支列表失败:', e.message);
+            }
+        }
+
+        async function loadBuildHistory() {
+            try {
+                var response = await api('GET', '/build/history');
+                if (!response) return;
+                buildHistoryData = await response.json();
+                displayBuildHistory();
+            } catch (e) {
+                console.log('加载版本记录失败:', e.message);
+            }
+        }
+
+        function getAppName() {
+            var appTitle = document.getElementById('appTitle').value.trim();
+            return appTitle || document.getElementById('profileSelect').value || '未命名应用';
+        }
+
+        function displayBuildHistory() {
+            var profileName = document.getElementById('profileSelect').value;
+            var appName = getAppName();
+            var info = document.getElementById('lastBuildInfo');
+            var content = document.getElementById('lastBuildContent');
+
+            var build = buildHistoryData[profileName] || buildHistoryData[appName];
+            if (build) {
+                content.innerHTML = '<span style="color:#ffaa00;">' + (profileName || appName) + '</span> | ' +
+                    '<span style="color:#00ff88;">版本: ' + build.version + '</span> | ' +
+                    '<span style="color:#00d4ff;">平台: ' + build.platforms + '</span> | ' +
+                    '<span style="color:#aaa;">时间: ' + build.time + '</span>';
+                info.style.display = 'block';
+            } else {
+                content.innerHTML = '<span style="color:#aaa;">暂无打包记录</span>';
+                info.style.display = 'block';
+            }
+        }
+
+        async function triggerBuild() {
+            var profileName = document.getElementById('profileSelect').value;
+            var buildBranch = document.getElementById('buildBranch').value.trim() || 'main';
+            var buildTag = document.getElementById('buildTag').value.trim();
+
+            if (!profileName) {
+                setBuildStatus('请先选择配置档案', 'error');
+                return;
+            }
+            if (!buildTag) {
+                setBuildStatus('请填写版本标签', 'error');
+                return;
+            }
+
+            var platforms = 'all';
+            var allCheckbox = document.getElementById('platformAll');
+            if (!allCheckbox.checked) {
+                var selected = [];
+                document.querySelectorAll('.platformItem:checked').forEach(function(cb) {
+                    selected.push(cb.value);
+                });
+                if (selected.length > 0) {
+                    platforms = selected.join(',');
+                }
+            }
+
+            setBuildStatus('正在触发打包...', 'info');
+            try {
+                var response = await api('POST', '/build/trigger', {
+                    profile: profileName,
+                    tag: buildTag,
+                    platforms: platforms,
+                    branch: buildBranch
+                });
+                if (!response) return;
+                if (!response.ok) {
+                    var err = await response.json();
+                    throw new Error(err.error || '触发失败');
+                }
+                setBuildStatus('打包已触发! 档案: ' + profileName + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
+                await loadBuildHistory();
+            } catch (e) {
+                setBuildStatus('触发失败: ' + e.message, 'error');
+            }
+        }
+
+        // ==================== UI 工具函数 ====================
+
+        function setStatus(message, type) {
+            var status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'sidebar-status ' + type;
+        }
+
+        function setBuildStatus(message, type) {
+            var status = document.getElementById('buildStatus');
+            status.textContent = message;
+            status.className = 'status ' + type;
+        }
+
+        function initSwitches() {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails'].forEach(function(id) {
+                var el = document.getElementById(id);
+                var label = document.getElementById(id + 'Label');
+                el.addEventListener('change', function() {
+                    label.textContent = this.checked ? '开启' : '关闭';
+                    formToYaml();
+                });
+            });
+            document.getElementById('subscriptionCacheTtl').addEventListener('change', function() {
+                formToYaml();
+            });
+        }
+
+        function initPlatformCheckboxes() {
+            var allCheckbox = document.getElementById('platformAll');
+            var itemCheckboxes = document.querySelectorAll('.platformItem');
+            allCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    itemCheckboxes.forEach(function(cb) { cb.checked = false; });
+                }
+            });
+            itemCheckboxes.forEach(function(cb) {
+                cb.addEventListener('change', function() {
+                    if (this.checked) {
+                        allCheckbox.checked = false;
+                    }
+                    var anyChecked = Array.from(itemCheckboxes).some(function(c) { return c.checked; });
+                    if (!anyChecked) {
+                        allCheckbox.checked = true;
+                    }
+                });
+            });
+        }
+
+        // ==================== 配置源管理 ====================
+
+        function createSourceItem(index, source) {
+            source = source || { name: '', url: '', encryption_key: '' };
+            var div = document.createElement('div');
+            div.className = 'source-item';
+            div.dataset.index = index;
+            div.innerHTML = '<div class="source-index">配置源 #' + (index + 1) + '</div>' +
+                '<button type="button" class="btn-remove" onclick="removeSource(' + index + ')">删除</button>' +
+                '<div class="form-row">' +
+                    '<div class="form-group"><label>名称</label><input type="text" class="source-name" value="' + (source.name || '') + '" placeholder="如: redirect"></div>' +
+                    '<div class="form-group"><label>URL</label><input type="text" class="source-url" value="' + (source.url || '') + '" placeholder="https://your-server.com/remote.config.json"></div>' +
+                    '<div class="form-group"><label>加密密钥（可选）</label><input type="text" class="source-key" value="' + (source.encryption_key || '') + '" placeholder="可选"></div>' +
+                '</div>';
+            return div;
+        }
+
+        function renderSources() {
+            var container = document.getElementById('sourcesContainer');
+            container.innerHTML = '';
+            sources.forEach(function(source, index) {
+                var item = createSourceItem(index, source);
+                container.appendChild(item);
+                item.querySelectorAll('input').forEach(function(input) {
+                    input.addEventListener('change', function() { formToYaml(); });
+                });
+            });
+        }
+
+        function addSource() {
+            sources.push({ name: '', url: '', encryption_key: '' });
+            renderSources();
+            formToYaml();
+        }
+
+        function removeSource(index) {
+            sources.splice(index, 1);
+            if (sources.length === 0) {
+                sources.push({ name: '', url: '', encryption_key: '' });
+            }
+            renderSources();
+            formToYaml();
+        }
+
+        function collectSources() {
+            var items = document.querySelectorAll('.source-item');
+            sources = [];
+            items.forEach(function(item) {
+                sources.push({
+                    name: item.querySelector('.source-name').value.trim(),
+                    url: item.querySelector('.source-url').value.trim(),
+                    encryption_key: item.querySelector('.source-key').value.trim()
+                });
+            });
+            return sources;
+        }
+
+        // ==================== 在线客服管理 ====================
+
+        function createSupportItem(index, item) {
+            item = item || { type: 'browser', url: '', description: '', website_id: '', widget_id: '', property_id: '', website_token: '', base_url: '' };
+            var div = document.createElement('div');
+            div.className = 'support-item';
+            div.dataset.index = index;
+            div.innerHTML = '<div class="support-index">客服配置 #' + (index + 1) + '</div>' +
+                '<button type="button" class="btn-remove" onclick="removeSupportItem(' + index + ')">删除</button>' +
+                '<div class="form-row">' +
+                    '<div class="form-group"><label>类型</label>' +
+                        '<select class="support-type" onchange="updateSupportFields(this)">' +
+                            '<option value="browser"' + (item.type === 'browser' ? ' selected' : '') + '>browser (网页)</option>' +
+                            '<option value="crisp"' + (item.type === 'crisp' ? ' selected' : '') + '>crisp</option>' +
+                            '<option value="chatway"' + (item.type === 'chatway' ? ' selected' : '') + '>chatway</option>' +
+                            '<option value="tawkto"' + (item.type === 'tawkto' ? ' selected' : '') + '>tawkto</option>' +
+                            '<option value="chatwoot"' + (item.type === 'chatwoot' ? ' selected' : '') + '>chatwoot</option>' +
+                        '</select>' +
+                    '</div>' +
+                    '<div class="form-group"><label>描述</label>' +
+                        '<input type="text" class="support-description" value="' + (item.description || '') + '" placeholder="如: 在线客服">' +
+                    '</div>' +
+                '</div>' +
+                '<div class="support-fields browser-fields' + (item.type === 'browser' ? ' active' : '') + '">' +
+                    '<div class="form-group"><label>客服页面URL</label>' +
+                        '<input type="text" class="support-url" value="' + (item.url || '') + '" placeholder="https://example.com/support">' +
+                    '</div>' +
+                '</div>' +
+                '<div class="support-fields crisp-fields' + (item.type === 'crisp' ? ' active' : '') + '">' +
+                    '<div class="form-group"><label>Website ID</label>' +
+                        '<input type="text" class="support-website-id" value="' + (item.website_id || '') + '" placeholder="CRISP Website ID">' +
+                    '</div>' +
+                '</div>' +
+                '<div class="support-fields chatway-fields' + (item.type === 'chatway' ? ' active' : '') + '">' +
+                    '<div class="form-group"><label>Widget ID</label>' +
+                        '<input type="text" class="support-chatway-widget-id" value="' + (item.widget_id || '') + '" placeholder="Chatway Widget ID">' +
+                    '</div>' +
+                '</div>' +
+                '<div class="support-fields tawkto-fields' + (item.type === 'tawkto' ? ' active' : '') + '">' +
+                    '<div class="form-row">' +
+                        '<div class="form-group"><label>Property ID</label>' +
+                            '<input type="text" class="support-property-id" value="' + (item.property_id || '') + '" placeholder="Tawk.to Property ID">' +
+                        '</div>' +
+                        '<div class="form-group"><label>Widget ID</label>' +
+                            '<input type="text" class="support-tawkto-widget-id" value="' + (item.widget_id || '') + '" placeholder="Tawk.to Widget ID">' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="support-fields chatwoot-fields' + (item.type === 'chatwoot' ? ' active' : '') + '">' +
+                    '<div class="form-row">' +
+                        '<div class="form-group"><label>Website Token</label>' +
+                            '<input type="text" class="support-website-token" value="' + (item.website_token || '') + '" placeholder="Chatwoot Website Token">' +
+                        '</div>' +
+                        '<div class="form-group"><label>Base URL</label>' +
+                            '<input type="text" class="support-base-url" value="' + (item.base_url || '') + '" placeholder="https://your-chatwoot.com">' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            return div;
+        }
+
+        function updateSupportFields(selectEl) {
+            var item = selectEl.closest('.support-item');
+            var type = selectEl.value;
+            item.querySelectorAll('.support-fields').forEach(function(f) { f.classList.remove('active'); });
+            item.querySelector('.' + type + '-fields').classList.add('active');
+            formToYaml();
+        }
+
+        function renderSupportItems() {
+            var container = document.getElementById('onlineSupportContainer');
+            container.innerHTML = '';
+            onlineSupportItems.forEach(function(item, index) {
+                var el = createSupportItem(index, item);
+                container.appendChild(el);
+                el.querySelectorAll('input, select').forEach(function(input) {
+                    input.addEventListener('change', function() { formToYaml(); });
+                });
+            });
+        }
+
+        function addSupportItem() {
+            onlineSupportItems.push({ type: 'browser', url: '', description: '在线客服' });
+            renderSupportItems();
+            formToYaml();
+        }
+
+        function removeSupportItem(index) {
+            onlineSupportItems.splice(index, 1);
+            renderSupportItems();
+            formToYaml();
+        }
+
+        function collectSupportItems() {
+            var items = document.querySelectorAll('.support-item');
+            onlineSupportItems = [];
+            items.forEach(function(item) {
+                var type = item.querySelector('.support-type').value;
+                var obj = {
+                    type: type,
+                    description: item.querySelector('.support-description').value.trim()
+                };
+                if (type === 'browser') {
+                    obj.url = item.querySelector('.support-url').value.trim();
+                } else if (type === 'crisp') {
+                    obj.website_id = item.querySelector('.support-website-id').value.trim();
+                } else if (type === 'chatway') {
+                    obj.widget_id = item.querySelector('.support-chatway-widget-id').value.trim();
+                } else if (type === 'tawkto') {
+                    obj.property_id = item.querySelector('.support-property-id').value.trim();
+                    obj.widget_id = item.querySelector('.support-tawkto-widget-id').value.trim();
+                } else if (type === 'chatwoot') {
+                    obj.website_token = item.querySelector('.support-website-token').value.trim();
+                    obj.base_url = item.querySelector('.support-base-url').value.trim();
+                }
+                onlineSupportItems.push(obj);
+            });
+            return onlineSupportItems;
+        }
+
+        // ==================== YAML <-> 表单 转换 ====================
+
+        function yamlToForm() {
+            var yaml = document.getElementById('editor').value;
+            if (!yaml.trim()) return;
+            var getValue = function(key) {
+                var re = new RegExp(key + ':[^\\S\\n]*(.*)');
+                var m = yaml.match(re);
+                return m ? m[1].trim().replace(/^["']|["']$/g, '') : '';
+            };
+            var getBool = function(key) {
+                var v = getValue(key);
+                return v === 'true';
+            };
+            var providerMatch = yaml.match(/xboard:\s*\n(?:\s*#[^\n]*\n)*\s*provider:[^\S\n]*(.*)/);
+            if (providerMatch) {
+                document.getElementById('provider').value = providerMatch[1].trim().replace(/^["']|["']$/g, '');
+            }
+            document.getElementById('appTitle').value = getValue('title');
+            document.getElementById('logoType').value = getValue('type') || 'text';
+            var logoMatch = yaml.match(/logo:[\s\S]*?image_url:[^\S\n]*(.*)/);
+            if (logoMatch) document.getElementById('logoImageUrl').value = logoMatch[1].trim().replace(/^["']|["']$/g, '');
+            var iconMatch = yaml.match(/app_icon:[\s\S]*?image_url:[^\S\n]*(.*)/);
+            if (iconMatch) document.getElementById('appIconUrl').value = iconMatch[1].trim().replace(/^["']|["']$/g, '');
+            document.getElementById('preferEncrypt').checked = getBool('prefer_encrypt');
+            document.getElementById('preferEncryptLabel').textContent = getBool('prefer_encrypt') ? '开启' : '关闭';
+            document.getElementById('useExclusiveMode').checked = getBool('use_exclusive_mode');
+            document.getElementById('useExclusiveModeLabel').textContent = getBool('use_exclusive_mode') ? '开启' : '关闭';
+            document.getElementById('decryptKey').value = getValue('decrypt_key');
+            var autoOfflineMatch = yaml.match(/auto_offline:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
+            var autoOfflineEnabled = autoOfflineMatch ? autoOfflineMatch[1] === 'true' : false;
+            document.getElementById('autoOfflineEnabled').checked = autoOfflineEnabled;
+            document.getElementById('autoOfflineEnabledLabel').textContent = autoOfflineEnabled ? '开启' : '关闭';
+            var subCacheEnabledMatch = yaml.match(/subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
+            var subCacheEnabled = subCacheEnabledMatch ? subCacheEnabledMatch[1] === 'true' : false;
+            document.getElementById('subscriptionCacheEnabled').checked = subCacheEnabled;
+            document.getElementById('subscriptionCacheEnabledLabel').textContent = subCacheEnabled ? '开启' : '关闭';
+            var subCacheTtlMatch = yaml.match(/subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*(\d+)/);
+            var subCacheTtl = subCacheTtlMatch ? parseInt(subCacheTtlMatch[1]) : 24;
+            document.getElementById('subscriptionCacheTtl').value = subCacheTtl;
+            var hideTrafficDetailsMatch = yaml.match(/ui:\s*\n(?:\s*#[^\n]*\n)*\s*hide_traffic_details:\s*(true|false)/);
+            var hideTrafficDetails = hideTrafficDetailsMatch ? hideTrafficDetailsMatch[1] === 'true' : false;
+            document.getElementById('hideTrafficDetails').checked = hideTrafficDetails;
+            document.getElementById('hideTrafficDetailsLabel').textContent = hideTrafficDetails ? '开启' : '关闭';
+
+            // 解析 sources
+            sources = [];
+            var lines = yaml.split('\n');
+            var inSources = false;
+            var currentSource = null;
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                if (/^\s*#/.test(line)) continue;
+                if (/^    sources:\s*$/.test(line)) {
+                    inSources = true;
+                    continue;
+                }
+                if (inSources) {
+                    if (/^  [a-z_]+:/i.test(line)) {
+                        inSources = false;
+                        if (currentSource) sources.push(currentSource);
+                        currentSource = null;
+                        break;
+                    }
+                    if (line.trim() === '' && i + 1 < lines.length && /^  [a-z_]+:/i.test(lines[i + 1])) {
+                        inSources = false;
+                        if (currentSource) sources.push(currentSource);
+                        currentSource = null;
+                        break;
+                    }
+                    if (/^\s*-\s*name:\s*(.*)/.test(line)) {
+                        if (currentSource) sources.push(currentSource);
+                        currentSource = { name: line.match(/^\s*-\s*name:\s*(.*)/)[1].trim(), url: '', encryption_key: '' };
+                    } else if (currentSource && /^\s+url:\s*(.*)/.test(line)) {
+                        currentSource.url = line.match(/^\s+url:\s*(.*)/)[1].trim();
+                    } else if (currentSource && /^\s+encryption_key:\s*(.*)/.test(line)) {
+                        var key = line.match(/^\s+encryption_key:\s*(.*)/)[1].trim();
+                        currentSource.encryption_key = key.replace(/^["']|["']$/g, '');
+                    }
+                }
+            }
+            if (currentSource) sources.push(currentSource);
+            if (sources.length === 0) {
+                sources.push({ name: '', url: '', encryption_key: '' });
+            }
+            renderSources();
+
+            // 解析 online_support
+            onlineSupportItems = [];
+            var inOnlineSupport = false;
+            var inItems = false;
+            var currentSupportItem = null;
+            for (var j = 0; j < lines.length; j++) {
+                var supportLine = lines[j];
+                if (/^\s*#/.test(supportLine)) continue;
+                if (/^  online_support:/.test(supportLine)) {
+                    inOnlineSupport = true;
+                    continue;
+                }
+                if (inOnlineSupport && /^    items:/.test(supportLine)) {
+                    if (/^    items:\s*\[\]/.test(supportLine)) {
+                        inOnlineSupport = false;
+                        continue;
+                    }
+                    inItems = true;
+                    continue;
+                }
+                if (inItems) {
+                    if (/^  [a-z_]+:/i.test(supportLine) && !/^  online_support/.test(supportLine) && !/^    /.test(supportLine)) {
+                        if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
+                        break;
+                    }
+                    if (supportLine.trim() === '' && j + 1 < lines.length) {
+                        var nextLine = lines[j + 1];
+                        if (/^  [a-z_]+:/i.test(nextLine) && !/^    /.test(nextLine)) {
+                            if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
+                            break;
+                        }
+                    }
+                    if (/^      - type:\s*(.*)/.test(supportLine)) {
+                        if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
+                        currentSupportItem = { type: supportLine.match(/^      - type:\s*(.*)/)[1].trim() };
+                    } else if (currentSupportItem) {
+                        if (/^        url:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.url = supportLine.match(/^        url:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        description:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.description = supportLine.match(/^        description:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        website_id:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.website_id = supportLine.match(/^        website_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        widget_id:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.widget_id = supportLine.match(/^        widget_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        property_id:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.property_id = supportLine.match(/^        property_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        website_token:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.website_token = supportLine.match(/^        website_token:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        base_url:\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.base_url = supportLine.match(/^        base_url:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        }
+                    }
+                }
+            }
+            if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
+            renderSupportItems();
+        }
+
+        function formToYaml() {
+            var yaml = document.getElementById('editor').value;
+            if (!yaml.trim()) return;
+            var updateValue = function(key, value) {
+                var re = new RegExp('(' + key + ':[^\\S\\n]*)(.*)');
+                if (yaml.match(re)) {
+                    yaml = yaml.replace(re, '$1' + value);
+                }
+            };
+            var providerValue = document.getElementById('provider').value.trim();
+            yaml = yaml.replace(/(xboard:\s*\n(?:\s*#[^\n]*\n)*\s*provider:[^\S\n]*)(.*)/, '$1' + providerValue);
+            updateValue('title', document.getElementById('appTitle').value);
+            yaml = yaml.replace(/(logo:[\s\S]*?type:[^\S\n]*)(\w+)/, '$1' + document.getElementById('logoType').value);
+            yaml = yaml.replace(/(logo:[\s\S]*?image_url:[^\S\n]*)(.*)/, '$1' + document.getElementById('logoImageUrl').value);
+            yaml = yaml.replace(/(app_icon:[\s\S]*?image_url:[^\S\n]*)(.*)/, '$1' + document.getElementById('appIconUrl').value);
+            updateValue('prefer_encrypt', document.getElementById('preferEncrypt').checked);
+            updateValue('use_exclusive_mode', document.getElementById('useExclusiveMode').checked);
+            updateValue('decrypt_key', document.getElementById('decryptKey').value);
+            var autoOfflineEnabled = document.getElementById('autoOfflineEnabled').checked;
+            yaml = yaml.replace(/(auto_offline:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*)(true|false)/, '$1' + autoOfflineEnabled);
+            var subCacheEnabled = document.getElementById('subscriptionCacheEnabled').checked;
+            var subCacheTtl = document.getElementById('subscriptionCacheTtl').value || '24';
+            yaml = yaml.replace(/(subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*)(true|false)/, '$1' + subCacheEnabled);
+            yaml = yaml.replace(/(subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*)(\d+)/, '$1' + subCacheTtl);
+            var hideTrafficDetails = document.getElementById('hideTrafficDetails').checked;
+            yaml = yaml.replace(/(ui:\s*\n(?:\s*#[^\n]*\n)*\s*hide_traffic_details:\s*)(true|false)/, '$1' + hideTrafficDetails);
+
+            // 更新 sources
+            collectSources();
+            var lines = yaml.split('\n');
+            var newLines = [];
+            var inSources = false;
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                if (/^    sources:\s*$/.test(line)) {
+                    inSources = true;
+                    newLines.push(line);
+                    sources.forEach(function(source) {
+                        if (source.url) {
+                            newLines.push('      - name: ' + (source.name || 'source'));
+                            newLines.push('        url: ' + source.url);
+                            if (source.encryption_key) {
+                                newLines.push('        encryption_key: "' + source.encryption_key + '"');
+                            }
+                        }
+                    });
+                    continue;
+                }
+                if (inSources) {
+                    if (/^  [a-z_]+:/i.test(line) || /^  #/.test(line) || line.trim() === '') {
+                        if (/^  [a-z_]+:/i.test(line)) {
+                            inSources = false;
+                            newLines.push('');
+                            newLines.push(line);
+                        } else if (line.trim() === '') {
+                            if (i + 1 < lines.length && /^  [a-z_]+:/i.test(lines[i + 1])) {
+                                inSources = false;
+                                newLines.push(line);
+                            }
+                        }
+                    }
+                    continue;
+                }
+                newLines.push(line);
+            }
+            yaml = newLines.join('\n');
+
+            // 更新 online_support
+            collectSupportItems();
+            var validItems = onlineSupportItems.filter(function(item) {
+                if (item.type === 'browser' && item.url) return true;
+                if (item.type === 'crisp' && item.website_id) return true;
+                if (item.type === 'chatway' && item.widget_id) return true;
+                if (item.type === 'tawkto' && (item.property_id || item.widget_id)) return true;
+                if (item.type === 'chatwoot' && (item.website_token || item.base_url)) return true;
+                return false;
+            });
+
+            var supportLines = yaml.split('\n');
+            var newSupportLines = [];
+            var inOnlineSupportSection = false;
+            for (var k = 0; k < supportLines.length; k++) {
+                var sLine = supportLines[k];
+                if (/^\s*#\s*在线客服/.test(sLine)) continue;
+                if (/^  online_support:/.test(sLine)) {
+                    inOnlineSupportSection = true;
+                    continue;
+                }
+                if (inOnlineSupportSection) {
+                    if (/^    /.test(sLine) || /^      /.test(sLine) || /^        /.test(sLine) || sLine.trim() === '') {
+                        continue;
+                    }
+                    if (/^  [a-z_]+:/i.test(sLine)) {
+                        inOnlineSupportSection = false;
+                        newSupportLines.push(sLine);
+                    }
+                    continue;
+                }
+                newSupportLines.push(sLine);
+            }
+
+            while (newSupportLines.length > 0 && newSupportLines[newSupportLines.length - 1].trim() === '') {
+                newSupportLines.pop();
+            }
+            newSupportLines.push('');
+            newSupportLines.push('  # 在线客服配置');
+            newSupportLines.push('  online_support:');
+            if (validItems.length > 0) {
+                newSupportLines.push('    items:');
+                validItems.forEach(function(item) {
+                    newSupportLines.push('      - type: ' + item.type);
+                    if (item.type === 'browser') {
+                        newSupportLines.push('        url: "' + item.url + '"');
+                    } else if (item.type === 'crisp') {
+                        newSupportLines.push('        website_id: "' + item.website_id + '"');
+                    } else if (item.type === 'chatway') {
+                        newSupportLines.push('        widget_id: "' + item.widget_id + '"');
+                    } else if (item.type === 'tawkto') {
+                        newSupportLines.push('        property_id: "' + (item.property_id || '') + '"');
+                        newSupportLines.push('        widget_id: "' + (item.widget_id || '') + '"');
+                    } else if (item.type === 'chatwoot') {
+                        newSupportLines.push('        website_token: "' + (item.website_token || '') + '"');
+                        newSupportLines.push('        base_url: "' + (item.base_url || '') + '"');
+                    }
+                    if (item.description) {
+                        newSupportLines.push('        description: "' + item.description + '"');
+                    }
+                });
+            } else {
+                newSupportLines.push('    items: []');
+            }
+            yaml = newSupportLines.join('\n');
+
+            // 更新 UI 配置
+            var hideTrafficDetails = document.getElementById('hideTrafficDetails').checked;
+            var uiLines = yaml.split('\n');
+            var newUiLines = [];
+            var inUiSection = false;
+            var uiSectionFound = false;
+            for (var u = 0; u < uiLines.length; u++) {
+                var uLine = uiLines[u];
+                if (/^  ui:/.test(uLine)) {
+                    uiSectionFound = true;
+                    inUiSection = true;
+                    newUiLines.push(uLine);
+                    continue;
+                }
+                if (inUiSection) {
+                    if (/^\s*hide_traffic_details:/.test(uLine)) {
+                        newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                        continue;
+                    }
+                    if (/^  [a-z_]+:/i.test(uLine)) {
+                        inUiSection = false;
+                    }
+                }
+                newUiLines.push(uLine);
+            }
+            if (!uiSectionFound) {
+                while (newUiLines.length > 0 && newUiLines[newUiLines.length - 1].trim() === '') {
+                    newUiLines.pop();
+                }
+                newUiLines.push('');
+                newUiLines.push('  # UI 配置');
+                newUiLines.push('  ui:');
+                newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+            }
+            yaml = newUiLines.join('\n');
+
+            document.getElementById('editor').value = yaml;
+        }
+    </script>
+</body>
+</html>
