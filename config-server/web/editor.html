@@ -627,7 +627,11 @@
                                 <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem"> macOS AMD64</label>
                             </div>
                         </div>
-                        <div id="buildStatus" class="status info" style="margin-top: 15px;">选择平台和版本后点击"触发打包"</div>
+                        <div id="buildQueue" style="margin-top: 15px; padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+                            <span style="color: #aaa; font-size: 13px;">构建队列：</span>
+                            <span id="buildQueueInfo" style="font-size: 13px; color: #00d4ff;">加载中...</span>
+                        </div>
+                        <div id="buildStatus" class="status info" style="margin-top: 10px;">选择平台和版本后点击"触发打包"</div>
                         <div id="lastBuildInfo" style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; display: none;">
                             <div style="color: #aaa; font-size: 12px;">上次打包记录：</div>
                             <div id="lastBuildContent" style="margin-top: 5px; font-size: 13px;"></div>
@@ -751,6 +755,7 @@
             loadProfiles();
             loadBuildHistory();
             loadBranches();
+            loadBuildQueue();
         };
 
         function getDefaultYamlTemplate() {
@@ -988,6 +993,25 @@
             }
         }
 
+        async function loadBuildQueue() {
+            try {
+                var response = await api('GET', '/build/queue');
+                if (!response) return;
+                var data = await response.json();
+                var el = document.getElementById('buildQueueInfo');
+                var btn = document.getElementById('buildBtn');
+                if (data.available) {
+                    el.innerHTML = '<span style="color:#00ff88;">' + data.running + '/' + data.max + ' 运行中</span> · 可提交新构建';
+                    btn.disabled = false;
+                } else {
+                    el.innerHTML = '<span style="color:#ff6b6b;">' + data.running + '/' + data.max + ' 运行中</span> · 队列已满，请稍后';
+                    btn.disabled = true;
+                }
+            } catch (e) {
+                document.getElementById('buildQueueInfo').textContent = '无法获取队列状态';
+            }
+        }
+
         async function triggerBuild() {
             var profileName = document.getElementById('profileSelect').value;
             var buildBranch = document.getElementById('buildBranch').value.trim() || 'main';
@@ -1023,12 +1047,19 @@
                     branch: buildBranch
                 });
                 if (!response) return;
+                if (response.status === 429) {
+                    var err = await response.json();
+                    setBuildStatus(err.error || '构建队列已满，请稍后再试', 'error');
+                    loadBuildQueue();
+                    return;
+                }
                 if (!response.ok) {
                     var err = await response.json();
                     throw new Error(err.error || '触发失败');
                 }
                 setBuildStatus('打包已触发! 档案: ' + profileName + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
                 await loadBuildHistory();
+                loadBuildQueue();
             } catch (e) {
                 setBuildStatus('触发失败: ' + e.message, 'error');
             }

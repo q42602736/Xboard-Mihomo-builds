@@ -96,6 +96,7 @@ func main() {
 		r.Get("/api/branches", h.ListBranches)
 		r.Post("/api/build/trigger", h.TriggerBuild)
 		r.Get("/api/build/history", h.GetBuildHistory)
+		r.Get("/api/build/queue", h.GetBuildQueue)
 	})
 
 	// 管理员 API

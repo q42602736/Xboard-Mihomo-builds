@@ -163,3 +163,47 @@ func (g *GitHubClient) ListBranches() ([]Branch, error) {
 	json.NewDecoder(resp.Body).Decode(&branches)
 	return branches, nil
 }
+
+// GetRunningWorkflowCount 查询指定仓库中正在运行和排队中的工作流数量
+func (g *GitHubClient) GetRunningWorkflowCount(buildOwner, buildRepo, workflow string) (int, error) {
+	total := 0
+	for _, status := range []string{"in_progress", "queued"} {
+		url := fmt.Sprintf(
+			"https://api.github.com/repos/%s/%s/actions/workflows/%s/runs?status=%s&per_page=1",
+			buildOwner, buildRepo, workflow, status,
+		)
+		resp, err := g.doRequest("GET", url, nil)
+		if err != nil {
+			return 0, err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != 200 {
+			continue
+		}
+
+		var result struct {
+			TotalCount int `json:"total_count"`
+		}
+		json.NewDecoder(resp.Body).Decode(&result)
+		total += result.TotalCount
+	}
+	return total, nil
+}
+
+// SaveFileWithRetry 带冲突重试的文件保存，解决并发写入 SHA 不匹配的问题
+func (g *GitHubClient) SaveFileWithRetry(filePath string, contentFn func(existing string) string, message string, maxRetries int) error {
+	for i := 0; i < maxRetries; i++ {
+		existing, sha, _ := g.GetFile(filePath)
+		newContent := contentFn(existing)
+		_, err := g.SaveFile(filePath, newContent, sha, message)
+		if err == nil {
+			return nil
+		}
+		if !strings.Contains(err.Error(), "409") && !strings.Contains(err.Error(), "422") {
+			return err
+		}
+		// SHA 冲突，重试
+	}
+	return fmt.Errorf("保存文件失败: 重试 %d 次后仍有冲突", maxRetries)
+}

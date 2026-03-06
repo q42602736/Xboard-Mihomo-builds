@@ -24,6 +24,10 @@ on:
         # 可选值: all, windows, android, macos, macos-arm64, macos-amd64
         # 示例: windows,android 或 macos-arm64,windows
 
+concurrency:
+  group: build-${{ github.event.inputs.profile }}
+  cancel-in-progress: false
+
 env:
   IS_STABLE: ${{ !contains(github.event.inputs.tag, '-') }}
   PRIVATE_REPO: q42602736/Xboard-Mihomo_sub
@@ -642,18 +646,20 @@ jobs:
           GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
         run: |
           APP_NAME="${{ steps.config.outputs.app_name }}"
+          PROFILE_NAME="${{ github.event.inputs.profile }}"
           VERSION="${{ github.event.inputs.tag }}"
+          RELEASE_TAG="${PROFILE_NAME}-${VERSION}"
           
-          echo "Creating draft release: ${APP_NAME} ${VERSION}"
+          echo "Creating draft release: ${APP_NAME} ${VERSION} (tag: ${RELEASE_TAG})"
           
-          # 检查 release 是否已存在
+          # 检查 release 是否已存在（使用 profile+version 组合标签避免不同 profile 冲突）
           EXISTING=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
-            "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/tags/${VERSION}" | grep -c '"id"' || true)
+            "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/tags/${RELEASE_TAG}" | grep -c '"id"' || true)
           
           if [ "$EXISTING" -gt 0 ]; then
-            echo "Release ${VERSION} already exists, deleting..."
+            echo "Release ${RELEASE_TAG} already exists, deleting..."
             RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
-              "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/tags/${VERSION}" | grep '"id"' | head -1 | grep -o '[0-9]*')
+              "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/tags/${RELEASE_TAG}" | grep '"id"' | head -1 | grep -o '[0-9]*')
             curl -s -X DELETE -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
               "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/${RELEASE_ID}"
           fi
@@ -662,7 +668,7 @@ jobs:
           RELEASE_RESPONSE=$(curl -s -X POST -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
             -H "Content-Type: application/json" \
             "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases" \
-            -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${APP_NAME} ${VERSION}\",\"draft\":true,\"body\":\"${APP_NAME} ${VERSION} 构建产物\"}")
+            -d "{\"tag_name\":\"${RELEASE_TAG}\",\"name\":\"${APP_NAME} ${VERSION}\",\"draft\":true,\"body\":\"${APP_NAME} ${VERSION} 构建产物\\n\\n档案: ${PROFILE_NAME}\"}")
           
           RELEASE_ID=$(echo "$RELEASE_RESPONSE" | grep '"id"' | head -1 | grep -o '[0-9]*')
           UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | grep '"upload_url"' | sed 's/.*"upload_url": "\([^"]*\)".*/\1/' | sed 's/{.*}//')

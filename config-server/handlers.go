@@ -257,6 +257,8 @@ func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 
 const buildHistoryPath = "build-versions.json"
 
+const maxConcurrentBuilds = 3
+
 func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Profile   string `json:"profile"`
@@ -287,6 +289,12 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		req.Branch = "main"
 	}
 
+	running, err := h.gh.GetRunningWorkflowCount(cfg.BuildOwner, cfg.BuildRepo, "build.yaml")
+	if err == nil && running >= maxConcurrentBuilds {
+		jsonError(w, fmt.Sprintf("当前有 %d 个构建正在运行，最多允许 %d 个并发构建，请稍后再试", running, maxConcurrentBuilds), 429)
+		return
+	}
+
 	inputs := map[string]string{
 		"profile":   req.Profile,
 		"tag":       req.Tag,
@@ -294,7 +302,7 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		"branch":    req.Branch,
 	}
 
-	err := h.gh.TriggerWorkflow(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", inputs)
+	err = h.gh.TriggerWorkflow(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", inputs)
 	if err != nil {
 		jsonError(w, err.Error(), 500)
 		return
@@ -310,25 +318,26 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) saveBuildHistory(profile, tag, platforms string) {
-	content, sha, _ := h.gh.GetFile(buildHistoryPath)
-	var history map[string]interface{}
-	if content == "" {
-		history = make(map[string]interface{})
-	} else {
-		json.Unmarshal([]byte(content), &history)
+	buildTime := time.Now().Format("2006/1/2 15:04:05")
+	err := h.gh.SaveFileWithRetry(buildHistoryPath, func(existing string) string {
+		var history map[string]interface{}
+		if existing != "" {
+			json.Unmarshal([]byte(existing), &history)
+		}
 		if history == nil {
 			history = make(map[string]interface{})
 		}
+		history[profile] = map[string]interface{}{
+			"version":   tag,
+			"platforms": platforms,
+			"time":      buildTime,
+		}
+		newContent, _ := json.MarshalIndent(history, "", "  ")
+		return string(newContent)
+	}, "更新打包版本记录: "+profile+" "+tag, 5)
+	if err != nil {
+		fmt.Printf("保存构建历史失败: %v\n", err)
 	}
-
-	history[profile] = map[string]interface{}{
-		"version":   tag,
-		"platforms": platforms,
-		"time":      time.Now().Format("2006/1/2 15:04:05"),
-	}
-
-	newContent, _ := json.MarshalIndent(history, "", "  ")
-	h.gh.SaveFile(buildHistoryPath, string(newContent), sha, "更新打包版本记录: "+profile+" "+tag)
 }
 
 func (h *Handlers) GetBuildHistory(w http.ResponseWriter, r *http.Request) {
@@ -350,6 +359,23 @@ func (h *Handlers) ListBranches(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResponse(w, branches)
+}
+
+func (h *Handlers) GetBuildQueue(w http.ResponseWriter, r *http.Request) {
+	running, err := h.gh.GetRunningWorkflowCount(cfg.BuildOwner, cfg.BuildRepo, "build.yaml")
+	if err != nil {
+		jsonResponse(w, map[string]interface{}{
+			"running":   0,
+			"max":       maxConcurrentBuilds,
+			"available": true,
+		})
+		return
+	}
+	jsonResponse(w, map[string]interface{}{
+		"running":   running,
+		"max":       maxConcurrentBuilds,
+		"available": running < maxConcurrentBuilds,
+	})
 }
 
 // ==================== 管理后台 ====================
