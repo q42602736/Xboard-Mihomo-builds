@@ -636,12 +636,28 @@ jobs:
             sha256sum "$file" > "${file}.sha256"
           done
 
-      - name: Upload merged artifact
+      - name: Package merged bundle
+        if: steps.check.outputs.has_artifacts == 'true'
+        id: package
+        run: |
+          PROFILE_NAME_SAFE="${{ steps.check.outputs.profile_name_safe }}"
+          VERSION="${{ github.event.inputs.tag }}"
+          PACKAGE_NAME="${PROFILE_NAME_SAFE}-${VERSION}-bundle.zip"
+
+          mkdir -p ./release
+          cd ./dist
+          zip -r "../release/${PACKAGE_NAME}" . -x "*.DS_Store"
+
+          echo "package_name=${PACKAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "package_path=./release/${PACKAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "Created bundle: ./release/${PACKAGE_NAME}"
+
+      - name: Upload merged bundle
         if: steps.check.outputs.has_artifacts == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.check.outputs.profile_name_safe }}-${{ github.event.inputs.tag }}
-          path: ./dist/*
+          name: ${{ steps.check.outputs.profile_name_safe }}-${{ github.event.inputs.tag }}-bundle
+          path: ${{ steps.package.outputs.package_path }}
           retention-days: 30
 
       - name: Create Draft Release
@@ -653,52 +669,47 @@ jobs:
           PROFILE_NAME="${{ github.event.inputs.profile }}"
           VERSION="${{ github.event.inputs.tag }}"
           RELEASE_TAG="${PROFILE_NAME}-${VERSION}-${{ github.run_id }}"
-          
+          PACKAGE_NAME="${{ steps.package.outputs.package_name }}"
+
           echo "Creating draft release: ${APP_NAME} ${VERSION} (tag: ${RELEASE_TAG})"
-          
-          # 检查 release 是否已存在（使用 profile+version 组合标签避免不同 profile 冲突）
-          EXISTING=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
-            "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/tags/${RELEASE_TAG}" | grep -c '"id"' || true)
-          
+
+          # 检查 release 是否已存在（使用 profile+version+run_id 组合标签避免冲突）
+          EXISTING=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/tags/${RELEASE_TAG}" | grep -c '"id"' || true)
+
           if [ "$EXISTING" -gt 0 ]; then
             echo "Release ${RELEASE_TAG} already exists, deleting..."
-            RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
-              "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/tags/${RELEASE_TAG}" | grep '"id"' | head -1 | grep -o '[0-9]*')
-            curl -s -X DELETE -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
-              "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/${RELEASE_ID}"
+            RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/tags/${RELEASE_TAG}" | grep '"id"' | head -1 | grep -o '[0-9]*')
+            curl -s -X DELETE -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/${RELEASE_ID}"
           fi
-          
-          # 创建 draft release
-          RELEASE_RESPONSE=$(curl -s -X POST -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases" \
-            -d "{\"tag_name\":\"${RELEASE_TAG}\",\"name\":\"${APP_NAME} ${VERSION}\",\"draft\":true,\"body\":\"${APP_NAME} ${VERSION} 构建产物\\n\\n档案: ${PROFILE_NAME}\"}")
-          
-          RELEASE_ID=$(echo "$RELEASE_RESPONSE" | grep '"id"' | head -1 | grep -o '[0-9]*')
-          UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | grep '"upload_url"' | sed 's/.*"upload_url": "\([^"]*\)".*/\1/' | sed 's/{.*}//')
-          
+
+          RELEASE_PAYLOAD=$(node -e '
+            const [appName, version, releaseTag, profileName] = process.argv.slice(1);
+            process.stdout.write(JSON.stringify({
+              tag_name: releaseTag,
+              name: `${appName} ${version}`,
+              draft: true,
+              body: `${appName} ${version} 构建产物
+
+档案: ${profileName}`
+            }));
+          ' "$APP_NAME" "$VERSION" "$RELEASE_TAG" "$PROFILE_NAME")
+
+          RELEASE_RESPONSE=$(curl -s -X POST -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" -H "Content-Type: application/json" "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases" -d "$RELEASE_PAYLOAD")
+
+          RELEASE_ID=$(echo "$RELEASE_RESPONSE" | node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(0,'utf8')); console.log(data.id || '');")
+          UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(0,'utf8')); console.log((data.upload_url || '').replace(/\{.*$/, ''));")
+
           echo "Release ID: $RELEASE_ID"
           echo "Upload URL: $UPLOAD_URL"
-          
-          # 上传文件
-          cd ./dist
-          for file in $(find . -type f \( -name "*.apk" -o -name "*.dmg" -o -name "*.exe" -o -name "*.zip" \) | head -20); do
-            filename=$(basename "$file")
-            filesize=$(du -h "$file" | cut -f1)
-            
-            # 将文件名中的中文应用名替换为英文 profile 名称
-            safe_filename=$(python3 -c "import sys; print(sys.argv[1].replace(sys.argv[2], sys.argv[3]))" "$filename" "$APP_NAME" "$PROFILE_NAME")
-            
-            echo "Uploading: $filename -> $safe_filename ($filesize)"
-            
-            # URL 编码文件名
-            encoded_filename=$(node -e "console.log(encodeURIComponent('$safe_filename'))")
-            
-            curl -s -X POST -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
-              -H "Content-Type: application/octet-stream" \
-              "${UPLOAD_URL}?name=${encoded_filename}" \
-              --data-binary @"$file" || echo "Failed to upload $filename"
-          done
-          
+
+          # 只上传合集包
+          cd ./release
+          filesize=$(du -h "$PACKAGE_NAME" | cut -f1)
+          echo "Uploading bundle: $PACKAGE_NAME ($filesize)"
+
+          encoded_filename=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$PACKAGE_NAME")
+
+          curl -s -X POST -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" -H "Content-Type: application/zip" "${UPLOAD_URL}?name=${encoded_filename}" --data-binary @"$PACKAGE_NAME" || echo "Failed to upload $PACKAGE_NAME"
+
           echo "Draft release created successfully!"
           echo "View at: https://github.com/q42602736/Xboard-Mihomo-builds/releases"
