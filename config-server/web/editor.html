@@ -381,6 +381,25 @@
             color: #00d4ff;
             border-color: rgba(0,212,255,0.3);
         }
+        .build-progress-close {
+            width: 26px;
+            height: 26px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            background: transparent;
+            color: #666;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .build-progress-close:hover {
+            color: #ff6b6b;
+            border-color: rgba(255,68,68,0.3);
+            background: rgba(255,68,68,0.1);
+        }
         .build-progress-params {
             display: flex;
             flex-wrap: wrap;
@@ -755,7 +774,10 @@
                     <div id="buildProgressPanel" class="build-progress-panel" style="display:none;">
                         <div class="build-progress-header">
                             <h3 id="buildProgressTitle">构建进度</h3>
-                            <a id="buildProgressLink" href="#" target="_blank" class="build-progress-link" style="display:none;">在 GitHub 查看</a>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <a id="buildProgressLink" href="#" target="_blank" class="build-progress-link" style="display:none;">在 GitHub 查看</a>
+                                <button onclick="dismissBuildProgress()" class="build-progress-close" title="关闭">✕</button>
+                            </div>
                         </div>
                         <div id="buildProgressParams" class="build-progress-params" style="display:none;"></div>
                         <div class="build-progress-overall">
@@ -1740,6 +1762,8 @@
         var BUILD_POLL_KEY = 'xboard_building_profile';
         var buildPollTimer = null;
         var buildPollProfile = '';
+        var buildNotFoundCount = 0;
+        var maxNotFoundRetries = 6;
 
         function saveBuildingProfile(profile) {
             if (profile) {
@@ -1753,9 +1777,18 @@
             return sessionStorage.getItem(BUILD_POLL_KEY) || '';
         }
 
+        function dismissBuildProgress() {
+            stopBuildPolling();
+            buildPollProfile = '';
+            buildNotFoundCount = 0;
+            saveBuildingProfile(null);
+            document.getElementById('buildProgressPanel').style.display = 'none';
+        }
+
         function startBuildPolling(profile, isResume) {
             stopBuildPolling();
             buildPollProfile = profile;
+            buildNotFoundCount = 0;
             saveBuildingProfile(profile);
             document.getElementById('buildProgressPanel').style.display = 'block';
             document.getElementById('buildProgressTitle').textContent = '构建进度 - ' + profile;
@@ -1790,17 +1823,30 @@
                 renderBuildProgress(data);
 
                 if (data.found && data.status !== 'completed') {
+                    buildNotFoundCount = 0;
                     buildPollTimer = setTimeout(pollBuildStatus, 15000);
                 } else if (!data.found) {
-                    buildPollTimer = setTimeout(pollBuildStatus, 10000);
+                    buildNotFoundCount++;
+                    if (buildNotFoundCount >= maxNotFoundRetries) {
+                        renderBuildNotFound();
+                    } else {
+                        buildPollTimer = setTimeout(pollBuildStatus, 10000);
+                    }
                 } else {
-                    // 构建完成，清除持久化的 profile
                     saveBuildingProfile(null);
                     loadBuildQueue();
                 }
             } catch (e) {
                 buildPollTimer = setTimeout(pollBuildStatus, 20000);
             }
+        }
+
+        function renderBuildNotFound() {
+            stopBuildPolling();
+            saveBuildingProfile(null);
+            document.getElementById('buildProgressIcon').className = 'build-progress-status-icon cancelled';
+            document.getElementById('buildProgressText').textContent = '未找到活跃的构建运行（可能已被取消或尚未创建）';
+            document.getElementById('buildProgressTime').textContent = '';
         }
 
         function getStatusIcon(status, conclusion) {

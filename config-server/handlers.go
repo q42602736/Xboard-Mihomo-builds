@@ -377,26 +377,16 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	var matchedRun *WorkflowRun
 	var matchedInputs map[string]string
 
-	// 1. 先检查缓存的 run_id，直接查询单个 run 状态（只需 1 次 API 调用）
+	// 1. 先检查缓存的 run_id，直接查状态（只需 1 次 API 调用）
 	if cachedRunID, ok := profileRunCache[profile]; ok {
-		inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, cachedRunID)
+		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, cachedRunID)
 		if err == nil && inputs["profile"] == profile {
-			runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", 10)
-			if err == nil {
-				for i := range runs {
-					if runs[i].ID == cachedRunID {
-						matchedRun = &runs[i]
-						matchedInputs = inputs
-						// 如果已完成，清除缓存以便下次搜索新的 run
-						if matchedRun.Status == "completed" {
-							delete(profileRunCache, profile)
-						}
-						break
-					}
-				}
+			matchedRun = run
+			matchedInputs = inputs
+			if matchedRun.Status == "completed" {
+				delete(profileRunCache, profile)
 			}
-		}
-		if matchedRun == nil {
+		} else {
 			delete(profileRunCache, profile)
 		}
 	}

@@ -236,6 +236,37 @@ func (g *GitHubClient) GetRecentWorkflowRuns(buildOwner, buildRepo, workflow str
 	return result.WorkflowRuns, nil
 }
 
+// GetWorkflowRun 通过 run_id 直接获取单个 run 的状态
+func (g *GitHubClient) GetWorkflowRun(buildOwner, buildRepo string, runID int64) (*WorkflowRun, map[string]string, error) {
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/actions/runs/%d",
+		buildOwner, buildRepo, runID,
+	)
+	resp, err := g.doRequest("GET", url, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, nil, fmt.Errorf("获取运行详情失败 (%d)", resp.StatusCode)
+	}
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+
+	var run WorkflowRun
+	json.Unmarshal(bodyBytes, &run)
+
+	var rawMap map[string]json.RawMessage
+	json.Unmarshal(bodyBytes, &rawMap)
+	inputs := make(map[string]string)
+	if rawInputs, ok := rawMap["inputs"]; ok {
+		json.Unmarshal(rawInputs, &inputs)
+	}
+
+	return &run, inputs, nil
+}
+
 // GetWorkflowRunJobs 获取指定运行的 job 列表
 func (g *GitHubClient) GetWorkflowRunJobs(buildOwner, buildRepo string, runID int64) ([]WorkflowJob, error) {
 	url := fmt.Sprintf(
