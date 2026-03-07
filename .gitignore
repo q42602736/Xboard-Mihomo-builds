@@ -90,4 +90,7 @@ config-server/.env
 config-server/data/
 config-server/config-server
 config-server/xboard-config-server
+config-server/nexgen-client
+config-server/dist/
 .serena/
+.ace-tool/

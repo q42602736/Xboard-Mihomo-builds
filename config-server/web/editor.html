@@ -378,6 +378,8 @@
         .btn-primary { background: linear-gradient(135deg, #00d4ff, #0099cc); color: #000; }
         .btn-success { background: linear-gradient(135deg, #00ff88, #00cc6a); color: #000; }
         .btn-warning { background: linear-gradient(135deg, #ffaa00, #ff8800); color: #000; }
+        .btn-secondary { background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.12); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.18); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-build:disabled,
         .btn-build.is-disabled { background: linear-gradient(135deg, #666, #444); color: #bbb; opacity: 1; box-shadow: none; }
@@ -405,6 +407,13 @@
         input:checked + .slider { background: #00d4ff; }
         input:checked + .slider:before { transform: translateX(24px); }
         .help-text { font-size: 12px; color: #666; margin-top: 5px; }
+        .help-text.warning { color: #ffb347; }
+        .form-group.is-warning input,
+        .form-group.is-warning select,
+        .form-group.is-warning textarea {
+            border-color: rgba(255, 170, 0, 0.65);
+            box-shadow: 0 0 0 1px rgba(255, 170, 0, 0.16);
+        }
         #editor {
             width: 100%;
             min-height: 400px;
@@ -427,6 +436,150 @@
         .source-item .btn-remove { position: absolute; top: 10px; right: 10px; background: rgba(255,68,68,0.3); color: #ff4444; border: 1px solid rgba(255,68,68,0.5); padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; }
         .source-item .btn-remove:hover { background: rgba(255,68,68,0.5); }
         .source-index { color: #00d4ff; font-weight: bold; margin-bottom: 10px; }
+        .remote-config-workflow {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .remote-config-step {
+            background: rgba(0,0,0,0.18);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 14px;
+        }
+        .remote-config-step strong {
+            display: block;
+            color: #00d4ff;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+        .remote-config-step-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .remote-config-step-recommended {
+            border-color: rgba(0,212,255,0.24);
+            background: linear-gradient(180deg, rgba(0,212,255,0.12), rgba(0,0,0,0.2));
+            box-shadow: 0 10px 24px rgba(0,212,255,0.08);
+        }
+        .remote-config-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #07111f;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            box-shadow: 0 4px 12px rgba(0,212,255,0.2);
+        }
+        .remote-config-step span {
+            display: block;
+            font-size: 12px;
+            color: #99a6b8;
+            line-height: 1.6;
+        }
+        .remote-config-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .remote-config-output textarea {
+            min-height: 150px;
+        }
+        .remote-config-json textarea {
+            min-height: 280px;
+        }
+        .remote-config-output-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .remote-config-meta {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .remote-config-array-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .remote-config-array-grid textarea {
+            min-height: 150px;
+        }
+        .remote-config-panel-item .form-row-2 {
+            grid-template-columns: 1.5fr 1fr;
+        }
+        .remote-config-json-preview textarea {
+            min-height: 260px;
+        }
+        .remote-config-history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .remote-config-history-item {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 14px;
+        }
+        .remote-config-history-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .remote-config-history-title {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.5;
+        }
+        .remote-config-history-time {
+            color: #8b949e;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .remote-config-history-meta {
+            color: #99a6b8;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+        .remote-config-history-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .remote-config-history-empty {
+            color: #8b949e;
+            font-size: 12px;
+            padding: 14px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.03);
+            border: 1px dashed rgba(255,255,255,0.08);
+        }
+        @media (max-width: 1200px) {
+            .remote-config-array-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 900px) {
+            .remote-config-output-grid,
+            .remote-config-meta,
+            .remote-config-panel-item .form-row-2 {
+                grid-template-columns: 1fr;
+            }
+        }
         .build-panel { background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 12px; padding: 20px; margin-top: 0; }
         .build-panel h3 { color: #00ff88; margin-bottom: 15px; }
         .platform-checkboxes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
@@ -717,6 +870,10 @@
             
             <div class="sidebar-nav">
                 <div class="nav-section-label">配置编辑</div>
+                <div class="nav-item" onclick="switchSection('remoteConfigTool')">
+                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v3a1 1 0 11-2 0V5H5v10h5a1 1 0 110 2H5a2 2 0 01-2-2V5zm10.293 5.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L14.586 15H10a1 1 0 110-2h4.586l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                    远程配置文件
+                </div>
                 <div class="nav-item active" onclick="switchSection('basic')">
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
                     基础设置
@@ -769,7 +926,7 @@
                                 <div class="form-group">
                                     <label>提供商标识 (provider)</label>
                                     <input type="text" id="provider" placeholder="如: 软件云、Bluetile">
-                                    <div class="help-text">必须与远程配置 panels 对象中的键名一致</div>
+                                    <div class="help-text" id="providerHelpText">必须与远程配置 panels 对象中的键名一致</div>
                                 </div>
                                 <div class="form-group" id="appTitleGroup">
                                     <label>应用名称</label>
@@ -826,9 +983,6 @@
                                 <div class="help-text">由打包用户自己配置认证页背景图；关闭时忽略图片地址。</div>
                             </div>
                         </div>
-                    </div>
-                    <div class="page-footer">
-                        <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
                     </div>
                 </div>
 
@@ -920,6 +1074,90 @@
                     </div>
                     <div class="page-footer">
                         <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
+                    </div>
+                </div>
+                <!-- 远程配置文件 -->
+                <div class="content-section" id="remoteConfigToolSection">
+                    <div class="page-header">
+                        <div class="page-header-content">
+                            <h2>远程配置文件</h2>
+                            <p class="subtitle">按配置项生成 remote.config.json，可直接下载使用；如需更高安全性，再执行 AES-256-GCM 加密。</p>
+                        </div>
+                    </div>
+                    <div class="editor-container">
+                        <div class="section">
+                            <div class="section-title">操作流程</div>
+                            <div class="remote-config-workflow">
+                                <div class="remote-config-step"><strong>1. 填写配置项</strong><span>直接填写面板类型、官网地址、提供商标识和站点列表，系统会实时生成 remote.config.json。</span></div>
+                                <div class="remote-config-step"><strong>2. 下载并使用 JSON</strong><span>如果不需要加密，确认无误后直接下载 remote.config.json 并上传到 OSS，即可作为远程配置文件使用。</span></div>
+                                <div class="remote-config-step remote-config-step-recommended"><strong class="remote-config-step-title">3. 按需加密配置文件 <span class="remote-config-badge">推荐操作</span></strong><span>首次加密建议点击“生成密钥并加密配置文件”；如果是后续更新配置，直接填写已保存的密钥，再点击“使用当前密钥加密”。</span></div>
+                                <div class="remote-config-step"><strong>4. 保存密钥并下载加密后的配置文件</strong><span>首次加密后请务必保存好密钥，并将该密钥填写到远程配置源的“加密密钥（可选）”中；后续如需二次加密，继续使用这把密钥即可。</span></div>
+                            </div>
+                        </div>
+
+                        <div class="section remote-config-json">
+                            <div class="section-title">remote.config.json 配置项</div>
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label>面板类型（panelType）</label>
+                                    <select id="remoteConfigPanelType">
+                                        <option value="">请选择面板类型</option>
+                                        <option value="sspanel">sspanel</option>
+                                        <option value="v2board">v2board</option>
+                                        <option value="xboard">xboard</option>
+                                    </select>
+                                    <div class="help-text">请选择当前站点使用的面板类型；如果是 xiaov2board，请选择 v2board。</div>
+                                </div>
+                                <div class="form-group">
+                                    <label>官网地址（websiteUrl）</label>
+                                    <input type="text" id="remoteConfigWebsiteUrl" placeholder="https://your-site.com">
+                                    <div class="help-text">这里填写软件内“官网入口”打开的地址，通常就是你的主站域名，例如 https://your-site.com 。</div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>提供商标识（panels 键名）</label>
+                                <input type="text" id="remoteConfigProviderKey" placeholder="必须与基础设置中的 provider 完全一致">
+                                <div class="help-text" id="remoteConfigProviderKeyHelpText">这里非常重要：填写的值必须与基础设置里的“提供商标识（provider）”完全一致，包括大小写；remote.config.json 会用它作为 panels 的键名，如果不一致，软件可能无法正确识别站点，甚至无法正常启动。</div>
+                            </div>
+
+                            <div class="section" style="margin-top: 20px; margin-bottom: 0;">
+                                <div class="section-title">站点列表（panels）</div>
+                                <div id="remoteConfigPanelsContainer"></div>
+                                <div class="remote-config-actions" style="margin-top: 10px; margin-bottom: 10px;">
+                                    <button type="button" class="btn btn-primary" id="addRemoteConfigPanelBtn">+ 添加站点</button>
+                                </div>
+                                <div class="remote-config-actions" style="margin-bottom: 10px;">
+                                    <button type="button" class="btn btn-secondary" onclick="downloadRemoteConfigJson()">下载配置好的 JSON</button>
+                                    <button type="button" class="btn btn-success page-save-btn" onclick="saveCurrentRemoteConfig()">保存当前配置</button>
+                                </div>
+                                <div class="help-text">面板类型、提供商标识、至少一个站点地址（url）为必填；站点说明（description）留空时会自动使用“站点1、站点2 ...”。</div>
+                                <textarea id="remoteConfigInput" readonly style="display:none;"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="section">
+                            <div class="section-title">加密与密钥</div>
+                            <div id="remoteConfigStatus" class="status info">请先完善必填项；如果不需要加密，可直接下载使用。首次加密建议点击“生成密钥并加密配置文件”，后续更新配置可填写原密钥后点击“使用当前密钥加密”。</div>
+                            <div class="remote-config-meta">
+                                <div class="form-group">
+                                    <label>加密密钥（Base64，32字节）</label>
+                                    <input type="text" id="remoteConfigKeyInput" placeholder="首次加密可留空；二次加密请填写首次保存的 44 字符 Base64 密钥">
+                                    <div class="help-text">首次加密请直接点击“生成密钥并加密配置文件”，系统会自动生成新密钥；如果是二次加密或更新配置，请在这里填写首次保存的密钥，再点击“使用当前密钥加密”，这样不会和旧密钥冲突。</div>
+                                </div>
+                            </div>
+                            <div class="remote-config-actions">
+                                <button type="button" class="btn btn-warning" onclick="generateRemoteConfigKeyAndEncrypt()">生成密钥并加密配置文件</button>
+                                <button type="button" class="btn btn-primary" onclick="encryptRemoteConfig('existing')">使用当前密钥加密</button>
+                                <button type="button" class="btn btn-secondary" onclick="copyRemoteConfigKey()">复制密钥</button>
+                                <button type="button" class="btn btn-secondary" onclick="downloadEncryptedRemoteConfig()">下载加密后的配置文件</button>
+                            </div>
+                        </div>
+
+                        <div class="section">
+                            <div class="section-title">最近保存记录</div>
+                            <div class="help-text" style="margin-bottom: 12px;">仅保留当前浏览器最近保存的 10 条 remote.config.json 记录，可直接载入、下载或删除。</div>
+                            <div id="remoteConfigHistoryList" class="remote-config-history-list"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -1317,6 +1555,13 @@
 
         // ==================== 全局变量 ====================
         var sources = [];
+        var remoteConfigEncryptedData = '';
+        var remoteConfigEncryptionKey = '';
+        var remoteConfigPanels = [];
+        var REMOTE_CONFIG_HISTORY_STORAGE_KEY = 'nexgen_remote_config_history_v1';
+        var remoteConfigHistoryRecords = [];
+        var PROVIDER_HELP_TEXT = '必须与远程配置 panels 对象中的键名一致';
+        var REMOTE_CONFIG_PROVIDER_HELP_TEXT = '这里非常重要：填写的值必须与基础设置里的“提供商标识（provider）”完全一致，包括大小写；remote.config.json 会用它作为 panels 的键名，如果不一致，软件可能无法正确识别站点，甚至无法正常启动。';
         var onlineSupportItems = [];
         var profilesCache = [];
         var buildHistoryData = {};
@@ -1329,15 +1574,28 @@
         var buildPermissionStatusMessage = '正在加载软件打包状态...';
 
         // ==================== 导航切换 ====================
-        function switchSection(sectionName) {
+        function switchSection(sectionName, triggerElement) {
+            var activeNavItem = null;
             document.querySelectorAll('.nav-item').forEach(function(item) {
                 item.classList.remove('active');
             });
-            if (event && event.target) {
-                var navItem = event.target.closest('.nav-item');
-                if (navItem) navItem.classList.add('active');
+            if (triggerElement && triggerElement.closest) {
+                activeNavItem = triggerElement.closest('.nav-item');
+            } else if (typeof event !== 'undefined' && event && event.target) {
+                activeNavItem = event.target.closest('.nav-item');
             }
-            
+            if (!activeNavItem) {
+                document.querySelectorAll('.nav-item').forEach(function(item) {
+                    var handler = item.getAttribute('onclick') || '';
+                    if (!activeNavItem && handler.indexOf("switchSection('" + sectionName + "')") !== -1) {
+                        activeNavItem = item;
+                    }
+                });
+            }
+            if (activeNavItem) {
+                activeNavItem.classList.add('active');
+            }
+
             document.querySelectorAll('.content-section').forEach(function(section) {
                 section.classList.remove('active');
             });
@@ -1376,6 +1634,12 @@
             document.getElementById('addSupportBtn').addEventListener('click', addSupportItem);
             document.getElementById('buildBtn').addEventListener('click', triggerBuild);
             document.getElementById('provider').addEventListener('change', formToYaml);
+            document.getElementById('provider').addEventListener('input', function() {
+                updateProviderConsistencyState({ source: 'basic' });
+            });
+            document.getElementById('provider').addEventListener('change', function() {
+                updateProviderConsistencyState({ source: 'basic' });
+            });
             document.getElementById('profileSelect').addEventListener('change', syncProfileBoundAppTitle);
             document.getElementById('appTitle').addEventListener('change', displayBuildHistory);
 
@@ -1387,8 +1651,10 @@
 
             initSwitches();
             initPlatformCheckboxes();
+            initRemoteConfigTool();
             renderSources();
             renderSupportItems();
+            updateProviderConsistencyState();
 
             syncProfileBoundAppTitle();
             loadProfiles().then(function() { checkActiveBuild(); });
@@ -2085,9 +2351,13 @@
                 var item = createSourceItem(index, source);
                 container.appendChild(item);
                 item.querySelectorAll('input').forEach(function(input) {
-                    input.addEventListener('change', function() { formToYaml(); });
+                    input.addEventListener('change', function() {
+                        formToYaml();
+                        refreshRemoteConfigSourceTargets();
+                    });
                 });
             });
+            refreshRemoteConfigSourceTargets();
         }
 
         function addSource() {
@@ -2106,7 +2376,7 @@
         }
 
         function collectSources() {
-            var items = document.querySelectorAll('.source-item');
+            var items = document.querySelectorAll('#sourcesContainer .source-item');
             sources = [];
             items.forEach(function(item) {
                 sources.push({
@@ -2117,6 +2387,622 @@
             });
             return sources;
         }
+
+
+        function setRemoteConfigStatus(message, type) {
+            var status = document.getElementById('remoteConfigStatus');
+            if (!status) return;
+            status.textContent = message;
+            status.className = 'status ' + (type || 'info');
+        }
+        function getDefaultRemoteConfigPanelItem() {
+            return {
+                url: '',
+                description: ''
+            };
+        }
+
+        function createRemoteConfigPanelItem(index, item) {
+            item = item || getDefaultRemoteConfigPanelItem();
+            var div = document.createElement('div');
+            div.className = 'source-item remote-config-panel-item';
+            div.dataset.index = index;
+            div.innerHTML = '<div class="source-index">站点 #' + (index + 1) + '</div>' +
+                '<button type="button" class="btn-remove" onclick="removeRemoteConfigPanel(' + index + ')">删除</button>' +
+                '<div class="form-row-2">' +
+                    '<div class="form-group"><label>站点地址（url）</label><input type="text" class="remote-config-panel-url" value="' + escapeHtml(item.url || '') + '" placeholder="https://panel.example.com"></div>' +
+                    '<div class="form-group"><label>站点说明（description）</label><input type="text" class="remote-config-panel-description" value="' + escapeHtml(item.description || '') + '" placeholder="如: 主站"></div>' +
+                '</div>' +
+                '<div class="help-text">每一条都会生成到 panels 下当前键名对应的数组里。</div>';
+            return div;
+        }
+
+        function collectRemoteConfigPanels() {
+            var items = document.querySelectorAll('.remote-config-panel-item');
+            remoteConfigPanels = [];
+            items.forEach(function(item, index) {
+                var urlValue = item.querySelector('.remote-config-panel-url').value.trim();
+                var descriptionValue = item.querySelector('.remote-config-panel-description').value.trim();
+                if (urlValue || descriptionValue) {
+                    remoteConfigPanels.push({
+                        url: urlValue,
+                        description: descriptionValue || ('站点' + (index + 1))
+                    });
+                }
+            });
+            if (remoteConfigPanels.length === 0) {
+                remoteConfigPanels.push(getDefaultRemoteConfigPanelItem());
+            }
+            return remoteConfigPanels;
+        }
+
+        function renderRemoteConfigPanels() {
+            var container = document.getElementById('remoteConfigPanelsContainer');
+            if (!container) return;
+            if (!remoteConfigPanels.length) {
+                remoteConfigPanels = [getDefaultRemoteConfigPanelItem()];
+            }
+            container.innerHTML = '';
+            remoteConfigPanels.forEach(function(panel, index) {
+                var item = createRemoteConfigPanelItem(index, panel);
+                container.appendChild(item);
+                item.querySelectorAll('input').forEach(function(input) {
+                    input.addEventListener('input', handleRemoteConfigFormInput);
+                    input.addEventListener('change', handleRemoteConfigFormInput);
+                });
+            });
+        }
+
+        function addRemoteConfigPanel() {
+            collectRemoteConfigPanels();
+            remoteConfigPanels.push(getDefaultRemoteConfigPanelItem());
+            renderRemoteConfigPanels();
+            handleRemoteConfigFormInput();
+        }
+
+        function removeRemoteConfigPanel(index) {
+            collectRemoteConfigPanels();
+            remoteConfigPanels.splice(index, 1);
+            if (remoteConfigPanels.length === 0) {
+                remoteConfigPanels.push(getDefaultRemoteConfigPanelItem());
+            }
+            renderRemoteConfigPanels();
+            handleRemoteConfigFormInput();
+        }
+
+        function updateProviderConsistencyState(options) {
+            options = options || {};
+            var source = options.source || '';
+            var providerInput = document.getElementById('provider');
+            var remoteProviderInput = document.getElementById('remoteConfigProviderKey');
+            var providerHelpText = document.getElementById('providerHelpText');
+            var remoteProviderHelpText = document.getElementById('remoteConfigProviderKeyHelpText');
+            if (!providerInput || !remoteProviderInput) {
+                return true;
+            }
+
+            var providerValue = String(providerInput.value || '').trim();
+            var remoteProviderValue = String(remoteProviderInput.value || '').trim();
+            var providerGroup = providerInput.closest ? providerInput.closest('.form-group') : null;
+            var remoteProviderGroup = remoteProviderInput.closest ? remoteProviderInput.closest('.form-group') : null;
+
+            if (source === 'basic' && providerValue && !remoteProviderValue) {
+                remoteProviderInput.value = providerValue;
+                remoteProviderValue = providerValue;
+                remoteConfigEncryptedData = '';
+                syncRemoteConfigJsonPreview({ silentStatus: true });
+            } else if (source === 'remote' && remoteProviderValue && !providerValue) {
+                providerInput.value = remoteProviderValue;
+                providerValue = remoteProviderValue;
+                formToYaml();
+            }
+
+            var isMismatch = !!(providerValue && remoteProviderValue && providerValue !== remoteProviderValue);
+            if (providerGroup) {
+                providerGroup.classList.toggle('is-warning', isMismatch);
+            }
+            if (remoteProviderGroup) {
+                remoteProviderGroup.classList.toggle('is-warning', isMismatch);
+            }
+            if (providerHelpText) {
+                providerHelpText.textContent = isMismatch
+                    ? '当前与远程配置文件里的 panels 键名不一致，请改成和“提供商标识（panels 键名）”完全相同。'
+                    : PROVIDER_HELP_TEXT;
+                providerHelpText.classList.toggle('warning', isMismatch);
+            }
+            if (remoteProviderHelpText) {
+                remoteProviderHelpText.textContent = isMismatch
+                    ? '当前与基础设置里的“提供商标识（provider）”不一致，请保持完全相同，否则软件可能无法识别站点。'
+                    : REMOTE_CONFIG_PROVIDER_HELP_TEXT;
+                remoteProviderHelpText.classList.toggle('warning', isMismatch);
+            }
+            return !isMismatch;
+        }
+
+        function getRemoteConfigFormData(requireComplete) {
+            var panelTypeValue = String(document.getElementById('remoteConfigPanelType').value || '').trim();
+            var websiteUrlValue = String(document.getElementById('remoteConfigWebsiteUrl').value || '').trim();
+            var providerValue = String(document.getElementById('remoteConfigProviderKey').value || '').trim();
+            var basicProviderValue = String(document.getElementById('provider').value || '').trim();
+            updateProviderConsistencyState();
+            var rawPanelItems = collectRemoteConfigPanels();
+            var panelItems = [];
+
+            rawPanelItems.forEach(function(item, index) {
+                var urlValue = String(item.url || '').trim();
+                var descriptionValue = String(item.description || '').trim();
+                if (!urlValue && !descriptionValue) {
+                    return;
+                }
+                if (!urlValue) {
+                    if (requireComplete) {
+                        throw new Error('请填写站点 #' + (index + 1) + ' 的站点地址（url）');
+                    }
+                    return;
+                }
+                panelItems.push({
+                    url: urlValue,
+                    description: descriptionValue || ('站点' + (panelItems.length + 1))
+                });
+            });
+
+            if (requireComplete) {
+                if (!panelTypeValue) {
+                    throw new Error('请选择面板类型（panelType）');
+                }
+                if (!providerValue) {
+                    throw new Error('请填写提供商标识（panels 键名）');
+                }
+                if (!basicProviderValue) {
+                    throw new Error('请先在基础设置中填写提供商标识（provider）');
+                }
+                if (basicProviderValue !== providerValue) {
+                    throw new Error('远程配置页的提供商标识必须与基础设置中的 provider 完全一致');
+                }
+                if (panelItems.length === 0) {
+                    throw new Error('请至少添加一个站点并填写站点地址（url）');
+                }
+            }
+
+            var panels = {};
+            if (providerValue) {
+                panels[providerValue] = panelItems;
+            }
+            return {
+                panelType: panelTypeValue,
+                websiteUrl: websiteUrlValue,
+                panels: panels,
+                proxy: [],
+                ws: [],
+                update: []
+            };
+        }
+
+        function buildRemoteConfigTemplateString(requireComplete) {
+            return JSON.stringify(getRemoteConfigFormData(!!requireComplete), null, 4);
+        }
+
+        function syncRemoteConfigJsonPreview(options) {
+            var previewValue = buildRemoteConfigTemplateString(false);
+            var hiddenInput = document.getElementById('remoteConfigInput');
+            if (hiddenInput) hiddenInput.value = previewValue;
+            if (!options || !options.silentStatus) {
+                setRemoteConfigStatus('remote.config.json 已根据当前配置项自动生成，可直接下载或加密。', 'info');
+            }
+            return previewValue;
+        }
+
+        function handleRemoteConfigFormInput() {
+            updateProviderConsistencyState();
+            remoteConfigEncryptedData = '';
+            syncRemoteConfigJsonPreview({ silentStatus: true });
+            setRemoteConfigStatus('remote.config.json 已根据当前配置项自动更新，可直接下载或加密。', 'info');
+        }
+
+        function initRemoteConfigTool() {
+            var panelTypeInput = document.getElementById('remoteConfigPanelType');
+            var websiteUrlInput = document.getElementById('remoteConfigWebsiteUrl');
+            var providerKeyInput = document.getElementById('remoteConfigProviderKey');
+            var keyInput = document.getElementById('remoteConfigKeyInput');
+            var addPanelBtn = document.getElementById('addRemoteConfigPanelBtn');
+
+            if (!remoteConfigPanels.length) {
+                remoteConfigPanels = [getDefaultRemoteConfigPanelItem()];
+            }
+            renderRemoteConfigPanels();
+
+            [panelTypeInput, websiteUrlInput].forEach(function(input) {
+                if (!input) return;
+                input.addEventListener('input', handleRemoteConfigFormInput);
+                input.addEventListener('change', handleRemoteConfigFormInput);
+            });
+            if (providerKeyInput) {
+                var handleProviderKeyChange = function() {
+                    updateProviderConsistencyState({ source: 'remote' });
+                    handleRemoteConfigFormInput();
+                };
+                providerKeyInput.addEventListener('input', handleProviderKeyChange);
+                providerKeyInput.addEventListener('change', handleProviderKeyChange);
+            }
+            if (addPanelBtn) {
+                addPanelBtn.addEventListener('click', addRemoteConfigPanel);
+            }
+
+            refreshRemoteConfigSourceTargets();
+            syncRemoteConfigJsonPreview({ silentStatus: true });
+            renderRemoteConfigHistoryRecords();
+            updateProviderConsistencyState();
+            setRemoteConfigStatus('请先完善必填项；如果不需要加密，可直接下载使用，如需更高安全性再生成密钥并执行加密。', 'info');
+        }
+
+        function downloadRemoteConfigJson() {
+            try {
+                var content = buildRemoteConfigTemplateString(true);
+                var hiddenInput = document.getElementById('remoteConfigInput');
+                if (hiddenInput) hiddenInput.value = content;
+                downloadRemoteConfigContent('remote.config.json', content, 'application/json');
+                setRemoteConfigStatus('已下载当前生成的 remote.config.json。', 'success');
+            } catch (e) {
+                showAppAlert(e.message, '提示');
+                setRemoteConfigStatus(e.message, 'error');
+            }
+        }
+
+        function validateRemoteConfigBeforeSave(showDialog) {
+            try {
+                buildRemoteConfigTemplateString(true);
+                return true;
+            } catch (e) {
+                var message = '远程配置文件未填写完整：' + e.message;
+                switchSection('remoteConfigTool');
+                setRemoteConfigStatus(message, 'error');
+                var statusEl = document.getElementById('remoteConfigStatus');
+                if (statusEl && statusEl.scrollIntoView) {
+                    statusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                if (showDialog) {
+                    showAppAlert(message, '提示');
+                }
+                return false;
+            }
+        }
+
+
+        function generateRemoteConfigKey() {
+            var key = crypto.getRandomValues(new Uint8Array(32));
+            var keyBase64 = btoa(String.fromCharCode.apply(null, Array.from(key)));
+            document.getElementById('remoteConfigKeyInput').value = keyBase64;
+            remoteConfigEncryptionKey = keyBase64;
+            return keyBase64;
+        }
+
+        async function generateRemoteConfigKeyAndEncrypt() {
+            var currentKey = String(document.getElementById('remoteConfigKeyInput').value || '').trim();
+            if (currentKey) {
+                var confirmed = await showAppConfirm('当前已填写密钥，继续将生成新的密钥并覆盖当前输入。若你是要复用旧密钥进行二次加密，请点击“使用当前密钥加密”。确定继续吗？', '生成新密钥并加密', '继续生成');
+                if (!confirmed) {
+                    return;
+                }
+            }
+            generateRemoteConfigKey();
+            setRemoteConfigStatus('已生成新的 Base64 加密密钥，正在加密配置文件...', 'info');
+            await encryptRemoteConfig('generated');
+        }
+
+        function validateRemoteConfigCustomKey(keyBase64) {
+            try {
+                var decoded = atob(keyBase64);
+                if (decoded.length !== 32) {
+                    return { valid: false, error: '密钥长度错误：需要 32 字节，当前 ' + decoded.length + ' 字节' };
+                }
+                return {
+                    valid: true,
+                    key: new Uint8Array(Array.from(decoded).map(function(ch) { return ch.charCodeAt(0); }))
+                };
+            } catch (e) {
+                return { valid: false, error: 'Base64 格式无效' };
+            }
+        }
+        function getSelectedRemoteConfigSource() {
+            collectSources();
+            if (!sources.length) return null;
+            var index = 0;
+            for (var i = 0; i < sources.length; i++) {
+                if (sources[i].url || sources[i].name || sources[i].encryption_key) {
+                    index = i;
+                    break;
+                }
+            }
+            return {
+                index: index,
+                source: sources[index]
+            };
+        }
+
+        function refreshRemoteConfigSourceTargets() {
+            collectSources();
+        }
+
+
+        async function encryptRemoteConfig(mode) {
+            var input;
+            try {
+                input = buildRemoteConfigTemplateString(true);
+                var hiddenInput = document.getElementById('remoteConfigInput');
+                if (hiddenInput) hiddenInput.value = input;
+            } catch (e) {
+                setRemoteConfigStatus(e.message, 'error');
+                return;
+            }
+            var customKeyInput = String(document.getElementById('remoteConfigKeyInput').value || '').trim();
+            var encryptMode = mode || 'existing';
+            if (!input) {
+                setRemoteConfigStatus('请先填写 remote.config.json 配置项。', 'error');
+                return;
+            }
+            try {
+                JSON.parse(input);
+            } catch (e) {
+                setRemoteConfigStatus('JSON 格式错误：' + e.message, 'error');
+                return;
+            }
+
+            try {
+                var key;
+                if (encryptMode === 'existing') {
+                    if (!customKeyInput) {
+                        setRemoteConfigStatus('请先填写已保存的密钥；如果是首次加密，请点击“生成密钥并加密配置文件”。', 'error');
+                        return;
+                    }
+                    var existingValidation = validateRemoteConfigCustomKey(customKeyInput);
+                    if (!existingValidation.valid) {
+                        setRemoteConfigStatus('当前密钥无效：' + existingValidation.error, 'error');
+                        return;
+                    }
+                    key = existingValidation.key;
+                    remoteConfigEncryptionKey = customKeyInput;
+                } else {
+                    var generatedValidation = validateRemoteConfigCustomKey(customKeyInput);
+                    if (!generatedValidation.valid) {
+                        setRemoteConfigStatus('新生成的密钥无效：' + generatedValidation.error, 'error');
+                        return;
+                    }
+                    key = generatedValidation.key;
+                    remoteConfigEncryptionKey = customKeyInput;
+                }
+
+                var nonce = crypto.getRandomValues(new Uint8Array(16));
+                var cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'AES-GCM' }, false, ['encrypt']);
+                var encoder = new TextEncoder();
+                var data = encoder.encode(input);
+                var encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, tagLength: 128 }, cryptoKey, data);
+                var result = new Uint8Array(nonce.length + encrypted.byteLength);
+                result.set(nonce, 0);
+                result.set(new Uint8Array(encrypted), nonce.length);
+                remoteConfigEncryptedData = btoa(String.fromCharCode.apply(null, Array.from(result)));
+                if (encryptMode === 'generated') {
+                    setRemoteConfigStatus('已生成新密钥并完成加密。请先复制保存密钥，再下载加密后的配置文件上传到 OSS，并将该密钥填写到远程配置源的“加密密钥（可选）”中。', 'success');
+                } else {
+                    setRemoteConfigStatus('已使用当前密钥完成加密。请下载加密后的配置文件上传到 OSS；若这是更新配置，请继续沿用同一把密钥。', 'success');
+                }
+            } catch (e) {
+                setRemoteConfigStatus('加密失败：' + e.message, 'error');
+            }
+        }
+
+        function copyRemoteConfigKey() {
+            var value = String(document.getElementById('remoteConfigKeyInput').value || remoteConfigEncryptionKey || '').trim();
+            if (!value) {
+                showAppAlert('请先生成或填写加密密钥。', '提示');
+                return;
+            }
+            navigator.clipboard.writeText(value).then(function() {
+                setRemoteConfigStatus('加密密钥已复制到剪贴板。', 'success');
+            }).catch(function() {
+                setRemoteConfigStatus('复制密钥失败，请手动复制。', 'error');
+            });
+        }
+
+        function downloadRemoteConfigContent(fileName, content, mimeType) {
+            var blob = new Blob([content], { type: mimeType || 'text/plain;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadEncryptedRemoteConfig() {
+            if (!remoteConfigEncryptedData) {
+                showAppAlert('请先执行加密，生成可下载的加密配置文件。', '提示');
+                return;
+            }
+            downloadRemoteConfigContent('remote.config.json', remoteConfigEncryptedData, 'text/plain;charset=utf-8');
+        }
+
+        function formatRemoteConfigHistoryTime(value) {
+            if (!value) return '-';
+            var date = new Date(value);
+            if (isNaN(date.getTime())) return value;
+            return date.toLocaleString('zh-CN', { hour12: false });
+        }
+
+        function loadRemoteConfigHistoryRecords() {
+            try {
+                var raw = localStorage.getItem(REMOTE_CONFIG_HISTORY_STORAGE_KEY);
+                var parsed = raw ? JSON.parse(raw) : [];
+                remoteConfigHistoryRecords = Array.isArray(parsed) ? parsed.filter(function(item) {
+                    return item && item.id && item.content;
+                }).slice(0, 10) : [];
+            } catch (e) {
+                console.log('加载远程配置记录失败:', e.message);
+                remoteConfigHistoryRecords = [];
+            }
+            return remoteConfigHistoryRecords;
+        }
+
+        function persistRemoteConfigHistoryRecords() {
+            try {
+                localStorage.setItem(REMOTE_CONFIG_HISTORY_STORAGE_KEY, JSON.stringify(remoteConfigHistoryRecords.slice(0, 10)));
+            } catch (e) {
+                console.log('保存远程配置记录失败:', e.message);
+            }
+        }
+
+        function buildRemoteConfigHistoryRecord(profileName, content) {
+            var data = JSON.parse(content);
+            var providerKeys = data.panels && typeof data.panels === 'object' ? Object.keys(data.panels) : [];
+            var providerKey = providerKeys.length ? providerKeys[0] : '';
+            var siteCount = 0;
+            providerKeys.forEach(function(key) {
+                var items = Array.isArray(data.panels[key]) ? data.panels[key] : [];
+                siteCount += items.filter(function(item) { return item && item.url; }).length;
+            });
+            return {
+                id: 'remote-config-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+                profile_name: profileName || '',
+                panel_type: data.panelType || '',
+                website_url: data.websiteUrl || '',
+                provider_key: providerKey,
+                site_count: siteCount,
+                saved_at: new Date().toISOString(),
+                content: content
+            };
+        }
+
+        function getRemoteConfigHistoryRecordById(recordId) {
+            loadRemoteConfigHistoryRecords();
+            for (var i = 0; i < remoteConfigHistoryRecords.length; i++) {
+                if (remoteConfigHistoryRecords[i].id === recordId) {
+                    return remoteConfigHistoryRecords[i];
+                }
+            }
+            return null;
+        }
+
+        function renderRemoteConfigHistoryRecords() {
+            loadRemoteConfigHistoryRecords();
+            var container = document.getElementById('remoteConfigHistoryList');
+            if (!container) return;
+            if (!remoteConfigHistoryRecords.length) {
+                container.innerHTML = '<div class="remote-config-history-empty">暂无记录。点击“保存当前配置”后，这里会保留最近 10 条 remote.config.json 记录。</div>';
+                return;
+            }
+
+            var html = '';
+            remoteConfigHistoryRecords.forEach(function(record) {
+                var recordTitle = record.profile_name || record.provider_key || '未命名配置';
+                html += '<div class="remote-config-history-item">';
+                html += '<div class="remote-config-history-header">';
+                html += '<div class="remote-config-history-title">' + escapeHtml(recordTitle) + '</div>';
+                html += '<div class="remote-config-history-time">' + escapeHtml(formatRemoteConfigHistoryTime(record.saved_at)) + '</div>';
+                html += '</div>';
+                html += '<div class="remote-config-history-meta">面板类型：' + escapeHtml(record.panel_type || '-') + ' · 提供商标识：' + escapeHtml(record.provider_key || '-') + ' · 站点数：' + escapeHtml(String(record.site_count || 0)) + '</div>';
+                if (record.website_url) {
+                    html += '<div class="remote-config-history-meta">官网地址：' + escapeHtml(record.website_url) + '</div>';
+                }
+                html += '<div class="remote-config-history-actions">';
+                html += '<button type="button" class="btn btn-secondary" data-record-id="' + escapeHtml(record.id) + '" onclick="applyRemoteConfigHistoryRecord(this.dataset.recordId)">载入到当前表单</button>';
+                html += '<button type="button" class="btn btn-secondary" data-record-id="' + escapeHtml(record.id) + '" onclick="downloadRemoteConfigHistoryRecord(this.dataset.recordId)">下载 JSON</button>';
+                html += '<button type="button" class="btn btn-warning" data-record-id="' + escapeHtml(record.id) + '" onclick="deleteRemoteConfigHistoryRecord(this.dataset.recordId)">删除</button>';
+                html += '</div>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function saveCurrentRemoteConfig() {
+            if (!validateRemoteConfigBeforeSave(true)) {
+                return;
+            }
+            var selectedProfile = String(document.getElementById('profileSelect').value || '').trim();
+            var appTitle = String(document.getElementById('appTitle').value || '').trim();
+            var providerKey = String(document.getElementById('remoteConfigProviderKey').value || '').trim();
+            saveRemoteConfigHistoryRecord(selectedProfile || appTitle || providerKey || '远程配置');
+        }
+
+        function saveRemoteConfigHistoryRecord(profileName) {
+            try {
+                var content = buildRemoteConfigTemplateString(true);
+                var record = buildRemoteConfigHistoryRecord(profileName, content);
+                loadRemoteConfigHistoryRecords();
+                remoteConfigHistoryRecords = remoteConfigHistoryRecords.filter(function(item) {
+                    return item.content !== content;
+                });
+                remoteConfigHistoryRecords.unshift(record);
+                remoteConfigHistoryRecords = remoteConfigHistoryRecords.slice(0, 10);
+                persistRemoteConfigHistoryRecords();
+                renderRemoteConfigHistoryRecords();
+                setRemoteConfigStatus('已保存当前配置，并更新最近保存记录。', 'success');
+            } catch (e) {
+                console.log('写入远程配置记录失败:', e.message);
+            }
+        }
+
+        async function applyRemoteConfigHistoryRecord(recordId) {
+            var record = getRemoteConfigHistoryRecordById(recordId);
+            if (!record) {
+                showAppAlert('未找到对应的远程配置记录。', '提示');
+                return;
+            }
+            if (!await showAppConfirm('载入后会覆盖当前远程配置表单，确定继续吗？', '载入远程配置记录', '确认载入')) {
+                return;
+            }
+            try {
+                var data = JSON.parse(record.content);
+                var providerKeys = data.panels && typeof data.panels === 'object' ? Object.keys(data.panels) : [];
+                var providerKey = providerKeys.length ? providerKeys[0] : '';
+                var panelItems = providerKey && Array.isArray(data.panels[providerKey]) ? data.panels[providerKey] : [];
+
+                document.getElementById('remoteConfigPanelType').value = data.panelType || '';
+                document.getElementById('remoteConfigWebsiteUrl').value = data.websiteUrl || '';
+                document.getElementById('remoteConfigProviderKey').value = providerKey;
+                updateProviderConsistencyState({ source: 'remote' });
+                remoteConfigPanels = panelItems.length ? panelItems.map(function(item) {
+                    return {
+                        url: item && item.url ? item.url : '',
+                        description: item && item.description ? item.description : ''
+                    };
+                }) : [getDefaultRemoteConfigPanelItem()];
+                remoteConfigEncryptedData = '';
+                renderRemoteConfigPanels();
+                syncRemoteConfigJsonPreview({ silentStatus: true });
+                setRemoteConfigStatus('已载入远程配置记录：' + (record.profile_name || record.provider_key || '未命名配置'), 'success');
+            } catch (e) {
+                showAppAlert('载入失败：' + e.message, '提示');
+                setRemoteConfigStatus('载入远程配置记录失败：' + e.message, 'error');
+            }
+        }
+
+        function downloadRemoteConfigHistoryRecord(recordId) {
+            var record = getRemoteConfigHistoryRecordById(recordId);
+            if (!record) {
+                showAppAlert('未找到对应的远程配置记录。', '提示');
+                return;
+            }
+            downloadRemoteConfigContent('remote.config.json', record.content, 'application/json');
+            setRemoteConfigStatus('已下载所选远程配置记录。', 'success');
+        }
+
+        async function deleteRemoteConfigHistoryRecord(recordId) {
+            var record = getRemoteConfigHistoryRecordById(recordId);
+            if (!record) {
+                showAppAlert('未找到对应的远程配置记录。', '提示');
+                return;
+            }
+            if (!await showAppConfirm('删除后将无法在最近保存记录中恢复，确定继续吗？', '删除远程配置记录', '确认删除')) {
+                return;
+            }
+            loadRemoteConfigHistoryRecords();
+            remoteConfigHistoryRecords = remoteConfigHistoryRecords.filter(function(item) {
+                return item.id !== recordId;
+            });
+            persistRemoteConfigHistoryRecords();
+            renderRemoteConfigHistoryRecords();
+            setRemoteConfigStatus('已删除所选远程配置记录。', 'success');
+        }
+
 
         // ==================== 在线客服管理 ====================
 
@@ -2255,6 +3141,8 @@
             var providerMatch = yaml.match(/xboard:\s*\n(?:\s*#[^\n]*\n)*\s*provider:[^\S\n]*(.*)/);
             if (providerMatch) {
                 document.getElementById('provider').value = providerMatch[1].trim().replace(/^["']|["']$/g, '');
+            } else {
+                document.getElementById('provider').value = '';
             }
             document.getElementById('appTitle').value = getValue('title');
             syncProfileBoundAppTitle();
@@ -2390,6 +3278,8 @@
             }
             if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
             renderSupportItems();
+            updateProviderConsistencyState({ source: 'basic' });
+            syncRemoteConfigJsonPreview({ silentStatus: true });
         }
 
         function formToYaml() {
@@ -2624,6 +3514,8 @@
             yaml = newUiLines.join('\n');
 
             document.getElementById('editor').value = yaml;
+            updateProviderConsistencyState();
+            syncRemoteConfigJsonPreview({ silentStatus: true });
         }
 
         // ==================== 构建进度追踪 ====================

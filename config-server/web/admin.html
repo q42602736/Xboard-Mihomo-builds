@@ -188,6 +188,98 @@
         .app-dialog-btn-cancel:hover {
             background: rgba(255,255,255,0.14);
         }
+
+        .profile-picker {
+            position: relative;
+            margin-top: 8px;
+        }
+        .profile-picker-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            text-align: left;
+        }
+        .profile-picker-toggle:hover,
+        .profile-picker.open .profile-picker-toggle {
+            border-color: rgba(0,212,255,0.45);
+            background: rgba(0,212,255,0.08);
+        }
+        .profile-picker-summary {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #dfe7f3;
+        }
+        .profile-picker-arrow {
+            flex-shrink: 0;
+            color: #8adfff;
+            transition: transform 0.18s ease;
+        }
+        .profile-picker.open .profile-picker-arrow {
+            transform: rotate(180deg);
+        }
+        .profile-picker-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            display: none;
+            z-index: 50;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(17,24,39,0.98), rgba(9,13,24,0.98));
+            box-shadow: 0 18px 48px rgba(0,0,0,0.32);
+        }
+        .profile-picker.open .profile-picker-dropdown {
+            display: block;
+        }
+        .profile-picker-search {
+            margin-bottom: 10px;
+        }
+        .profile-picker-options {
+            max-height: 260px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .profile-picker-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.03);
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .profile-picker-option:hover {
+            background: rgba(0,212,255,0.08);
+        }
+        .profile-picker-option input {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .profile-picker-empty {
+            color: #666;
+            font-size: 13px;
+            padding: 8px 4px;
+        }
     </style>
 </head>
 <body>
@@ -240,12 +332,21 @@
                 </div>
                 <div class="form-group">
                     <label>绑定配置档案（用户只能看到绑定的档案）</label>
-                    <div id="profileCheckboxes" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;min-height:36px;">
-                        <span style="color:#555;font-size:13px;">加载档案列表中...</span>
+                    <div class="profile-picker" id="profilePicker" data-manual-input-id="manualProfiles" data-checkbox-class="profile-cb">
+                        <button type="button" class="profile-picker-toggle" onclick="toggleProfilePicker('profilePicker')">
+                            <span class="profile-picker-summary">加载档案列表中...</span>
+                            <span class="profile-picker-arrow">▾</span>
+                        </button>
+                        <div class="profile-picker-dropdown">
+                            <input type="text" class="profile-picker-search" placeholder="搜索已有档案..." oninput="filterProfileOptions('profileCheckboxes', this.value)">
+                            <div id="profileCheckboxes" class="profile-picker-options">
+                                <span class="profile-picker-empty">加载档案列表中...</span>
+                            </div>
+                        </div>
                     </div>
                     <div style="margin-top:10px;">
                         <input type="text" id="manualProfiles" placeholder="手动输入档案名称，多个用逗号分隔（如：软件云,企鹅云）" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:#fff;font-size:14px;">
-                        <div style="font-size:12px;color:#666;margin-top:5px;">可与上方复选框配合使用，适用于尚未创建的档案</div>
+                        <div style="font-size:12px;color:#666;margin-top:5px;">可与下拉多选配合使用，适用于尚未创建的档案</div>
                     </div>
                 </div>
                 <button class="btn btn-primary" onclick="createCode()">生成激活码</button>
@@ -276,12 +377,21 @@
                 </div>
                 <div class="form-group">
                     <label>绑定配置档案（用户只能看到绑定的档案）</label>
-                    <div id="editProfileCheckboxes" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;min-height:36px;">
-                        <span style="color:#555;font-size:13px;">加载档案列表中...</span>
+                    <div class="profile-picker" id="editProfilePicker" data-manual-input-id="editManualProfiles" data-checkbox-class="edit-profile-cb">
+                        <button type="button" class="profile-picker-toggle" onclick="toggleProfilePicker('editProfilePicker')">
+                            <span class="profile-picker-summary">加载档案列表中...</span>
+                            <span class="profile-picker-arrow">▾</span>
+                        </button>
+                        <div class="profile-picker-dropdown">
+                            <input type="text" class="profile-picker-search" placeholder="搜索已有档案..." oninput="filterProfileOptions('editProfileCheckboxes', this.value)">
+                            <div id="editProfileCheckboxes" class="profile-picker-options">
+                                <span class="profile-picker-empty">加载档案列表中...</span>
+                            </div>
+                        </div>
                     </div>
                     <div style="margin-top:10px;">
                         <input type="text" id="editManualProfiles" placeholder="手动输入档案名称，多个用逗号分隔（如：软件云,企鹅云）" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:#fff;font-size:14px;">
-                        <div style="font-size:12px;color:#666;margin-top:5px;">可与上方复选框配合使用，适用于尚未创建的档案</div>
+                        <div style="font-size:12px;color:#666;margin-top:5px;">可与下拉多选配合使用，适用于尚未创建的档案</div>
                     </div>
                 </div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -514,6 +624,18 @@
             document.getElementById('adminPassword').addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') adminLogin();
             });
+            bindProfilePicker('profileCheckboxes');
+            bindProfilePicker('editProfileCheckboxes');
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.profile-picker')) {
+                    closeAllProfilePickers();
+                }
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeAllProfilePickers();
+                }
+            });
         });
 
         async function api(method, path, body) {
@@ -566,28 +688,19 @@
             }
         }
 
-        function renderProfileCheckboxes(containerId, checkboxClass, selectedProfiles) {
-            var container = document.getElementById(containerId);
-            if (!container) return;
-
-            selectedProfiles = selectedProfiles || [];
-            if (allProfiles.length === 0) {
-                container.innerHTML = '<span style="color:#555;font-size:13px;">暂无已有档案，请在下方手动输入</span>';
-                return;
-            }
-
-            var selectedMap = {};
-            selectedProfiles.forEach(function(name) {
-                if (name) selectedMap[name] = true;
+        function getManualProfiles(manualInputId) {
+            var result = [];
+            var seen = {};
+            var input = document.getElementById(manualInputId);
+            var manual = input ? String(input.value || '').split(/[,，]/) : [];
+            manual.forEach(function(s) {
+                var v = s.trim();
+                if (v && !seen[v]) {
+                    result.push(v);
+                    seen[v] = true;
+                }
             });
-
-            container.innerHTML = '';
-            allProfiles.forEach(function(name) {
-                var label = document.createElement('label');
-                label.style.cssText = 'display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.2);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;';
-                label.innerHTML = '<input type="checkbox" class="' + checkboxClass + '" value="' + name + '"' + (selectedMap[name] ? ' checked' : '') + '><span style="white-space:nowrap;">' + name + '</span>';
-                container.appendChild(label);
-            });
+            return result;
         }
 
         function getSelectedProfiles(checkboxSelector, manualInputId) {
@@ -600,15 +713,155 @@
                     seen[v] = true;
                 }
             });
-            var manual = (document.getElementById(manualInputId).value || '').split(/[,，]/);
-            manual.forEach(function(s) {
-                var v = s.trim();
-                if (v && !seen[v]) {
+            getManualProfiles(manualInputId).forEach(function(v) {
+                if (!seen[v]) {
                     result.push(v);
                     seen[v] = true;
                 }
             });
             return result;
+        }
+
+        function getProfilePickerByContainer(containerId) {
+            var container = document.getElementById(containerId);
+            return container ? container.closest('.profile-picker') : null;
+        }
+
+        function updateProfilePickerSummary(containerId) {
+            var picker = getProfilePickerByContainer(containerId);
+            if (!picker) return;
+
+            var summaryEl = picker.querySelector('.profile-picker-summary');
+            var checkboxClass = picker.getAttribute('data-checkbox-class');
+            var manualInputId = picker.getAttribute('data-manual-input-id');
+            var selected = getSelectedProfiles('.' + checkboxClass + ':checked', manualInputId);
+            var manualCount = getManualProfiles(manualInputId).length;
+
+            if (!selected.length) {
+                summaryEl.textContent = allProfiles.length === 0 ? '暂无已有档案，请手动输入' : '请选择已有档案';
+                return;
+            }
+            if (selected.length <= 3) {
+                summaryEl.textContent = selected.join('、');
+                return;
+            }
+            summaryEl.textContent = '已选择 ' + selected.length + ' 个档案' + (manualCount ? '（含 ' + manualCount + ' 个手动输入）' : '');
+        }
+
+        function closeAllProfilePickers(exceptId) {
+            document.querySelectorAll('.profile-picker.open').forEach(function(picker) {
+                if (!exceptId || picker.id !== exceptId) {
+                    picker.classList.remove('open');
+                }
+            });
+        }
+
+        function toggleProfilePicker(pickerId) {
+            var picker = document.getElementById(pickerId);
+            if (!picker) return;
+
+            var shouldOpen = !picker.classList.contains('open');
+            closeAllProfilePickers(pickerId);
+            if (!shouldOpen) {
+                picker.classList.remove('open');
+                return;
+            }
+
+            picker.classList.add('open');
+            var searchInput = picker.querySelector('.profile-picker-search');
+            if (searchInput) {
+                filterProfileOptions(picker.querySelector('.profile-picker-options').id, searchInput.value);
+                searchInput.focus();
+            }
+        }
+
+        function filterProfileOptions(containerId, keyword) {
+            var container = document.getElementById(containerId);
+            if (!container) return;
+
+            var normalized = String(keyword || '').trim().toLowerCase();
+            var visibleCount = 0;
+            container.querySelectorAll('.profile-picker-option').forEach(function(option) {
+                var matched = !normalized || option.getAttribute('data-profile-name').indexOf(normalized) !== -1;
+                option.style.display = matched ? 'flex' : 'none';
+                if (matched) visibleCount += 1;
+            });
+
+            var emptyEl = container.querySelector('.profile-picker-empty');
+            if (emptyEl && allProfiles.length > 0) {
+                emptyEl.style.display = visibleCount ? 'none' : 'block';
+                emptyEl.textContent = normalized ? '未找到匹配的已有档案' : '暂无已有档案，请在下方手动输入';
+            }
+        }
+
+        function bindProfilePicker(containerId) {
+            var picker = getProfilePickerByContainer(containerId);
+            if (!picker || picker.dataset.bound === '1') return;
+
+            picker.dataset.bound = '1';
+            var manualInputId = picker.getAttribute('data-manual-input-id');
+            var manualInput = document.getElementById(manualInputId);
+            if (manualInput) {
+                manualInput.addEventListener('input', function() {
+                    updateProfilePickerSummary(containerId);
+                });
+            }
+        }
+
+        function renderProfileCheckboxes(containerId, checkboxClass, selectedProfiles) {
+            var container = document.getElementById(containerId);
+            if (!container) return;
+
+            bindProfilePicker(containerId);
+            selectedProfiles = selectedProfiles || [];
+
+            var selectedMap = {};
+            selectedProfiles.forEach(function(name) {
+                if (name) selectedMap[name] = true;
+            });
+
+            container.innerHTML = '';
+            if (allProfiles.length === 0) {
+                var empty = document.createElement('span');
+                empty.className = 'profile-picker-empty';
+                empty.textContent = '暂无已有档案，请在下方手动输入';
+                container.appendChild(empty);
+                updateProfilePickerSummary(containerId);
+                return;
+            }
+
+            allProfiles.forEach(function(name) {
+                var label = document.createElement('label');
+                label.className = 'profile-picker-option';
+                label.setAttribute('data-profile-name', name.toLowerCase());
+
+                var input = document.createElement('input');
+                input.type = 'checkbox';
+                input.className = checkboxClass;
+                input.value = name;
+                input.checked = !!selectedMap[name];
+                input.addEventListener('change', function() {
+                    updateProfilePickerSummary(containerId);
+                });
+
+                var text = document.createElement('span');
+                text.textContent = name;
+                text.style.whiteSpace = 'nowrap';
+
+                label.appendChild(input);
+                label.appendChild(text);
+                container.appendChild(label);
+            });
+
+            var emptyState = document.createElement('span');
+            emptyState.className = 'profile-picker-empty';
+            emptyState.style.display = 'none';
+            container.appendChild(emptyState);
+
+            var picker = getProfilePickerByContainer(containerId);
+            var searchInput = picker ? picker.querySelector('.profile-picker-search') : null;
+            filterProfileOptions(containerId, searchInput ? searchInput.value : '');
+            updateProfilePickerSummary(containerId);
         }
 
         function parseMaxUsesValue(inputId) {
@@ -742,12 +995,7 @@
 
             if (selectedProfiles.length === 0) {
                 statusEl.className = 'status-msg error';
-                statusEl.textContent = '请至少绑定一个档案（勾选已有档案或手动输入）';
-                return;
-            }
-            if (usedCount < 0) {
-                statusEl.className = 'status-msg error';
-                statusEl.textContent = '已打包次数不能小于 0';
+                statusEl.textContent = '请至少绑定一个档案（下拉多选或手动输入）';
                 return;
             }
 
@@ -793,7 +1041,7 @@
             }
             if (selectedProfiles.length === 0) {
                 statusEl.className = 'status-msg error';
-                statusEl.textContent = '请至少绑定一个档案（勾选已有档案或手动输入）';
+                statusEl.textContent = '请至少绑定一个档案（下拉多选或手动输入）';
                 return;
             }
             if (usedCount < 0) {
