@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -28,6 +29,66 @@ func jsonError(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+func bindProfileTitle(yamlContent, profileName string) string {
+	if yamlContent == "" || profileName == "" {
+		return yamlContent
+	}
+
+	titleValue, err := json.Marshal(profileName)
+	if err != nil {
+		return yamlContent
+	}
+	titleLine := "  title: " + string(titleValue)
+	lines := strings.Split(yamlContent, "\n")
+
+	xboardIndex := -1
+	providerIndex := -1
+	titleIndex := -1
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "xboard:" {
+			xboardIndex = i
+			continue
+		}
+		if xboardIndex == -1 {
+			continue
+		}
+
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if !strings.HasPrefix(line, "  ") {
+			break
+		}
+		if strings.HasPrefix(line, "    ") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "provider:") {
+			providerIndex = i
+			continue
+		}
+		if strings.HasPrefix(trimmed, "title:") {
+			titleIndex = i
+			break
+		}
+	}
+
+	if titleIndex >= 0 {
+		lines[titleIndex] = titleLine
+		return strings.Join(lines, "\n")
+	}
+	if xboardIndex == -1 {
+		return yamlContent
+	}
+
+	insertIndex := xboardIndex + 1
+	if providerIndex >= 0 {
+		insertIndex = providerIndex + 1
+	}
+	lines = append(lines[:insertIndex], append([]string{titleLine}, lines[insertIndex:]...)...)
+	return strings.Join(lines, "\n")
 }
 
 // ==================== 认证 ====================
@@ -189,6 +250,9 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
 		return
+	}
+	if claims.Permissions != "admin" {
+		req.YamlContent = bindProfileTitle(req.YamlContent, name)
 	}
 
 	content, sha, err := h.gh.GetFile(profilesPath)
@@ -444,8 +508,20 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	usageConsumed := false
+	if claims.Permissions != "admin" {
+		if err := consumeBuildUsage(claims.CodeID); err != nil {
+			jsonError(w, err.Error(), 400)
+			return
+		}
+		usageConsumed = true
+	}
+
 	record, err := createBuildRecord(claims.CodeID, claims.CodeName, req.Profile, req.Tag, req.Branch, req.Platforms)
 	if err != nil {
+		if usageConsumed {
+			_ = rollbackBuildUsage(claims.CodeID)
+		}
 		jsonError(w, "创建构建记录失败", 500)
 		return
 	}
@@ -461,6 +537,9 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 
 	err = h.gh.TriggerWorkflow(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", inputs)
 	if err != nil {
+		if usageConsumed {
+			_ = rollbackBuildUsage(claims.CodeID)
+		}
 		updateBuildRecordStatus(record.ID, 0, "completed", "trigger_failed")
 		jsonError(w, err.Error(), 500)
 		return
@@ -1011,19 +1090,24 @@ func (h *Handlers) CreateCode(w http.ResponseWriter, r *http.Request) {
 		Name            string   `json:"name"`
 		MaxUses         int      `json:"max_uses"`
 		AllowedProfiles []string `json:"allowed_profiles"`
+		ExpiresAt       string   `json:"expires_at"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
 		return
 	}
-
-	if req.MaxUses == 0 {
-		req.MaxUses = -1
+	if req.MaxUses < -1 {
+		jsonError(w, "可打包次数不能小于 -1", 400)
+		return
 	}
 
-	ac, err := createCode(req.Name, req.MaxUses, req.AllowedProfiles)
+	ac, err := createCode(req.Name, req.MaxUses, req.AllowedProfiles, req.ExpiresAt)
 	if err != nil {
-		jsonError(w, "创建激活码失败: "+err.Error(), 500)
+		statusCode := 500
+		if strings.Contains(err.Error(), "到期时间格式错误") {
+			statusCode = 400
+		}
+		jsonError(w, "创建激活码失败: "+err.Error(), statusCode)
 		return
 	}
 
@@ -1031,6 +1115,46 @@ func (h *Handlers) CreateCode(w http.ResponseWriter, r *http.Request) {
 	logAudit(claims.CodeID, claims.CodeName, "create_code", ac.Name, r.RemoteAddr)
 
 	jsonResponse(w, ac)
+}
+
+func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		jsonError(w, "无效的 ID", 400)
+		return
+	}
+
+	var req struct {
+		Name            string   `json:"name"`
+		MaxUses         int      `json:"max_uses"`
+		AllowedProfiles []string `json:"allowed_profiles"`
+		ExpiresAt       string   `json:"expires_at"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "请求格式错误", 400)
+		return
+	}
+	if req.MaxUses < -1 {
+		jsonError(w, "可打包次数不能小于 -1", 400)
+		return
+	}
+
+	if err := updateCode(id, req.Name, req.MaxUses, req.AllowedProfiles, req.ExpiresAt); err != nil {
+		statusCode := 500
+		if strings.Contains(err.Error(), "到期时间格式错误") {
+			statusCode = 400
+		} else if strings.Contains(err.Error(), "激活码不存在") {
+			statusCode = 404
+		}
+		jsonError(w, "更新失败: "+err.Error(), statusCode)
+		return
+	}
+
+	claims := getClaims(r)
+	logAudit(claims.CodeID, claims.CodeName, "update_code", fmt.Sprintf("id=%d name=%s", id, req.Name), r.RemoteAddr)
+
+	jsonResponse(w, map[string]string{"message": "更新成功"})
 }
 
 func (h *Handlers) DeleteCode(w http.ResponseWriter, r *http.Request) {

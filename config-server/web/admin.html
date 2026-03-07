@@ -174,14 +174,19 @@
             <div class="panel">
                 <h3>创建激活码</h3>
                 <div id="createStatus" class="status-msg"></div>
-                <div class="form-row" style="grid-template-columns: 2fr 1fr;">
+                <div class="form-row" style="grid-template-columns: 2fr 1fr 1.3fr;">
                     <div class="form-group">
                         <label>备注名称</label>
                         <input type="text" id="codeName" placeholder="如：客户A、测试用">
                     </div>
                     <div class="form-group">
-                        <label>可用次数 (-1=无限)</label>
+                        <label>可打包次数 (-1=无限)</label>
                         <input type="number" id="codeMaxUses" value="-1" min="-1">
+                    </div>
+                    <div class="form-group">
+                        <label>到期时间</label>
+                        <input type="text" id="codeExpiresAt" placeholder="支持 2026-3-7、2026/3/7、2026.3.7">
+                        <div style="font-size:12px;color:#666;margin-top:5px;">直接输入日期即可，留空表示不过期</div>
                     </div>
                 </div>
                 <div class="form-group">
@@ -197,6 +202,41 @@
                 <button class="btn btn-primary" onclick="createCode()">生成激活码</button>
             </div>
 
+            <div class="panel" id="editCodePanel" style="display:none;">
+                <h3>编辑激活码</h3>
+                <div id="editStatus" class="status-msg"></div>
+                <input type="hidden" id="editCodeId">
+                <div class="form-row" style="grid-template-columns: 2fr 1fr 1.3fr;">
+                    <div class="form-group">
+                        <label>备注名称</label>
+                        <input type="text" id="editCodeName" placeholder="如：客户A、测试用">
+                    </div>
+                    <div class="form-group">
+                        <label>可打包次数 (-1=无限)</label>
+                        <input type="number" id="editCodeMaxUses" value="-1" min="-1">
+                    </div>
+                    <div class="form-group">
+                        <label>到期时间</label>
+                        <input type="text" id="editCodeExpiresAt" placeholder="支持 2026-3-7、2026/3/7、2026.3.7">
+                        <div style="font-size:12px;color:#666;margin-top:5px;">直接输入日期即可，留空表示不过期</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>绑定配置档案（用户只能看到绑定的档案）</label>
+                    <div id="editProfileCheckboxes" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;min-height:36px;">
+                        <span style="color:#555;font-size:13px;">加载档案列表中...</span>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <input type="text" id="editManualProfiles" placeholder="手动输入档案名称，多个用逗号分隔（如：软件云,企鹅云）" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:#fff;font-size:14px;">
+                        <div style="font-size:12px;color:#666;margin-top:5px;">可与上方复选框配合使用，适用于尚未创建的档案</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="saveCodeEdit()">保存修改</button>
+                    <button class="btn" style="background:rgba(255,255,255,0.08);color:#ddd;" onclick="cancelEditCode()">取消</button>
+                </div>
+            </div>
+
             <div class="panel">
                 <h3>激活码列表</h3>
                 <table>
@@ -205,13 +245,14 @@
                             <th>激活码</th>
                             <th>备注</th>
                             <th>绑定档案</th>
-                            <th>使用次数</th>
+                            <th>打包次数</th>
+                            <th>到期时间</th>
                             <th>创建时间</th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="codesTable">
-                        <tr><td colspan="6" class="empty">加载中...</td></tr>
+                        <tr><td colspan="7" class="empty">加载中...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -336,6 +377,7 @@
         }
 
         var allProfiles = [];
+        var codesCache = [];
 
         async function loadProfileList() {
             try {
@@ -343,42 +385,130 @@
                 if (!response) return;
                 var data = await response.json();
                 allProfiles = (data.profiles || []).map(function(p) { return p.name; });
-                renderProfileCheckboxes();
+                renderProfileCheckboxes('profileCheckboxes', 'profile-cb', getSelectedProfiles('.profile-cb:checked', 'manualProfiles'));
+                renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', getSelectedProfiles('.edit-profile-cb:checked', 'editManualProfiles'));
             } catch (e) {
                 console.log('加载档案列表失败:', e);
             }
         }
 
-        function renderProfileCheckboxes() {
-            var container = document.getElementById('profileCheckboxes');
+        function renderProfileCheckboxes(containerId, checkboxClass, selectedProfiles) {
+            var container = document.getElementById(containerId);
+            if (!container) return;
+
+            selectedProfiles = selectedProfiles || [];
             if (allProfiles.length === 0) {
                 container.innerHTML = '<span style="color:#555;font-size:13px;">暂无已有档案，请在下方手动输入</span>';
                 return;
             }
+
+            var selectedMap = {};
+            selectedProfiles.forEach(function(name) {
+                if (name) selectedMap[name] = true;
+            });
+
             container.innerHTML = '';
             allProfiles.forEach(function(name) {
                 var label = document.createElement('label');
                 label.style.cssText = 'display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.2);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;';
-                label.innerHTML = '<input type="checkbox" class="profile-cb" value="' + name + '"><span style="white-space:nowrap;">' + name + '</span>';
+                label.innerHTML = '<input type="checkbox" class="' + checkboxClass + '" value="' + name + '"' + (selectedMap[name] ? ' checked' : '') + '><span style="white-space:nowrap;">' + name + '</span>';
                 container.appendChild(label);
             });
         }
 
-        function getSelectedProfiles() {
+        function getSelectedProfiles(checkboxSelector, manualInputId) {
             var result = [];
             var seen = {};
-            // 从复选框获取
-            document.querySelectorAll('.profile-cb:checked').forEach(function(cb) {
+            document.querySelectorAll(checkboxSelector).forEach(function(cb) {
                 var v = cb.value.trim();
-                if (v && !seen[v]) { result.push(v); seen[v] = true; }
+                if (v && !seen[v]) {
+                    result.push(v);
+                    seen[v] = true;
+                }
             });
-            // 从手动输入获取
-            var manual = (document.getElementById('manualProfiles').value || '').split(/[,，]/);
+            var manual = (document.getElementById(manualInputId).value || '').split(/[,，]/);
             manual.forEach(function(s) {
                 var v = s.trim();
-                if (v && !seen[v]) { result.push(v); seen[v] = true; }
+                if (v && !seen[v]) {
+                    result.push(v);
+                    seen[v] = true;
+                }
             });
             return result;
+        }
+
+        function parseMaxUsesValue(inputId) {
+            var raw = document.getElementById(inputId).value.trim();
+            if (raw === '') return -1;
+            var value = parseInt(raw, 10);
+            return isNaN(value) ? -1 : value;
+        }
+
+        function normalizeExpiresAtText(value) {
+            if (!value) return '';
+            var normalized = String(value).replace('T', ' ').trim();
+            var parts = normalized.split(/\s+/);
+            if (parts.length < 2) {
+                return parts[0] || '';
+            }
+            if (parts[1] === '23:59:59' || parts[1] === '23:59') {
+                return parts[0];
+            }
+            return parts[0] + ' ' + parts[1];
+        }
+
+        function formatExpiresAtDisplay(value) {
+            if (!value) {
+                return '<span style="color:#555">不过期</span>';
+            }
+            return normalizeExpiresAtText(value);
+        }
+
+        function resetCreateForm() {
+            document.getElementById('codeName').value = '';
+            document.getElementById('codeMaxUses').value = '-1';
+            document.getElementById('codeExpiresAt').value = '';
+            document.getElementById('manualProfiles').value = '';
+            renderProfileCheckboxes('profileCheckboxes', 'profile-cb', []);
+        }
+
+        function cancelEditCode() {
+            document.getElementById('editCodePanel').style.display = 'none';
+            document.getElementById('editStatus').className = 'status-msg';
+            document.getElementById('editStatus').textContent = '';
+            document.getElementById('editCodeId').value = '';
+            document.getElementById('editCodeName').value = '';
+            document.getElementById('editCodeMaxUses').value = '-1';
+            document.getElementById('editCodeExpiresAt').value = '';
+            document.getElementById('editManualProfiles').value = '';
+            renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', []);
+        }
+
+        function openEditCode(id) {
+            var code = null;
+            codesCache.forEach(function(item) {
+                if (item.id === id) code = item;
+            });
+            if (!code) {
+                alert('未找到该激活码');
+                return;
+            }
+
+            var selectedProfiles = code.allowed_profiles || [];
+            var manualProfiles = selectedProfiles.filter(function(name) {
+                return allProfiles.indexOf(name) === -1;
+            });
+
+            document.getElementById('editCodeId').value = String(code.id);
+            document.getElementById('editCodeName').value = code.name || '';
+            document.getElementById('editCodeMaxUses').value = String(code.max_uses);
+            document.getElementById('editCodeExpiresAt').value = normalizeExpiresAtText(code.expires_at);
+            document.getElementById('editManualProfiles').value = manualProfiles.join(', ');
+            document.getElementById('editStatus').className = 'status-msg';
+            document.getElementById('editStatus').textContent = '';
+            renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', selectedProfiles);
+            document.getElementById('editCodePanel').style.display = 'block';
+            document.getElementById('editCodePanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         async function loadCodes() {
@@ -386,15 +516,16 @@
                 var response = await api('GET', '/admin/codes');
                 if (!response) return;
                 var codes = await response.json();
+                codesCache = Array.isArray(codes) ? codes : [];
                 var tbody = document.getElementById('codesTable');
 
-                if (!codes || codes.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无激活码</td></tr>';
+                if (!codesCache.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无激活码</td></tr>';
                     return;
                 }
 
                 tbody.innerHTML = '';
-                codes.forEach(function(c) {
+                codesCache.forEach(function(c) {
                     var maxUsesText = c.max_uses === -1 ? '无限' : c.max_uses;
                     var profilesText = (c.allowed_profiles && c.allowed_profiles.length > 0)
                         ? c.allowed_profiles.join(', ')
@@ -406,8 +537,12 @@
                         '<td>' + (c.name || '-') + '</td>' +
                         '<td style="font-size:12px;">' + profilesText + '</td>' +
                         '<td>' + c.used_count + ' / ' + maxUsesText + '</td>' +
+                        '<td style="font-size:12px;color:#888;">' + formatExpiresAtDisplay(c.expires_at) + '</td>' +
                         '<td style="font-size:12px;color:#888;">' + (c.created_at || '') + '</td>' +
-                        '<td><button class="btn btn-danger" onclick="deleteCode(' + c.id + ')">删除</button></td>';
+                        '<td>' +
+                            '<button class="btn btn-primary" style="padding:5px 12px;font-size:12px;" onclick="openEditCode(' + c.id + ')">编辑</button> ' +
+                            '<button class="btn btn-danger" onclick="deleteCode(' + c.id + ')">删除</button>' +
+                        '</td>';
                     tbody.appendChild(tr);
                 });
             } catch (e) {
@@ -417,8 +552,9 @@
 
         async function createCode() {
             var name = document.getElementById('codeName').value.trim();
-            var maxUses = parseInt(document.getElementById('codeMaxUses').value) || -1;
-            var selectedProfiles = getSelectedProfiles();
+            var maxUses = parseMaxUsesValue('codeMaxUses');
+            var expiresAt = document.getElementById('codeExpiresAt').value.trim();
+            var selectedProfiles = getSelectedProfiles('.profile-cb:checked', 'manualProfiles');
             var statusEl = document.getElementById('createStatus');
 
             if (selectedProfiles.length === 0) {
@@ -431,7 +567,8 @@
                 var response = await api('POST', '/admin/codes', {
                     name: name,
                     max_uses: maxUses,
-                    allowed_profiles: selectedProfiles
+                    allowed_profiles: selectedProfiles,
+                    expires_at: expiresAt
                 });
                 if (!response) return;
                 var data = await response.json();
@@ -444,9 +581,7 @@
 
                 statusEl.className = 'status-msg success';
                 statusEl.textContent = '激活码已创建: ' + data.code + ' (绑定: ' + selectedProfiles.join(', ') + ')';
-                document.getElementById('codeName').value = '';
-                document.getElementById('manualProfiles').value = '';
-                document.querySelectorAll('.profile-cb').forEach(function(cb) { cb.checked = false; });
+                resetCreateForm();
                 loadCodes();
             } catch (e) {
                 statusEl.className = 'status-msg error';
@@ -454,10 +589,56 @@
             }
         }
 
+        async function saveCodeEdit() {
+            var id = parseInt(document.getElementById('editCodeId').value, 10);
+            var name = document.getElementById('editCodeName').value.trim();
+            var maxUses = parseMaxUsesValue('editCodeMaxUses');
+            var expiresAt = document.getElementById('editCodeExpiresAt').value.trim();
+            var selectedProfiles = getSelectedProfiles('.edit-profile-cb:checked', 'editManualProfiles');
+            var statusEl = document.getElementById('editStatus');
+
+            if (!id) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '缺少激活码 ID';
+                return;
+            }
+            if (selectedProfiles.length === 0) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '请至少绑定一个档案（勾选已有档案或手动输入）';
+                return;
+            }
+
+            try {
+                var response = await api('PUT', '/admin/codes/' + id, {
+                    name: name,
+                    max_uses: maxUses,
+                    allowed_profiles: selectedProfiles,
+                    expires_at: expiresAt
+                });
+                if (!response) return;
+                var data = await response.json();
+
+                if (!response.ok) {
+                    statusEl.className = 'status-msg error';
+                    statusEl.textContent = data.error || '更新失败';
+                    return;
+                }
+
+                cancelEditCode();
+                loadCodes();
+            } catch (e) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '更新失败: ' + e.message;
+            }
+        }
+
         async function deleteCode(id) {
             if (!confirm('确定要删除这个激活码吗？')) return;
             try {
                 await api('DELETE', '/admin/codes/' + id);
+                if (parseInt(document.getElementById('editCodeId').value, 10) === id) {
+                    cancelEditCode();
+                }
                 loadCodes();
             } catch (e) {
                 console.log('删除失败:', e);
@@ -471,6 +652,7 @@
             'delete_profile': '删除档案',
             'trigger_build': '触发构建',
             'create_code': '创建激活码',
+            'update_code': '编辑激活码',
             'delete_code': '删除激活码'
         };
 

@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -238,18 +239,72 @@ func validateCode(code string) (*ActivationCode, error) {
 
 	if expiresAt.Valid {
 		ac.ExpiresAt = &expiresAt.String
-		t, _ := time.Parse("2006-01-02 15:04:05", expiresAt.String)
-		if time.Now().After(t) {
+		t, err := time.ParseInLocation("2006-01-02 15:04:05", expiresAt.String, time.Local)
+		if err == nil && time.Now().After(t) {
 			return nil, fmt.Errorf("激活码已过期")
 		}
 	}
 
-	if ac.MaxUses > 0 && ac.UsedCount >= ac.MaxUses {
-		return nil, fmt.Errorf("激活码已达最大使用次数")
+	return ac, nil
+}
+
+func consumeBuildUsage(codeID int) error {
+	if codeID <= 0 {
+		return nil
 	}
 
-	db.Exec("UPDATE activation_codes SET used_count = used_count + 1 WHERE id = ?", ac.ID)
-	return ac, nil
+	result, err := db.Exec(
+		`UPDATE activation_codes
+		 SET used_count = used_count + 1
+		 WHERE id = ? AND is_active = 1 AND (max_uses < 0 OR used_count < max_uses)`,
+		codeID,
+	)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected > 0 {
+		return nil
+	}
+
+	var maxUses, usedCount int
+	var isActive bool
+	err = db.QueryRow(
+		`SELECT max_uses, used_count, is_active FROM activation_codes WHERE id = ?`,
+		codeID,
+	).Scan(&maxUses, &usedCount, &isActive)
+	if err == sql.ErrNoRows {
+		return fmt.Errorf("激活码无效")
+	}
+	if err != nil {
+		return err
+	}
+	if !isActive {
+		return fmt.Errorf("激活码已停用")
+	}
+	if maxUses > 0 && usedCount >= maxUses {
+		return fmt.Errorf("激活码已达最大打包次数")
+	}
+
+	return fmt.Errorf("激活码不可用")
+}
+
+func rollbackBuildUsage(codeID int) error {
+	if codeID <= 0 {
+		return nil
+	}
+
+	_, err := db.Exec(
+		`UPDATE activation_codes
+		 SET used_count = CASE WHEN used_count > 0 THEN used_count - 1 ELSE 0 END
+		 WHERE id = ?`,
+		codeID,
+	)
+	return err
 }
 
 func generateCode() string {
@@ -258,16 +313,75 @@ func generateCode() string {
 	return "XB-" + hex.EncodeToString(b)
 }
 
-func createCode(name string, maxUses int, allowedProfiles []string) (*ActivationCode, error) {
+func normalizeExpiresAt(expiresAt string) (*string, error) {
+	expiresAt = strings.TrimSpace(expiresAt)
+	if expiresAt == "" {
+		return nil, nil
+	}
+
+	dateTimeLayouts := []string{
+		"2006-01-02T15:04",
+		"2006-01-02 15:04",
+		"2006-01-02 15:04:05",
+		"2006/01/02 15:04",
+		"2006/01/02 15:04:05",
+		"2006.01.02 15:04",
+		"2006.01.02 15:04:05",
+		"2006-1-2 15:04",
+		"2006-1-2 15:04:05",
+		"2006/1/2 15:04",
+		"2006/1/2 15:04:05",
+		"2006.1.2 15:04",
+		"2006.1.2 15:04:05",
+	}
+	for _, layout := range dateTimeLayouts {
+		if parsed, err := time.ParseInLocation(layout, expiresAt, time.Local); err == nil {
+			formatted := parsed.Format("2006-01-02 15:04:05")
+			return &formatted, nil
+		}
+	}
+
+	dateOnlyLayouts := []string{
+		"2006-01-02",
+		"2006/01/02",
+		"2006.01.02",
+		"2006-1-2",
+		"2006/1/2",
+		"2006.1.2",
+		"2006年1月2日",
+		"2006年01月02日",
+	}
+	for _, layout := range dateOnlyLayouts {
+		if parsed, err := time.ParseInLocation(layout, expiresAt, time.Local); err == nil {
+			endOfDay := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 23, 59, 59, 0, time.Local)
+			formatted := endOfDay.Format("2006-01-02 15:04:05")
+			return &formatted, nil
+		}
+	}
+
+	return nil, fmt.Errorf("到期时间格式错误，支持如 2026-3-7、2026/3/7、2026.3.7")
+}
+
+func createCode(name string, maxUses int, allowedProfiles []string, expiresAt string) (*ActivationCode, error) {
 	code := generateCode()
 	if allowedProfiles == nil {
 		allowedProfiles = []string{}
 	}
 	profilesJSON, _ := json.Marshal(allowedProfiles)
 
-	_, err := db.Exec(
-		"INSERT INTO activation_codes (code, name, permissions, max_uses, allowed_profiles) VALUES (?, ?, 'user', ?, ?)",
-		code, name, maxUses, string(profilesJSON),
+	normalizedExpiresAt, err := normalizeExpiresAt(expiresAt)
+	if err != nil {
+		return nil, err
+	}
+
+	var expiresValue interface{}
+	if normalizedExpiresAt != nil {
+		expiresValue = *normalizedExpiresAt
+	}
+
+	_, err = db.Exec(
+		"INSERT INTO activation_codes (code, name, permissions, max_uses, allowed_profiles, expires_at) VALUES (?, ?, 'user', ?, ?, ?)",
+		code, name, maxUses, string(profilesJSON), expiresValue,
 	)
 	if err != nil {
 		return nil, err
@@ -279,7 +393,43 @@ func createCode(name string, maxUses int, allowedProfiles []string) (*Activation
 		Permissions:     "user",
 		MaxUses:         maxUses,
 		AllowedProfiles: allowedProfiles,
+		ExpiresAt:       normalizedExpiresAt,
 	}, nil
+}
+
+func updateCode(id int, name string, maxUses int, allowedProfiles []string, expiresAt string) error {
+	if allowedProfiles == nil {
+		allowedProfiles = []string{}
+	}
+	profilesJSON, _ := json.Marshal(allowedProfiles)
+
+	normalizedExpiresAt, err := normalizeExpiresAt(expiresAt)
+	if err != nil {
+		return err
+	}
+
+	var expiresValue interface{}
+	if normalizedExpiresAt != nil {
+		expiresValue = *normalizedExpiresAt
+	}
+
+	result, err := db.Exec(
+		"UPDATE activation_codes SET name = ?, max_uses = ?, allowed_profiles = ?, expires_at = ? WHERE id = ?",
+		name, maxUses, string(profilesJSON), expiresValue, id,
+	)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("激活码不存在")
+	}
+
+	return nil
 }
 
 func listCodes() ([]ActivationCode, error) {

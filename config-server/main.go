@@ -110,6 +110,7 @@ func main() {
 
 		r.Get("/api/admin/codes", h.ListCodes)
 		r.Post("/api/admin/codes", h.CreateCode)
+		r.Put("/api/admin/codes/{id}", h.UpdateCode)
 		r.Delete("/api/admin/codes/{id}", h.DeleteCode)
 		r.Get("/api/admin/logs", h.GetAuditLogs)
 	})
