@@ -679,6 +679,27 @@ func (h *Handlers) GetBuildHistory(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, history)
 }
 
+func (h *Handlers) GetClientUpdates(w http.ResponseWriter, r *http.Request) {
+	limit := getClientUpdatesLimit()
+	branch := strings.TrimSpace(r.URL.Query().Get("branch"))
+	if branch == "" {
+		branch = cfg.GithubBranch
+	}
+
+	commits, err := h.gh.ListRecentCommits(branch, limit)
+	if err != nil {
+		jsonError(w, "获取更新记录失败: "+err.Error(), 500)
+		return
+	}
+
+	jsonResponse(w, map[string]interface{}{
+		"repo":    cfg.GithubRepo,
+		"branch":  branch,
+		"limit":   limit,
+		"commits": commits,
+	})
+}
+
 func (h *Handlers) ListBranches(w http.ResponseWriter, r *http.Request) {
 	branches, err := h.gh.ListBranches()
 	if err != nil {
@@ -1325,4 +1346,33 @@ func (h *Handlers) GetAuditLogs(w http.ResponseWriter, r *http.Request) {
 		logs = []map[string]interface{}{}
 	}
 	jsonResponse(w, logs)
+}
+
+func (h *Handlers) GetSystemSettings(w http.ResponseWriter, r *http.Request) {
+	jsonResponse(w, map[string]interface{}{
+		"client_updates_limit": getClientUpdatesLimit(),
+	})
+}
+
+func (h *Handlers) SaveSystemSettings(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	var req struct {
+		ClientUpdatesLimit int `json:"client_updates_limit"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "请求格式错误", 400)
+		return
+	}
+
+	limit := normalizeClientUpdatesLimit(req.ClientUpdatesLimit)
+	if err := setClientUpdatesLimit(limit); err != nil {
+		jsonError(w, "保存系统设置失败", 500)
+		return
+	}
+
+	logAudit(claims.CodeID, claims.CodeName, "update_settings", fmt.Sprintf("client_updates_limit=%d", limit), r.RemoteAddr)
+	jsonResponse(w, map[string]interface{}{
+		"message":              "设置已保存",
+		"client_updates_limit": limit,
+	})
 }

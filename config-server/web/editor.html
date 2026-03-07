@@ -260,6 +260,9 @@
         .page-header {
             margin-bottom: 25px;
         }
+        .page-header-content {
+            min-width: 0;
+        }
         .page-header h2 {
             font-size: 24px;
             color: #fff;
@@ -269,11 +272,76 @@
             font-size: 14px;
             color: #888;
         }
+        .page-save-btn {
+            white-space: nowrap;
+            padding: 10px 18px;
+        }
+        .page-footer {
+            margin-top: 18px;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .updates-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .updates-summary {
+            font-size: 13px;
+            color: #8b949e;
+        }
+        .updates-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .update-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 14px 16px;
+        }
+        .update-card-title {
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .update-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            color: #8b949e;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        .update-card-desc {
+            color: #c9d1d9;
+            font-size: 13px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
         .content-section {
             display: none;
         }
         .content-section.active {
             display: block;
+        }
+        @media (max-width: 768px) {
+            .page-save-btn {
+                width: 100%;
+            }
+            .page-footer {
+                justify-content: stretch;
+            }
+            .updates-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
         }
         h1 { text-align: center; margin-bottom: 20px; color: #00d4ff; display: none; }
         .user-bar { display: none; }
@@ -665,6 +733,10 @@
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"/></svg>
                     在线客服
                 </div>
+                <div class="nav-item" onclick="switchSection('updates')">
+                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm3 4a1 1 0 000 2h6a1 1 0 100-2H7zm0 3a1 1 0 100 2h6a1 1 0 100-2H7zm0 3a1 1 0 100 2h4a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
+                    更新记录
+                </div>
                 <div class="nav-divider"></div>
                 <div class="nav-item" onclick="switchSection('build')">
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/></svg>
@@ -685,8 +757,10 @@
                 <!-- 基础设置 -->
                 <div class="content-section active" id="basicSection">
                     <div class="page-header">
-                        <h2>基础设置</h2>
-                        <p class="subtitle">应用信息、Logo、图标与界面配置</p>
+                        <div class="page-header-content">
+                            <h2>基础设置</h2>
+                            <p class="subtitle">应用信息、Logo、图标与界面配置</p>
+                        </div>
                     </div>
                     <div class="editor-container">
                         <div class="section">
@@ -735,15 +809,36 @@
                                 </div>
                                 <div class="help-text">启用后，将隐藏流量详情标签页和页面</div>
                             </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">启用登录背景图</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="authBackgroundEnabled"><span class="slider"></span></label>
+                                        <span id="authBackgroundEnabledLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="switch-card-extra">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label>登录背景图地址</label>
+                                        <input type="text" id="authBackgroundImageUrl" placeholder="支持本地资源路径或网络图片 URL">
+                                    </div>
+                                </div>
+                                <div class="help-text">由打包用户自己配置认证页背景图；关闭时忽略图片地址。</div>
+                            </div>
                         </div>
+                    </div>
+                    <div class="page-footer">
+                        <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
                     </div>
                 </div>
 
                 <!-- 订阅设置 -->
                 <div class="content-section" id="subscriptionSection">
                     <div class="page-header">
-                        <h2>订阅设置</h2>
-                        <p class="subtitle">订阅加密、专用模式、离线与缓存配置</p>
+                        <div class="page-header-content">
+                            <h2>订阅设置</h2>
+                            <p class="subtitle">订阅加密、专用模式、离线与缓存配置</p>
+                        </div>
                     </div>
                     <div class="editor-container">
                         <div class="section">
@@ -806,38 +901,78 @@
                             </div>
                         </div>
                     </div>
+                    <div class="page-footer">
+                        <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
+                    </div>
                 </div>
 
                 <!-- 远程配置源 -->
                 <div class="content-section" id="sourcesSection">
                     <div class="page-header">
-                        <h2>远程配置源</h2>
-                        <p class="subtitle">管理远程配置源地址</p>
+                        <div class="page-header-content">
+                            <h2>远程配置源</h2>
+                            <p class="subtitle">管理远程配置源地址</p>
+                        </div>
                     </div>
                     <div class="editor-container">
                         <div id="sourcesContainer"></div>
                         <button type="button" class="btn btn-primary" id="addSourceBtn" style="margin-top: 10px;">+ 添加配置源</button>
+                    </div>
+                    <div class="page-footer">
+                        <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
                     </div>
                 </div>
 
                 <!-- 在线客服 -->
                 <div class="content-section" id="supportSection">
                     <div class="page-header">
-                        <h2>在线客服</h2>
-                        <p class="subtitle">配置在线客服接入方式</p>
+                        <div class="page-header-content">
+                            <h2>在线客服</h2>
+                            <p class="subtitle">配置在线客服接入方式</p>
+                        </div>
                     </div>
                     <div class="editor-container">
                         <div id="onlineSupportContainer"></div>
                         <button type="button" class="btn btn-primary" id="addSupportBtn" style="margin-top: 10px;">+ 添加客服类型</button>
                         <div class="help-text" style="margin-top: 10px;">支持类型: browser(网页), crisp, chatway, tawkto, chatwoot。第一个有效配置会被使用。</div>
                     </div>
+                    <div class="page-footer">
+                        <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
+                    </div>
+                </div>
+
+                <div class="content-section" id="updatesSection">
+                    <div class="page-header">
+                        <div class="page-header-content">
+                            <h2>客户端更新记录</h2>
+                        </div>
+                    </div>
+                    <div class="editor-container">
+                        <div class="updates-toolbar">
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <div class="updates-summary" id="updatesSummary">正在加载更新记录配置...</div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:12px; color:#8b949e;">分支</span>
+                                    <select id="updatesBranch" onchange="handleUpdatesBranchChange()" style="min-width:180px; padding:8px 10px; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#fff;">
+                                        <option value="">默认分支</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="loadClientUpdates(true)">刷新记录</button>
+                        </div>
+                        <div class="updates-list" id="clientUpdatesList">
+                            <div style="color:#8b949e;font-size:13px;">点击左侧“更新记录”后加载最近提交...</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 软件打包 -->
                 <div class="content-section" id="buildSection">
                     <div class="page-header">
-                        <h2>软件打包</h2>
-                        <p class="subtitle">配置并提交软件打包任务</p>
+                        <div class="page-header-content">
+                            <h2>软件打包</h2>
+                            <p class="subtitle">配置并提交软件打包任务</p>
+                        </div>
                     </div>
 
                     <div class="build-panel">
@@ -903,6 +1038,9 @@
                             <span id="buildProgressTime" class="build-progress-time"></span>
                         </div>
                         <div id="buildJobsList" class="build-jobs-list"></div>
+                    </div>
+                    <div class="page-footer">
+                        <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
                     </div>
                 </div>
             </div>
@@ -1183,6 +1321,8 @@
         var profilesCache = [];
         var buildHistoryData = {};
         var buildAssetCache = {};
+        var clientUpdatesLoaded = false;
+        var clientUpdatesLoadedBranch = '';
         var buildQueueAvailable = false;
         var buildQueueStatusMessage = '正在加载打包队列...';
         var buildPermissionAvailable = false;
@@ -1202,6 +1342,9 @@
                 section.classList.remove('active');
             });
             document.getElementById(sectionName + 'Section').classList.add('active');
+            if (sectionName === 'updates') {
+                loadClientUpdates(false);
+            }
         }
 
         // ==================== 初始化 ====================
@@ -1213,7 +1356,14 @@
             }
 
             document.getElementById('userName').textContent = session.name || '用户';
-            document.getElementById('userPerm').textContent = session.permissions === 'admin' ? '(管理员)' : '(普通用户)';
+            var userPermEl = document.getElementById('userPerm');
+            if (session.permissions === 'admin') {
+                userPermEl.textContent = '(管理员)';
+                userPermEl.style.display = 'inline';
+            } else {
+                userPermEl.textContent = '';
+                userPermEl.style.display = 'none';
+            }
             if (session.permissions === 'admin') {
                 document.getElementById('adminLink').style.display = 'inline-block';
             } else {
@@ -1252,12 +1402,16 @@
             return [
                 'xboard:',
                 '  provider: ""',
-                '  title: ""',
-                '  logo:',
-                '    type: text',
-                '    image_url: ""',
-                '  app_icon:',
-                '    image_url: ""',
+                '  app:',
+                '    title: ""',
+                '    logo:',
+                '      type: text',
+                '      image_url: ""',
+                '    auth_background:',
+                '      enabled: false',
+                '      image_url: ""',
+                '    app_icon:',
+                '      image_url: ""',
                 '  prefer_encrypt: false',
                 '  use_exclusive_mode: false',
                 '  decrypt_key: ""',
@@ -1432,20 +1586,36 @@
                 var response = await api('GET', '/branches');
                 if (!response) return;
                 var branches = await response.json();
-                var select = document.getElementById('buildBranch');
-                var currentValue = select.value;
-                select.innerHTML = '';
-                branches.forEach(function(branch) {
-                    var option = document.createElement('option');
-                    option.value = branch.name;
-                    option.textContent = branch.name;
-                    select.appendChild(option);
-                });
-                if (currentValue && Array.from(select.options).some(function(opt) { return opt.value === currentValue; })) {
-                    select.value = currentValue;
-                } else if (Array.from(select.options).some(function(opt) { return opt.value === 'main'; })) {
-                    select.value = 'main';
-                }
+
+                var fillBranchSelect = function(select, options, fallbackValue, keepEmptyDefault) {
+                    if (!select) return;
+                    var currentValue = select.value;
+                    select.innerHTML = '';
+                    if (keepEmptyDefault) {
+                        var defaultOption = document.createElement('option');
+                        defaultOption.value = '';
+                        defaultOption.textContent = '默认分支';
+                        select.appendChild(defaultOption);
+                    }
+                    options.forEach(function(branch) {
+                        var option = document.createElement('option');
+                        option.value = branch.name;
+                        option.textContent = branch.name;
+                        select.appendChild(option);
+                    });
+                    if (currentValue && Array.from(select.options).some(function(opt) { return opt.value === currentValue; })) {
+                        select.value = currentValue;
+                    } else if (fallbackValue && Array.from(select.options).some(function(opt) { return opt.value === fallbackValue; })) {
+                        select.value = fallbackValue;
+                    } else if (keepEmptyDefault) {
+                        select.value = '';
+                    } else if (select.options.length > 0) {
+                        select.selectedIndex = 0;
+                    }
+                };
+
+                fillBranchSelect(document.getElementById('buildBranch'), branches, 'main', false);
+                fillBranchSelect(document.getElementById('updatesBranch'), branches, '', true);
             } catch (e) {
                 console.log('加载分支列表失败:', e.message);
             }
@@ -1483,6 +1653,96 @@
             } else {
                 content.innerHTML = '<span style="color:#aaa;">暂无打包记录</span>';
                 info.style.display = 'block';
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatClientUpdateTime(value) {
+            if (!value) return '-';
+            var date = new Date(value);
+            if (isNaN(date.getTime())) return value;
+            return date.toLocaleString('zh-CN', { hour12: false });
+        }
+
+        function renderClientUpdates(data) {
+            var summaryEl = document.getElementById('updatesSummary');
+            var listEl = document.getElementById('clientUpdatesList');
+            if (!summaryEl || !listEl) return;
+
+            var commits = data && Array.isArray(data.commits) ? data.commits : [];
+            var branch = data && data.branch ? data.branch : 'main';
+            var limit = data && data.limit ? data.limit : commits.length;
+            summaryEl.textContent = '当前展示 ' + commits.length + ' 条更新记录，来源分支：' + branch + '，管理员当前设置最多显示 ' + limit + ' 条。';
+
+            if (!commits.length) {
+                listEl.innerHTML = '<div style="color:#8b949e;font-size:13px;">暂无可展示的更新记录</div>';
+                return;
+            }
+
+            var html = '';
+            commits.forEach(function(commit) {
+                html += '<div class="update-card">';
+                html += '<div class="update-card-title">' + escapeHtml(commit.title || commit.short_sha || '未命名提交') + '</div>';
+                html += '<div class="update-card-meta">';
+                html += '<span>时间：' + escapeHtml(formatClientUpdateTime(commit.committed_at)) + '</span>';
+                html += '</div>';
+                if (commit.description) {
+                    html += '<div class="update-card-desc">' + escapeHtml(commit.description) + '</div>';
+                }
+                html += '</div>';
+            });
+            listEl.innerHTML = html;
+        }
+
+        function handleUpdatesBranchChange() {
+            clientUpdatesLoaded = false;
+            clientUpdatesLoadedBranch = '';
+            loadClientUpdates(true);
+        }
+
+        async function loadClientUpdates(force) {
+            var branchSelect = document.getElementById('updatesBranch');
+            var selectedBranch = branchSelect ? branchSelect.value.trim() : '';
+            if (clientUpdatesLoaded && !force && clientUpdatesLoadedBranch === selectedBranch) {
+                return;
+            }
+            var summaryEl = document.getElementById('updatesSummary');
+            var listEl = document.getElementById('clientUpdatesList');
+            if (summaryEl) {
+                summaryEl.textContent = '正在加载更新记录...';
+            }
+            if (listEl) {
+                listEl.innerHTML = '<div style="color:#8b949e;font-size:13px;">正在从服务端读取提交记录...</div>';
+            }
+            try {
+                var path = '/client-updates';
+                if (selectedBranch) {
+                    path += '?branch=' + encodeURIComponent(selectedBranch);
+                }
+                var response = await api('GET', path);
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '加载失败');
+                }
+                clientUpdatesLoaded = true;
+                clientUpdatesLoadedBranch = selectedBranch;
+                renderClientUpdates(data);
+            } catch (e) {
+                if (summaryEl) {
+                    summaryEl.textContent = '加载更新记录失败';
+                }
+                if (listEl) {
+                    listEl.innerHTML = '<div style="color:#ff6b6b;font-size:13px;">' + escapeHtml(e.message) + '</div>';
+                }
             }
         }
 
@@ -1767,7 +2027,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -2023,6 +2283,14 @@
             var hideTrafficDetails = hideTrafficDetailsMatch ? hideTrafficDetailsMatch[1] === 'true' : false;
             document.getElementById('hideTrafficDetails').checked = hideTrafficDetails;
             document.getElementById('hideTrafficDetailsLabel').textContent = hideTrafficDetails ? '开启' : '关闭';
+            var authBackgroundEnabledMatch = yaml.match(/auth_background:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
+            var authBackgroundEnabled = authBackgroundEnabledMatch ? authBackgroundEnabledMatch[1] === 'true' : false;
+            document.getElementById('authBackgroundEnabled').checked = authBackgroundEnabled;
+            document.getElementById('authBackgroundEnabledLabel').textContent = authBackgroundEnabled ? '开启' : '关闭';
+            var authBackgroundImageUrlMatch = yaml.match(/auth_background:\s*\n(?:[\s\S]*?)image_url:[^\S\n]*(.*)/);
+            document.getElementById('authBackgroundImageUrl').value = authBackgroundImageUrlMatch
+                ? authBackgroundImageUrlMatch[1].trim().replace(/^["']|["']$/g, '')
+                : '';
 
             // 解析 sources
             sources = [];
@@ -2139,6 +2407,68 @@
             yaml = yaml.replace(/(logo:[\s\S]*?type:[^\S\n]*)(\w+)/, '$1' + document.getElementById('logoType').value);
             yaml = yaml.replace(/(logo:[\s\S]*?image_url:[^\S\n]*)(.*)/, '$1' + document.getElementById('logoImageUrl').value);
             yaml = yaml.replace(/(app_icon:[\s\S]*?image_url:[^\S\n]*)(.*)/, '$1' + document.getElementById('appIconUrl').value);
+            var authBackgroundEnabled = document.getElementById('authBackgroundEnabled').checked;
+            var authBackgroundImageUrl = document.getElementById('authBackgroundImageUrl').value.trim().replace(/"/g, '\\"');
+            var upsertAuthBackground = function(content) {
+                var authLines = [
+                    '    auth_background:',
+                    '      enabled: ' + authBackgroundEnabled,
+                    '      image_url: "' + authBackgroundImageUrl + '"'
+                ];
+                var lines = content.split('\n');
+                var newLines = [];
+                var appFound = false;
+                var inApp = false;
+                var skipAuthSection = false;
+                var authInserted = false;
+
+                for (var idx = 0; idx < lines.length; idx++) {
+                    var currentLine = lines[idx];
+                    if (/^  app:\s*$/.test(currentLine)) {
+                        appFound = true;
+                        inApp = true;
+                        newLines.push(currentLine);
+                        continue;
+                    }
+                    if (skipAuthSection) {
+                        if (/^      /.test(currentLine) || currentLine.trim() === '') {
+                            continue;
+                        }
+                        skipAuthSection = false;
+                    }
+                    if (inApp) {
+                        if (/^    auth_background:\s*$/.test(currentLine)) {
+                            newLines = newLines.concat(authLines);
+                            authInserted = true;
+                            skipAuthSection = true;
+                            continue;
+                        }
+                        if (/^  [a-z_]+:/i.test(currentLine)) {
+                            if (!authInserted) {
+                                newLines = newLines.concat(authLines);
+                                authInserted = true;
+                            }
+                            inApp = false;
+                        }
+                    }
+                    newLines.push(currentLine);
+                }
+                if (appFound && inApp && !authInserted) {
+                    newLines = newLines.concat(authLines);
+                }
+                if (!appFound) {
+                    while (newLines.length > 0 && newLines[newLines.length - 1].trim() === '') {
+                        newLines.pop();
+                    }
+                    if (newLines.length > 0) {
+                        newLines.push('');
+                    }
+                    newLines.push('  app:');
+                    newLines = newLines.concat(authLines);
+                }
+                return newLines.join('\n');
+            };
+            yaml = upsertAuthBackground(yaml);
             updateValue('prefer_encrypt', document.getElementById('preferEncrypt').checked);
             updateValue('use_exclusive_mode', document.getElementById('useExclusiveMode').checked);
             updateValue('decrypt_key', document.getElementById('decryptKey').value);

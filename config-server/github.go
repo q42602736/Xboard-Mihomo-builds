@@ -147,6 +147,17 @@ type Branch struct {
 	Name string `json:"name"`
 }
 
+type CommitInfo struct {
+	SHA         string `json:"sha"`
+	ShortSHA    string `json:"short_sha"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Message     string `json:"message"`
+	AuthorName  string `json:"author_name"`
+	CommittedAt string `json:"committed_at"`
+	HTMLURL     string `json:"html_url"`
+}
+
 // ListBranches 获取仓库的分支列表
 func (g *GitHubClient) ListBranches() ([]Branch, error) {
 	url := g.apiURL("branches")
@@ -471,4 +482,121 @@ func (g *GitHubClient) DownloadReleaseAsset(buildOwner, buildRepo string, assetI
 		return nil, fmt.Errorf("下载 Release 资源失败 (%d): %s", resp.StatusCode, string(respBody))
 	}
 	return resp, nil
+}
+
+func (g *GitHubClient) ListRecentCommits(branch string, count int) ([]CommitInfo, error) {
+	if count <= 0 {
+		count = defaultClientUpdatesLimit
+	}
+	if count > 100 {
+		count = 100
+	}
+
+	targetBranch := strings.TrimSpace(branch)
+	if targetBranch == "" {
+		targetBranch = g.Branch
+	}
+
+	perPage := count
+	if perPage < 30 {
+		perPage = 30
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	shouldHideCommitTitle := func(title string) bool {
+		return strings.HasPrefix(title, "保存配置档案:") ||
+			strings.HasPrefix(title, "保存配置档案：") ||
+			strings.HasPrefix(title, "更新打包版本记录:") ||
+			strings.HasPrefix(title, "更新打包版本记录：")
+	}
+
+	commits := make([]CommitInfo, 0, count)
+	for page := 1; len(commits) < count; page++ {
+		apiURL := fmt.Sprintf(
+			"https://api.github.com/repos/%s/%s/commits?sha=%s&per_page=%d&page=%d",
+			g.Owner,
+			g.Repo,
+			url.QueryEscape(targetBranch),
+			perPage,
+			page,
+		)
+		resp, err := g.doRequest("GET", apiURL, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			respBody, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return nil, fmt.Errorf("获取提交记录失败 (%d): %s", resp.StatusCode, string(respBody))
+		}
+
+		var rawCommits []struct {
+			SHA     string `json:"sha"`
+			HTMLURL string `json:"html_url"`
+			Commit  struct {
+				Message string `json:"message"`
+				Author  struct {
+					Name string `json:"name"`
+					Date string `json:"date"`
+				} `json:"author"`
+			} `json:"commit"`
+			Author *struct {
+				Login string `json:"login"`
+			} `json:"author"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&rawCommits); err != nil {
+			resp.Body.Close()
+			return nil, err
+		}
+		resp.Body.Close()
+
+		if len(rawCommits) == 0 {
+			break
+		}
+
+		for _, item := range rawCommits {
+			message := strings.ReplaceAll(item.Commit.Message, "\r\n", "\n")
+			parts := strings.SplitN(message, "\n", 2)
+			title := strings.TrimSpace(parts[0])
+			if shouldHideCommitTitle(title) {
+				continue
+			}
+
+			description := ""
+			if len(parts) > 1 {
+				description = strings.TrimSpace(parts[1])
+			}
+			authorName := strings.TrimSpace(item.Commit.Author.Name)
+			if authorName == "" && item.Author != nil {
+				authorName = item.Author.Login
+			}
+			shortSHA := item.SHA
+			if len(shortSHA) > 7 {
+				shortSHA = shortSHA[:7]
+			}
+
+			commits = append(commits, CommitInfo{
+				SHA:         item.SHA,
+				ShortSHA:    shortSHA,
+				Title:       title,
+				Description: description,
+				Message:     message,
+				AuthorName:  authorName,
+				CommittedAt: item.Commit.Author.Date,
+				HTMLURL:     item.HTMLURL,
+			})
+			if len(commits) >= count {
+				break
+			}
+		}
+
+		if len(rawCommits) < perPage || page >= 20 {
+			break
+		}
+	}
+
+	return commits, nil
 }

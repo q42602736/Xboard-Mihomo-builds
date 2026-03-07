@@ -54,6 +54,19 @@
         .tab.active { color: #00d4ff; border-bottom-color: #00d4ff; }
         .tab-content { display: none; padding: 20px; }
         .tab-content.active { display: block; }
+        .editor-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 20px 20px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            background: rgba(13,17,23,0.6);
+        }
+        @media (max-width: 768px) {
+            .editor-actions .btn {
+                width: 100%;
+            }
+        }
         .section { margin-bottom: 25px; }
         .section-title { color: #00d4ff; font-size: 16px; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid rgba(0,212,255,0.3); }
         .form-group select, .form-group textarea {
@@ -355,6 +368,18 @@
                         </div>
                         <div class="help-text">启用后，将隐藏流量详情标签页和页面</div>
                     </div>
+                    <div class="form-group" style="margin-top:16px;">
+                        <label>启用登录背景图</label>
+                        <div class="switch-group">
+                            <label class="switch"><input type="checkbox" id="authBackgroundEnabled"><span class="slider"></span></label>
+                            <span id="authBackgroundEnabledLabel">关闭</span>
+                        </div>
+                        <div class="help-text">由打包用户自己配置认证页背景图</div>
+                    </div>
+                    <div class="form-group">
+                        <label>登录背景图地址</label>
+                        <input type="text" id="authBackgroundImageUrl" placeholder="支持本地资源路径或网络图片 URL">
+                    </div>
                 </div>
                 <div class="section">
                     <div class="section-title">远程配置源</div>
@@ -370,6 +395,9 @@
             </div>
             <div id="yamlTab" class="tab-content">
                 <textarea id="editor" placeholder="配置内容将显示在这里..."></textarea>
+            </div>
+            <div class="editor-actions">
+                <button type="button" class="btn btn-success" onclick="showSaveProfileInput()">保存当前档案</button>
             </div>
         </div>
         <div class="build-panel">
@@ -684,7 +712,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -744,6 +772,14 @@
             var hideTrafficDetails = hideTrafficDetailsMatch ? hideTrafficDetailsMatch[1] === 'true' : false;
             document.getElementById('hideTrafficDetails').checked = hideTrafficDetails;
             document.getElementById('hideTrafficDetailsLabel').textContent = hideTrafficDetails ? '开启' : '关闭';
+            var authBackgroundEnabledMatch = yaml.match(/auth_background:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
+            var authBackgroundEnabled = authBackgroundEnabledMatch ? authBackgroundEnabledMatch[1] === 'true' : false;
+            document.getElementById('authBackgroundEnabled').checked = authBackgroundEnabled;
+            document.getElementById('authBackgroundEnabledLabel').textContent = authBackgroundEnabled ? '开启' : '关闭';
+            var authBackgroundImageUrlMatch = yaml.match(/auth_background:\s*\n(?:[\s\S]*?)image_url:\s*(.*)/);
+            document.getElementById('authBackgroundImageUrl').value = authBackgroundImageUrlMatch
+                ? authBackgroundImageUrlMatch[1].trim().replace(/^["']|["']$/g, '')
+                : '';
             // 解析多个 sources
             sources = [];
             var lines = yaml.split('\n');
@@ -872,6 +908,68 @@
             yaml = yaml.replace(/(logo:[\s\S]*?type:\s*)(\w+)/, '$1' + document.getElementById('logoType').value);
             yaml = yaml.replace(/(logo:[\s\S]*?image_url:\s*)(.*)/, '$1' + document.getElementById('logoImageUrl').value);
             yaml = yaml.replace(/(app_icon:[\s\S]*?image_url:\s*)(.*)/, '$1' + document.getElementById('appIconUrl').value);
+            var authBackgroundEnabled = document.getElementById('authBackgroundEnabled').checked;
+            var authBackgroundImageUrl = document.getElementById('authBackgroundImageUrl').value.trim().replace(/"/g, '\\"');
+            var upsertAuthBackground = function(content) {
+                var authLines = [
+                    '    auth_background:',
+                    '      enabled: ' + authBackgroundEnabled,
+                    '      image_url: "' + authBackgroundImageUrl + '"'
+                ];
+                var lines = content.split('\n');
+                var newLines = [];
+                var appFound = false;
+                var inApp = false;
+                var skipAuthSection = false;
+                var authInserted = false;
+
+                for (var idx = 0; idx < lines.length; idx++) {
+                    var currentLine = lines[idx];
+                    if (/^  app:\s*$/.test(currentLine)) {
+                        appFound = true;
+                        inApp = true;
+                        newLines.push(currentLine);
+                        continue;
+                    }
+                    if (skipAuthSection) {
+                        if (/^      /.test(currentLine) || currentLine.trim() === '') {
+                            continue;
+                        }
+                        skipAuthSection = false;
+                    }
+                    if (inApp) {
+                        if (/^    auth_background:\s*$/.test(currentLine)) {
+                            newLines = newLines.concat(authLines);
+                            authInserted = true;
+                            skipAuthSection = true;
+                            continue;
+                        }
+                        if (/^  [a-z_]+:/i.test(currentLine)) {
+                            if (!authInserted) {
+                                newLines = newLines.concat(authLines);
+                                authInserted = true;
+                            }
+                            inApp = false;
+                        }
+                    }
+                    newLines.push(currentLine);
+                }
+                if (appFound && inApp && !authInserted) {
+                    newLines = newLines.concat(authLines);
+                }
+                if (!appFound) {
+                    while (newLines.length > 0 && newLines[newLines.length - 1].trim() === '') {
+                        newLines.pop();
+                    }
+                    if (newLines.length > 0) {
+                        newLines.push('');
+                    }
+                    newLines.push('  app:');
+                    newLines = newLines.concat(authLines);
+                }
+                return newLines.join('\n');
+            };
+            yaml = upsertAuthBackground(yaml);
             updateValue('prefer_encrypt', document.getElementById('preferEncrypt').checked);
             updateValue('use_exclusive_mode', document.getElementById('useExclusiveMode').checked);
             updateValue('decrypt_key', document.getElementById('decryptKey').value);

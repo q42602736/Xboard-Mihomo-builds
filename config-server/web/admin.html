@@ -216,6 +216,7 @@
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('codes')">激活码管理</button>
             <button class="tab-btn" onclick="switchTab('logs')">操作日志</button>
+            <button class="tab-btn" onclick="switchTab('settings')">系统设置</button>
         </div>
 
         <div id="codesTab" class="tab-page active">
@@ -327,6 +328,23 @@
                         <tr><td colspan="5" class="empty">加载中...</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <div id="settingsTab" class="tab-page">
+            <div class="panel">
+                <h3>系统设置</h3>
+                <div id="settingsStatus" class="status-msg"></div>
+                <div class="form-row" style="grid-template-columns: 1fr 220px; align-items:end; margin-bottom:0;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>更新记录显示条数</label>
+                        <input type="number" id="clientUpdatesLimit" value="10" min="1" max="50">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; display:flex; align-items:flex-end;">
+                        <button class="btn btn-primary" style="width:100%;" onclick="saveSettings()">保存设置</button>
+                    </div>
+                </div>
+                <div style="font-size:12px;color:#666;margin-top:5px;">用户侧“更新记录”页面最多显示最近多少条 GitHub 提交，建议 10 或 20，最大 50。</div>
             </div>
         </div>
     </div>
@@ -485,6 +503,7 @@
                 showMain();
                 loadCodes();
                 loadProfileList();
+                loadSettings();
             } catch (e) {
                 errorEl.className = 'status-msg error';
                 errorEl.textContent = e.message;
@@ -520,6 +539,7 @@
             document.getElementById(name + 'Tab').classList.add('active');
             event.target.classList.add('active');
             if (name === 'logs') loadLogs();
+            if (name === 'settings') loadSettings();
         }
 
         function copyCode(code) {
@@ -834,7 +854,8 @@
             'trigger_build': '触发构建',
             'create_code': '创建激活码',
             'update_code': '编辑激活码',
-            'delete_code': '删除激活码'
+            'delete_code': '删除激活码',
+            'update_settings': '修改系统设置'
         };
 
         async function loadLogs() {
@@ -865,11 +886,56 @@
             }
         }
 
+
+        async function loadSettings() {
+            var statusEl = document.getElementById('settingsStatus');
+            try {
+                var response = await api('GET', '/admin/settings');
+                if (!response) return;
+                var data = await response.json();
+                document.getElementById('clientUpdatesLimit').value = data.client_updates_limit || 10;
+                statusEl.className = 'status-msg';
+                statusEl.textContent = '';
+            } catch (e) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '加载设置失败: ' + e.message;
+            }
+        }
+
+        async function saveSettings() {
+            var statusEl = document.getElementById('settingsStatus');
+            var limit = parseInt(document.getElementById('clientUpdatesLimit').value, 10);
+            if (!limit || limit < 1) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '显示条数必须大于 0';
+                return;
+            }
+            try {
+                var response = await api('PUT', '/admin/settings', {
+                    client_updates_limit: limit
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    statusEl.className = 'status-msg error';
+                    statusEl.textContent = data.error || '保存失败';
+                    return;
+                }
+                document.getElementById('clientUpdatesLimit').value = data.client_updates_limit || limit;
+                statusEl.className = 'status-msg success';
+                statusEl.textContent = '系统设置已保存';
+            } catch (e) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '保存失败: ' + e.message;
+            }
+        }
+
         window.onload = function() {
             if (getToken()) {
                 showMain();
                 loadCodes();
                 loadProfileList();
+                loadSettings();
             } else {
                 showLogin();
             }

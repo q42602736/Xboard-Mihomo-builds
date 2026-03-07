@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -67,6 +68,12 @@ func initDB() {
 			status TEXT NOT NULL DEFAULT 'queued',
 			conclusion TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE TABLE IF NOT EXISTS system_settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
 
@@ -640,4 +647,53 @@ func getAuditLogs(limit int) ([]map[string]interface{}, error) {
 		logs = append(logs, entry)
 	}
 	return logs, nil
+}
+
+const (
+	defaultClientUpdatesLimit = 10
+	maxClientUpdatesLimit     = 50
+)
+
+func normalizeClientUpdatesLimit(limit int) int {
+	if limit <= 0 {
+		return defaultClientUpdatesLimit
+	}
+	if limit > maxClientUpdatesLimit {
+		return maxClientUpdatesLimit
+	}
+	return limit
+}
+
+func getSystemSetting(key string) (string, error) {
+	var value string
+	err := db.QueryRow(`SELECT value FROM system_settings WHERE key = ?`, key).Scan(&value)
+	if err != nil {
+		return "", err
+	}
+	return value, nil
+}
+
+func setSystemSetting(key, value string) error {
+	_, err := db.Exec(
+		`INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+		 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+		key, value,
+	)
+	return err
+}
+
+func getClientUpdatesLimit() int {
+	value, err := getSystemSetting("client_updates_limit")
+	if err != nil {
+		return defaultClientUpdatesLimit
+	}
+	limit, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil {
+		return defaultClientUpdatesLimit
+	}
+	return normalizeClientUpdatesLimit(limit)
+}
+
+func setClientUpdatesLimit(limit int) error {
+	return setSystemSetting("client_updates_limit", strconv.Itoa(normalizeClientUpdatesLimit(limit)))
 }

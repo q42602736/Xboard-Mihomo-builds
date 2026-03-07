@@ -103,6 +103,7 @@ func main() {
 		r.Get("/api/build/records/{id}/download/{assetID}", h.DownloadBuildRecordAsset)
 		r.Get("/api/build/queue", h.GetBuildQueue)
 		r.Get("/api/build/status", h.GetBuildStatus)
+		r.Get("/api/client-updates", h.GetClientUpdates)
 	})
 
 	// 管理员 API
@@ -115,6 +116,8 @@ func main() {
 		r.Put("/api/admin/codes/{id}", h.UpdateCode)
 		r.Delete("/api/admin/codes/{id}", h.DeleteCode)
 		r.Get("/api/admin/logs", h.GetAuditLogs)
+		r.Get("/api/admin/settings", h.GetSystemSettings)
+		r.Put("/api/admin/settings", h.SaveSystemSettings)
 	})
 
 	// 静态文件（前端页面）
