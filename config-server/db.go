@@ -181,7 +181,7 @@ func listBuildRecords(codeID int, isAdmin bool, limit int) ([]BuildRecord, error
 		query += ` WHERE code_id = ?`
 		args = append(args, codeID)
 	}
-	query += ` ORDER BY created_at DESC LIMIT ?`
+	query += ` ORDER BY created_at DESC, id DESC LIMIT ?`
 	args = append(args, limit)
 
 	rows, err := db.Query(query, args...)
@@ -212,6 +212,135 @@ func listBuildRecords(codeID int, isAdmin bool, limit int) ([]BuildRecord, error
 		records = append(records, record)
 	}
 	return records, nil
+}
+
+func listOverflowBuildRecords(codeID int, keep int) ([]BuildRecord, error) {
+	if keep < 0 {
+		keep = 0
+	}
+
+	rows, err := db.Query(
+		`SELECT id, code_id, code_name, profile, tag, branch, platforms, run_id, status, conclusion, created_at, updated_at
+		 FROM build_records
+		 WHERE code_id = ?
+		 ORDER BY created_at DESC, id DESC
+		 LIMIT -1 OFFSET ?`,
+		codeID, keep,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	records := []BuildRecord{}
+	for rows.Next() {
+		var record BuildRecord
+		if err := rows.Scan(
+			&record.ID,
+			&record.CodeID,
+			&record.CodeName,
+			&record.Profile,
+			&record.Tag,
+			&record.Branch,
+			&record.Platforms,
+			&record.RunID,
+			&record.Status,
+			&record.Conclusion,
+			&record.CreatedAt,
+			&record.UpdatedAt,
+		); err != nil {
+			continue
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}
+
+func deleteBuildRecord(recordID int64) error {
+	result, err := db.Exec(`DELETE FROM build_records WHERE id = ?`, recordID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("打包记录不存在")
+	}
+	return nil
+}
+
+func getActivationCodeByID(id int) (*ActivationCode, error) {
+	ac := &ActivationCode{}
+	var expiresAt sql.NullString
+	var allowedProfilesJSON string
+
+	err := db.QueryRow(
+		`SELECT id, code, name, permissions, max_uses, used_count, allowed_profiles, expires_at, created_at, is_active
+		 FROM activation_codes WHERE id = ?`,
+		id,
+	).Scan(&ac.ID, &ac.Code, &ac.Name, &ac.Permissions, &ac.MaxUses, &ac.UsedCount, &allowedProfilesJSON, &expiresAt, &ac.CreatedAt, &ac.IsActive)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("激活码无效")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	json.Unmarshal([]byte(allowedProfilesJSON), &ac.AllowedProfiles)
+	if ac.AllowedProfiles == nil {
+		ac.AllowedProfiles = []string{}
+	}
+	if expiresAt.Valid {
+		ac.ExpiresAt = &expiresAt.String
+	}
+	return ac, nil
+}
+
+func parseActivationCodeExpiresAt(ac *ActivationCode) (*time.Time, error) {
+	if ac == nil || ac.ExpiresAt == nil || strings.TrimSpace(*ac.ExpiresAt) == "" {
+		return nil, nil
+	}
+
+	t, err := time.ParseInLocation("2006-01-02 15:04:05", *ac.ExpiresAt, time.Local)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+func getBuildAvailability(ac *ActivationCode) (bool, string) {
+	if ac == nil {
+		return false, "激活码无效"
+	}
+	if !ac.IsActive {
+		return false, "激活码已停用"
+	}
+
+	expiresAt, err := parseActivationCodeExpiresAt(ac)
+	if err == nil && expiresAt != nil && !time.Now().Before(*expiresAt) {
+		return false, "激活码已过期"
+	}
+	if ac.MaxUses > 0 && ac.UsedCount >= ac.MaxUses {
+		return false, "激活码已达最大打包次数"
+	}
+	if ac.MaxUses < 0 {
+		return true, "可打包（不限次数）"
+	}
+	return true, "可打包"
+}
+
+func getRemainingBuildUses(ac *ActivationCode) int {
+	if ac == nil || ac.MaxUses < 0 {
+		return -1
+	}
+	remaining := ac.MaxUses - ac.UsedCount
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
 }
 
 func validateCode(code string) (*ActivationCode, error) {
@@ -256,7 +385,10 @@ func consumeBuildUsage(codeID int) error {
 	result, err := db.Exec(
 		`UPDATE activation_codes
 		 SET used_count = used_count + 1
-		 WHERE id = ? AND is_active = 1 AND (max_uses < 0 OR used_count < max_uses)`,
+		 WHERE id = ?
+		   AND is_active = 1
+		   AND (expires_at IS NULL OR expires_at = '' OR datetime(expires_at) > datetime('now', 'localtime'))
+		   AND (max_uses < 0 OR used_count < max_uses)`,
 		codeID,
 	)
 	if err != nil {
@@ -271,23 +403,13 @@ func consumeBuildUsage(codeID int) error {
 		return nil
 	}
 
-	var maxUses, usedCount int
-	var isActive bool
-	err = db.QueryRow(
-		`SELECT max_uses, used_count, is_active FROM activation_codes WHERE id = ?`,
-		codeID,
-	).Scan(&maxUses, &usedCount, &isActive)
-	if err == sql.ErrNoRows {
-		return fmt.Errorf("激活码无效")
-	}
+	ac, err := getActivationCodeByID(codeID)
 	if err != nil {
 		return err
 	}
-	if !isActive {
-		return fmt.Errorf("激活码已停用")
-	}
-	if maxUses > 0 && usedCount >= maxUses {
-		return fmt.Errorf("激活码已达最大打包次数")
+	canBuild, statusText := getBuildAvailability(ac)
+	if !canBuild {
+		return fmt.Errorf(statusText)
 	}
 
 	return fmt.Errorf("激活码不可用")
@@ -397,7 +519,7 @@ func createCode(name string, maxUses int, allowedProfiles []string, expiresAt st
 	}, nil
 }
 
-func updateCode(id int, name string, maxUses int, allowedProfiles []string, expiresAt string) error {
+func updateCode(id int, name string, maxUses int, usedCount int, allowedProfiles []string, expiresAt string) error {
 	if allowedProfiles == nil {
 		allowedProfiles = []string{}
 	}
@@ -414,8 +536,8 @@ func updateCode(id int, name string, maxUses int, allowedProfiles []string, expi
 	}
 
 	result, err := db.Exec(
-		"UPDATE activation_codes SET name = ?, max_uses = ?, allowed_profiles = ?, expires_at = ? WHERE id = ?",
-		name, maxUses, string(profilesJSON), expiresValue, id,
+		"UPDATE activation_codes SET name = ?, max_uses = ?, used_count = ?, allowed_profiles = ?, expires_at = ? WHERE id = ?",
+		name, maxUses, usedCount, string(profilesJSON), expiresValue, id,
 	)
 	if err != nil {
 		return err

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 )
+
+const maxBuildRecordHistory = 5
 
 type Handlers struct {
 	gh *GitHubClient
@@ -108,7 +111,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := generateJWT(ac.ID, ac.Name, ac.Permissions, ac.AllowedProfiles)
+	token, err := generateJWT(ac.ID, ac.Name, "user", ac.AllowedProfiles)
 	if err != nil {
 		jsonError(w, "生成 Token 失败", 500)
 		return
@@ -119,7 +122,54 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, map[string]interface{}{
 		"token":       token,
 		"name":        ac.Name,
-		"permissions": ac.Permissions,
+		"permissions": "user",
+	})
+}
+
+func (h *Handlers) GetCurrentUserInfo(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	if claims.Permissions == "admin" {
+		jsonResponse(w, map[string]interface{}{
+			"name":              claims.CodeName,
+			"permissions":       claims.Permissions,
+			"max_uses":          -1,
+			"used_count":        0,
+			"remaining_uses":    -1,
+			"can_build":         true,
+			"build_status_text": "管理员不限",
+			"expires_at":        nil,
+			"is_active":         true,
+		})
+		return
+	}
+
+	ac, err := getActivationCodeByID(claims.CodeID)
+	if err != nil {
+		jsonResponse(w, map[string]interface{}{
+			"name":              claims.CodeName,
+			"permissions":       "user",
+			"max_uses":          0,
+			"used_count":        0,
+			"remaining_uses":    0,
+			"can_build":         false,
+			"build_status_text": err.Error(),
+			"expires_at":        nil,
+			"is_active":         false,
+		})
+		return
+	}
+
+	canBuild, statusText := getBuildAvailability(ac)
+	jsonResponse(w, map[string]interface{}{
+		"name":              ac.Name,
+		"permissions":       "user",
+		"max_uses":          ac.MaxUses,
+		"used_count":        ac.UsedCount,
+		"remaining_uses":    getRemainingBuildUses(ac),
+		"can_build":         canBuild,
+		"build_status_text": statusText,
+		"expires_at":        ac.ExpiresAt,
+		"is_active":         ac.IsActive,
 	})
 }
 
@@ -472,6 +522,35 @@ func buildRecordResponse(record BuildRecord) map[string]interface{} {
 	}
 }
 
+func (h *Handlers) deleteBuildRecordRelease(record *BuildRecord) error {
+	releaseTag := buildReleaseTag(record)
+	if releaseTag == "" {
+		return nil
+	}
+	return h.gh.DeleteReleaseByTag(cfg.BuildOwner, cfg.BuildRepo, releaseTag)
+}
+
+func (h *Handlers) cleanupOverflowBuildRecords(codeID int) {
+	records, err := listOverflowBuildRecords(codeID, maxBuildRecordHistory)
+	if err != nil {
+		log.Printf("清理旧打包记录失败: code_id=%d err=%v", codeID, err)
+		return
+	}
+
+	for _, record := range records {
+		if isActiveWorkflowStatus(record.Status) {
+			continue
+		}
+		if err := h.deleteBuildRecordRelease(&record); err != nil {
+			log.Printf("删除旧打包记录对应 Release 失败: record_id=%d err=%v", record.ID, err)
+			continue
+		}
+		if err := deleteBuildRecord(record.ID); err != nil {
+			log.Printf("删除旧打包记录失败: record_id=%d err=%v", record.ID, err)
+		}
+	}
+}
+
 func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Profile   string `json:"profile"`
@@ -504,7 +583,7 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 
 	running, err := h.gh.GetRunningWorkflowCount(cfg.BuildOwner, cfg.BuildRepo, "build.yaml")
 	if err == nil && running >= maxConcurrentBuilds {
-		jsonError(w, fmt.Sprintf("当前有 %d 个构建正在运行，最多允许 %d 个并发构建，请稍后再试", running, maxConcurrentBuilds), 429)
+		jsonError(w, fmt.Sprintf("当前有 %d 个打包任务正在运行，最多允许 %d 个并发打包，请稍后再试", running, maxConcurrentBuilds), 429)
 		return
 	}
 
@@ -522,7 +601,7 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		if usageConsumed {
 			_ = rollbackBuildUsage(claims.CodeID)
 		}
-		jsonError(w, "创建构建记录失败", 500)
+		jsonError(w, "创建打包记录失败", 500)
 		return
 	}
 
@@ -556,8 +635,10 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		fmt.Sprintf("record_id=%d profile=%s tag=%s platforms=%s branch=%s", record.ID, req.Profile, req.Tag, req.Platforms, req.Branch),
 		r.RemoteAddr)
 
+	go h.cleanupOverflowBuildRecords(record.CodeID)
+
 	jsonResponse(w, map[string]interface{}{
-		"message":    "构建已触发",
+		"message":    "打包已提交",
 		"record_id":  record.ID,
 		"request_id": requestID,
 	})
@@ -621,7 +702,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		loadedRecord, err := getBuildRecord(recordID)
 		if err == nil {
 			if !canAccessBuildRecord(claims, loadedRecord) {
-				jsonError(w, "无权访问该构建记录", 403)
+				jsonError(w, "无权访问该打包记录", 403)
 				return
 			}
 			record = loadedRecord
@@ -910,7 +991,7 @@ func (h *Handlers) ListBuildRecords(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	records, err := listBuildRecords(claims.CodeID, claims.Permissions == "admin", limit)
 	if err != nil {
-		jsonError(w, "获取构建记录失败", 500)
+		jsonError(w, "获取打包记录失败", 500)
 		return
 	}
 
@@ -931,17 +1012,17 @@ func (h *Handlers) GetBuildRecordAssets(w http.ResponseWriter, r *http.Request) 
 	claims := getClaims(r)
 	recordID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil || recordID <= 0 {
-		jsonError(w, "无效的构建记录 ID", 400)
+		jsonError(w, "无效的打包记录 ID", 400)
 		return
 	}
 
 	record, err := getBuildRecord(recordID)
 	if err != nil {
-		jsonError(w, "构建记录不存在", 404)
+		jsonError(w, "打包记录不存在", 404)
 		return
 	}
 	if !canAccessBuildRecord(claims, record) {
-		jsonError(w, "无权访问该构建记录", 403)
+		jsonError(w, "无权访问该打包记录", 403)
 		return
 	}
 
@@ -958,7 +1039,7 @@ func (h *Handlers) GetBuildRecordAssets(w http.ResponseWriter, r *http.Request) 
 
 	release, err := h.gh.GetReleaseByTag(cfg.BuildOwner, cfg.BuildRepo, releaseTag)
 	if err != nil {
-		jsonError(w, "获取构建产物失败", 500)
+		jsonError(w, "获取打包产物失败", 500)
 		return
 	}
 	if release == nil {
@@ -991,11 +1072,57 @@ func (h *Handlers) GetBuildRecordAssets(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+func (h *Handlers) DeleteBuildRecord(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	recordID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil || recordID <= 0 {
+		jsonError(w, "无效的打包记录 ID", 400)
+		return
+	}
+
+	record, err := getBuildRecord(recordID)
+	if err != nil {
+		jsonError(w, "打包记录不存在", 404)
+		return
+	}
+	if !canAccessBuildRecord(claims, record) {
+		jsonError(w, "无权删除该打包记录", 403)
+		return
+	}
+	if isActiveWorkflowStatus(record.Status) {
+		jsonError(w, "正在打包的记录暂不支持删除", 409)
+		return
+	}
+
+	releaseTag := buildReleaseTag(record)
+	if err := h.deleteBuildRecordRelease(record); err != nil {
+		jsonError(w, "删除 GitHub 打包产物失败", 500)
+		return
+	}
+	if err := deleteBuildRecord(record.ID); err != nil {
+		jsonError(w, "删除打包记录失败", 500)
+		return
+	}
+
+	delete(profileRunCache, buildRunCacheKey(record.Profile, strconv.FormatInt(record.ID, 10), record.Tag, record.Branch, record.Platforms))
+	clearPendingBuild(record.Profile, record.Tag, record.Branch, record.Platforms)
+
+	logAudit(claims.CodeID, claims.CodeName, "delete_build_record",
+		fmt.Sprintf("record_id=%d release_tag=%s", record.ID, releaseTag),
+		r.RemoteAddr)
+
+	jsonResponse(w, map[string]interface{}{
+		"message":     "删除成功",
+		"record_id":   record.ID,
+		"release_tag": releaseTag,
+	})
+}
+
 func (h *Handlers) DownloadBuildRecordAsset(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	recordID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil || recordID <= 0 {
-		jsonError(w, "无效的构建记录 ID", 400)
+		jsonError(w, "无效的打包记录 ID", 400)
 		return
 	}
 	assetID, err := strconv.ParseInt(chi.URLParam(r, "assetID"), 10, 64)
@@ -1006,27 +1133,27 @@ func (h *Handlers) DownloadBuildRecordAsset(w http.ResponseWriter, r *http.Reque
 
 	record, err := getBuildRecord(recordID)
 	if err != nil {
-		jsonError(w, "构建记录不存在", 404)
+		jsonError(w, "打包记录不存在", 404)
 		return
 	}
 	if !canAccessBuildRecord(claims, record) {
-		jsonError(w, "无权下载该构建产物", 403)
+		jsonError(w, "无权下载该打包产物", 403)
 		return
 	}
 
 	releaseTag := buildReleaseTag(record)
 	if releaseTag == "" {
-		jsonError(w, "当前构建尚未生成可下载产物", 404)
+		jsonError(w, "当前打包尚未生成可下载产物", 404)
 		return
 	}
 
 	release, err := h.gh.GetReleaseByTag(cfg.BuildOwner, cfg.BuildRepo, releaseTag)
 	if err != nil {
-		jsonError(w, "获取构建产物失败", 500)
+		jsonError(w, "获取打包产物失败", 500)
 		return
 	}
 	if release == nil {
-		jsonError(w, "当前构建尚未生成可下载产物", 404)
+		jsonError(w, "当前打包尚未生成可下载产物", 404)
 		return
 	}
 
@@ -1038,13 +1165,13 @@ func (h *Handlers) DownloadBuildRecordAsset(w http.ResponseWriter, r *http.Reque
 		}
 	}
 	if matchedAsset == nil {
-		jsonError(w, "构建产物不存在", 404)
+		jsonError(w, "打包产物不存在", 404)
 		return
 	}
 
 	resp, err := h.gh.DownloadReleaseAsset(cfg.BuildOwner, cfg.BuildRepo, matchedAsset.ID)
 	if err != nil {
-		jsonError(w, "下载构建产物失败", 500)
+		jsonError(w, "下载打包产物失败", 500)
 		return
 	}
 	defer resp.Body.Close()
@@ -1128,6 +1255,7 @@ func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name            string   `json:"name"`
 		MaxUses         int      `json:"max_uses"`
+		UsedCount       int      `json:"used_count"`
 		AllowedProfiles []string `json:"allowed_profiles"`
 		ExpiresAt       string   `json:"expires_at"`
 	}
@@ -1139,8 +1267,12 @@ func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "可打包次数不能小于 -1", 400)
 		return
 	}
+	if req.UsedCount < 0 {
+		jsonError(w, "已打包次数不能小于 0", 400)
+		return
+	}
 
-	if err := updateCode(id, req.Name, req.MaxUses, req.AllowedProfiles, req.ExpiresAt); err != nil {
+	if err := updateCode(id, req.Name, req.MaxUses, req.UsedCount, req.AllowedProfiles, req.ExpiresAt); err != nil {
 		statusCode := 500
 		if strings.Contains(err.Error(), "到期时间格式错误") {
 			statusCode = 400
@@ -1152,7 +1284,7 @@ func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claims := getClaims(r)
-	logAudit(claims.CodeID, claims.CodeName, "update_code", fmt.Sprintf("id=%d name=%s", id, req.Name), r.RemoteAddr)
+	logAudit(claims.CodeID, claims.CodeName, "update_code", fmt.Sprintf("id=%d name=%s used_count=%d", id, req.Name, req.UsedCount), r.RemoteAddr)
 
 	jsonResponse(w, map[string]string{"message": "更新成功"})
 }

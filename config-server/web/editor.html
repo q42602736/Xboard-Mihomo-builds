@@ -44,6 +44,26 @@
             color: #00d4ff;
             font-weight: 500;
         }
+        .build-usage-info {
+            margin-top: 10px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            font-size: 11px;
+            line-height: 1.6;
+            color: #b8c0cc;
+        }
+        .build-usage-info.ok {
+            color: #b8ffe1;
+            background: rgba(0,255,136,0.08);
+            border-color: rgba(0,255,136,0.2);
+        }
+        .build-usage-info.warn {
+            color: #ffc0c0;
+            background: rgba(255,68,68,0.08);
+            border-color: rgba(255,68,68,0.2);
+        }
 
         /* 侧边栏档案管理区域 */
         .sidebar-profiles {
@@ -291,8 +311,10 @@
         .btn-success { background: linear-gradient(135deg, #00ff88, #00cc6a); color: #000; }
         .btn-warning { background: linear-gradient(135deg, #ffaa00, #ff8800); color: #000; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-build:disabled { background: linear-gradient(135deg, #666, #444); color: #bbb; opacity: 1; box-shadow: none; }
-        .btn-build:disabled:hover { background: linear-gradient(135deg, #666, #444); }
+        .btn-build:disabled,
+        .btn-build.is-disabled { background: linear-gradient(135deg, #666, #444); color: #bbb; opacity: 1; box-shadow: none; }
+        .btn-build:disabled:hover,
+        .btn-build.is-disabled:hover { background: linear-gradient(135deg, #666, #444); }
         .editor-container { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; padding: 24px; }
         .section { margin-bottom: 25px; }
         .section:last-child { margin-bottom: 0; }
@@ -542,6 +564,54 @@
             padding-top: 12px;
             border-top: 1px solid rgba(255,255,255,0.06);
         }
+    
+        .app-dialog-overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(3, 8, 15, 0.72);
+            backdrop-filter: blur(6px);
+            z-index: 10000;
+        }
+        .app-dialog-overlay.show { display: flex; }
+        .app-dialog {
+            width: min(440px, 100%);
+            background: linear-gradient(180deg, rgba(17,24,39,0.98), rgba(9,13,24,0.98));
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+            padding: 20px;
+        }
+        .app-dialog-title {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .app-dialog-message {
+            color: #b8c0cc;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .app-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+        .app-dialog-btn-cancel {
+            background: rgba(255,255,255,0.08);
+            color: #d7dce4;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .app-dialog-btn-cancel:hover {
+            background: rgba(255,255,255,0.14);
+        }
     </style>
 </head>
 <body>
@@ -598,7 +668,7 @@
                 <div class="nav-divider"></div>
                 <div class="nav-item" onclick="switchSection('build')">
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/></svg>
-                    触发构建
+                    软件打包
                 </div>
             </div>
             
@@ -627,7 +697,7 @@
                                     <input type="text" id="provider" placeholder="如: 软件云、Bluetile">
                                     <div class="help-text">必须与远程配置 panels 对象中的键名一致</div>
                                 </div>
-                                <div class="form-group">
+                                <div class="form-group" id="appTitleGroup">
                                     <label>应用名称</label>
                                     <input type="text" id="appTitle" placeholder="如: 软件云">
                                 </div>
@@ -763,15 +833,16 @@
                     </div>
                 </div>
 
-                <!-- 触发构建 -->
+                <!-- 软件打包 -->
                 <div class="content-section" id="buildSection">
                     <div class="page-header">
-                        <h2>触发构建</h2>
-                        <p class="subtitle">配置并触发应用打包构建</p>
+                        <h2>软件打包</h2>
+                        <p class="subtitle">配置并提交软件打包任务</p>
                     </div>
 
                     <div class="build-panel">
-                        <h3>构建配置</h3>
+                        <h3>打包配置</h3>
+                        <div class="build-usage-info" id="buildUsageInfo" style="margin-top:12px; margin-bottom:12px;">软件打包状态加载中...</div>
                         <div class="form-row" style="grid-template-columns: 1fr 1fr;">
                             <div class="form-group">
                                 <label>源码分支</label>
@@ -785,7 +856,7 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>选择编译平台</label>
+                            <label>选择打包平台</label>
                             <div class="platform-checkboxes">
                                 <label class="platform-checkbox"><input type="checkbox" value="all" id="platformAll" checked> 全部平台</label>
                                 <label class="platform-checkbox"><input type="checkbox" value="windows" class="platformItem"> Windows</label>
@@ -796,18 +867,21 @@
                             </div>
                         </div>
                         <div id="buildQueue" style="margin-top: 15px; padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
-                            <span style="color: #aaa; font-size: 13px;">构建队列：</span>
+                            <span style="color: #aaa; font-size: 13px;">打包队列：</span>
                             <span id="buildQueueInfo" style="font-size: 13px; color: #00d4ff;">加载中...</span>
                         </div>
-                        <div id="buildStatus" class="status info" style="margin-top: 10px;">选择平台和版本后点击"触发打包"</div>
+                        <div id="buildStatus" class="status info" style="margin-top: 10px;">选择平台和版本后点击“开始打包”</div>
                         <div id="lastBuildInfo" style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; display: none;">
                             <div style="color: #aaa; font-size: 12px;">上次打包记录：</div>
                             <div id="lastBuildContent" style="margin-top: 5px; font-size: 13px;"></div>
                         </div>
-                        <button class="btn btn-build" id="buildBtn" style="margin-top: 15px;" disabled>触发打包</button>
+                        <button class="btn btn-build" id="buildBtn" style="margin-top: 15px;" disabled>开始打包</button>
                         <div id="myBuildRecordsPanel" style="margin-top: 18px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
                             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
-                                <div style="color:#aaa; font-size:12px;">我的构建记录</div>
+                                <div style="display:flex; flex-direction:column; gap:4px;">
+                                    <div style="color:#aaa; font-size:12px;">我的打包记录</div>
+                                    <div style="color:#666; font-size:11px;">仅保留最近 5 条记录，删除时会同步删除 GitHub 打包产物</div>
+                                </div>
                                 <button type="button" class="btn btn-secondary" onclick="loadMyBuildRecords()" style="padding:6px 10px; font-size:12px;">刷新</button>
                             </div>
                             <div id="myBuildRecordsList" style="display:flex; flex-direction:column; gap:10px;"></div>
@@ -817,7 +891,7 @@
                     <!-- 构建进度面板 -->
                     <div id="buildProgressPanel" class="build-progress-panel" style="display:none;">
                         <div class="build-progress-header">
-                            <h3 id="buildProgressTitle">构建进度</h3>
+                            <h3 id="buildProgressTitle">打包进度</h3>
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <button onclick="dismissBuildProgress()" class="build-progress-close" title="关闭">✕</button>
                             </div>
@@ -831,6 +905,18 @@
                         <div id="buildJobsList" class="build-jobs-list"></div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="appDialogOverlay" class="app-dialog-overlay" aria-hidden="true">
+        <div class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+            <div id="appDialogTitle" class="app-dialog-title">提示</div>
+            <div id="appDialogMessage" class="app-dialog-message"></div>
+            <div class="app-dialog-actions">
+                <button type="button" class="btn app-dialog-btn-cancel" id="appDialogCancelBtn" style="display:none;">取消</button>
+                <button type="button" class="btn btn-primary" id="appDialogConfirmBtn">确定</button>
             </div>
         </div>
     </div>
@@ -893,6 +979,94 @@
             return !!(session && session.permissions === 'admin');
         }
 
+
+        var appDialogResolver = null;
+        var appDialogMode = 'alert';
+        var appDialogInitialized = false;
+
+        function initAppDialog() {
+            if (appDialogInitialized) return;
+            var overlay = document.getElementById('appDialogOverlay');
+            var confirmBtn = document.getElementById('appDialogConfirmBtn');
+            var cancelBtn = document.getElementById('appDialogCancelBtn');
+            if (!overlay || !confirmBtn || !cancelBtn) return;
+
+            confirmBtn.addEventListener('click', function() {
+                closeAppDialog(true);
+            });
+            cancelBtn.addEventListener('click', function() {
+                closeAppDialog(false);
+            });
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay && appDialogMode === 'confirm') {
+                    closeAppDialog(false);
+                }
+            });
+            document.addEventListener('keydown', function(e) {
+                if (!overlay.classList.contains('show')) return;
+                if (e.key === 'Escape') {
+                    closeAppDialog(appDialogMode === 'confirm' ? false : true);
+                }
+            });
+            appDialogInitialized = true;
+        }
+
+        function closeAppDialog(result) {
+            var overlay = document.getElementById('appDialogOverlay');
+            if (!overlay) return;
+            overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden', 'true');
+            var resolver = appDialogResolver;
+            appDialogResolver = null;
+            if (resolver) resolver(result);
+        }
+
+        function showAppDialog(options) {
+            initAppDialog();
+            var overlay = document.getElementById('appDialogOverlay');
+            var titleEl = document.getElementById('appDialogTitle');
+            var messageEl = document.getElementById('appDialogMessage');
+            var confirmBtn = document.getElementById('appDialogConfirmBtn');
+            var cancelBtn = document.getElementById('appDialogCancelBtn');
+            if (!overlay || !titleEl || !messageEl || !confirmBtn || !cancelBtn) {
+                return Promise.resolve(false);
+            }
+
+            appDialogMode = options && options.showCancel ? 'confirm' : 'alert';
+            titleEl.textContent = options && options.title ? options.title : (appDialogMode === 'confirm' ? '请确认' : '提示');
+            messageEl.textContent = options && options.message ? options.message : '';
+            confirmBtn.textContent = options && options.confirmText ? options.confirmText : '确定';
+            cancelBtn.textContent = options && options.cancelText ? options.cancelText : '取消';
+            cancelBtn.style.display = appDialogMode === 'confirm' ? 'inline-flex' : 'none';
+            overlay.classList.add('show');
+            overlay.setAttribute('aria-hidden', 'false');
+
+            return new Promise(function(resolve) {
+                appDialogResolver = resolve;
+                setTimeout(function() {
+                    (appDialogMode === 'confirm' ? cancelBtn : confirmBtn).focus();
+                }, 0);
+            });
+        }
+
+        function showAppAlert(message, title, confirmText) {
+            return showAppDialog({
+                message: message,
+                title: title || '提示',
+                confirmText: confirmText || '知道了'
+            });
+        }
+
+        function showAppConfirm(message, title, confirmText, cancelText) {
+            return showAppDialog({
+                message: message,
+                title: title || '请确认',
+                confirmText: confirmText || '确定',
+                cancelText: cancelText || '取消',
+                showCancel: true
+            });
+        }
+
         function getBoundAppTitleValue() {
             var selectedProfile = document.getElementById('profileSelect').value.trim();
             if (!isAdminSession() && selectedProfile) {
@@ -903,18 +1077,103 @@
 
         function syncProfileBoundAppTitle() {
             var appTitleInput = document.getElementById('appTitle');
+            var appTitleGroup = document.getElementById('appTitleGroup');
             if (!appTitleInput) return;
 
             if (isAdminSession()) {
+                if (appTitleGroup) appTitleGroup.style.display = '';
                 appTitleInput.readOnly = false;
                 appTitleInput.title = '';
                 return;
             }
 
             var selectedProfile = document.getElementById('profileSelect').value.trim();
+            if (appTitleGroup) appTitleGroup.style.display = 'none';
             appTitleInput.readOnly = true;
             appTitleInput.title = selectedProfile ? '普通用户的应用名称固定为配置档案名称' : '请先选择配置档案';
             appTitleInput.value = selectedProfile || '';
+        }
+
+        function formatUsageExpiresAt(value) {
+            if (!value) return '';
+            var normalized = String(value).replace('T', ' ').trim();
+            var parts = normalized.split(/\s+/);
+            if (parts.length < 2) return parts[0] || '';
+            if (parts[1] === '23:59:59' || parts[1] === '23:59') {
+                return parts[0];
+            }
+            return parts[0] + ' ' + parts[1];
+        }
+
+        function getBuildDisableReason() {
+            if (!buildPermissionAvailable) {
+                return buildPermissionStatusMessage || '当前不可打包';
+            }
+            if (!buildQueueAvailable) {
+                return buildQueueStatusMessage || '当前打包队列已满，请稍后再试';
+            }
+            return '';
+        }
+
+        function updateBuildActionState() {
+            var btn = document.getElementById('buildBtn');
+            if (!btn) return;
+
+            var disabledReason = getBuildDisableReason();
+            var isDisabled = !!disabledReason;
+            btn.disabled = isDisabled;
+            btn.title = disabledReason;
+            btn.setAttribute('aria-disabled', isDisabled ? 'true' : 'false');
+            btn.dataset.disabledReason = disabledReason || '';
+            btn.classList.toggle('is-disabled', isDisabled);
+        }
+
+        function renderBuildUsageInfo(data) {
+            var el = document.getElementById('buildUsageInfo');
+            if (!el) return;
+            if (!data) {
+                buildPermissionAvailable = false;
+                buildPermissionStatusMessage = '软件打包状态加载失败';
+                el.className = 'build-usage-info warn';
+                el.innerHTML = '软件打包状态：加载失败';
+                updateBuildActionState();
+                return;
+            }
+
+            var statusText = data.build_status_text || (data.can_build ? '可打包' : '不可打包');
+            buildPermissionAvailable = !!data.can_build;
+            buildPermissionStatusMessage = statusText;
+            var html = '';
+            if (data.permissions === 'admin') {
+                html += '<div>软件打包状态：管理员不限</div>';
+                html += '<div>打包次数：不限</div>';
+            } else {
+                html += '<div>软件打包状态：' + statusText + '</div>';
+                if (data.max_uses < 0) {
+                    html += '<div>打包次数：已打包 ' + data.used_count + ' 次 / 不限次数</div>';
+                } else {
+                    var remainingText = typeof data.remaining_uses === 'number' ? Math.max(data.remaining_uses, 0) : Math.max((data.max_uses || 0) - (data.used_count || 0), 0);
+                    html += '<div>打包次数：已打包 ' + data.used_count + ' 次 / 上限 ' + data.max_uses + ' 次</div>';
+                    html += '<div>剩余次数：' + remainingText + ' 次</div>';
+                }
+                if (data.expires_at) {
+                    html += '<div>到期日期：' + formatUsageExpiresAt(data.expires_at) + '</div>';
+                }
+            }
+            el.className = 'build-usage-info ' + (data.can_build ? 'ok' : 'warn');
+            el.innerHTML = html;
+            updateBuildActionState();
+        }
+
+        async function loadCurrentUserInfo() {
+            try {
+                var response = await api('GET', '/auth/me');
+                if (!response) return;
+                var data = await response.json();
+                renderBuildUsageInfo(data);
+            } catch (e) {
+                renderBuildUsageInfo({ can_build: false, build_status_text: '加载失败' });
+            }
         }
 
 
@@ -924,6 +1183,10 @@
         var profilesCache = [];
         var buildHistoryData = {};
         var buildAssetCache = {};
+        var buildQueueAvailable = false;
+        var buildQueueStatusMessage = '正在加载打包队列...';
+        var buildPermissionAvailable = false;
+        var buildPermissionStatusMessage = '正在加载软件打包状态...';
 
         // ==================== 导航切换 ====================
         function switchSection(sectionName) {
@@ -942,7 +1205,7 @@
         }
 
         // ==================== 初始化 ====================
-        window.onload = function() {
+        window.onload = async function() {
             var session = getSession();
             if (!session || !session.token) {
                 window.location.href = '/';
@@ -957,6 +1220,7 @@
                 document.getElementById('deleteProfileBtn').style.display = 'none';
                 document.getElementById('saveProfileBtn').textContent = '保存';
             }
+            await loadCurrentUserInfo();
 
             document.getElementById('addSourceBtn').addEventListener('click', addSource);
             document.getElementById('addSupportBtn').addEventListener('click', addSupportItem);
@@ -1142,7 +1406,7 @@
                 setStatus('请先选择要删除的档案', 'error');
                 return;
             }
-            if (!confirm('确定要删除档案 "' + name + '" 吗？此操作不可恢复。')) {
+            if (!await showAppConfirm('确定要删除档案 "' + name + '" 吗？此操作不可恢复。', '删除档案', '确认删除')) {
                 return;
             }
 
@@ -1259,7 +1523,7 @@
             var token = getToken();
             if (!token) return;
             try {
-                setBuildStatus('正在下载构建产物...', 'info');
+                setBuildStatus('正在下载打包产物...', 'info');
                 var response = await fetch('/api/build/records/' + recordId + '/download/' + assetId, {
                     headers: {
                         'Authorization': 'Bearer ' + token
@@ -1281,6 +1545,25 @@
                 setBuildStatus('下载已开始: ' + fileName, 'success');
             } catch (e) {
                 setBuildStatus('下载失败: ' + e.message, 'error');
+            }
+        }
+
+        async function deleteMyBuildRecord(recordId) {
+            if (!await showAppConfirm('删除后会同步删除 GitHub 上对应的打包产物，确定继续吗？', '删除打包记录', '确认删除')) {
+                return;
+            }
+            try {
+                var response = await api('DELETE', '/build/records/' + recordId);
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '删除打包记录失败');
+                }
+                delete buildAssetCache[recordId];
+                setBuildStatus('打包记录已删除', 'success');
+                loadMyBuildRecords();
+            } catch (e) {
+                setBuildStatus('删除失败: ' + e.message, 'error');
             }
         }
 
@@ -1317,7 +1600,7 @@
             var container = document.getElementById('myBuildRecordsList');
             if (!container) return;
             if (!records || records.length === 0) {
-                container.innerHTML = '<div style="color:#aaa; font-size:12px;">暂无构建记录</div>';
+                container.innerHTML = '<div style="color:#aaa; font-size:12px;">暂无打包记录</div>';
                 return;
             }
 
@@ -1335,9 +1618,16 @@
                 html += '<div style="color:#aaa; font-size:12px;">分支: ' + record.branch + ' · 平台: ' + record.platforms + '</div>';
                 html += '<div style="color:#888; font-size:12px;">创建时间: ' + record.created_at + '</div>';
                 html += '</div>';
+                var deleteButtonHtml = '';
+                if (record.status === 'completed') {
+                    deleteButtonHtml = '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,68,68,0.18); color:#ff9a9a; border:1px solid rgba(255,68,68,0.35);" onclick="deleteMyBuildRecord(' + record.id + ')">删除记录</button>';
+                } else {
+                    deleteButtonHtml = '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,255,255,0.06); color:#777; border:1px solid rgba(255,255,255,0.08);" disabled title="正在打包的记录暂不支持删除">删除记录</button>';
+                }
                 html += '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex-shrink:0;">';
                 html += '<span style="color:' + statusColor + '; font-size:12px;">' + statusText + '</span>';
                 html += '<button type="button" class="btn btn-secondary" style="padding:6px 10px; font-size:12px;" onclick="toggleBuildAssets(' + record.id + ')">' + (record.download_ready ? '查看下载' : '查看产物') + '</button>';
+                html += deleteButtonHtml;
                 html += '</div>';
                 html += '</div>';
                 html += '<div id="buildAssets-' + record.id + '" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.06);"></div>';
@@ -1349,11 +1639,11 @@
         async function loadMyBuildRecords() {
             try {
                 buildAssetCache = {};
-                var response = await api('GET', '/build/records?limit=20');
+                var response = await api('GET', '/build/records?limit=5');
                 if (!response) return;
                 var data = await response.json();
                 if (!response.ok) {
-                    throw new Error(data.error || '加载构建记录失败');
+                    throw new Error(data.error || '加载打包记录失败');
                 }
                 renderMyBuildRecords(data.records || []);
             } catch (e) {
@@ -1366,31 +1656,36 @@
 
         async function loadBuildQueue() {
             var el = document.getElementById('buildQueueInfo');
-            var btn = document.getElementById('buildBtn');
             try {
                 var response = await api('GET', '/build/queue');
                 if (!response) return;
                 var data = await response.json();
                 if (data.available) {
-                    el.innerHTML = '<span style="color:#00ff88;">' + data.running + '/' + data.max + ' 运行中</span> · 可提交新构建';
-                    btn.disabled = false;
-                    btn.title = '';
+                    buildQueueAvailable = true;
+                    buildQueueStatusMessage = '';
+                    el.innerHTML = '<span style="color:#00ff88;">' + data.running + '/' + data.max + ' 运行中</span> · 可提交新打包';
                 } else {
+                    buildQueueAvailable = false;
+                    buildQueueStatusMessage = '当前打包队列已满，请稍后再试';
                     el.innerHTML = '<span style="color:#ff6b6b;">' + data.running + '/' + data.max + ' 运行中</span> · 队列已满，请稍后';
-                    btn.disabled = true;
-                    btn.title = '当前构建队列已满，请稍后再试';
                 }
             } catch (e) {
+                buildQueueAvailable = true;
+                buildQueueStatusMessage = '';
                 document.getElementById('buildQueueInfo').textContent = '无法获取队列状态';
-                btn.disabled = false;
-                btn.title = '';
             }
+            updateBuildActionState();
         }
 
         async function triggerBuild() {
             var buildBtn = document.getElementById('buildBtn');
-            if (buildBtn && buildBtn.disabled) {
-                setBuildStatus('当前构建队列已满，请稍后再试', 'error');
+            var disabledReason = getBuildDisableReason();
+            if (disabledReason) {
+                if (buildBtn) {
+                    buildBtn.disabled = true;
+                    buildBtn.title = disabledReason;
+                }
+                setBuildStatus(disabledReason, 'error');
                 return;
             }
 
@@ -1419,7 +1714,7 @@
                 }
             }
 
-            setBuildStatus('正在触发打包...', 'info');
+            setBuildStatus('正在提交打包...', 'info');
             try {
                 var response = await api('POST', '/build/trigger', {
                     profile: profileName,
@@ -1430,7 +1725,7 @@
                 if (!response) return;
                 if (response.status === 429) {
                     var err = await response.json();
-                    setBuildStatus(err.error || '构建队列已满，请稍后再试', 'error');
+                    setBuildStatus(err.error || '打包队列已满，请稍后再试', 'error');
                     loadBuildQueue();
                     return;
                 }
@@ -1438,10 +1733,11 @@
                 if (!response.ok) {
                     throw new Error(result.error || '触发失败');
                 }
-                setBuildStatus('打包已触发! 档案: ' + profileName + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
+                setBuildStatus('软件打包已提交！档案: ' + profileName + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
                 await loadBuildHistory();
                 loadBuildQueue();
                 loadMyBuildRecords();
+                await loadCurrentUserInfo();
                 startBuildPolling({
                     profile: profileName,
                     tag: buildTag,
@@ -1452,6 +1748,7 @@
                 }, false);
             } catch (e) {
                 setBuildStatus('触发失败: ' + e.message, 'error');
+                await loadCurrentUserInfo();
             }
         }
 
@@ -2100,17 +2397,17 @@
             buildNotFoundCount = 0;
             saveBuildingProfile(normalized);
             document.getElementById('buildProgressPanel').style.display = 'block';
-            document.getElementById('buildProgressTitle').textContent = '构建进度 - ' + normalized.profile;
+            document.getElementById('buildProgressTitle').textContent = '打包进度 - ' + normalized.profile;
             document.getElementById('buildJobsList').innerHTML = '';
             document.getElementById('buildProgressTime').textContent = '';
             renderBuildProgressParams();
 
             if (isResume) {
-                document.getElementById('buildProgressText').textContent = '正在查询构建状态...';
+                document.getElementById('buildProgressText').textContent = '正在查询打包状态...';
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon in_progress';
                 pollBuildStatus();
             } else {
-                document.getElementById('buildProgressText').textContent = '正在匹配本次 GitHub 构建运行...';
+                document.getElementById('buildProgressText').textContent = '正在匹配本次 GitHub 打包运行...';
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
                 setTimeout(function() { pollBuildStatus(); }, 5000);
             }
@@ -2189,7 +2486,7 @@
             saveBuildingProfile(null);
             buildPollContext = null;
             document.getElementById('buildProgressIcon').className = 'build-progress-status-icon cancelled';
-            document.getElementById('buildProgressText').textContent = '暂时还没匹配到本次 GitHub 构建运行，GitHub 侧可能仍在排队，请稍后重试';
+            document.getElementById('buildProgressText').textContent = '暂时还没匹配到本次 GitHub 打包运行，GitHub 侧可能仍在排队，请稍后重试';
             document.getElementById('buildProgressTime').textContent = '';
         }
 
@@ -2220,13 +2517,13 @@
 
         function getStatusText(status, conclusion) {
             if (status === 'completed') {
-                if (conclusion === 'success') return '构建成功';
-                if (conclusion === 'failure') return '构建失败';
+                if (conclusion === 'success') return '打包成功';
+                if (conclusion === 'failure') return '打包失败';
                 if (conclusion === 'trigger_failed') return '触发失败';
                 if (conclusion === 'cancelled') return '已取消';
                 return '已完成';
             }
-            if (status === 'in_progress') return '正在构建...';
+            if (status === 'in_progress') return '正在打包...';
             if (status === 'queued' || status === 'waiting' || status === 'requested' || status === 'pending') return '排队等待中...';
             return status;
         }
@@ -2279,7 +2576,7 @@
 
             if (!data.found) {
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
-                document.getElementById('buildProgressText').textContent = '正在匹配 GitHub 构建运行... (' + buildNotFoundCount + '/' + maxNotFoundRetries + ')';
+                document.getElementById('buildProgressText').textContent = '正在匹配 GitHub 打包运行... (' + buildNotFoundCount + '/' + maxNotFoundRetries + ')';
                 document.getElementById('buildProgressTime').textContent = '';
                 document.getElementById('buildJobsList').innerHTML = '';
                 return;

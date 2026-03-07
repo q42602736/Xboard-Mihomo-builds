@@ -140,6 +140,54 @@
         .empty { color: #555; text-align: center; padding: 30px; }
         .log-action { font-weight: 500; color: #00d4ff; }
         .log-time { color: #666; font-size: 12px; }
+    
+        .app-dialog-overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(3, 8, 15, 0.72);
+            backdrop-filter: blur(6px);
+            z-index: 10000;
+        }
+        .app-dialog-overlay.show { display: flex; }
+        .app-dialog {
+            width: min(440px, 100%);
+            background: linear-gradient(180deg, rgba(17,24,39,0.98), rgba(9,13,24,0.98));
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+            padding: 20px;
+        }
+        .app-dialog-title {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .app-dialog-message {
+            color: #b8c0cc;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .app-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+        .app-dialog-btn-cancel {
+            background: rgba(255,255,255,0.08);
+            color: #d7dce4;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .app-dialog-btn-cancel:hover {
+            background: rgba(255,255,255,0.14);
+        }
     </style>
 </head>
 <body>
@@ -206,7 +254,7 @@
                 <h3>编辑激活码</h3>
                 <div id="editStatus" class="status-msg"></div>
                 <input type="hidden" id="editCodeId">
-                <div class="form-row" style="grid-template-columns: 2fr 1fr 1.3fr;">
+                <div class="form-row" style="grid-template-columns: 2fr 1fr 1fr 1.3fr;">
                     <div class="form-group">
                         <label>备注名称</label>
                         <input type="text" id="editCodeName" placeholder="如：客户A、测试用">
@@ -214,6 +262,10 @@
                     <div class="form-group">
                         <label>可打包次数 (-1=无限)</label>
                         <input type="number" id="editCodeMaxUses" value="-1" min="-1">
+                    </div>
+                    <div class="form-group">
+                        <label>已打包次数</label>
+                        <input type="number" id="editCodeUsedCount" value="0" min="0">
                     </div>
                     <div class="form-group">
                         <label>到期时间</label>
@@ -279,6 +331,18 @@
         </div>
     </div>
 
+
+    <div id="appDialogOverlay" class="app-dialog-overlay" aria-hidden="true">
+        <div class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+            <div id="appDialogTitle" class="app-dialog-title">提示</div>
+            <div id="appDialogMessage" class="app-dialog-message"></div>
+            <div class="app-dialog-actions">
+                <button type="button" class="btn app-dialog-btn-cancel" id="appDialogCancelBtn" style="display:none;">取消</button>
+                <button type="button" class="btn btn-primary" id="appDialogConfirmBtn">确定</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         var SESSION_KEY = 'xboard_admin_session';
 
@@ -307,6 +371,94 @@
         function logout() {
             sessionStorage.removeItem(SESSION_KEY);
             showLogin();
+        }
+
+
+        var appDialogResolver = null;
+        var appDialogMode = 'alert';
+        var appDialogInitialized = false;
+
+        function initAppDialog() {
+            if (appDialogInitialized) return;
+            var overlay = document.getElementById('appDialogOverlay');
+            var confirmBtn = document.getElementById('appDialogConfirmBtn');
+            var cancelBtn = document.getElementById('appDialogCancelBtn');
+            if (!overlay || !confirmBtn || !cancelBtn) return;
+
+            confirmBtn.addEventListener('click', function() {
+                closeAppDialog(true);
+            });
+            cancelBtn.addEventListener('click', function() {
+                closeAppDialog(false);
+            });
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay && appDialogMode === 'confirm') {
+                    closeAppDialog(false);
+                }
+            });
+            document.addEventListener('keydown', function(e) {
+                if (!overlay.classList.contains('show')) return;
+                if (e.key === 'Escape') {
+                    closeAppDialog(appDialogMode === 'confirm' ? false : true);
+                }
+            });
+            appDialogInitialized = true;
+        }
+
+        function closeAppDialog(result) {
+            var overlay = document.getElementById('appDialogOverlay');
+            if (!overlay) return;
+            overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden', 'true');
+            var resolver = appDialogResolver;
+            appDialogResolver = null;
+            if (resolver) resolver(result);
+        }
+
+        function showAppDialog(options) {
+            initAppDialog();
+            var overlay = document.getElementById('appDialogOverlay');
+            var titleEl = document.getElementById('appDialogTitle');
+            var messageEl = document.getElementById('appDialogMessage');
+            var confirmBtn = document.getElementById('appDialogConfirmBtn');
+            var cancelBtn = document.getElementById('appDialogCancelBtn');
+            if (!overlay || !titleEl || !messageEl || !confirmBtn || !cancelBtn) {
+                return Promise.resolve(false);
+            }
+
+            appDialogMode = options && options.showCancel ? 'confirm' : 'alert';
+            titleEl.textContent = options && options.title ? options.title : (appDialogMode === 'confirm' ? '请确认' : '提示');
+            messageEl.textContent = options && options.message ? options.message : '';
+            confirmBtn.textContent = options && options.confirmText ? options.confirmText : '确定';
+            cancelBtn.textContent = options && options.cancelText ? options.cancelText : '取消';
+            cancelBtn.style.display = appDialogMode === 'confirm' ? 'inline-flex' : 'none';
+            overlay.classList.add('show');
+            overlay.setAttribute('aria-hidden', 'false');
+
+            return new Promise(function(resolve) {
+                appDialogResolver = resolve;
+                setTimeout(function() {
+                    (appDialogMode === 'confirm' ? cancelBtn : confirmBtn).focus();
+                }, 0);
+            });
+        }
+
+        function showAppAlert(message, title, confirmText) {
+            return showAppDialog({
+                message: message,
+                title: title || '提示',
+                confirmText: confirmText || '知道了'
+            });
+        }
+
+        function showAppConfirm(message, title, confirmText, cancelText) {
+            return showAppDialog({
+                message: message,
+                title: title || '请确认',
+                confirmText: confirmText || '确定',
+                cancelText: cancelText || '取消',
+                showCancel: true
+            });
         }
 
         async function adminLogin() {
@@ -372,7 +524,9 @@
 
         function copyCode(code) {
             navigator.clipboard.writeText(code).then(function() {
-                alert('已复制: ' + code);
+                showAppAlert('已复制: ' + code, '复制成功');
+            }).catch(function() {
+                showAppAlert('复制失败，请手动复制该激活码。', '复制失败');
             });
         }
 
@@ -444,6 +598,13 @@
             return isNaN(value) ? -1 : value;
         }
 
+        function parseUsedCountValue(inputId) {
+            var raw = document.getElementById(inputId).value.trim();
+            if (raw === '') return 0;
+            var value = parseInt(raw, 10);
+            return isNaN(value) ? -1 : value;
+        }
+
         function normalizeExpiresAtText(value) {
             if (!value) return '';
             var normalized = String(value).replace('T', ' ').trim();
@@ -479,6 +640,7 @@
             document.getElementById('editCodeId').value = '';
             document.getElementById('editCodeName').value = '';
             document.getElementById('editCodeMaxUses').value = '-1';
+            document.getElementById('editCodeUsedCount').value = '0';
             document.getElementById('editCodeExpiresAt').value = '';
             document.getElementById('editManualProfiles').value = '';
             renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', []);
@@ -490,7 +652,7 @@
                 if (item.id === id) code = item;
             });
             if (!code) {
-                alert('未找到该激活码');
+                showAppAlert('未找到该激活码', '提示');
                 return;
             }
 
@@ -502,6 +664,7 @@
             document.getElementById('editCodeId').value = String(code.id);
             document.getElementById('editCodeName').value = code.name || '';
             document.getElementById('editCodeMaxUses').value = String(code.max_uses);
+            document.getElementById('editCodeUsedCount').value = String(code.used_count || 0);
             document.getElementById('editCodeExpiresAt').value = normalizeExpiresAtText(code.expires_at);
             document.getElementById('editManualProfiles').value = manualProfiles.join(', ');
             document.getElementById('editStatus').className = 'status-msg';
@@ -562,6 +725,11 @@
                 statusEl.textContent = '请至少绑定一个档案（勾选已有档案或手动输入）';
                 return;
             }
+            if (usedCount < 0) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '已打包次数不能小于 0';
+                return;
+            }
 
             try {
                 var response = await api('POST', '/admin/codes', {
@@ -593,6 +761,7 @@
             var id = parseInt(document.getElementById('editCodeId').value, 10);
             var name = document.getElementById('editCodeName').value.trim();
             var maxUses = parseMaxUsesValue('editCodeMaxUses');
+            var usedCount = parseUsedCountValue('editCodeUsedCount');
             var expiresAt = document.getElementById('editCodeExpiresAt').value.trim();
             var selectedProfiles = getSelectedProfiles('.edit-profile-cb:checked', 'editManualProfiles');
             var statusEl = document.getElementById('editStatus');
@@ -607,11 +776,17 @@
                 statusEl.textContent = '请至少绑定一个档案（勾选已有档案或手动输入）';
                 return;
             }
+            if (usedCount < 0) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '已打包次数不能小于 0';
+                return;
+            }
 
             try {
                 var response = await api('PUT', '/admin/codes/' + id, {
                     name: name,
                     max_uses: maxUses,
+                    used_count: usedCount,
                     allowed_profiles: selectedProfiles,
                     expires_at: expiresAt
                 });
@@ -633,15 +808,21 @@
         }
 
         async function deleteCode(id) {
-            if (!confirm('确定要删除这个激活码吗？')) return;
+            if (!await showAppConfirm('确定要删除这个激活码吗？', '删除激活码', '确认删除')) return;
             try {
-                await api('DELETE', '/admin/codes/' + id);
+                var response = await api('DELETE', '/admin/codes/' + id);
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '删除失败');
+                }
                 if (parseInt(document.getElementById('editCodeId').value, 10) === id) {
                     cancelEditCode();
                 }
                 loadCodes();
+                showAppAlert('激活码已删除', '删除成功');
             } catch (e) {
-                console.log('删除失败:', e);
+                showAppAlert('删除失败: ' + e.message, '删除失败');
             }
         }
 

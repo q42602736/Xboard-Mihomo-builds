@@ -89,6 +89,7 @@ func main() {
 	r.Group(func(r chi.Router) {
 		r.Use(AuthMiddleware)
 
+		r.Get("/api/auth/me", h.GetCurrentUserInfo)
 		r.Get("/api/profiles", h.ListProfiles)
 		r.Get("/api/profiles/{name}", h.GetProfile)
 		r.Put("/api/profiles/{name}", h.SaveProfile)
@@ -97,6 +98,7 @@ func main() {
 		r.Post("/api/build/trigger", h.TriggerBuild)
 		r.Get("/api/build/history", h.GetBuildHistory)
 		r.Get("/api/build/records", h.ListBuildRecords)
+		r.Delete("/api/build/records/{id}", h.DeleteBuildRecord)
 		r.Get("/api/build/records/{id}/assets", h.GetBuildRecordAssets)
 		r.Get("/api/build/records/{id}/download/{assetID}", h.DownloadBuildRecordAsset)
 		r.Get("/api/build/queue", h.GetBuildQueue)

@@ -111,7 +111,7 @@
         if (sessionStorage.getItem(SESSION_KEY)) {
             var session = JSON.parse(sessionStorage.getItem(SESSION_KEY));
             if (session && session.token) {
-                window.location.href = session.permissions === 'admin' ? '/admin.html' : '/editor.html';
+                window.location.href = '/editor.html';
             }
         }
 
@@ -148,7 +148,7 @@
                     permissions: data.permissions
                 }));
 
-                window.location.href = data.permissions === 'admin' ? '/admin.html' : '/editor.html';
+                window.location.href = '/editor.html';
             } catch (e) {
                 errorEl.textContent = e.message;
                 errorEl.style.display = 'block';

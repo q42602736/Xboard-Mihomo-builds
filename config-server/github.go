@@ -416,6 +416,36 @@ func (g *GitHubClient) GetReleaseByTag(buildOwner, buildRepo, tag string) (*Rele
 	return nil, nil
 }
 
+func (g *GitHubClient) DeleteRelease(buildOwner, buildRepo string, releaseID int64) error {
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/releases/%d",
+		buildOwner, buildRepo, releaseID,
+	)
+	resp, err := g.doRequest("DELETE", url, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+
+	respBody, _ := io.ReadAll(resp.Body)
+	return fmt.Errorf("删除 Release 失败 (%d): %s", resp.StatusCode, string(respBody))
+}
+
+func (g *GitHubClient) DeleteReleaseByTag(buildOwner, buildRepo, tag string) error {
+	release, err := g.GetReleaseByTag(buildOwner, buildRepo, tag)
+	if err != nil {
+		return err
+	}
+	if release == nil {
+		return nil
+	}
+	return g.DeleteRelease(buildOwner, buildRepo, release.ID)
+}
+
 func (g *GitHubClient) DownloadReleaseAsset(buildOwner, buildRepo string, assetID int64) (*http.Response, error) {
 	url := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/releases/assets/%d",

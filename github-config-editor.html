@@ -143,6 +143,54 @@
         .new-profile-input .input-row { display: flex; gap: 10px; align-items: center; }
         .new-profile-input input { flex: 1; padding: 10px 12px; border: 1px solid rgba(0,255,136,0.3); border-radius: 6px; background: rgba(0,0,0,0.3); color: #fff; font-size: 14px; }
         .new-profile-input input:focus { outline: none; border-color: #00ff88; box-shadow: 0 0 8px rgba(0,255,136,0.3); }
+    
+        .app-dialog-overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(3, 8, 15, 0.72);
+            backdrop-filter: blur(6px);
+            z-index: 10000;
+        }
+        .app-dialog-overlay.show { display: flex; }
+        .app-dialog {
+            width: min(440px, 100%);
+            background: linear-gradient(180deg, rgba(17,24,39,0.98), rgba(9,13,24,0.98));
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+            padding: 20px;
+        }
+        .app-dialog-title {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .app-dialog-message {
+            color: #b8c0cc;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .app-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+        .app-dialog-btn-cancel {
+            background: rgba(255,255,255,0.08);
+            color: #d7dce4;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .app-dialog-btn-cancel:hover {
+            background: rgba(255,255,255,0.14);
+        }
     </style>
 </head>
 <body>
@@ -369,6 +417,18 @@
             <div class="collapse-toggle collapsed" onclick="toggleCollapse(this, 'buildConfigContent')"></div>
         </div>
     </div>
+
+    <div id="appDialogOverlay" class="app-dialog-overlay" aria-hidden="true">
+        <div class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+            <div id="appDialogTitle" class="app-dialog-title">提示</div>
+            <div id="appDialogMessage" class="app-dialog-message"></div>
+            <div class="app-dialog-actions">
+                <button type="button" class="btn app-dialog-btn-cancel" id="appDialogCancelBtn" style="display:none;">取消</button>
+                <button type="button" class="btn btn-primary" id="appDialogConfirmBtn">确定</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // 折叠功能
         function toggleCollapse(toggleEl, contentId) {
@@ -1522,7 +1582,7 @@
                 setStatus('请先选择要删除的档案', 'error');
                 return;
             }
-            if (!confirm('确定要删除档案 "' + profileName + '" 吗？此操作不可恢复。')) {
+            if (!await showAppConfirm('确定要删除档案 "' + profileName + '" 吗？此操作不可恢复。', '删除档案', '确认删除')) {
                 return;
             }
             var config = getConfig();
