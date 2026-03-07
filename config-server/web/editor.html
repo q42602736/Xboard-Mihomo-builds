@@ -415,6 +415,7 @@
         input:checked + .slider:before { transform: translateX(24px); }
         .help-text { font-size: 12px; color: #666; margin-top: 5px; }
         .help-text.warning { color: #ffb347; }
+        .help-text.error { color: #ff6b6b; }
         .config-control-hidden { display: none !important; }
         .subscription-config-row { grid-template-columns: 1fr; }
         .form-group.is-warning input,
@@ -422,6 +423,12 @@
         .form-group.is-warning textarea {
             border-color: rgba(255, 170, 0, 0.65);
             box-shadow: 0 0 0 1px rgba(255, 170, 0, 0.16);
+        }
+        .form-group.is-error input,
+        .form-group.is-error select,
+        .form-group.is-error textarea {
+            border-color: rgba(255, 68, 68, 0.65);
+            box-shadow: 0 0 0 1px rgba(255, 68, 68, 0.16);
         }
         #editor {
             width: 100%;
@@ -1236,7 +1243,8 @@
                             </div>
                             <div class="form-group">
                                 <label>版本标签</label>
-                                <input type="text" id="buildTag" placeholder="如: v0.1.0">
+                                <input type="text" id="buildTag" placeholder="如: 1.0.0" aria-invalid="false">
+                                <div class="help-text" id="buildTagHelpText">这里请直接填写标准版本号，不要带 <code>v</code> 前缀，直接使用 <code>1.0.0</code> 这种格式。</div>
                             </div>
                         </div>
                         <div class="form-group">
@@ -1515,6 +1523,31 @@
             btn.classList.toggle('is-disabled', isDisabled);
         }
 
+        function validateBuildTagValue(value) {
+            return /^\d+\.\d+\.\d+$/.test(String(value || '').trim());
+        }
+
+        function updateBuildTagValidationState() {
+            var input = document.getElementById('buildTag');
+            var helpText = document.getElementById('buildTagHelpText');
+            if (!input || !helpText) return true;
+
+            var group = input.closest('.form-group');
+            var value = input.value.trim();
+            var isValid = !value || validateBuildTagValue(value);
+
+            if (group) {
+                group.classList.toggle('is-error', !isValid);
+            }
+            input.setAttribute('aria-invalid', isValid ? 'false' : 'true');
+            helpText.classList.toggle('error', !isValid);
+            helpText.innerHTML = isValid
+                ? '这里请直接填写标准版本号，不要带 <code>v</code> 前缀，直接使用 <code>1.0.0</code> 这种格式。'
+                : '版本标签格式不正确，请直接填写 <code>1.0.0</code> 这种格式，不要带 <code>v</code> 前缀，也不要追加 <code>+20260308</code> 这类内容。';
+
+            return isValid;
+        }
+
         function renderBuildUsageInfo(data) {
             var el = document.getElementById('buildUsageInfo');
             if (!el) return;
@@ -1577,6 +1610,7 @@
         var profilesCache = [];
         var buildHistoryData = {};
         var buildAssetCache = {};
+        var myBuildRecordsCache = null;
         var clientUpdatesLoaded = false;
         var clientUpdatesLoadedBranch = '';
         var buildQueueAvailable = false;
@@ -1644,6 +1678,8 @@
             document.getElementById('addSourceBtn').addEventListener('click', addSource);
             document.getElementById('addSupportBtn').addEventListener('click', addSupportItem);
             document.getElementById('buildBtn').addEventListener('click', triggerBuild);
+            document.getElementById('buildTag').addEventListener('input', updateBuildTagValidationState);
+            document.getElementById('buildTag').addEventListener('change', updateBuildTagValidationState);
             document.getElementById('provider').addEventListener('change', formToYaml);
             document.getElementById('provider').addEventListener('input', function() {
                 updateProviderConsistencyState({ source: 'basic' });
@@ -1662,6 +1698,7 @@
 
             initSwitches();
             initPlatformCheckboxes();
+            updateBuildTagValidationState();
             initRemoteConfigTool();
             renderSources();
             renderSupportItems();
@@ -2173,21 +2210,58 @@
             container.innerHTML = html;
         }
 
+        function isActiveBuildRecord(record) {
+            return !!(record && record.status && record.status !== 'completed');
+        }
+
+        function findLatestActiveBuildRecord(records, preferredProfile) {
+            if (!records || records.length === 0) return null;
+            if (preferredProfile) {
+                for (var i = 0; i < records.length; i++) {
+                    if (records[i].profile === preferredProfile && isActiveBuildRecord(records[i])) {
+                        return records[i];
+                    }
+                }
+            }
+            for (var j = 0; j < records.length; j++) {
+                if (isActiveBuildRecord(records[j])) {
+                    return records[j];
+                }
+            }
+            return null;
+        }
+
+        function createBuildPollContextFromRecord(record) {
+            if (!record || !record.id || !record.profile) return null;
+            return {
+                profile: record.profile,
+                tag: record.tag || '',
+                branch: record.branch || 'main',
+                platforms: record.platforms || 'all',
+                requestId: String(record.id),
+                buildRecordId: record.id
+            };
+        }
+
         async function loadMyBuildRecords() {
             try {
                 buildAssetCache = {};
                 var response = await api('GET', '/build/records?limit=5');
-                if (!response) return;
+                if (!response) return [];
                 var data = await response.json();
                 if (!response.ok) {
                     throw new Error(data.error || '加载打包记录失败');
                 }
-                renderMyBuildRecords(data.records || []);
+                myBuildRecordsCache = data.records || [];
+                renderMyBuildRecords(myBuildRecordsCache);
+                return myBuildRecordsCache;
             } catch (e) {
+                myBuildRecordsCache = [];
                 var container = document.getElementById('myBuildRecordsList');
                 if (container) {
                     container.innerHTML = '<div style="color:#ff6b6b; font-size:12px;">' + e.message + '</div>';
                 }
+                return [];
             }
         }
 
@@ -2236,6 +2310,11 @@
             }
             if (!buildTag) {
                 setBuildStatus('请填写版本标签', 'error');
+                return;
+            }
+            if (!validateBuildTagValue(buildTag)) {
+                updateBuildTagValidationState();
+                setBuildStatus('版本标签格式不正确，请直接填写 1.0.0 这种格式', 'error');
                 return;
             }
 
@@ -3886,36 +3965,25 @@
         }
 
         // 页面加载时恢复构建进度追踪
-        function checkActiveBuild() {
+        async function checkActiveBuild() {
             // 优先从 sessionStorage 恢复（刷新页面后保持追踪）
             var savedProfile = getSavedBuildingProfile();
             if (savedProfile) {
                 startBuildPolling(savedProfile, true);
                 return;
             }
-            // 否则检查当前选中 profile 是否有活跃构建
+            var records = myBuildRecordsCache;
+            if (records === null) {
+                records = await loadMyBuildRecords();
+            }
             var profile = document.getElementById('profileSelect').value;
-            if (profile) {
-                api('GET', '/build/status?profile=' + encodeURIComponent(profile)).then(function(response) {
-                    if (!response) return;
-                    return response.json();
-                }).then(function(data) {
-                    if (data && data.found) {
-                        var context = {
-                            profile: profile,
-                            tag: data.inputs && data.inputs.tag ? data.inputs.tag : '',
-                            branch: data.inputs && data.inputs.branch ? data.inputs.branch : 'main',
-                            platforms: data.inputs && data.inputs.platforms ? data.inputs.platforms : 'all',
-                            requestId: data.request_id || (data.inputs && data.inputs.request_id ? data.inputs.request_id : ''),
-                            buildRecordId: data.record_id || 0
-                        };
-                        if (data.status !== 'completed') {
-                            startBuildPolling(context, true);
-                        } else {
-                            renderBuildProgress(data);
-                        }
-                    }
-                }).catch(function() {});
+            var activeRecord = findLatestActiveBuildRecord(records || [], profile);
+            if (!activeRecord) {
+                return;
+            }
+            var context = createBuildPollContextFromRecord(activeRecord);
+            if (context) {
+                startBuildPolling(context, true);
             }
         }
     </script>

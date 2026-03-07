@@ -377,6 +377,7 @@ const maxConcurrentBuilds = 3
 const recentWorkflowRunsSearchLimit = 30
 
 type PendingBuild struct {
+	CodeID      int
 	Profile     string
 	Tag         string
 	Branch      string
@@ -388,31 +389,35 @@ type PendingBuild struct {
 var profileRunCache = make(map[string]int64)
 var pendingBuildCache = make(map[string]PendingBuild)
 
-func buildPendingCacheKey(profile, tag, branch, platforms string) string {
-	return fmt.Sprintf("profile:%s|tag:%s|branch:%s|platforms:%s", profile, tag, branch, platforms)
+func buildPendingCacheKey(codeID int, profile, tag, branch, platforms string) string {
+	return fmt.Sprintf("code:%d|profile:%s|tag:%s|branch:%s|platforms:%s", codeID, profile, tag, branch, platforms)
 }
 
-func rememberPendingBuild(profile, tag, branch, platforms string) PendingBuild {
+func rememberPendingBuild(codeID int, profile, tag, branch, platforms string) PendingBuild {
 	pending := PendingBuild{
+		CodeID:      codeID,
 		Profile:     profile,
 		Tag:         tag,
 		Branch:      branch,
 		Platforms:   platforms,
 		TriggeredAt: time.Now().UTC(),
 	}
-	pendingBuildCache[buildPendingCacheKey(profile, tag, branch, platforms)] = pending
+	pendingBuildCache[buildPendingCacheKey(codeID, profile, tag, branch, platforms)] = pending
 	return pending
 }
 
-func getPendingBuild(profile, tag, branch, platforms string) (PendingBuild, bool) {
-	pending, ok := pendingBuildCache[buildPendingCacheKey(profile, tag, branch, platforms)]
+func getPendingBuild(codeID int, profile, tag, branch, platforms string) (PendingBuild, bool) {
+	pending, ok := pendingBuildCache[buildPendingCacheKey(codeID, profile, tag, branch, platforms)]
 	return pending, ok
 }
 
-func getLatestPendingBuildByProfile(profile string) (PendingBuild, bool) {
+func getLatestPendingBuildByProfile(codeID int, profile string) (PendingBuild, bool) {
 	var latest PendingBuild
 	found := false
 	for _, pending := range pendingBuildCache {
+		if codeID > 0 && pending.CodeID != codeID {
+			continue
+		}
 		if pending.Profile != profile {
 			continue
 		}
@@ -424,8 +429,8 @@ func getLatestPendingBuildByProfile(profile string) (PendingBuild, bool) {
 	return latest, found
 }
 
-func clearPendingBuild(profile, tag, branch, platforms string) {
-	delete(pendingBuildCache, buildPendingCacheKey(profile, tag, branch, platforms))
+func clearPendingBuild(codeID int, profile, tag, branch, platforms string) {
+	delete(pendingBuildCache, buildPendingCacheKey(codeID, profile, tag, branch, platforms))
 }
 
 func parseGitHubTimestamp(value string) (time.Time, bool) {
@@ -452,11 +457,11 @@ func matchRunByPendingBuild(run *WorkflowRun, pending PendingBuild) bool {
 	return true
 }
 
-func buildRunCacheKey(profile, requestID, tag, branch, platforms string) string {
+func buildRunCacheKey(codeID int, profile, requestID, tag, branch, platforms string) string {
 	if requestID != "" {
 		return "request:" + requestID
 	}
-	return fmt.Sprintf("profile:%s|tag:%s|branch:%s|platforms:%s", profile, tag, branch, platforms)
+	return fmt.Sprintf("code:%d|profile:%s|tag:%s|branch:%s|platforms:%s", codeID, profile, tag, branch, platforms)
 }
 
 func buildRequestMatches(inputs map[string]string, profile, requestID, tag, branch, platforms string) bool {
@@ -624,10 +629,10 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rememberPendingBuild(req.Profile, req.Tag, req.Branch, req.Platforms)
+	rememberPendingBuild(claims.CodeID, req.Profile, req.Tag, req.Branch, req.Platforms)
 
-	delete(profileRunCache, buildRunCacheKey(req.Profile, "", req.Tag, req.Branch, req.Platforms))
-	delete(profileRunCache, buildRunCacheKey(req.Profile, "", "", "", ""))
+	delete(profileRunCache, buildRunCacheKey(claims.CodeID, req.Profile, "", req.Tag, req.Branch, req.Platforms))
+	delete(profileRunCache, buildRunCacheKey(claims.CodeID, req.Profile, "", "", "", ""))
 
 	go h.saveBuildHistory(req.Profile, req.Tag, req.Platforms)
 
@@ -718,31 +723,49 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	platforms := r.URL.Query().Get("platforms")
 
 	recordID, _ := strconv.ParseInt(r.URL.Query().Get("record_id"), 10, 64)
+	if recordID == 0 && requestID != "" {
+		parsedRecordID, err := strconv.ParseInt(requestID, 10, 64)
+		if err != nil {
+			jsonError(w, "request_id 参数无效", 400)
+			return
+		}
+		recordID = parsedRecordID
+	}
+
 	var record *BuildRecord
 	if recordID > 0 {
 		loadedRecord, err := getBuildRecord(recordID)
-		if err == nil {
-			if !canAccessBuildRecord(claims, loadedRecord) {
-				jsonError(w, "无权访问该打包记录", 403)
-				return
-			}
-			record = loadedRecord
-			if requestID == "" {
-				requestID = strconv.FormatInt(loadedRecord.ID, 10)
-			}
-			if profile == "" {
-				profile = loadedRecord.Profile
-			}
-			if tag == "" {
-				tag = loadedRecord.Tag
-			}
-			if branch == "" {
-				branch = loadedRecord.Branch
-			}
-			if platforms == "" {
-				platforms = loadedRecord.Platforms
-			}
+		if err != nil {
+			jsonError(w, "打包记录不存在", 404)
+			return
 		}
+		if !canAccessBuildRecord(claims, loadedRecord) {
+			jsonError(w, "无权访问该打包记录", 403)
+			return
+		}
+		record = loadedRecord
+		requestID = strconv.FormatInt(loadedRecord.ID, 10)
+		if profile == "" {
+			profile = loadedRecord.Profile
+		}
+		if tag == "" {
+			tag = loadedRecord.Tag
+		}
+		if branch == "" {
+			branch = loadedRecord.Branch
+		}
+		if platforms == "" {
+			platforms = loadedRecord.Platforms
+		}
+	}
+
+	if record == nil && claims.Permissions != "admin" {
+		jsonError(w, "普通用户查询打包状态必须提供自己的 record_id 或 request_id", 400)
+		return
+	}
+	if record == nil && profile != "" && !claims.canAccessProfile(profile) {
+		jsonError(w, "无权查看该档案的打包状态", 403)
+		return
 	}
 
 	if profile == "" && requestID == "" {
@@ -750,9 +773,15 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pendingBuild, hasPendingBuild := getPendingBuild(profile, tag, branch, platforms)
-	if !hasPendingBuild && profile != "" {
-		if inferredPending, ok := getLatestPendingBuildByProfile(profile); ok {
+	pendingCodeID := 0
+	if record != nil {
+		pendingCodeID = record.CodeID
+	} else if claims.Permissions != "admin" {
+		pendingCodeID = claims.CodeID
+	}
+	pendingBuild, hasPendingBuild := getPendingBuild(pendingCodeID, profile, tag, branch, platforms)
+	if !hasPendingBuild && profile != "" && claims.Permissions == "admin" {
+		if inferredPending, ok := getLatestPendingBuildByProfile(pendingCodeID, profile); ok {
 			pendingBuild = inferredPending
 			hasPendingBuild = true
 			if tag == "" {
@@ -766,7 +795,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	cacheKey := buildRunCacheKey(profile, requestID, tag, branch, platforms)
+	cacheKey := buildRunCacheKey(pendingCodeID, profile, requestID, tag, branch, platforms)
 
 	var matchedRun *WorkflowRun
 	var matchedInputs map[string]string
@@ -779,7 +808,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			profileRunCache[cacheKey] = run.ID
 			if matchedRun.Status == "completed" {
 				delete(profileRunCache, cacheKey)
-				clearPendingBuild(profile, tag, branch, platforms)
+				clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
 			}
 		}
 	}
@@ -793,7 +822,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 					matchedInputs = inputs
 					if matchedRun.Status == "completed" {
 						delete(profileRunCache, cacheKey)
-						clearPendingBuild(profile, tag, branch, platforms)
+						clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
 					}
 				} else {
 					delete(profileRunCache, cacheKey)
@@ -811,13 +840,11 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		activeRuns := []*WorkflowRun{}
 		for i := range runs {
 			run := &runs[i]
 			if !isActiveWorkflowStatus(run.Status) {
 				continue
 			}
-			activeRuns = append(activeRuns, run)
 			inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
 			matchesByInputs := err == nil && buildRequestMatches(inputs, profile, requestID, tag, branch, platforms)
 			matchesByPending := hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)
@@ -829,11 +856,6 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 				profileRunCache[cacheKey] = run.ID
 				break
 			}
-		}
-
-		if matchedRun == nil && !hasPendingBuild && len(activeRuns) == 1 {
-			matchedRun = activeRuns[0]
-			profileRunCache[cacheKey] = matchedRun.ID
 		}
 
 		if matchedRun == nil {
@@ -850,7 +872,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 					if err == nil {
 						matchedInputs = inputs
 					}
-					clearPendingBuild(profile, tag, branch, platforms)
+					clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
 					break
 				}
 			}
@@ -1125,8 +1147,8 @@ func (h *Handlers) DeleteBuildRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	delete(profileRunCache, buildRunCacheKey(record.Profile, strconv.FormatInt(record.ID, 10), record.Tag, record.Branch, record.Platforms))
-	clearPendingBuild(record.Profile, record.Tag, record.Branch, record.Platforms)
+	delete(profileRunCache, buildRunCacheKey(record.CodeID, record.Profile, strconv.FormatInt(record.ID, 10), record.Tag, record.Branch, record.Platforms))
+	clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Platforms)
 
 	logAudit(claims.CodeID, claims.CodeName, "delete_build_record",
 		fmt.Sprintf("record_id=%d release_tag=%s", record.ID, releaseTag),
