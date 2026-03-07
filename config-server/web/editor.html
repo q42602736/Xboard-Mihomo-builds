@@ -288,6 +288,9 @@
             gap: 12px;
             margin-bottom: 16px;
         }
+        .updates-toolbar select {
+            cursor: pointer;
+        }
         .updates-summary {
             font-size: 13px;
             color: #8b949e;
@@ -398,6 +401,10 @@
             color: #fff;
             font-size: 14px;
         }
+        .form-group select,
+        .profile-select-wrapper select {
+            cursor: pointer;
+        }
         .form-group textarea { min-height: 80px; font-family: Monaco, monospace; resize: vertical; }
         .switch-group { display: flex; align-items: center; gap: 10px; }
         .switch { position: relative; width: 50px; height: 26px; }
@@ -408,6 +415,8 @@
         input:checked + .slider:before { transform: translateX(24px); }
         .help-text { font-size: 12px; color: #666; margin-top: 5px; }
         .help-text.warning { color: #ffb347; }
+        .config-control-hidden { display: none !important; }
+        .subscription-config-row { grid-template-columns: 1fr; }
         .form-group.is-warning input,
         .form-group.is-warning select,
         .form-group.is-warning textarea {
@@ -991,14 +1000,14 @@
                     <div class="page-header">
                         <div class="page-header-content">
                             <h2>订阅设置</h2>
-                            <p class="subtitle">订阅加密、专用模式、离线与缓存配置</p>
+                            <p class="subtitle">专用模式、离线与缓存配置</p>
                         </div>
                     </div>
                     <div class="editor-container">
                         <div class="section">
                             <div class="section-title">订阅配置</div>
-                            <div class="form-row-2">
-                                <div class="switch-card">
+                            <div class="form-row-2 subscription-config-row">
+                                <div class="switch-card config-control-hidden">
                                     <div class="switch-card-header">
                                         <span class="switch-card-label">优先加密订阅</span>
                                         <div class="switch-group">
@@ -1015,9 +1024,10 @@
                                             <span id="useExclusiveModeLabel">关闭</span>
                                         </div>
                                     </div>
+                                    <div class="help-text">仅适用于已配套改造后端接口、鉴权或订阅逻辑的专用客户端场景；如果你的后端没有同步完成这部分改造，请保持关闭，否则可能导致登录、订阅或接口请求异常。</div>
                                 </div>
                             </div>
-                            <div class="form-group">
+                            <div class="form-group config-control-hidden">
                                 <label>订阅解密密钥</label>
                                 <input type="text" id="decryptKey" placeholder="your_secret_decrypt_key_here">
                             </div>
@@ -1222,6 +1232,7 @@
                                 <select id="buildBranch">
                                     <option value="main">main</option>
                                 </select>
+                                <div class="help-text">请选择与你当前面板类型对应的源码分支：XBoard、V2Board 和 xiaov2board 请选择 <code>main</code>，SSPanel 请选择 <code>sspanel</code>，避免打包出与后端不匹配的客户端。</div>
                             </div>
                             <div class="form-group">
                                 <label>版本标签</label>
@@ -1688,7 +1699,7 @@
                 '    ttl_hours: 24',
                 '  remote_config:',
                 '    sources:',
-                '      - name: source',
+                '      - name: redirect',
                 '        url: ""',
                 '  online_support:',
                 '    items: []',
@@ -2329,15 +2340,28 @@
 
         // ==================== 配置源管理 ====================
 
+        function normalizeSourceType(name) {
+            var normalized = String(name || '').trim().toLowerCase();
+            if (normalized === 'local' || normalized === 'gitee' || normalized === 'redirect') {
+                return normalized;
+            }
+            return 'redirect';
+        }
+
         function createSourceItem(index, source) {
-            source = source || { name: '', url: '', encryption_key: '' };
+            source = source || { name: 'redirect', url: '', encryption_key: '' };
+            var sourceType = normalizeSourceType(source.name);
             var div = document.createElement('div');
             div.className = 'source-item';
             div.dataset.index = index;
             div.innerHTML = '<div class="source-index">配置源 #' + (index + 1) + '</div>' +
                 '<button type="button" class="btn-remove" onclick="removeSource(' + index + ')">删除</button>' +
                 '<div class="form-row">' +
-                    '<div class="form-group"><label>名称</label><input type="text" class="source-name" value="' + (source.name || '') + '" placeholder="如: redirect"></div>' +
+                    '<div class="form-group"><label>配置源类型</label><select class="source-name">' +
+                        '<option value="redirect"' + (sourceType === 'redirect' ? ' selected' : '') + '>远程源（redirect）</option>' +
+                        '<option value="local"' + (sourceType === 'local' ? ' selected' : '') + '>本地源（local）</option>' +
+                        '<option value="gitee"' + (sourceType === 'gitee' ? ' selected' : '') + '>Gitee 源（gitee）</option>' +
+                    '</select><div class="help-text">常规部署请选择远程源（redirect）；本地源（local）用于读取应用内置配置，Gitee 源（gitee）用于拉取 Gitee 上的配置内容。</div></div>' +
                     '<div class="form-group"><label>URL</label><input type="text" class="source-url" value="' + (source.url || '') + '" placeholder="https://your-server.com/remote.config.json"></div>' +
                     '<div class="form-group"><label>加密密钥（可选）</label><input type="text" class="source-key" value="' + (source.encryption_key || '') + '" placeholder="可选"></div>' +
                 '</div>';
@@ -2350,7 +2374,7 @@
             sources.forEach(function(source, index) {
                 var item = createSourceItem(index, source);
                 container.appendChild(item);
-                item.querySelectorAll('input').forEach(function(input) {
+                item.querySelectorAll('input, select').forEach(function(input) {
                     input.addEventListener('change', function() {
                         formToYaml();
                         refreshRemoteConfigSourceTargets();
@@ -2361,7 +2385,7 @@
         }
 
         function addSource() {
-            sources.push({ name: '', url: '', encryption_key: '' });
+            sources.push({ name: 'redirect', url: '', encryption_key: '' });
             renderSources();
             formToYaml();
         }
@@ -2369,7 +2393,7 @@
         function removeSource(index) {
             sources.splice(index, 1);
             if (sources.length === 0) {
-                sources.push({ name: '', url: '', encryption_key: '' });
+                sources.push({ name: 'redirect', url: '', encryption_key: '' });
             }
             renderSources();
             formToYaml();
@@ -2380,7 +2404,7 @@
             sources = [];
             items.forEach(function(item) {
                 sources.push({
-                    name: item.querySelector('.source-name').value.trim(),
+                    name: normalizeSourceType(item.querySelector('.source-name').value),
                     url: item.querySelector('.source-url').value.trim(),
                     encryption_key: item.querySelector('.source-key').value.trim()
                 });
@@ -3207,7 +3231,7 @@
                     }
                     if (/^\s*-\s*name:\s*(.*)/.test(line)) {
                         if (currentSource) sources.push(currentSource);
-                        currentSource = { name: line.match(/^\s*-\s*name:\s*(.*)/)[1].trim(), url: '', encryption_key: '' };
+                        currentSource = { name: normalizeSourceType(line.match(/^\s*-\s*name:\s*(.*)/)[1].trim()), url: '', encryption_key: '' };
                     } else if (currentSource && /^\s+url:\s*(.*)/.test(line)) {
                         currentSource.url = line.match(/^\s+url:\s*(.*)/)[1].trim();
                     } else if (currentSource && /^\s+encryption_key:\s*(.*)/.test(line)) {
@@ -3218,7 +3242,7 @@
             }
             if (currentSource) sources.push(currentSource);
             if (sources.length === 0) {
-                sources.push({ name: '', url: '', encryption_key: '' });
+                sources.push({ name: 'redirect', url: '', encryption_key: '' });
             }
             renderSources();
 
@@ -3383,7 +3407,7 @@
                     newLines.push(line);
                     sources.forEach(function(source) {
                         if (source.url) {
-                            newLines.push('      - name: ' + (source.name || 'source'));
+                            newLines.push('      - name: ' + normalizeSourceType(source.name));
                             newLines.push('        url: ' + source.url);
                             if (source.encryption_key) {
                                 newLines.push('        encryption_key: "' + source.encryption_key + '"');
