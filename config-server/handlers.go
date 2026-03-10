@@ -94,6 +94,107 @@ func bindProfileTitle(yamlContent, profileName string) string {
 	return strings.Join(lines, "\n")
 }
 
+func normalizeSubscriptionConfig(yamlContent string) string {
+	if yamlContent == "" {
+		return yamlContent
+	}
+
+	lines := strings.Split(yamlContent, "\n")
+	preferEncrypt := "false"
+	useExclusiveMode := "false"
+	decryptKey := ""
+	hasLegacy := false
+
+	inXboard := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "xboard:" {
+			inXboard = true
+			continue
+		}
+		if !inXboard {
+			continue
+		}
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if !strings.HasPrefix(line, "  ") {
+			break
+		}
+		if strings.HasPrefix(line, "    ") {
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(trimmed, "prefer_encrypt:"):
+			preferEncrypt = strings.TrimSpace(strings.TrimPrefix(trimmed, "prefer_encrypt:"))
+			hasLegacy = true
+		case strings.HasPrefix(trimmed, "use_exclusive_mode:"):
+			useExclusiveMode = strings.TrimSpace(strings.TrimPrefix(trimmed, "use_exclusive_mode:"))
+			hasLegacy = true
+		case strings.HasPrefix(trimmed, "decrypt_key:"):
+			decryptKey = strings.Trim(strings.TrimSpace(strings.TrimPrefix(trimmed, "decrypt_key:")), "\"'")
+			hasLegacy = true
+		}
+	}
+
+	if !hasLegacy {
+		return yamlContent
+	}
+
+	subscriptionLines := []string{
+		"  subscription:",
+		"    prefer_encrypt: " + preferEncrypt,
+		"    use_exclusive_mode: " + useExclusiveMode,
+		fmt.Sprintf("    decrypt_key: %q", decryptKey),
+	}
+
+	cleaned := make([]string, 0, len(lines)+4)
+	skipSubscriptionSection := false
+	inserted := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if skipSubscriptionSection {
+			if strings.HasPrefix(line, "    ") || trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+			skipSubscriptionSection = false
+		}
+
+		if strings.HasPrefix(line, "  subscription:") {
+			cleaned = append(cleaned, subscriptionLines...)
+			skipSubscriptionSection = true
+			inserted = true
+			continue
+		}
+
+		if strings.HasPrefix(line, "  prefer_encrypt:") || strings.HasPrefix(line, "  use_exclusive_mode:") || strings.HasPrefix(line, "  decrypt_key:") {
+			continue
+		}
+
+		if !inserted && (strings.HasPrefix(line, "  auto_offline:") || strings.HasPrefix(line, "  subscription_cache:") || strings.HasPrefix(line, "  remote_config:") || strings.HasPrefix(line, "  security:") || strings.HasPrefix(line, "  ui:") || strings.HasPrefix(line, "  online_support:")) {
+			cleaned = append(cleaned, subscriptionLines...)
+			inserted = true
+		}
+
+		cleaned = append(cleaned, line)
+	}
+
+	if !inserted {
+		for len(cleaned) > 0 && strings.TrimSpace(cleaned[len(cleaned)-1]) == "" {
+			cleaned = cleaned[:len(cleaned)-1]
+		}
+		if len(cleaned) > 0 {
+			cleaned = append(cleaned, "")
+		}
+		cleaned = append(cleaned, subscriptionLines...)
+	}
+
+	return strings.Join(cleaned, "\n")
+}
+
 // ==================== 认证 ====================
 
 func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
@@ -304,6 +405,7 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 	if claims.Permissions != "admin" {
 		req.YamlContent = bindProfileTitle(req.YamlContent, name)
 	}
+	req.YamlContent = normalizeSubscriptionConfig(req.YamlContent)
 
 	content, sha, err := h.gh.GetFile(profilesPath)
 	var profiles map[string]interface{}

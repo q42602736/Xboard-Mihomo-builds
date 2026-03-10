@@ -1726,9 +1726,10 @@
                 '      image_url: ""',
                 '    app_icon:',
                 '      image_url: ""',
-                '  prefer_encrypt: false',
-                '  use_exclusive_mode: false',
-                '  decrypt_key: ""',
+                '  subscription:',
+                '    prefer_encrypt: false',
+                '    use_exclusive_mode: false',
+                '    decrypt_key: ""',
                 '  auto_offline:',
                 '    enabled: false',
                 '  subscription_cache:',
@@ -3241,6 +3242,17 @@
                 var v = getValue(key);
                 return v === 'true';
             };
+            var getSubscriptionValue = function(key) {
+                var re = new RegExp('subscription:\\s*\\n(?:[\\s\\S]*?)^\\s{4}' + key + ':[^\\S\\n]*(.*)', 'm');
+                var m = yaml.match(re);
+                if (m) {
+                    return m[1].trim().replace(/^["']|["']$/g, '');
+                }
+                return getValue(key);
+            };
+            var getSubscriptionBool = function(key) {
+                return getSubscriptionValue(key) === 'true';
+            };
             var providerMatch = yaml.match(/xboard:\s*\n(?:\s*#[^\n]*\n)*\s*provider:[^\S\n]*(.*)/);
             if (providerMatch) {
                 document.getElementById('provider').value = providerMatch[1].trim().replace(/^["']|["']$/g, '');
@@ -3254,11 +3266,11 @@
             if (logoMatch) document.getElementById('logoImageUrl').value = logoMatch[1].trim().replace(/^["']|["']$/g, '');
             var iconMatch = yaml.match(/app_icon:[\s\S]*?image_url:[^\S\n]*(.*)/);
             if (iconMatch) document.getElementById('appIconUrl').value = iconMatch[1].trim().replace(/^["']|["']$/g, '');
-            document.getElementById('preferEncrypt').checked = getBool('prefer_encrypt');
-            document.getElementById('preferEncryptLabel').textContent = getBool('prefer_encrypt') ? '开启' : '关闭';
-            document.getElementById('useExclusiveMode').checked = getBool('use_exclusive_mode');
-            document.getElementById('useExclusiveModeLabel').textContent = getBool('use_exclusive_mode') ? '开启' : '关闭';
-            document.getElementById('decryptKey').value = getValue('decrypt_key');
+            document.getElementById('preferEncrypt').checked = getSubscriptionBool('prefer_encrypt');
+            document.getElementById('preferEncryptLabel').textContent = getSubscriptionBool('prefer_encrypt') ? '开启' : '关闭';
+            document.getElementById('useExclusiveMode').checked = getSubscriptionBool('use_exclusive_mode');
+            document.getElementById('useExclusiveModeLabel').textContent = getSubscriptionBool('use_exclusive_mode') ? '开启' : '关闭';
+            document.getElementById('decryptKey').value = getSubscriptionValue('decrypt_key');
             var autoOfflineMatch = yaml.match(/auto_offline:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var autoOfflineEnabled = autoOfflineMatch ? autoOfflineMatch[1] === 'true' : false;
             document.getElementById('autoOfflineEnabled').checked = autoOfflineEnabled;
@@ -3462,9 +3474,64 @@
                 return newLines.join('\n');
             };
             yaml = upsertAuthBackground(yaml);
-            updateValue('prefer_encrypt', document.getElementById('preferEncrypt').checked);
-            updateValue('use_exclusive_mode', document.getElementById('useExclusiveMode').checked);
-            updateValue('decrypt_key', document.getElementById('decryptKey').value);
+            var upsertSubscription = function(content) {
+                var preferEncrypt = document.getElementById('preferEncrypt').checked;
+                var useExclusiveMode = document.getElementById('useExclusiveMode').checked;
+                var decryptKey = document.getElementById('decryptKey').value.trim().replace(/"/g, '\\"');
+                var subscriptionLines = [
+                    '  subscription:',
+                    '    prefer_encrypt: ' + preferEncrypt,
+                    '    use_exclusive_mode: ' + useExclusiveMode,
+                    '    decrypt_key: "' + decryptKey + '"'
+                ];
+                var lines = content.split('\n');
+                var newLines = [];
+                var skipSubscriptionSection = false;
+                var inserted = false;
+
+                for (var idx = 0; idx < lines.length; idx++) {
+                    var currentLine = lines[idx];
+                    var trimmedLine = currentLine.trim();
+
+                    if (skipSubscriptionSection) {
+                        if (/^    /.test(currentLine) || trimmedLine === '' || /^\s*#/.test(currentLine)) {
+                            continue;
+                        }
+                        skipSubscriptionSection = false;
+                    }
+
+                    if (/^  subscription:\s*$/.test(currentLine)) {
+                        newLines = newLines.concat(subscriptionLines);
+                        skipSubscriptionSection = true;
+                        inserted = true;
+                        continue;
+                    }
+
+                    if (/^  (prefer_encrypt|use_exclusive_mode|decrypt_key):/.test(currentLine)) {
+                        continue;
+                    }
+
+                    if (!inserted && (/^  auto_offline:\s*$/.test(currentLine) || /^  subscription_cache:\s*$/.test(currentLine) || /^  remote_config:\s*$/.test(currentLine) || /^  security:\s*$/.test(currentLine) || /^  ui:\s*$/.test(currentLine) || /^  online_support:\s*$/.test(currentLine))) {
+                        newLines = newLines.concat(subscriptionLines);
+                        inserted = true;
+                    }
+
+                    newLines.push(currentLine);
+                }
+
+                if (!inserted) {
+                    while (newLines.length > 0 && newLines[newLines.length - 1].trim() === '') {
+                        newLines.pop();
+                    }
+                    if (newLines.length > 0) {
+                        newLines.push('');
+                    }
+                    newLines = newLines.concat(subscriptionLines);
+                }
+
+                return newLines.join('\n');
+            };
+            yaml = upsertSubscription(yaml);
             var autoOfflineEnabled = document.getElementById('autoOfflineEnabled').checked;
             yaml = yaml.replace(/(auto_offline:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*)(true|false)/, '$1' + autoOfflineEnabled);
             var subCacheEnabled = document.getElementById('subscriptionCacheEnabled').checked;
