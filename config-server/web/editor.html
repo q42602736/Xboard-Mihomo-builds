@@ -3693,7 +3693,7 @@
         var buildPollTimer = null;
         var buildPollContext = null;
         var buildNotFoundCount = 0;
-        var maxNotFoundRetries = 6;
+        var maxNotFoundRetries = 12;
 
         function normalizeBuildPollContext(context) {
             if (!context) return null;
@@ -3859,7 +3859,7 @@
                 } else if (!data.found) {
                     buildNotFoundCount++;
                     if (buildNotFoundCount >= maxNotFoundRetries) {
-                        renderBuildNotFound();
+                        renderBuildNotFound(data);
                     } else {
                         buildPollTimer = setTimeout(pollBuildStatus, 10000);
                     }
@@ -3873,13 +3873,20 @@
             }
         }
 
-        function renderBuildNotFound() {
+        function renderBuildNotFound(data) {
+            var currentContext = buildPollContext;
             stopBuildPolling();
             saveBuildingProfile(null);
             buildPollContext = null;
             document.getElementById('buildProgressIcon').className = 'build-progress-status-icon cancelled';
             document.getElementById('buildProgressText').textContent = '暂时还没匹配到本次 GitHub 打包运行，GitHub 侧可能仍在排队，请稍后重试';
-            document.getElementById('buildProgressTime').textContent = '';
+            var details = [];
+            var requestId = (data && data.request_id) || (currentContext && currentContext.requestId) || '';
+            var recordId = (data && data.record_id) || (currentContext && currentContext.buildRecordId) || 0;
+            if (recordId) details.push('记录ID: ' + recordId);
+            if (requestId) details.push('请求ID: ' + requestId);
+            if (data && data.record_status) details.push('记录状态: ' + data.record_status);
+            document.getElementById('buildProgressTime').textContent = details.join(' · ');
         }
 
         function getStatusIcon(status, conclusion) {
@@ -3969,7 +3976,12 @@
             if (!data.found) {
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
                 document.getElementById('buildProgressText').textContent = '正在匹配 GitHub 打包运行... (' + buildNotFoundCount + '/' + maxNotFoundRetries + ')';
-                document.getElementById('buildProgressTime').textContent = '';
+                var waitingDetails = [];
+                if (data.record_id || (buildPollContext && buildPollContext.buildRecordId)) waitingDetails.push('记录ID: ' + (data.record_id || buildPollContext.buildRecordId));
+                if (data.request_id || (buildPollContext && buildPollContext.requestId)) waitingDetails.push('请求ID: ' + (data.request_id || buildPollContext.requestId));
+                if (data.record_status) waitingDetails.push('记录状态: ' + data.record_status);
+                if (data.pending_detected) waitingDetails.push('已恢复排队上下文');
+                document.getElementById('buildProgressTime').textContent = waitingDetails.join(' · ');
                 document.getElementById('buildJobsList').innerHTML = '';
                 return;
             }

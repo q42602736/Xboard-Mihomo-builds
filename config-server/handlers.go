@@ -1020,10 +1020,27 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		if recordID > 0 {
 			updateBuildRecordStatus(recordID, 0, "queued", "")
 		}
-		jsonResponse(w, map[string]interface{}{
+		result := map[string]interface{}{
 			"found":     false,
 			"record_id": recordID,
-		})
+		}
+		if requestID != "" {
+			result["request_id"] = requestID
+		}
+		if hasPendingBuild {
+			result["pending_detected"] = true
+		}
+		if record != nil {
+			result["record_status"] = record.Status
+			result["inputs"] = map[string]string{
+				"profile":    record.Profile,
+				"tag":        record.Tag,
+				"branch":     record.Branch,
+				"platforms":  record.Platforms,
+				"request_id": strconv.FormatInt(record.ID, 10),
+			}
+		}
+		jsonResponse(w, result)
 		return
 	}
 
