@@ -801,6 +801,52 @@
             padding-top: 12px;
             border-top: 1px solid rgba(255,255,255,0.06);
         }
+        .exclusive-mode-notice {
+            margin-top: 10px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(255,170,0,0.12), rgba(255,119,0,0.08));
+            border: 1px solid rgba(255,170,0,0.28);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+        .exclusive-mode-notice-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #ffd28a;
+            margin-bottom: 8px;
+        }
+        .exclusive-mode-notice-section-title {
+            margin-top: 10px;
+            margin-bottom: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #ffe0a8;
+        }
+        .exclusive-mode-notice-body,
+        .exclusive-mode-notice-foot {
+            font-size: 12px;
+            line-height: 1.7;
+            color: #f4d7a1;
+        }
+        .exclusive-mode-notice-list {
+            margin: 8px 0 10px 18px;
+            color: #ffe7bf;
+            font-size: 12px;
+            line-height: 1.8;
+        }
+        .exclusive-mode-notice-list li {
+            margin-bottom: 4px;
+        }
+        .exclusive-mode-notice code {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #fff1d6;
+            word-break: break-all;
+        }
     
         .app-dialog-overlay {
             position: fixed;
@@ -848,6 +894,66 @@
         }
         .app-dialog-btn-cancel:hover {
             background: rgba(255,255,255,0.14);
+        }
+        .download-progress-overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(3, 8, 15, 0.72);
+            backdrop-filter: blur(6px);
+            z-index: 10001;
+        }
+        .download-progress-overlay.show { display: flex; }
+        .download-progress-dialog {
+            width: min(460px, 100%);
+            background: linear-gradient(180deg, rgba(17,24,39,0.98), rgba(9,13,24,0.98));
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+            padding: 20px;
+        }
+        .download-progress-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 16px;
+            color: #d7dce4;
+            font-size: 12px;
+        }
+        .download-progress-track {
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            height: 10px;
+            margin-top: 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .download-progress-bar {
+            width: 0;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            transition: width 0.2s ease;
+        }
+        .download-progress-bar.is-indeterminate {
+            width: 35%;
+            animation: download-progress-indeterminate 1.2s ease-in-out infinite;
+        }
+        .download-progress-bar.is-success {
+            background: linear-gradient(135deg, #00ff88, #7dffbe);
+        }
+        .download-progress-bar.is-error {
+            background: linear-gradient(135deg, #ff6b6b, #ff9a9a);
+        }
+        @keyframes download-progress-indeterminate {
+            0% { transform: translateX(-120%); }
+            100% { transform: translateX(320%); }
         }
     </style>
 </head>
@@ -1031,7 +1137,31 @@
                                             <span id="useExclusiveModeLabel">关闭</span>
                                         </div>
                                     </div>
-                                    <div class="help-text">仅适用于已配套改造后端接口、鉴权或订阅逻辑的专用客户端场景；如果你的后端没有同步完成这部分改造，请保持关闭，否则可能导致登录、订阅或接口请求异常。</div>
+                                    <div class="exclusive-mode-notice">
+                                        <div class="exclusive-mode-notice-title">开启前请先完成后端面板对接</div>
+                                        <div class="exclusive-mode-notice-body">此开关只会让客户端进入“客服端专用模式”，不会自动修改 XBoard/V2Board 后端订阅逻辑。请先在服务器完成后端补丁、节点标签配置与缓存清理，再回来开启此项。</div>
+
+                                        <div class="exclusive-mode-notice-section-title">完成改造后会有什么作用</div>
+                                        <ul class="exclusive-mode-notice-list">
+                                            <li>开启专用模式的客户端会使用专用客户端标识拉取订阅，只获取带 <code>客服端专用</code> 标签的节点。</li>
+                                            <li>普通第三方客户端继续走普通订阅逻辑，只获取未打 <code>客服端专用</code> 标签的节点。</li>
+                                            <li>可以把客服端入口与普通入口分开，降低第三方客户端误用、分享扩散或入口泄露的风险。</li>
+                                            <li>适合把内部客服端、定制客户端、专用节点与普通公开节点隔离管理。</li>
+                                        </ul>
+
+                                        <div class="exclusive-mode-notice-section-title">后端如何开启专用客服端模式</div>
+                                        <ol class="exclusive-mode-notice-list">
+                                            <li>登录部署面板的服务器，执行一键脚本：<code>bash &lt;(curl -fsSL https://raw.githubusercontent.com/q42602736/scripts/main/panel_patch.sh)</code></li>
+                                            <li>按提示选择面板类型和站点目录，例如 <code>/www/wwwroot/你的站点目录</code>。</li>
+                                            <li>等待脚本自动打补丁并清理 Laravel 缓存；如果仍未生效，再手动重载 PHP-FPM 或重启容器刷新 OPcache。</li>
+                                            <li>进入你的面板后台，把需要仅给客服端使用的节点打上标签 <code>客服端专用</code>。</li>
+                                            <li>需要给普通第三方客户端继续使用的节点，不要打这个标签；这样两类客户端拉取到的节点会自动分开。</li>
+                                            <li>完成以上步骤后，再回到这里打开“专用客户端模式”，重新生成配置并打包客户端。</li>
+                                        </ol>
+
+                                        <div class="exclusive-mode-notice-section-title">重要提醒</div>
+                                        <div class="exclusive-mode-notice-foot">未完成后端改造前请不要直接开启，否则可能出现订阅失败、返回错误格式配置、专用节点不生效等问题。当前补丁脚本仅支持 XBoard 与 V2Board，暂不支持 SSPanel 系面板。</div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="form-group config-control-hidden">
@@ -1239,7 +1369,7 @@
                                 <select id="buildBranch">
                                     <option value="main">main</option>
                                 </select>
-                                <div class="help-text">请选择与你当前面板类型对应的源码分支：XBoard、V2Board 和 xiaov2board 请选择 <code>main</code>，SSPanel 请选择 <code>sspanel</code>，避免打包出与后端不匹配的客户端。</div>
+                                <div class="help-text error" style="font-weight: 600;">请选择与你当前面板类型对应的源码分支：XBoard、V2Board 和 xiaov2board 请选择 <code>main</code>，SSPanel 请选择 <code>sspanel</code>，避免打包出与后端不匹配的客户端。</div>
                             </div>
                             <div class="form-group">
                                 <label>版本标签</label>
@@ -1269,14 +1399,19 @@
                         </div>
                         <button class="btn btn-build" id="buildBtn" style="margin-top: 15px;" disabled>开始打包</button>
                         <div id="myBuildRecordsPanel" style="margin-top: 18px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
-                                <div style="display:flex; flex-direction:column; gap:4px;">
+                            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+                                <div style="display:flex; flex-direction:column; gap:4px; min-width:0;">
                                     <div style="color:#aaa; font-size:12px;">我的打包记录</div>
                                     <div style="color:#666; font-size:11px;">仅保留最近 5 条记录，删除时会同步删除 GitHub 打包产物</div>
                                 </div>
-                                <button type="button" class="btn btn-secondary" onclick="loadMyBuildRecords()" style="padding:6px 10px; font-size:12px;">刷新</button>
+                                <button type="button" class="btn btn-secondary" id="myBuildRecordsToggleBtn" onclick="toggleMyBuildRecordsPanel()" style="padding:6px 10px; font-size:12px; white-space:nowrap;">展开</button>
                             </div>
-                            <div id="myBuildRecordsList" style="display:flex; flex-direction:column; gap:10px;"></div>
+                            <div id="myBuildRecordsBody" style="display:none; margin-top:10px;">
+                                <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+                                    <button type="button" class="btn btn-secondary" onclick="loadMyBuildRecords()" style="padding:6px 10px; font-size:12px;">刷新</button>
+                                </div>
+                                <div id="myBuildRecordsList" style="display:flex; flex-direction:column; gap:10px;"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -1312,6 +1447,24 @@
             <div class="app-dialog-actions">
                 <button type="button" class="btn app-dialog-btn-cancel" id="appDialogCancelBtn" style="display:none;">取消</button>
                 <button type="button" class="btn btn-primary" id="appDialogConfirmBtn">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="downloadProgressOverlay" class="download-progress-overlay" aria-hidden="true">
+        <div class="download-progress-dialog" role="dialog" aria-modal="true" aria-labelledby="downloadProgressTitle">
+            <div id="downloadProgressTitle" class="app-dialog-title">正在下载</div>
+            <div id="downloadProgressMessage" class="app-dialog-message">正在准备下载资源...</div>
+            <div class="download-progress-meta">
+                <span id="downloadProgressPercent">0%</span>
+                <span id="downloadProgressDetail">准备连接服务器...</span>
+            </div>
+            <div class="download-progress-track">
+                <div id="downloadProgressBar" class="download-progress-bar"></div>
+            </div>
+            <div class="app-dialog-actions">
+                <button type="button" class="btn app-dialog-btn-cancel" id="downloadProgressCancelBtn">取消下载</button>
+                <button type="button" class="btn btn-primary" id="downloadProgressCloseBtn" style="display:none;">关闭</button>
             </div>
         </div>
     </div>
@@ -1378,6 +1531,10 @@
         var appDialogResolver = null;
         var appDialogMode = 'alert';
         var appDialogInitialized = false;
+        var downloadProgressDialogInitialized = false;
+        var activeDownloadRequest = null;
+        var activeDownloadFileName = '';
+        var downloadProgressAutoCloseTimer = null;
 
         function initAppDialog() {
             if (appDialogInitialized) return;
@@ -1460,6 +1617,184 @@
                 cancelText: cancelText || '取消',
                 showCancel: true
             });
+        }
+
+        function initDownloadProgressDialog() {
+            if (downloadProgressDialogInitialized) return;
+            var overlay = document.getElementById('downloadProgressOverlay');
+            var cancelBtn = document.getElementById('downloadProgressCancelBtn');
+            var closeBtn = document.getElementById('downloadProgressCloseBtn');
+            if (!overlay || !cancelBtn || !closeBtn) return;
+
+            cancelBtn.addEventListener('click', function() {
+                if (activeDownloadRequest) {
+                    activeDownloadRequest.abort();
+                    return;
+                }
+                closeDownloadProgressDialog();
+            });
+            closeBtn.addEventListener('click', function() {
+                closeDownloadProgressDialog();
+            });
+            document.addEventListener('keydown', function(e) {
+                if (!overlay.classList.contains('show')) return;
+                if (e.key === 'Escape' && !activeDownloadRequest) {
+                    closeDownloadProgressDialog();
+                }
+            });
+            downloadProgressDialogInitialized = true;
+        }
+
+        function clearDownloadProgressAutoCloseTimer() {
+            if (downloadProgressAutoCloseTimer) {
+                clearTimeout(downloadProgressAutoCloseTimer);
+                downloadProgressAutoCloseTimer = null;
+            }
+        }
+
+        function closeDownloadProgressDialog() {
+            clearDownloadProgressAutoCloseTimer();
+            var overlay = document.getElementById('downloadProgressOverlay');
+            if (!overlay) return;
+            overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden', 'true');
+        }
+
+        function resetDownloadProgressBarState(bar, extraClass) {
+            if (!bar) return;
+            bar.classList.remove('is-indeterminate', 'is-success', 'is-error');
+            if (extraClass) {
+                bar.classList.add(extraClass);
+            }
+        }
+
+        function showDownloadProgressDialog(fileName) {
+            initDownloadProgressDialog();
+            clearDownloadProgressAutoCloseTimer();
+            var overlay = document.getElementById('downloadProgressOverlay');
+            var titleEl = document.getElementById('downloadProgressTitle');
+            var messageEl = document.getElementById('downloadProgressMessage');
+            var percentEl = document.getElementById('downloadProgressPercent');
+            var detailEl = document.getElementById('downloadProgressDetail');
+            var bar = document.getElementById('downloadProgressBar');
+            var cancelBtn = document.getElementById('downloadProgressCancelBtn');
+            var closeBtn = document.getElementById('downloadProgressCloseBtn');
+            if (!overlay || !titleEl || !messageEl || !percentEl || !detailEl || !bar || !cancelBtn || !closeBtn) return;
+
+            titleEl.textContent = '正在下载';
+            messageEl.textContent = '正在准备下载资源：' + fileName;
+            percentEl.textContent = '0%';
+            detailEl.textContent = '准备连接服务器...';
+            resetDownloadProgressBarState(bar, '');
+            bar.style.width = '0%';
+            cancelBtn.style.display = 'inline-flex';
+            closeBtn.style.display = 'none';
+            overlay.classList.add('show');
+            overlay.setAttribute('aria-hidden', 'false');
+            setTimeout(function() {
+                cancelBtn.focus();
+            }, 0);
+        }
+
+        function updateDownloadProgressDialog(loaded, total, lengthComputable) {
+            var messageEl = document.getElementById('downloadProgressMessage');
+            var percentEl = document.getElementById('downloadProgressPercent');
+            var detailEl = document.getElementById('downloadProgressDetail');
+            var bar = document.getElementById('downloadProgressBar');
+            if (!messageEl || !percentEl || !detailEl || !bar) return;
+
+            messageEl.textContent = '正在下载：' + (activeDownloadFileName || '打包产物');
+            if (lengthComputable && total > 0) {
+                var percent = Math.max(0, Math.min(100, Math.round((loaded / total) * 100)));
+                resetDownloadProgressBarState(bar, '');
+                bar.style.width = percent + '%';
+                percentEl.textContent = percent + '%';
+                detailEl.textContent = formatFileSize(loaded) + ' / ' + formatFileSize(total);
+                return;
+            }
+            resetDownloadProgressBarState(bar, 'is-indeterminate');
+            percentEl.textContent = '下载中';
+            detailEl.textContent = formatFileSize(loaded) + ' / 未知大小';
+        }
+
+        function finishDownloadProgressDialog(status, message, detail) {
+            clearDownloadProgressAutoCloseTimer();
+            var titleEl = document.getElementById('downloadProgressTitle');
+            var messageEl = document.getElementById('downloadProgressMessage');
+            var percentEl = document.getElementById('downloadProgressPercent');
+            var detailEl = document.getElementById('downloadProgressDetail');
+            var bar = document.getElementById('downloadProgressBar');
+            var cancelBtn = document.getElementById('downloadProgressCancelBtn');
+            var closeBtn = document.getElementById('downloadProgressCloseBtn');
+            if (!titleEl || !messageEl || !percentEl || !detailEl || !bar || !cancelBtn || !closeBtn) return;
+
+            titleEl.textContent = status === 'success' ? '下载已开始' : (status === 'cancelled' ? '下载已取消' : '下载失败');
+            messageEl.textContent = message;
+            detailEl.textContent = detail || '';
+            cancelBtn.style.display = 'none';
+            closeBtn.style.display = 'inline-flex';
+            if (status === 'success') {
+                resetDownloadProgressBarState(bar, 'is-success');
+                bar.style.width = '100%';
+                percentEl.textContent = '100%';
+                downloadProgressAutoCloseTimer = setTimeout(function() {
+                    closeDownloadProgressDialog();
+                }, 1600);
+            } else if (status === 'cancelled') {
+                resetDownloadProgressBarState(bar, '');
+                bar.style.width = '0%';
+                percentEl.textContent = '已取消';
+            } else {
+                resetDownloadProgressBarState(bar, 'is-error');
+                bar.style.width = '100%';
+                percentEl.textContent = '失败';
+            }
+            setTimeout(function() {
+                closeBtn.focus();
+            }, 0);
+        }
+
+        function readBlobAsText(blob) {
+            if (!blob) return Promise.resolve('');
+            if (typeof blob.text === 'function') {
+                return blob.text().catch(function() { return ''; });
+            }
+            return new Promise(function(resolve) {
+                try {
+                    var reader = new FileReader();
+                    reader.onload = function() { resolve(String(reader.result || '')); };
+                    reader.onerror = function() { resolve(''); };
+                    reader.readAsText(blob);
+                } catch (e) {
+                    resolve('');
+                }
+            });
+        }
+
+        function normalizeDownloadErrorMessage(text, statusCode) {
+            var fallback = statusCode ? ('下载失败（HTTP ' + statusCode + '）') : '下载失败';
+            var raw = String(text || '').trim();
+            if (!raw) return fallback;
+            try {
+                var parsed = JSON.parse(raw);
+                if (parsed && typeof parsed.error === 'string' && parsed.error.trim()) {
+                    return parsed.error.trim();
+                }
+            } catch (e) {}
+            return raw;
+        }
+
+        function triggerBrowserDownload(blob, fileName) {
+            var url = URL.createObjectURL(blob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(function() {
+                URL.revokeObjectURL(url);
+            }, 60000);
         }
 
         function getBoundAppTitleValue() {
@@ -1611,6 +1946,7 @@
         var buildHistoryData = {};
         var buildAssetCache = {};
         var myBuildRecordsCache = null;
+        var myBuildRecordsExpanded = false;
         var clientUpdatesLoaded = false;
         var clientUpdatesLoadedBranch = '';
         var buildQueueAvailable = false;
@@ -1705,9 +2041,9 @@
             updateProviderConsistencyState();
 
             syncProfileBoundAppTitle();
+            setMyBuildRecordsExpanded(false);
             loadProfiles().then(function() { checkActiveBuild(); });
             loadBuildHistory();
-            loadMyBuildRecords();
             loadBranches();
             loadBuildQueue();
         };
@@ -2094,33 +2430,62 @@
             container.innerHTML = html;
         }
 
-        async function downloadBuildAsset(recordId, assetId, fileName) {
+        function downloadBuildAsset(recordId, assetId, fileName) {
             var token = getToken();
             if (!token) return;
-            try {
-                setBuildStatus('正在下载打包产物...', 'info');
-                var response = await fetch('/api/build/records/' + recordId + '/download/' + assetId, {
-                    headers: {
-                        'Authorization': 'Bearer ' + token
-                    }
-                });
-                if (!response.ok) {
-                    var errorText = await response.text();
-                    throw new Error(errorText || '下载失败');
-                }
-                var blob = await response.blob();
-                var url = URL.createObjectURL(blob);
-                var link = document.createElement('a');
-                link.href = url;
-                link.download = fileName;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-                setBuildStatus('下载已开始: ' + fileName, 'success');
-            } catch (e) {
-                setBuildStatus('下载失败: ' + e.message, 'error');
+            if (activeDownloadRequest) {
+                showAppAlert('当前已有下载任务正在进行，请等待当前下载完成后再试。', '正在下载');
+                return;
             }
+
+            showDownloadProgressDialog(fileName);
+            setBuildStatus('正在下载打包产物...', 'info');
+            activeDownloadFileName = fileName;
+
+            var xhr = new XMLHttpRequest();
+            activeDownloadRequest = xhr;
+            xhr.open('GET', '/api/build/records/' + recordId + '/download/' + assetId, true);
+            xhr.responseType = 'blob';
+            xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+
+            xhr.onprogress = function(event) {
+                if (activeDownloadRequest !== xhr) return;
+                updateDownloadProgressDialog(event.loaded, event.total, event.lengthComputable);
+            };
+
+            xhr.onload = function() {
+                if (activeDownloadRequest !== xhr) return;
+                activeDownloadRequest = null;
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    var blob = xhr.response;
+                    triggerBrowserDownload(blob, fileName);
+                    finishDownloadProgressDialog('success', '文件已开始下载：' + fileName, blob && blob.size ? ('共 ' + formatFileSize(blob.size)) : '请查看浏览器下载列表');
+                    setBuildStatus('下载已开始: ' + fileName, 'success');
+                    return;
+                }
+                readBlobAsText(xhr.response).then(function(errorText) {
+                    var message = normalizeDownloadErrorMessage(errorText, xhr.status);
+                    finishDownloadProgressDialog('error', message, '请稍后重试，或检查网络连接是否稳定。');
+                    setBuildStatus('下载失败: ' + message, 'error');
+                });
+            };
+
+            xhr.onerror = function() {
+                if (activeDownloadRequest !== xhr) return;
+                activeDownloadRequest = null;
+                var message = '网络连接失败，请检查网络后重试';
+                finishDownloadProgressDialog('error', message, '如果文件较大，建议稍后重新下载。');
+                setBuildStatus('下载失败: ' + message, 'error');
+            };
+
+            xhr.onabort = function() {
+                if (activeDownloadRequest !== xhr) return;
+                activeDownloadRequest = null;
+                finishDownloadProgressDialog('cancelled', '下载已取消：' + fileName, '如需重新下载，请再次点击下载按钮。');
+                setBuildStatus('已取消下载: ' + fileName, 'info');
+            };
+
+            xhr.send();
         }
 
         async function deleteMyBuildRecord(recordId) {
@@ -2242,6 +2607,24 @@
                 requestId: String(record.id),
                 buildRecordId: record.id
             };
+        }
+
+        function setMyBuildRecordsExpanded(expanded) {
+            var body = document.getElementById('myBuildRecordsBody');
+            var toggleBtn = document.getElementById('myBuildRecordsToggleBtn');
+            if (!body || !toggleBtn) return;
+            myBuildRecordsExpanded = !!expanded;
+            body.style.display = myBuildRecordsExpanded ? 'block' : 'none';
+            toggleBtn.textContent = myBuildRecordsExpanded ? '收起' : '展开';
+            toggleBtn.setAttribute('aria-expanded', myBuildRecordsExpanded ? 'true' : 'false');
+        }
+
+        async function toggleMyBuildRecordsPanel(forceExpanded) {
+            var shouldExpand = typeof forceExpanded === 'boolean' ? forceExpanded : !myBuildRecordsExpanded;
+            setMyBuildRecordsExpanded(shouldExpand);
+            if (shouldExpand && myBuildRecordsCache === null) {
+                await loadMyBuildRecords();
+            }
         }
 
         async function loadMyBuildRecords() {
