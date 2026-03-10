@@ -472,8 +472,6 @@ func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 
 // ==================== 构建 ====================
 
-const buildHistoryPath = "build-versions.json"
-
 const maxConcurrentBuilds = 3
 
 const recentWorkflowRunsSearchLimit = 30
@@ -736,7 +734,6 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 	delete(profileRunCache, buildRunCacheKey(claims.CodeID, req.Profile, "", req.Tag, req.Branch, req.Platforms))
 	delete(profileRunCache, buildRunCacheKey(claims.CodeID, req.Profile, "", "", "", ""))
 
-	go h.saveBuildHistory(req.Profile, req.Tag, req.Platforms)
 
 	logAudit(claims.CodeID, claims.CodeName, "trigger_build",
 		fmt.Sprintf("record_id=%d profile=%s tag=%s platforms=%s branch=%s", record.ID, req.Profile, req.Tag, req.Platforms, req.Branch),
@@ -751,38 +748,25 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handlers) saveBuildHistory(profile, tag, platforms string) {
-	buildTime := time.Now().Format("2006/1/2 15:04:05")
-	err := h.gh.SaveFileWithRetry(buildHistoryPath, func(existing string) string {
-		var history map[string]interface{}
-		if existing != "" {
-			json.Unmarshal([]byte(existing), &history)
-		}
-		if history == nil {
-			history = make(map[string]interface{})
-		}
-		history[profile] = map[string]interface{}{
-			"version":   tag,
-			"platforms": platforms,
-			"time":      buildTime,
-		}
-		newContent, _ := json.MarshalIndent(history, "", "  ")
-		return string(newContent)
-	}, "更新打包版本记录: "+profile+" "+tag, 5)
-	if err != nil {
-		fmt.Printf("保存构建历史失败: %v\n", err)
-	}
-}
-
 func (h *Handlers) GetBuildHistory(w http.ResponseWriter, r *http.Request) {
-	content, _, err := h.gh.GetFile(buildHistoryPath)
+	claims := getClaims(r)
+	records, err := listBuildRecords(claims.CodeID, claims.Permissions == "admin", 100)
 	if err != nil {
 		jsonResponse(w, map[string]interface{}{})
 		return
 	}
 
-	var history map[string]interface{}
-	json.Unmarshal([]byte(content), &history)
+	history := make(map[string]interface{})
+	for _, record := range records {
+		if _, exists := history[record.Profile]; exists {
+			continue
+		}
+		history[record.Profile] = map[string]interface{}{
+			"version":   record.Tag,
+			"platforms": record.Platforms,
+			"time":      record.CreatedAt,
+		}
+	}
 	jsonResponse(w, history)
 }
 
