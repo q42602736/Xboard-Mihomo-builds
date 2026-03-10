@@ -544,6 +544,23 @@ func parseGitHubTimestamp(value string) (time.Time, bool) {
 	return parsed, true
 }
 
+func parseDBTimestamp(value string) (time.Time, bool) {
+	if value == "" {
+		return time.Time{}, false
+	}
+	layouts := []string{
+		"2006-01-02 15:04:05",
+		time.RFC3339,
+		"2006-01-02T15:04:05Z07:00",
+	}
+	for _, layout := range layouts {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed.UTC(), true
+		}
+	}
+	return time.Time{}, false
+}
+
 func matchRunByPendingBuild(run *WorkflowRun, pending PendingBuild) bool {
 	runCreatedAt, ok := parseGitHubTimestamp(run.CreatedAt)
 	if !ok {
@@ -866,6 +883,19 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		pendingCodeID = claims.CodeID
 	}
 	pendingBuild, hasPendingBuild := getPendingBuild(pendingCodeID, profile, tag, branch, platforms)
+	if !hasPendingBuild && record != nil {
+		if createdAt, ok := parseDBTimestamp(record.CreatedAt); ok {
+			pendingBuild = PendingBuild{
+				CodeID:      record.CodeID,
+				Profile:     record.Profile,
+				Tag:         record.Tag,
+				Branch:      record.Branch,
+				Platforms:   record.Platforms,
+				TriggeredAt: createdAt,
+			}
+			hasPendingBuild = true
+		}
+	}
 	if !hasPendingBuild && profile != "" && claims.Permissions == "admin" {
 		if inferredPending, ok := getLatestPendingBuildByProfile(pendingCodeID, profile); ok {
 			pendingBuild = inferredPending
