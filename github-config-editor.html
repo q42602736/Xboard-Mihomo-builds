@@ -156,7 +156,7 @@
         .new-profile-input .input-row { display: flex; gap: 10px; align-items: center; }
         .new-profile-input input { flex: 1; padding: 10px 12px; border: 1px solid rgba(0,255,136,0.3); border-radius: 6px; background: rgba(0,0,0,0.3); color: #fff; font-size: 14px; }
         .new-profile-input input:focus { outline: none; border-color: #00ff88; box-shadow: 0 0 8px rgba(0,255,136,0.3); }
-    
+
         .app-dialog-overlay {
             position: fixed;
             inset: 0;
@@ -367,6 +367,15 @@
                             <span id="hideTrafficDetailsLabel">关闭</span>
                         </div>
                         <div class="help-text">启用后，将隐藏流量详情标签页和页面</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>首页自动弹出公告</label>
+                        <div class="switch-group">
+                            <label class="switch"><input type="checkbox" id="noticeAutoOpenOnStartup"><span class="slider"></span></label>
+                            <span id="noticeAutoOpenOnStartupLabel">关闭</span>
+                        </div>
+                        <div class="help-text">启用后，进入软件首页且存在可见公告时，会自动打开公告详情</div>
                     </div>
                     <div class="form-group" style="margin-top:16px;">
                         <label>启用登录背景图</label>
@@ -712,7 +721,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'noticeAutoOpenOnStartup', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -772,6 +781,10 @@
             var hideTrafficDetails = hideTrafficDetailsMatch ? hideTrafficDetailsMatch[1] === 'true' : false;
             document.getElementById('hideTrafficDetails').checked = hideTrafficDetails;
             document.getElementById('hideTrafficDetailsLabel').textContent = hideTrafficDetails ? '开启' : '关闭';
+            var noticeAutoOpenMatch = yaml.match(/notice:\s*\n(?:[\s\S]*?)auto_open_on_startup:\s*(true|false)/);
+            var noticeAutoOpenOnStartup = noticeAutoOpenMatch ? noticeAutoOpenMatch[1] === 'true' : false;
+            document.getElementById('noticeAutoOpenOnStartup').checked = noticeAutoOpenOnStartup;
+            document.getElementById('noticeAutoOpenOnStartupLabel').textContent = noticeAutoOpenOnStartup ? '开启' : '关闭';
             var authBackgroundEnabledMatch = yaml.match(/auth_background:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var authBackgroundEnabled = authBackgroundEnabledMatch ? authBackgroundEnabledMatch[1] === 'true' : false;
             document.getElementById('authBackgroundEnabled').checked = authBackgroundEnabled;
@@ -826,7 +839,7 @@
                 sources.push({ name: '', url: '', encryption_key: '' });
             }
             renderSources();
-            
+
             // 解析 online_support items
             onlineSupportItems = [];
             var inOnlineSupport = false;
@@ -1046,7 +1059,7 @@
                 newLines.push(line);
             }
             yaml = newLines.join('\n');
-            
+
             // 更新 online_support items
             collectSupportItems();
             var validItems = onlineSupportItems.filter(function(item) {
@@ -1057,7 +1070,7 @@
                 if (item.type === 'chatwoot' && (item.website_token || item.base_url)) return true;
                 return false;
             });
-            
+
             // 先移除旧的 online_support 配置（包括注释）
             var supportLines = yaml.split('\n');
             var newSupportLines = [];
@@ -1086,7 +1099,7 @@
                 }
                 newSupportLines.push(sLine);
             }
-            
+
             // 添加 online_support 配置
             // 去掉尾部空行
             while (newSupportLines.length > 0 && newSupportLines[newSupportLines.length - 1].trim() === '') {
@@ -1119,16 +1132,20 @@
             } else {
                 newSupportLines.push('    items: []');
             }
-            
+
             yaml = newSupportLines.join('\n');
-            
+
             // 更新或插入 UI 配置
             var hideTrafficDetails = document.getElementById('hideTrafficDetails').checked;
+            var noticeAutoOpenOnStartup = document.getElementById('noticeAutoOpenOnStartup').checked;
             var uiLines = yaml.split('\n');
             var newUiLines = [];
             var inUiSection = false;
+            var skipNoticeSection = false;
             var uiSectionFound = false;
-            
+            var hideTrafficInserted = false;
+            var noticeInserted = false;
+
             for (var u = 0; u < uiLines.length; u++) {
                 var uLine = uiLines[u];
                 // 检测 ui: 配置块
@@ -1138,20 +1155,56 @@
                     newUiLines.push(uLine);
                     continue;
                 }
+                if (skipNoticeSection) {
+                    if (/^      /.test(uLine) || uLine.trim() === '' || /^\s*#/.test(uLine)) {
+                        continue;
+                    }
+                    skipNoticeSection = false;
+                }
                 if (inUiSection) {
-                    // 替换 hide_traffic_details 配置
-                    if (/^\s*hide_traffic_details:/.test(uLine)) {
+                    if (/^    hide_traffic_details:/.test(uLine)) {
                         newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                        hideTrafficInserted = true;
+                        continue;
+                    }
+                    if (/^    notice:\s*$/.test(uLine)) {
+                        if (!hideTrafficInserted) {
+                            newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                            hideTrafficInserted = true;
+                        }
+                        newUiLines.push('    notice:');
+                        newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
+                        noticeInserted = true;
+                        skipNoticeSection = true;
                         continue;
                     }
                     // 遇到新的顶级配置，结束 ui 区块
                     if (/^  [a-z_]+:/i.test(uLine)) {
+                        if (!hideTrafficInserted) {
+                            newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                            hideTrafficInserted = true;
+                        }
+                        if (!noticeInserted) {
+                            newUiLines.push('    notice:');
+                            newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
+                            noticeInserted = true;
+                        }
                         inUiSection = false;
                     }
                 }
                 newUiLines.push(uLine);
             }
-            
+
+            if (uiSectionFound && inUiSection) {
+                if (!hideTrafficInserted) {
+                    newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                }
+                if (!noticeInserted) {
+                    newUiLines.push('    notice:');
+                    newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
+                }
+            }
+
             // 如果没有找到 ui 配置块，在文件末尾添加
             if (!uiSectionFound) {
                 // 去掉尾部空行
@@ -1162,10 +1215,12 @@
                 newUiLines.push('  # UI 配置');
                 newUiLines.push('  ui:');
                 newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                newUiLines.push('    notice:');
+                newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
             }
-            
+
             yaml = newUiLines.join('\n');
-            
+
             document.getElementById('editor').value = yaml;
         }
 
@@ -1482,7 +1537,7 @@
         }
 
         // ========== 配置档案管理功能 ==========
-        
+
         async function loadProfiles() {
             var config = getConfig();
             if (!config.token || !config.owner || !config.repo) return;
@@ -1538,7 +1593,7 @@
                 setStatus('档案数据无效', 'error');
                 return;
             }
-            
+
             // 先获取当前配置文件的 SHA（用于后续保存）
             var config = getConfig();
             if (config.token && config.owner && config.repo && config.filepath) {
@@ -1558,7 +1613,7 @@
                     console.log('获取文件SHA失败:', e.message);
                 }
             }
-            
+
             // 加载 YAML 内容到编辑器
             document.getElementById('editor').value = profile.yaml_content;
             yamlToForm();
@@ -1595,7 +1650,7 @@
                 setStatus('配置内容为空，无法保存', 'error');
                 return;
             }
-            
+
             // 自动将旧的 config_cache 转换为 subscription_cache
             yamlContent = yamlContent.replace(/# 配置文件缓存设置/g, '# 订阅缓存配置（控制订阅自动更新间隔）');
             yamlContent = yamlContent.replace(/config_cache:/g, 'subscription_cache:');
@@ -1608,12 +1663,12 @@
             yamlContent = yamlContent.replace(/#   168 - 缓存 168 小时（7天）/g, '#   168 - 每 168 小时（7天）自动更新一次');
             yamlContent = yamlContent.replace(/#   720 - 缓存 720 小时（30天）/g, '#   720 - 每 720 小时（30天）自动更新一次');
             yamlContent = yamlContent.replace(/# 设置为 0 表示禁用缓存（等同于 enabled: false）/g, '# 设置为 0 表示禁用自动更新（等同于 enabled: false）');
-            
+
             // 更新编辑器内容
             document.getElementById('editor').value = yamlContent;
-            
+
             setStatus('正在保存...', 'info');
-            
+
             try {
                 // 保存到档案文件（先刷新 SHA 防止冲突）
                 var profileUrl = 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + PROFILES_PATH;
@@ -1634,7 +1689,7 @@
                 } catch (e) {
                     console.log('刷新档案SHA失败:', e.message);
                 }
-                
+
                 profilesData[profileName] = {
                     yaml_content: yamlContent,
                     last_updated: new Date().toLocaleString('zh-CN')

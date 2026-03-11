@@ -847,7 +847,7 @@
             color: #fff1d6;
             word-break: break-all;
         }
-    
+
         .app-dialog-overlay {
             position: fixed;
             inset: 0;
@@ -989,7 +989,7 @@
                 </div>
                 <div id="status" class="sidebar-status info">请选择档案加载</div>
             </div>
-            
+
             <div class="sidebar-nav">
                 <div class="nav-section-label">配置编辑</div>
                 <div class="nav-item" onclick="switchSection('remoteConfigTool')">
@@ -1022,7 +1022,7 @@
                     软件打包
                 </div>
             </div>
-            
+
             <div class="sidebar-footer">
                 <a href="/admin.html" class="btn-admin" id="adminLink" style="display:none;">管理后台</a>
                 <button class="btn-logout" onclick="logout()">退出登录</button>
@@ -1087,6 +1087,17 @@
                                     </div>
                                 </div>
                                 <div class="help-text">启用后，将隐藏流量详情标签页和页面</div>
+                            </div>
+
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">首页自动弹出公告</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="noticeAutoOpenOnStartup"><span class="slider"></span></label>
+                                        <span id="noticeAutoOpenOnStartupLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">启用后，进入软件首页且存在可见公告时，会自动打开公告详情</div>
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
@@ -2078,7 +2089,9 @@
                 '  online_support:',
                 '    items: []',
                 '  ui:',
-                '    hide_traffic_details: false'
+                '    hide_traffic_details: false',
+                '    notice:',
+                '      auto_open_on_startup: false'
             ].join('\n');
         }
 
@@ -2767,7 +2780,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'noticeAutoOpenOnStartup', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -3669,6 +3682,10 @@
             var hideTrafficDetails = hideTrafficDetailsMatch ? hideTrafficDetailsMatch[1] === 'true' : false;
             document.getElementById('hideTrafficDetails').checked = hideTrafficDetails;
             document.getElementById('hideTrafficDetailsLabel').textContent = hideTrafficDetails ? '开启' : '关闭';
+            var noticeAutoOpenMatch = yaml.match(/notice:\s*\n(?:[\s\S]*?)auto_open_on_startup:\s*(true|false)/);
+            var noticeAutoOpenOnStartup = noticeAutoOpenMatch ? noticeAutoOpenMatch[1] === 'true' : false;
+            document.getElementById('noticeAutoOpenOnStartup').checked = noticeAutoOpenOnStartup;
+            document.getElementById('noticeAutoOpenOnStartupLabel').textContent = noticeAutoOpenOnStartup ? '开启' : '关闭';
             var authBackgroundEnabledMatch = yaml.match(/auth_background:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var authBackgroundEnabled = authBackgroundEnabledMatch ? authBackgroundEnabledMatch[1] === 'true' : false;
             document.getElementById('authBackgroundEnabled').checked = authBackgroundEnabled;
@@ -4032,10 +4049,14 @@
 
             // 更新 UI 配置
             var hideTrafficDetails = document.getElementById('hideTrafficDetails').checked;
+            var noticeAutoOpenOnStartup = document.getElementById('noticeAutoOpenOnStartup').checked;
             var uiLines = yaml.split('\n');
             var newUiLines = [];
             var inUiSection = false;
+            var skipNoticeSection = false;
             var uiSectionFound = false;
+            var hideTrafficInserted = false;
+            var noticeInserted = false;
             for (var u = 0; u < uiLines.length; u++) {
                 var uLine = uiLines[u];
                 if (/^  ui:/.test(uLine)) {
@@ -4044,16 +4065,52 @@
                     newUiLines.push(uLine);
                     continue;
                 }
+                if (skipNoticeSection) {
+                    if (/^      /.test(uLine) || uLine.trim() === '' || /^\s*#/.test(uLine)) {
+                        continue;
+                    }
+                    skipNoticeSection = false;
+                }
                 if (inUiSection) {
-                    if (/^\s*hide_traffic_details:/.test(uLine)) {
+                    if (/^    hide_traffic_details:/.test(uLine)) {
                         newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                        hideTrafficInserted = true;
+                        continue;
+                    }
+                    if (/^    notice:\s*$/.test(uLine)) {
+                        if (!hideTrafficInserted) {
+                            newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                            hideTrafficInserted = true;
+                        }
+                        newUiLines.push('    notice:');
+                        newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
+                        noticeInserted = true;
+                        skipNoticeSection = true;
                         continue;
                     }
                     if (/^  [a-z_]+:/i.test(uLine)) {
+                        if (!hideTrafficInserted) {
+                            newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                            hideTrafficInserted = true;
+                        }
+                        if (!noticeInserted) {
+                            newUiLines.push('    notice:');
+                            newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
+                            noticeInserted = true;
+                        }
                         inUiSection = false;
                     }
                 }
                 newUiLines.push(uLine);
+            }
+            if (uiSectionFound && inUiSection) {
+                if (!hideTrafficInserted) {
+                    newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                }
+                if (!noticeInserted) {
+                    newUiLines.push('    notice:');
+                    newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
+                }
             }
             if (!uiSectionFound) {
                 while (newUiLines.length > 0 && newUiLines[newUiLines.length - 1].trim() === '') {
@@ -4063,6 +4120,8 @@
                 newUiLines.push('  # UI 配置');
                 newUiLines.push('  ui:');
                 newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                newUiLines.push('    notice:');
+                newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
             }
             yaml = newUiLines.join('\n');
 
