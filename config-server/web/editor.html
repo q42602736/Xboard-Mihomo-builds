@@ -1101,6 +1101,16 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">显示礼品卡按钮</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="giftCardShowButton"><span class="slider"></span></label>
+                                        <span id="giftCardShowButtonLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">仅 XBoard / V2Board 后端面板支持；关闭后将隐藏桌面端和移动端导航中的礼品卡入口按钮</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">启用登录背景图</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="authBackgroundEnabled"><span class="slider"></span></label>
@@ -2091,7 +2101,9 @@
                 '  ui:',
                 '    hide_traffic_details: false',
                 '    notice:',
-                '      auto_open_on_startup: false'
+                '      auto_open_on_startup: false',
+                '    gift_card:',
+                '      show_button: false'
             ].join('\n');
         }
 
@@ -2780,7 +2792,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'noticeAutoOpenOnStartup', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'noticeAutoOpenOnStartup', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -3686,6 +3698,10 @@
             var noticeAutoOpenOnStartup = noticeAutoOpenMatch ? noticeAutoOpenMatch[1] === 'true' : false;
             document.getElementById('noticeAutoOpenOnStartup').checked = noticeAutoOpenOnStartup;
             document.getElementById('noticeAutoOpenOnStartupLabel').textContent = noticeAutoOpenOnStartup ? '开启' : '关闭';
+            var giftCardShowButtonMatch = yaml.match(/gift_card:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);
+            var giftCardShowButton = giftCardShowButtonMatch ? giftCardShowButtonMatch[1] === 'true' : false;
+            document.getElementById('giftCardShowButton').checked = giftCardShowButton;
+            document.getElementById('giftCardShowButtonLabel').textContent = giftCardShowButton ? '开启' : '关闭';
             var authBackgroundEnabledMatch = yaml.match(/auth_background:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var authBackgroundEnabled = authBackgroundEnabledMatch ? authBackgroundEnabledMatch[1] === 'true' : false;
             document.getElementById('authBackgroundEnabled').checked = authBackgroundEnabled;
@@ -4050,13 +4066,16 @@
             // 更新 UI 配置
             var hideTrafficDetails = document.getElementById('hideTrafficDetails').checked;
             var noticeAutoOpenOnStartup = document.getElementById('noticeAutoOpenOnStartup').checked;
+            var giftCardShowButton = document.getElementById('giftCardShowButton').checked;
             var uiLines = yaml.split('\n');
             var newUiLines = [];
             var inUiSection = false;
             var skipNoticeSection = false;
+            var skipGiftCardSection = false;
             var uiSectionFound = false;
             var hideTrafficInserted = false;
             var noticeInserted = false;
+            var giftCardInserted = false;
             for (var u = 0; u < uiLines.length; u++) {
                 var uLine = uiLines[u];
                 if (/^  ui:/.test(uLine)) {
@@ -4070,6 +4089,12 @@
                         continue;
                     }
                     skipNoticeSection = false;
+                }
+                if (skipGiftCardSection) {
+                    if (/^      /.test(uLine) || uLine.trim() === '' || /^\s*#/.test(uLine)) {
+                        continue;
+                    }
+                    skipGiftCardSection = false;
                 }
                 if (inUiSection) {
                     if (/^    hide_traffic_details:/.test(uLine)) {
@@ -4088,6 +4113,22 @@
                         skipNoticeSection = true;
                         continue;
                     }
+                    if (/^    gift_card:\s*$/.test(uLine)) {
+                        if (!hideTrafficInserted) {
+                            newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
+                            hideTrafficInserted = true;
+                        }
+                        if (!noticeInserted) {
+                            newUiLines.push('    notice:');
+                            newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
+                            noticeInserted = true;
+                        }
+                        newUiLines.push('    gift_card:');
+                        newUiLines.push('      show_button: ' + giftCardShowButton);
+                        giftCardInserted = true;
+                        skipGiftCardSection = true;
+                        continue;
+                    }
                     if (/^  [a-z_]+:/i.test(uLine)) {
                         if (!hideTrafficInserted) {
                             newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
@@ -4097,6 +4138,11 @@
                             newUiLines.push('    notice:');
                             newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
                             noticeInserted = true;
+                        }
+                        if (!giftCardInserted) {
+                            newUiLines.push('    gift_card:');
+                            newUiLines.push('      show_button: ' + giftCardShowButton);
+                            giftCardInserted = true;
                         }
                         inUiSection = false;
                     }
@@ -4111,6 +4157,10 @@
                     newUiLines.push('    notice:');
                     newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
                 }
+                if (!giftCardInserted) {
+                    newUiLines.push('    gift_card:');
+                    newUiLines.push('      show_button: ' + giftCardShowButton);
+                }
             }
             if (!uiSectionFound) {
                 while (newUiLines.length > 0 && newUiLines[newUiLines.length - 1].trim() === '') {
@@ -4122,6 +4172,8 @@
                 newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
                 newUiLines.push('    notice:');
                 newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
+                newUiLines.push('    gift_card:');
+                newUiLines.push('      show_button: ' + giftCardShowButton);
             }
             yaml = newUiLines.join('\n');
 
