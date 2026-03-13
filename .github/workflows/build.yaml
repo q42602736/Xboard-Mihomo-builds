@@ -43,7 +43,7 @@ jobs:
       run:
         shell: bash
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - platform: windows
@@ -515,7 +515,7 @@ jobs:
           fi
 
       - name: List dist contents
-        if: always() && steps.check.outputs.should_run == 'true'
+        if: success() && steps.check.outputs.should_run == 'true'
         run: |
           echo "=== source/dist contents ==="
           ls -la ./source/dist/ 2>/dev/null || echo "source/dist not found or empty"
@@ -541,7 +541,7 @@ jobs:
           tail -100 ./source/build.log 2>/dev/null || echo "No build log"
 
       - name: Upload
-        if: steps.check.outputs.should_run == 'true'
+        if: success() && steps.check.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.executable_names.outputs.profile_name_safe }}-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
@@ -553,7 +553,7 @@ jobs:
   merge-artifacts:
     runs-on: ubuntu-latest
     needs: [ build ]
-    if: ${{ always() && !cancelled() }}
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     steps:
       - name: Get app name from config
         id: config
