@@ -388,7 +388,7 @@
         .btn-build.is-disabled { background: linear-gradient(135deg, #666, #444); color: #bbb; opacity: 1; box-shadow: none; }
         .btn-build:disabled:hover,
         .btn-build.is-disabled:hover { background: linear-gradient(135deg, #666, #444); }
-        .editor-container { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; padding: 24px; }
+        .editor-container { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: visible; padding: 24px; }
         .section { margin-bottom: 25px; }
         .section:last-child { margin-bottom: 0; }
         .section-title { color: #00d4ff; font-size: 15px; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid rgba(0,212,255,0.2); }
@@ -640,7 +640,7 @@
             margin-top: 0;
             max-height: 1200px;
             opacity: 1;
-            overflow: hidden;
+            overflow: visible;
             transition: max-height 0.24s ease, opacity 0.2s ease, margin-top 0.2s ease;
         }
         .remote-config-update-card.is-disabled {
@@ -729,10 +729,271 @@
         }
         .build-panel { background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); border-radius: 12px; padding: 20px; margin-top: 0; }
         .build-panel h3 { color: #00ff88; margin-bottom: 15px; }
+        .sidebar-profiles select,
+        .form-group select,
+        .updates-toolbar select,
+        .profile-select-wrapper select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 10px;
+            background-color: rgba(7,12,22,0.94);
+            background-image:
+                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.25L6 6.25L11 1.25' stroke='%2388f7d1' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat, no-repeat;
+            background-position: 0 0, right 14px center;
+            background-size: 100% 100%, 12px 8px;
+            color: #f5f7fb;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 20px rgba(0,0,0,0.14);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+        .sidebar-profiles select,
+        .form-group select,
+        .profile-select-wrapper select {
+            padding: 10px 42px 10px 12px;
+        }
+        .updates-toolbar select {
+            min-width: 180px;
+            padding: 8px 38px 8px 10px;
+        }
+        .sidebar-profiles select:hover,
+        .form-group select:hover,
+        .updates-toolbar select:hover,
+        .profile-select-wrapper select:hover {
+            border-color: rgba(255,255,255,0.24);
+            background-color: rgba(10,16,28,0.98);
+        }
+        .sidebar-profiles select:focus,
+        .form-group select:focus,
+        .updates-toolbar select:focus,
+        .profile-select-wrapper select:focus {
+            outline: none;
+            border-color: rgba(0,212,255,0.75);
+            box-shadow: 0 0 0 3px rgba(0,212,255,0.16), inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 24px rgba(0,0,0,0.2);
+        }
+        .sidebar-profiles select option,
+        .form-group select option,
+        .updates-toolbar select option,
+        .profile-select-wrapper select option {
+            background: #0f1624;
+            color: #f5f7fb;
+        }
+        .custom-select {
+            position: relative;
+            width: 100%;
+        }
+        .sidebar-profiles .custom-select {
+            margin-bottom: 8px;
+        }
+        .updates-toolbar .custom-select {
+            min-width: 180px;
+        }
+        .custom-select-native {
+            display: none !important;
+        }
+        .custom-select-trigger {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 10px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)),
+                rgba(7,12,22,0.94);
+            color: #f5f7fb;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 20px rgba(0,0,0,0.14);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+            cursor: pointer;
+        }
+        .sidebar-profiles .custom-select-trigger,
+        .updates-toolbar .custom-select-trigger {
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+        .form-group .custom-select-trigger,
+        .profile-select-wrapper .custom-select-trigger {
+            padding: 10px 12px;
+            font-size: 14px;
+        }
+        .custom-select-trigger:hover {
+            border-color: rgba(255,255,255,0.24);
+            background-color: rgba(10,16,28,0.98);
+            cursor: pointer;
+        }
+        .custom-select-trigger:focus-visible,
+        .custom-select.is-open .custom-select-trigger {
+            outline: none;
+            border-color: rgba(0,212,255,0.75);
+            box-shadow: 0 0 0 3px rgba(0,212,255,0.16), inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 24px rgba(0,0,0,0.2);
+        }
+        .custom-select.is-disabled .custom-select-trigger {
+            opacity: 0.58;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .custom-select-value {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: left;
+        }
+        .custom-select.is-placeholder .custom-select-value {
+            color: #8b949e;
+        }
+        .custom-select-icon {
+            position: relative;
+            flex-shrink: 0;
+            width: 12px;
+            height: 8px;
+        }
+        .custom-select-icon::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: no-repeat center/12px 8px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.25L6 6.25L11 1.25' stroke='%2388f7d1' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            transition: transform 0.2s ease;
+        }
+        .custom-select.is-open .custom-select-icon::before {
+            transform: rotate(180deg);
+        }
+        .custom-select-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            z-index: 120;
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 280px;
+            overflow-y: auto;
+            padding: 6px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            background: linear-gradient(180deg, rgba(15,22,36,0.98), rgba(9,13,24,0.98));
+            box-shadow: 0 18px 40px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0,212,255,0.45) rgba(255,255,255,0.08);
+        }
+        .custom-select.is-open .custom-select-menu {
+            display: flex;
+        }
+        .custom-select-menu::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-select-menu::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.06);
+            border-radius: 999px;
+        }
+        .custom-select-menu::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, rgba(0,255,136,0.55), rgba(0,212,255,0.55));
+            border-radius: 999px;
+        }
+        .custom-select-menu::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, rgba(0,255,136,0.8), rgba(0,212,255,0.8));
+        }
+        .custom-select-option {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: #dfe8f0;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+            transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+        }
+        .custom-select-option:hover,
+        .custom-select-option:focus-visible {
+            outline: none;
+            background: rgba(0,212,255,0.12);
+            color: #ffffff;
+            transform: translateX(1px);
+            cursor: pointer;
+        }
+        .custom-select-option.is-selected {
+            background: rgba(0,255,136,0.14);
+            color: #89ffd0;
+        }
+        .custom-select-option:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+        }
         .platform-checkboxes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-        .platform-checkbox { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); padding: 9px 16px; border-radius: 6px; cursor: pointer; }
-        .platform-checkbox input { cursor: pointer; order: -1; flex-shrink: 0; width: 16px; height: 16px; margin: 0; }
-        .platform-checkbox:hover { background: rgba(0,255,136,0.1); }
+        .form-group .platform-checkbox {
+            display: inline-flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 10px;
+            margin-bottom: 0;
+            padding: 10px 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+            cursor: pointer;
+            color: #dfe8f0;
+            font-size: 14px;
+            white-space: nowrap;
+            transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .form-group .platform-checkbox input {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            position: relative;
+            display: inline-block;
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            border: 1px solid rgba(0,255,136,0.42);
+            border-radius: 5px;
+            background: linear-gradient(180deg, rgba(7,12,22,0.96), rgba(12,18,30,0.92));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 10px rgba(0,0,0,0.18);
+            cursor: pointer;
+            transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        }
+        .form-group .platform-checkbox input:checked {
+            border-color: transparent;
+            background-image:
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='8' viewBox='0 0 11 8' fill='none'%3E%3Cpath d='M1 4L4 7L10 1' stroke='%23061019' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
+                linear-gradient(135deg, #00ff88, #00d4ff);
+            background-repeat: no-repeat, no-repeat;
+            background-position: center center, center center;
+            background-size: 11px 8px, 100% 100%;
+            box-shadow: 0 0 0 1px rgba(0,212,255,0.2), 0 8px 18px rgba(0,212,255,0.18);
+        }
+        .form-group .platform-checkbox input:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0,212,255,0.16), 0 6px 18px rgba(0,0,0,0.2);
+        }
+        .form-group .platform-checkbox:hover {
+            border-color: rgba(0,255,136,0.26);
+            background: rgba(0,255,136,0.1);
+        }
+        .form-group .platform-checkbox-label {
+            display: inline-flex;
+            align-items: center;
+            line-height: 1;
+            white-space: nowrap;
+            color: inherit;
+        }
         .btn-build { background: linear-gradient(135deg, #ff6b6b, #ee5a5a); color: #fff; }
         .btn-build:hover { background: linear-gradient(135deg, #ff5252, #e04545); }
         .support-item { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 15px; margin-bottom: 10px; position: relative; }
@@ -1571,7 +1832,7 @@
                                 <div class="updates-summary" id="updatesSummary">正在加载更新记录配置...</div>
                                 <div style="display:flex; align-items:center; gap:8px;">
                                     <span style="font-size:12px; color:#8b949e;">分支</span>
-                                    <select id="updatesBranch" onchange="handleUpdatesBranchChange()" style="min-width:180px; padding:8px 10px; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#fff;">
+                                    <select id="updatesBranch" onchange="handleUpdatesBranchChange()">
                                         <option value="">默认分支</option>
                                     </select>
                                 </div>
@@ -1613,12 +1874,12 @@
                         <div class="form-group">
                             <label>选择打包平台</label>
                             <div class="platform-checkboxes">
-                                <label class="platform-checkbox"><input type="checkbox" value="all" id="platformAll" checked> 全部平台</label>
-                                <label class="platform-checkbox"><input type="checkbox" value="windows" class="platformItem"> Windows</label>
-                                <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem"> Android</label>
-                                <label class="platform-checkbox"><input type="checkbox" value="macos" class="platformItem"> macOS (全部)</label>
-                                <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem"> macOS ARM64</label>
-                                <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem"> macOS AMD64</label>
+                                <label class="platform-checkbox"><input type="checkbox" value="all" id="platformAll" checked><span class="platform-checkbox-label">全部平台</span></label>
+                                <label class="platform-checkbox"><input type="checkbox" value="windows" class="platformItem"><span class="platform-checkbox-label">Windows</span></label>
+                                <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem"><span class="platform-checkbox-label">Android</span></label>
+                                <label class="platform-checkbox"><input type="checkbox" value="macos" class="platformItem"><span class="platform-checkbox-label">macOS (全部)</span></label>
+                                <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem"><span class="platform-checkbox-label">macOS ARM64</span></label>
+                                <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem"><span class="platform-checkbox-label">macOS AMD64</span></label>
                             </div>
                         </div>
                         <div id="buildQueue" style="margin-top: 15px; padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
@@ -2116,6 +2377,312 @@
             return isValid;
         }
 
+        var customSelectTreeObserver = null;
+        var customSelectIdCounter = 0;
+
+        function getCustomSelectElements(root) {
+            var scope = root || document;
+            var elements = [];
+            if (scope.matches && scope.matches('select')) {
+                elements.push(scope);
+            }
+            if (scope.querySelectorAll) {
+                scope.querySelectorAll('select').forEach(function(select) {
+                    if (elements.indexOf(select) === -1) {
+                        elements.push(select);
+                    }
+                });
+            }
+            return elements;
+        }
+
+        function closeCustomSelect(select) {
+            if (!select || !select._customSelect) return;
+            var state = select._customSelect;
+            state.wrapper.classList.remove('is-open');
+            state.trigger.setAttribute('aria-expanded', 'false');
+        }
+
+        function closeAllCustomSelects(exceptSelect) {
+            getCustomSelectElements(document).forEach(function(select) {
+                if (select === exceptSelect) return;
+                closeCustomSelect(select);
+            });
+        }
+
+        function focusCustomSelectOption(select, direction) {
+            if (!select || !select._customSelect) return;
+            var buttons = (select._customSelect.optionButtons || []).filter(function(button) {
+                return !button.disabled;
+            });
+            if (!buttons.length) return;
+
+            if (direction === 'selected') {
+                var selectedButton = buttons.find(function(button) {
+                    return button.classList.contains('is-selected');
+                });
+                (selectedButton || buttons[0]).focus();
+                return;
+            }
+
+            var currentIndex = buttons.indexOf(document.activeElement);
+            if (currentIndex === -1) {
+                buttons[0].focus();
+                return;
+            }
+
+            if (direction === 'next') {
+                buttons[(currentIndex + 1) % buttons.length].focus();
+            } else if (direction === 'prev') {
+                buttons[(currentIndex - 1 + buttons.length) % buttons.length].focus();
+            }
+        }
+
+        function syncCustomSelectFromNative(select) {
+            if (!select || !select._customSelect) return;
+            var state = select._customSelect;
+            var selectedIndex = select.selectedIndex >= 0 ? select.selectedIndex : 0;
+            var selectedOption = select.options && select.options.length ? select.options[selectedIndex] : null;
+            var label = selectedOption ? selectedOption.textContent : '请选择';
+            var isPlaceholder = !!(selectedOption && selectedOption.value === '');
+            var isDisabled = !!select.disabled;
+
+            state.value.textContent = label || '请选择';
+            state.value.title = label || '';
+            state.wrapper.classList.toggle('is-placeholder', isPlaceholder);
+            state.wrapper.classList.toggle('is-disabled', isDisabled);
+            state.trigger.disabled = isDisabled;
+            state.trigger.setAttribute('aria-expanded', state.wrapper.classList.contains('is-open') ? 'true' : 'false');
+
+            (state.optionButtons || []).forEach(function(button, index) {
+                var isSelected = index === selectedIndex;
+                button.classList.toggle('is-selected', isSelected);
+                button.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+                button.disabled = !!(select.options[index] && select.options[index].disabled);
+            });
+
+            if (isDisabled) {
+                closeCustomSelect(select);
+            }
+        }
+
+        function renderCustomSelectOptions(select) {
+            if (!select || !select._customSelect) return;
+            var state = select._customSelect;
+            state.menu.innerHTML = '';
+
+            Array.from(select.options || []).forEach(function(option, index) {
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'custom-select-option';
+                button.textContent = option.textContent;
+                button.dataset.index = String(index);
+                button.setAttribute('role', 'option');
+                button.disabled = !!option.disabled;
+                button.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (button.disabled) return;
+                    if (select.selectedIndex !== index || select.value !== option.value) {
+                        select.value = option.value;
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    syncCustomSelectFromNative(select);
+                    closeCustomSelect(select);
+                    state.trigger.focus();
+                });
+                state.menu.appendChild(button);
+            });
+
+            state.optionButtons = Array.from(state.menu.querySelectorAll('.custom-select-option'));
+            syncCustomSelectFromNative(select);
+        }
+
+        function openCustomSelect(select) {
+            if (!select || !select._customSelect || select.disabled) return;
+            closeAllCustomSelects(select);
+            var state = select._customSelect;
+            state.wrapper.classList.add('is-open');
+            state.trigger.setAttribute('aria-expanded', 'true');
+        }
+
+        function toggleCustomSelect(select) {
+            if (!select || !select._customSelect || select.disabled) return;
+            if (select._customSelect.wrapper.classList.contains('is-open')) {
+                closeCustomSelect(select);
+                return;
+            }
+            openCustomSelect(select);
+        }
+
+        function bindCustomSelectEvents(select) {
+            if (!select || !select._customSelect || select._customSelect.bound) return;
+            var state = select._customSelect;
+
+            state.trigger.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleCustomSelect(select);
+            });
+            state.trigger.addEventListener('keydown', function(event) {
+                if (select.disabled) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggleCustomSelect(select);
+                    if (state.wrapper.classList.contains('is-open')) {
+                        focusCustomSelectOption(select, 'selected');
+                    }
+                } else if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    openCustomSelect(select);
+                    focusCustomSelectOption(select, 'selected');
+                } else if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    openCustomSelect(select);
+                    focusCustomSelectOption(select, 'selected');
+                } else if (event.key === 'Escape') {
+                    closeCustomSelect(select);
+                }
+            });
+            state.menu.addEventListener('click', function(event) {
+                event.stopPropagation();
+            });
+            state.menu.addEventListener('keydown', function(event) {
+                if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    focusCustomSelectOption(select, 'next');
+                } else if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    focusCustomSelectOption(select, 'prev');
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeCustomSelect(select);
+                    state.trigger.focus();
+                }
+            });
+            select.addEventListener('change', function() {
+                syncCustomSelectFromNative(select);
+                closeCustomSelect(select);
+            });
+
+            state.bound = true;
+        }
+
+        function observeCustomSelectNative(select) {
+            if (!select || select._customSelectObserver) return;
+            var observer = new MutationObserver(function() {
+                renderCustomSelectOptions(select);
+            });
+            observer.observe(select, {
+                childList: true,
+                subtree: true,
+                characterData: true,
+                attributes: true,
+                attributeFilter: ['disabled', 'label', 'selected']
+            });
+            select._customSelectObserver = observer;
+        }
+
+        function enhanceCustomSelect(select) {
+            if (!select || select.dataset.customSelectEnhanced === 'true' || select.closest('.custom-select')) return;
+
+            var wrapper = document.createElement('div');
+            wrapper.className = 'custom-select';
+            var trigger = document.createElement('button');
+            var menu = document.createElement('div');
+            var value = document.createElement('span');
+            var icon = document.createElement('span');
+            var menuId = (select.id || ('customSelect' + (++customSelectIdCounter))) + '-menu';
+
+            trigger.type = 'button';
+            trigger.className = 'custom-select-trigger';
+            trigger.setAttribute('aria-haspopup', 'listbox');
+            trigger.setAttribute('aria-expanded', 'false');
+            trigger.setAttribute('aria-controls', menuId);
+
+            value.className = 'custom-select-value';
+            icon.className = 'custom-select-icon';
+            trigger.appendChild(value);
+            trigger.appendChild(icon);
+
+            menu.className = 'custom-select-menu';
+            menu.id = menuId;
+            menu.setAttribute('role', 'listbox');
+
+            select.parentNode.insertBefore(wrapper, select);
+            wrapper.appendChild(select);
+            wrapper.appendChild(trigger);
+            wrapper.appendChild(menu);
+
+            select.classList.add('custom-select-native');
+            select.dataset.customSelectEnhanced = 'true';
+            select._customSelect = {
+                wrapper: wrapper,
+                trigger: trigger,
+                menu: menu,
+                value: value,
+                optionButtons: [],
+                bound: false
+            };
+
+            bindCustomSelectEvents(select);
+            observeCustomSelectNative(select);
+            renderCustomSelectOptions(select);
+        }
+
+        function initCustomSelects(root) {
+            getCustomSelectElements(root).forEach(function(select) {
+                if (select.dataset.customSelectEnhanced === 'true') {
+                    syncCustomSelectFromNative(select);
+                    return;
+                }
+                enhanceCustomSelect(select);
+            });
+        }
+
+        function syncAllCustomSelects(root, rebuildOptions) {
+            getCustomSelectElements(root).forEach(function(select) {
+                if (select.dataset.customSelectEnhanced !== 'true') {
+                    enhanceCustomSelect(select);
+                    return;
+                }
+                if (rebuildOptions) {
+                    renderCustomSelectOptions(select);
+                } else {
+                    syncCustomSelectFromNative(select);
+                }
+            });
+        }
+
+        function observeCustomSelectTree() {
+            if (customSelectTreeObserver) return;
+
+            document.addEventListener('click', function(event) {
+                if (!event.target.closest('.custom-select')) {
+                    closeAllCustomSelects();
+                }
+            });
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeAllCustomSelects();
+                }
+            });
+
+            customSelectTreeObserver = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1) {
+                            initCustomSelects(node);
+                        }
+                    });
+                });
+            });
+            customSelectTreeObserver.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        }
+
         function renderBuildUsageInfo(data) {
             var el = document.getElementById('buildUsageInfo');
             if (!el) return;
@@ -2268,6 +2835,8 @@
 
             initSwitches();
             initPlatformCheckboxes();
+            initCustomSelects(document);
+            observeCustomSelectTree();
             updateBuildTagValidationState();
             initRemoteConfigTool();
             renderSources();
@@ -2332,6 +2901,7 @@
                 syncProfileBoundAppTitle();
                 if (profilesCache.length === 1) {
                     document.getElementById('profileSelect').value = profilesCache[0].name;
+                    syncAllCustomSelects(document.getElementById('profileSelect'));
                     loadProfile();
                 }
             } catch (e) {
@@ -2352,6 +2922,7 @@
             if (currentValue) {
                 select.value = currentValue;
             }
+            syncAllCustomSelects(select, true);
         }
 
         async function loadProfile() {
@@ -2437,6 +3008,7 @@
                 hideSaveProfileInput();
                 await loadProfiles();
                 document.getElementById('profileSelect').value = profileName;
+                syncAllCustomSelects(document.getElementById('profileSelect'));
                 setStatus('已保存: ' + profileName, 'success');
             } catch (e) {
                 setStatus('保存失败: ' + e.message, 'error');
@@ -2501,6 +3073,7 @@
                     } else if (select.options.length > 0) {
                         select.selectedIndex = 0;
                     }
+                    syncAllCustomSelects(select, true);
                 };
 
                 fillBranchSelect(document.getElementById('buildBranch'), branches, 'main', false);
@@ -3083,6 +3656,7 @@
                 });
             });
             refreshRemoteConfigSourceTargets();
+            syncAllCustomSelects(container, true);
         }
 
         function addSource() {
@@ -3182,6 +3756,7 @@
             releaseNotesInput.value = normalized.release_notes;
             forceUpdateInput.value = normalized.force_update ? 'true' : 'false';
             enabledInput.checked = !!options.enabled;
+            syncAllCustomSelects(document.getElementById('remoteConfigUpdateCard'));
             toggleRemoteConfigUpdateCard();
         }
 
@@ -3198,6 +3773,7 @@
             card.querySelectorAll('input, textarea, select').forEach(function(input) {
                 input.disabled = !enabled;
             });
+            syncAllCustomSelects(card);
         }
 
         function getRemoteConfigUpdateFormData(requireComplete) {
@@ -3802,6 +4378,7 @@
             });
             remoteConfigEncryptedData = '';
             renderRemoteConfigPanels();
+            syncAllCustomSelects(document);
             syncRemoteConfigJsonPreview({ silentStatus: true });
             if (options.successMessage) {
                 setRemoteConfigStatus(options.successMessage, 'success');
@@ -4075,6 +4652,7 @@
                     input.addEventListener('change', function() { formToYaml(); });
                 });
             });
+            syncAllCustomSelects(container, true);
         }
 
         function addSupportItem() {
@@ -4308,6 +4886,7 @@
             }
             if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
             renderSupportItems();
+            syncAllCustomSelects(document);
             updateProviderConsistencyState({ source: 'basic' });
             syncRemoteConfigJsonPreview({ silentStatus: true });
         }
