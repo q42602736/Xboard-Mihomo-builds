@@ -1340,7 +1340,7 @@
                     <div class="editor-container">
                         <div id="onlineSupportContainer"></div>
                         <button type="button" class="btn btn-primary" id="addSupportBtn" style="margin-top: 10px;">+ 添加客服类型</button>
-                        <div class="help-text" style="margin-top: 10px;">支持类型: browser(网页), crisp, chatway, tawkto, chatwoot。第一个有效配置会被使用。</div>
+                        <div class="help-text" style="margin-top: 10px;">支持类型: browser(网页), crisp, chatra, chatway, tawkto, chatwoot。第一个有效配置会被使用，旧版 Chatra <code>widget_code</code> 配置也会自动兼容。</div>
                     </div>
                     <div class="page-footer">
                         <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
@@ -3518,11 +3518,35 @@
 
         // ==================== 在线客服管理 ====================
 
+        function extractChatraIdFromWidgetCode(widgetCode) {
+            if (!widgetCode) return '';
+            var match = widgetCode.match(/ChatraID\s*[:=]\s*['"]([^'"]+)['"]/i);
+            return match ? match[1].trim() : '';
+        }
+
+        function normalizeSupportItem(item) {
+            if (!item) return item;
+            if (item.type === 'chatra' && !item.chatra_id && item.widget_code) {
+                var extractedChatraId = extractChatraIdFromWidgetCode(item.widget_code);
+                if (extractedChatraId) {
+                    item.chatra_id = extractedChatraId;
+                }
+            }
+            return item;
+        }
+
+        function escapeYamlDoubleQuotedValue(value) {
+            return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        }
+
         function createSupportItem(index, item) {
-            item = item || { type: 'browser', url: '', description: '', website_id: '', widget_id: '', property_id: '', website_token: '', base_url: '' };
+            item = normalizeSupportItem(item || { type: 'browser', url: '', description: '', website_id: '', widget_id: '', property_id: '', website_token: '', base_url: '', chatra_id: '', widget_code: '' });
             var div = document.createElement('div');
             div.className = 'support-item';
             div.dataset.index = index;
+            if (item.widget_code) {
+                div.dataset.legacyChatraWidgetCode = item.widget_code;
+            }
             div.innerHTML = '<div class="support-index">客服配置 #' + (index + 1) + '</div>' +
                 '<button type="button" class="btn-remove" onclick="removeSupportItem(' + index + ')">删除</button>' +
                 '<div class="form-row">' +
@@ -3530,6 +3554,7 @@
                         '<select class="support-type" onchange="updateSupportFields(this)">' +
                             '<option value="browser"' + (item.type === 'browser' ? ' selected' : '') + '>browser (网页)</option>' +
                             '<option value="crisp"' + (item.type === 'crisp' ? ' selected' : '') + '>crisp</option>' +
+                            '<option value="chatra"' + (item.type === 'chatra' ? ' selected' : '') + '>chatra</option>' +
                             '<option value="chatway"' + (item.type === 'chatway' ? ' selected' : '') + '>chatway</option>' +
                             '<option value="tawkto"' + (item.type === 'tawkto' ? ' selected' : '') + '>tawkto</option>' +
                             '<option value="chatwoot"' + (item.type === 'chatwoot' ? ' selected' : '') + '>chatwoot</option>' +
@@ -3547,6 +3572,12 @@
                 '<div class="support-fields crisp-fields' + (item.type === 'crisp' ? ' active' : '') + '">' +
                     '<div class="form-group"><label>Website ID</label>' +
                         '<input type="text" class="support-website-id" value="' + (item.website_id || '') + '" placeholder="CRISP Website ID">' +
+                    '</div>' +
+                '</div>' +
+                '<div class="support-fields chatra-fields' + (item.type === 'chatra' ? ' active' : '') + '">' +
+                    '<div class="form-group"><label>Chatra ID</label>' +
+                        '<input type="text" class="support-chatra-id" value="' + (item.chatra_id || '') + '" placeholder="ChatraID">' +
+                        '<div class="help-text">仅需填写 ChatraID；旧版 <code>widget_code</code> 会自动兼容</div>' +
                     '</div>' +
                 '</div>' +
                 '<div class="support-fields chatway-fields' + (item.type === 'chatway' ? ' active' : '') + '">' +
@@ -3622,6 +3653,11 @@
                     obj.url = item.querySelector('.support-url').value.trim();
                 } else if (type === 'crisp') {
                     obj.website_id = item.querySelector('.support-website-id').value.trim();
+                } else if (type === 'chatra') {
+                    obj.chatra_id = item.querySelector('.support-chatra-id').value.trim();
+                    if (!obj.chatra_id && item.dataset.legacyChatraWidgetCode) {
+                        obj.widget_code = item.dataset.legacyChatraWidgetCode;
+                    }
                 } else if (type === 'chatway') {
                     obj.widget_id = item.querySelector('.support-chatway-widget-id').value.trim();
                 } else if (type === 'tawkto') {
@@ -3775,18 +3811,18 @@
                 }
                 if (inItems) {
                     if (/^  [a-z_]+:/i.test(supportLine) && !/^  online_support/.test(supportLine) && !/^    /.test(supportLine)) {
-                        if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
+                        if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
                         break;
                     }
                     if (supportLine.trim() === '' && j + 1 < lines.length) {
                         var nextLine = lines[j + 1];
                         if (/^  [a-z_]+:/i.test(nextLine) && !/^    /.test(nextLine)) {
-                            if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
+                            if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
                             break;
                         }
                     }
                     if (/^      - type:\s*(.*)/.test(supportLine)) {
-                        if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
+                        if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
                         currentSupportItem = { type: supportLine.match(/^      - type:\s*(.*)/)[1].trim() };
                     } else if (currentSupportItem) {
                         if (/^        url:\s*(.*)/.test(supportLine)) {
@@ -3795,6 +3831,20 @@
                             currentSupportItem.description = supportLine.match(/^        description:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
                         } else if (/^        website_id:\s*(.*)/.test(supportLine)) {
                             currentSupportItem.website_id = supportLine.match(/^        website_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        (chatra_id|chatraId|ChatraID):\s*(.*)/.test(supportLine)) {
+                            currentSupportItem.chatra_id = supportLine.match(/^        (?:chatra_id|chatraId|ChatraID):\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
+                        } else if (/^        (widget_code|widgetCode):\s*(.*)/.test(supportLine)) {
+                            var widgetCodeValue = supportLine.match(/^        (?:widget_code|widgetCode):\s*(.*)/)[1].trim();
+                            if (widgetCodeValue === '' || /^[>|]/.test(widgetCodeValue)) {
+                                var widgetCodeLines = [];
+                                while (j + 1 < lines.length && /^          /.test(lines[j + 1])) {
+                                    widgetCodeLines.push(lines[j + 1].replace(/^          /, ''));
+                                    j++;
+                                }
+                                currentSupportItem.widget_code = widgetCodeLines.join('\n').trim();
+                            } else {
+                                currentSupportItem.widget_code = widgetCodeValue.replace(/^["']|["']$/g, '');
+                            }
                         } else if (/^        widget_id:\s*(.*)/.test(supportLine)) {
                             currentSupportItem.widget_id = supportLine.match(/^        widget_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
                         } else if (/^        property_id:\s*(.*)/.test(supportLine)) {
@@ -3807,7 +3857,7 @@
                     }
                 }
             }
-            if (currentSupportItem) onlineSupportItems.push(currentSupportItem);
+            if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
             renderSupportItems();
             updateProviderConsistencyState({ source: 'basic' });
             syncRemoteConfigJsonPreview({ silentStatus: true });
@@ -4002,6 +4052,7 @@
             var validItems = onlineSupportItems.filter(function(item) {
                 if (item.type === 'browser' && item.url) return true;
                 if (item.type === 'crisp' && item.website_id) return true;
+                if (item.type === 'chatra' && (item.chatra_id || item.widget_code)) return true;
                 if (item.type === 'chatway' && item.widget_id) return true;
                 if (item.type === 'tawkto' && (item.property_id || item.widget_id)) return true;
                 if (item.type === 'chatwoot' && (item.website_token || item.base_url)) return true;
@@ -4045,6 +4096,19 @@
                         newSupportLines.push('        url: "' + item.url + '"');
                     } else if (item.type === 'crisp') {
                         newSupportLines.push('        website_id: "' + item.website_id + '"');
+                    } else if (item.type === 'chatra') {
+                        if (item.chatra_id) {
+                            newSupportLines.push('        chatra_id: "' + escapeYamlDoubleQuotedValue(item.chatra_id) + '"');
+                        } else if (item.widget_code) {
+                            if (item.widget_code.indexOf('\n') >= 0) {
+                                newSupportLines.push('        widget_code: |');
+                                item.widget_code.split('\n').forEach(function(widgetLine) {
+                                    newSupportLines.push('          ' + widgetLine);
+                                });
+                            } else {
+                                newSupportLines.push('        widget_code: "' + escapeYamlDoubleQuotedValue(item.widget_code) + '"');
+                            }
+                        }
                     } else if (item.type === 'chatway') {
                         newSupportLines.push('        widget_id: "' + item.widget_id + '"');
                     } else if (item.type === 'tawkto') {
