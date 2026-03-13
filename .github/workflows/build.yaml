@@ -432,8 +432,9 @@ jobs:
           echo "Running: dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} --version ${{ github.event.inputs.tag }}"
           echo ""
           echo "=== Build Output ==="
+          set -o pipefail
           dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} --version ${{ github.event.inputs.tag }} 2>&1 | tee build.log
-          BUILD_EXIT_CODE=$?
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
           echo ""
           echo "=== Build Exit Code: $BUILD_EXIT_CODE ==="
 
@@ -546,6 +547,7 @@ jobs:
           name: ${{ steps.executable_names.outputs.profile_name_safe }}-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
           path: ./source/dist
           overwrite: true
+          if-no-files-found: error
 
   # 合并所有平台的构建产物到一个 Artifact（方便下载）
   merge-artifacts:
