@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"gopkg.in/yaml.v3"
 )
 
 const maxBuildRecordHistory = 5
@@ -138,10 +139,6 @@ func normalizeSubscriptionConfig(yamlContent string) string {
 		}
 	}
 
-	if !hasLegacy {
-		return yamlContent
-	}
-
 	subscriptionLines := []string{
 		"  subscription:",
 		"    prefer_encrypt: " + preferEncrypt,
@@ -164,9 +161,11 @@ func normalizeSubscriptionConfig(yamlContent string) string {
 		}
 
 		if strings.HasPrefix(line, "  subscription:") {
-			cleaned = append(cleaned, subscriptionLines...)
+			if !inserted {
+				cleaned = append(cleaned, subscriptionLines...)
+				inserted = true
+			}
 			skipSubscriptionSection = true
-			inserted = true
 			continue
 		}
 
@@ -182,7 +181,7 @@ func normalizeSubscriptionConfig(yamlContent string) string {
 		cleaned = append(cleaned, line)
 	}
 
-	if !inserted {
+	if !inserted && hasLegacy {
 		for len(cleaned) > 0 && strings.TrimSpace(cleaned[len(cleaned)-1]) == "" {
 			cleaned = cleaned[:len(cleaned)-1]
 		}
@@ -192,7 +191,24 @@ func normalizeSubscriptionConfig(yamlContent string) string {
 		cleaned = append(cleaned, subscriptionLines...)
 	}
 
+	if !hasLegacy && !inserted {
+		return yamlContent
+	}
+
 	return strings.Join(cleaned, "\n")
+}
+
+func validateYamlContent(yamlContent string) error {
+	if strings.TrimSpace(yamlContent) == "" {
+		return fmt.Errorf("配置内容为空")
+	}
+	var doc interface{}
+	decoder := yaml.NewDecoder(strings.NewReader(yamlContent))
+	decoder.KnownFields(false)
+	if err := decoder.Decode(&doc); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ==================== 认证 ====================
@@ -380,10 +396,33 @@ func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var payload struct {
+		YamlContent string `json:"yaml_content"`
+		LastUpdated string `json:"last_updated,omitempty"`
+	}
+	if err := json.Unmarshal(profileData, &payload); err != nil {
+		jsonError(w, "解析档案失败", 500)
+		return
+	}
+	if payload.YamlContent != "" {
+		cleaned := normalizeSubscriptionConfig(payload.YamlContent)
+		if cleaned != payload.YamlContent {
+			payload.YamlContent = cleaned
+			profiles[name] = map[string]interface{}{
+				"yaml_content": cleaned,
+				"last_updated": time.Now().Format("2006/1/2 15:04:05"),
+			}
+			newContent, _ := json.MarshalIndent(profiles, "", "  ")
+			_ = h.gh.SaveFileWithRetry(profilesPath, func(_ string) string {
+				return string(newContent)
+			}, "修复配置档案: "+name, 3)
+		}
+	}
+
 	logAudit(claims.CodeID, claims.CodeName, "load_profile", name, r.RemoteAddr)
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(profileData)
+	json.NewEncoder(w).Encode(payload)
 }
 
 func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
@@ -406,6 +445,10 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		req.YamlContent = bindProfileTitle(req.YamlContent, name)
 	}
 	req.YamlContent = normalizeSubscriptionConfig(req.YamlContent)
+	if err := validateYamlContent(req.YamlContent); err != nil {
+		jsonError(w, "配置格式错误: "+err.Error(), 400)
+		return
+	}
 
 	content, sha, err := h.gh.GetFile(profilesPath)
 	var profiles map[string]interface{}
@@ -432,7 +475,7 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 
 	logAudit(claims.CodeID, claims.CodeName, "save_profile", name, r.RemoteAddr)
 
-	jsonResponse(w, map[string]string{"message": "保存成功"})
+	jsonResponse(w, map[string]string{"message": "保存成功", "yaml_content": req.YamlContent})
 }
 
 func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
@@ -718,6 +761,14 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		usageConsumed = true
 	}
 
+	if err := h.validateProfileYaml(req.Profile); err != nil {
+		if usageConsumed {
+			_ = rollbackBuildUsage(claims.CodeID)
+		}
+		jsonError(w, "配置档案无效: "+err.Error(), 400)
+		return
+	}
+
 	record, err := createBuildRecord(claims.CodeID, claims.CodeName, req.Profile, req.Tag, req.Branch, req.Platforms)
 	if err != nil {
 		if usageConsumed {
@@ -763,6 +814,40 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		"record_id":  record.ID,
 		"request_id": requestID,
 	})
+}
+
+func (h *Handlers) validateProfileYaml(profileName string) error {
+	content, _, err := h.gh.GetFile(profilesPath)
+	if err != nil {
+		return fmt.Errorf("读取档案失败")
+	}
+	var profiles map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(content), &profiles); err != nil {
+		return fmt.Errorf("解析档案数据失败")
+	}
+	profileData, ok := profiles[profileName]
+	if !ok {
+		return fmt.Errorf("未找到档案")
+	}
+	var payload struct {
+		YamlContent string `json:"yaml_content"`
+	}
+	if err := json.Unmarshal(profileData, &payload); err != nil {
+		return fmt.Errorf("解析档案失败")
+	}
+	cleaned := normalizeSubscriptionConfig(payload.YamlContent)
+	if cleaned != payload.YamlContent {
+		payload.YamlContent = cleaned
+		profiles[profileName] = map[string]interface{}{
+			"yaml_content": cleaned,
+			"last_updated": time.Now().Format("2006/1/2 15:04:05"),
+		}
+		newContent, _ := json.MarshalIndent(profiles, "", "  ")
+		_ = h.gh.SaveFileWithRetry(profilesPath, func(_ string) string {
+			return string(newContent)
+		}, "修复配置档案: "+profileName, 3)
+	}
+	return validateYamlContent(payload.YamlContent)
 }
 
 func (h *Handlers) GetBuildHistory(w http.ResponseWriter, r *http.Request) {

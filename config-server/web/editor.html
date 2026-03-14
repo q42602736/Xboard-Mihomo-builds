@@ -3005,9 +3005,13 @@
                     yaml_content: yamlContent
                 });
                 if (!response) return false;
+                var respBody = await response.json();
                 if (!response.ok) {
-                    var err = await response.json();
-                    throw new Error(err.error || '保存失败');
+                    throw new Error(respBody.error || '保存失败');
+                }
+                if (respBody && respBody.yaml_content) {
+                    document.getElementById('editor').value = respBody.yaml_content;
+                    yamlToForm();
                 }
 
                 if (options.hideSaveInput !== false) {
@@ -5047,9 +5051,11 @@
                     }
 
                     if (/^  subscription:\s*$/.test(currentLine)) {
-                        newLines = newLines.concat(subscriptionLines);
+                        if (!inserted) {
+                            newLines = newLines.concat(subscriptionLines);
+                            inserted = true;
+                        }
                         skipSubscriptionSection = true;
-                        inserted = true;
                         continue;
                     }
 
