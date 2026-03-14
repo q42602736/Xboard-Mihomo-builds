@@ -2904,7 +2904,7 @@
                 profilesCache = data.profiles || [];
                 renderProfileSelect();
                 syncProfileBoundAppTitle();
-                if (profilesCache.length === 1) {
+                if (profilesCache.length >= 1 && !isAdminSession()) {
                     document.getElementById('profileSelect').value = profilesCache[0].name;
                     syncAllCustomSelects(document.getElementById('profileSelect'));
                     loadProfile();
