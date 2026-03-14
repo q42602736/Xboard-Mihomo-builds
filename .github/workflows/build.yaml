@@ -159,14 +159,15 @@ jobs:
             exit 1
           fi
           
-          # 使用 node 提取应用名称
+          # 使用 node 提取应用名称（清理换行，避免污染 GITHUB_OUTPUT）
           APP_NAME=$(node -e "
             const fs = require('fs');
             const yaml = fs.readFileSync('assets/config/xboard.config.yaml', 'utf8');
             const appBlockMatch = yaml.match(/(?:^|\\n)  app:\\n((?:    .*?(?:\\n|$)|\\n)*)/);
             const appTitleMatch = appBlockMatch ? appBlockMatch[1].match(/(?:^|\\n)    title:\\s*['\\\"]?([^'\\\"\\\\n]+)['\\\"]?/) : null;
             const rootTitleMatch = yaml.match(/(?:^|\\n)  title:\\s*['\\\"]?([^'\\\"\\\\n]+)['\\\"]?/);
-            const appName = appTitleMatch ? appTitleMatch[1].trim() : (rootTitleMatch ? rootTitleMatch[1].trim() : '$PROFILE_NAME');
+            const rawName = appTitleMatch ? appTitleMatch[1].trim() : (rootTitleMatch ? rootTitleMatch[1].trim() : '$PROFILE_NAME');
+            const appName = String(rawName || '').replace(/[\\r\\n]+/g, ' ').trim();
             console.log(appName);
           ")
           
@@ -570,7 +571,8 @@ jobs:
               const appBlockMatch = yaml.match(/(?:^|\\n)  app:\\n((?:    .*?(?:\\n|$)|\\n)*)/);
               const appTitleMatch = appBlockMatch ? appBlockMatch[1].match(/(?:^|\\n)    title:\\s*['\\\"]?([^'\\\"\\\\n]+)['\\\"]?/) : null;
               const rootTitleMatch = yaml.match(/(?:^|\\n)  title:\\s*['\\\"]?([^'\\\"\\\\n]+)['\\\"]?/);
-              console.log(appTitleMatch ? appTitleMatch[1].trim() : (rootTitleMatch ? rootTitleMatch[1].trim() : '$PROFILE_NAME'));
+              const rawName = appTitleMatch ? appTitleMatch[1].trim() : (rootTitleMatch ? rootTitleMatch[1].trim() : '$PROFILE_NAME');
+              console.log(String(rawName || '').replace(/[\\r\\n]+/g, ' ').trim());
             ")
           else
             echo "Failed to get profile yaml, using profile name as app name"
