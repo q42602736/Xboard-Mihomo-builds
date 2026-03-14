@@ -211,6 +211,18 @@ func validateYamlContent(yamlContent string) error {
 	return nil
 }
 
+func marshalProfilePayload(yamlContent string) (json.RawMessage, error) {
+	payload := map[string]interface{}{
+		"yaml_content": yamlContent,
+		"last_updated": time.Now().Format("2006/1/2 15:04:05"),
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(data), nil
+}
+
 // ==================== 认证 ====================
 
 func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
@@ -408,10 +420,12 @@ func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 		cleaned := normalizeSubscriptionConfig(payload.YamlContent)
 		if cleaned != payload.YamlContent {
 			payload.YamlContent = cleaned
-			profiles[name] = map[string]interface{}{
-				"yaml_content": cleaned,
-				"last_updated": time.Now().Format("2006/1/2 15:04:05"),
+			updatedProfile, err := marshalProfilePayload(cleaned)
+			if err != nil {
+				jsonError(w, "修复档案失败", 500)
+				return
 			}
+			profiles[name] = updatedProfile
 			newContent, _ := json.MarshalIndent(profiles, "", "  ")
 			_ = h.gh.SaveFileWithRetry(profilesPath, func(_ string) string {
 				return string(newContent)
@@ -802,7 +816,6 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 	delete(profileRunCache, buildRunCacheKey(claims.CodeID, req.Profile, "", req.Tag, req.Branch, req.Platforms))
 	delete(profileRunCache, buildRunCacheKey(claims.CodeID, req.Profile, "", "", "", ""))
 
-
 	logAudit(claims.CodeID, claims.CodeName, "trigger_build",
 		fmt.Sprintf("record_id=%d profile=%s tag=%s platforms=%s branch=%s", record.ID, req.Profile, req.Tag, req.Platforms, req.Branch),
 		r.RemoteAddr)
@@ -838,10 +851,11 @@ func (h *Handlers) validateProfileYaml(profileName string) error {
 	cleaned := normalizeSubscriptionConfig(payload.YamlContent)
 	if cleaned != payload.YamlContent {
 		payload.YamlContent = cleaned
-		profiles[profileName] = map[string]interface{}{
-			"yaml_content": cleaned,
-			"last_updated": time.Now().Format("2006/1/2 15:04:05"),
+		updatedProfile, err := marshalProfilePayload(cleaned)
+		if err != nil {
+			return fmt.Errorf("修复档案失败")
 		}
+		profiles[profileName] = updatedProfile
 		newContent, _ := json.MarshalIndent(profiles, "", "  ")
 		_ = h.gh.SaveFileWithRetry(profilesPath, func(_ string) string {
 			return string(newContent)
