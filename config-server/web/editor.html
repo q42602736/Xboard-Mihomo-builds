@@ -1519,6 +1519,9 @@
                             </div>
                         </div>
                     </div>
+                    <div class="page-footer">
+                        <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
+                    </div>
                 </div>
 
                 <!-- 订阅设置 -->
@@ -2976,43 +2979,91 @@
             document.getElementById('newProfileName').value = '';
         }
 
-        async function confirmSaveProfile() {
-            var profileName = document.getElementById('newProfileName').value.trim();
+        var autoSaveProfileTimer = null;
+
+        async function saveProfileByName(profileName, options) {
+            options = options || {};
+            profileName = String(profileName || '').trim();
             if (!profileName) {
-                setStatus('请输入档案名称', 'error');
-                return;
+                setStatus(options.emptyNameMessage || '请输入档案名称', 'error');
+                return false;
             }
 
             formToYaml();
             var yamlContent = document.getElementById('editor').value;
             if (!yamlContent.trim()) {
                 setStatus('配置内容为空，无法保存', 'error');
-                return;
+                return false;
             }
 
             yamlContent = yamlContent.replace(/config_cache:/g, 'subscription_cache:');
-
             document.getElementById('editor').value = yamlContent;
-            setStatus('正在保存...', 'info');
+            setStatus(options.loadingMessage || '正在保存...', 'info');
 
             try {
                 var response = await api('PUT', '/profiles/' + encodeURIComponent(profileName), {
                     yaml_content: yamlContent
                 });
-                if (!response) return;
+                if (!response) return false;
                 if (!response.ok) {
                     var err = await response.json();
                     throw new Error(err.error || '保存失败');
                 }
 
-                hideSaveProfileInput();
-                await loadProfiles();
+                if (options.hideSaveInput !== false) {
+                    hideSaveProfileInput();
+                }
+                if (options.refreshProfiles !== false) {
+                    await loadProfiles();
+                }
                 document.getElementById('profileSelect').value = profileName;
                 syncAllCustomSelects(document.getElementById('profileSelect'));
-                setStatus('已保存: ' + profileName, 'success');
+                setStatus(options.successMessage || ('已保存: ' + profileName), 'success');
+                return true;
             } catch (e) {
-                setStatus('保存失败: ' + e.message, 'error');
+                setStatus((options.errorPrefix || '保存失败: ') + e.message, 'error');
+                return false;
             }
+        }
+
+        function scheduleAutoSaveCurrentProfile(successMessage) {
+            if (autoSaveProfileTimer) {
+                clearTimeout(autoSaveProfileTimer);
+            }
+            autoSaveProfileTimer = setTimeout(function() {
+                autoSaveProfileTimer = null;
+                autoSaveCurrentProfile(successMessage);
+            }, 240);
+        }
+
+        async function autoSaveCurrentProfile(successMessage) {
+            var profileName = String(document.getElementById('profileSelect').value || '').trim();
+            if (!profileName) {
+                setStatus('请先选择一个配置档案，再使用自动保存开关。', 'error');
+                return false;
+            }
+            return saveProfileByName(profileName, {
+                loadingMessage: '正在自动保存当前档案...',
+                successMessage: successMessage || '已自动保存当前档案',
+                refreshProfiles: false,
+                hideSaveInput: false,
+                emptyNameMessage: '请先选择一个配置档案'
+            });
+        }
+
+        async function confirmSaveProfile() {
+            var profileName = document.getElementById('newProfileName').value.trim();
+            if (!profileName) {
+                setStatus('请输入档案名称', 'error');
+                return;
+            }
+            await saveProfileByName(profileName, {
+                loadingMessage: '正在保存...',
+                successMessage: '已保存: ' + profileName,
+                refreshProfiles: true,
+                hideSaveInput: true,
+                emptyNameMessage: '请输入档案名称'
+            });
         }
 
         async function deleteProfile() {
@@ -3584,6 +3635,7 @@
                 el.addEventListener('change', function() {
                     label.textContent = this.checked ? '开启' : '关闭';
                     formToYaml();
+                    scheduleAutoSaveCurrentProfile('开关配置已自动保存');
                 });
             });
             document.getElementById('subscriptionCacheTtl').addEventListener('change', function() {
