@@ -24,6 +24,7 @@ type ProfileFormState struct {
 	SubscriptionCacheEnabled bool                      `json:"subscription_cache_enabled"`
 	SubscriptionCacheTTL     int                       `json:"subscription_cache_ttl"`
 	HideTrafficDetails       bool                      `json:"hide_traffic_details"`
+	HideNodeStatus           bool                      `json:"hide_node_status"`
 	NoticeAutoOpenOnStartup  bool                      `json:"notice_auto_open_on_startup"`
 	GiftCardShowButton       bool                      `json:"gift_card_show_button"`
 	Sources                  []ProfileSourceFormState  `json:"sources"`
@@ -89,6 +90,7 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	setMapBoolValue(subscriptionCache, "enabled", form.SubscriptionCacheEnabled)
 	setMapIntValue(subscriptionCache, "ttl_hours", form.SubscriptionCacheTTL)
 	setMapBoolValue(ui, "hide_traffic_details", form.HideTrafficDetails)
+	setMapBoolValue(ui, "hide_node_status", form.HideNodeStatus)
 	setMapBoolValue(notice, "auto_open_on_startup", form.NoticeAutoOpenOnStartup)
 	setMapBoolValue(giftCard, "show_button", form.GiftCardShowButton)
 

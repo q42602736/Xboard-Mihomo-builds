@@ -1483,6 +1483,17 @@
 
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">隐藏节点状态</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="hideNodeStatus"><span class="slider"></span></label>
+                                        <span id="hideNodeStatusLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">启用后，不显示节点在线/离线状态与筛选</div>
+                            </div>
+
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">首页自动弹出公告</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="noticeAutoOpenOnStartup"><span class="slider"></span></label>
@@ -2895,6 +2906,7 @@
                 '    items: []',
                 '  ui:',
                 '    hide_traffic_details: false',
+                '    hide_node_status: false',
                 '    notice:',
                 '      auto_open_on_startup: false',
                 '    gift_card:',
@@ -3049,6 +3061,7 @@
                 subscription_cache_enabled: document.getElementById('subscriptionCacheEnabled').checked,
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
+                hide_node_status: document.getElementById('hideNodeStatus').checked,
                 notice_auto_open_on_startup: document.getElementById('noticeAutoOpenOnStartup').checked,
                 gift_card_show_button: document.getElementById('giftCardShowButton').checked,
                 sources: validSources,
@@ -3709,7 +3722,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'noticeAutoOpenOnStartup', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'noticeAutoOpenOnStartup', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -4902,6 +4915,10 @@
             var hideTrafficDetails = hideTrafficDetailsMatch ? hideTrafficDetailsMatch[1] === 'true' : false;
             document.getElementById('hideTrafficDetails').checked = hideTrafficDetails;
             document.getElementById('hideTrafficDetailsLabel').textContent = hideTrafficDetails ? '开启' : '关闭';
+            var hideNodeStatusMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_node_status:\s*(true|false)/);
+            var hideNodeStatus = hideNodeStatusMatch ? hideNodeStatusMatch[1] === 'true' : false;
+            document.getElementById('hideNodeStatus').checked = hideNodeStatus;
+            document.getElementById('hideNodeStatusLabel').textContent = hideNodeStatus ? '开启' : '关闭';
             var noticeAutoOpenMatch = yaml.match(/notice:\s*\n(?:[\s\S]*?)auto_open_on_startup:\s*(true|false)/);
             var noticeAutoOpenOnStartup = noticeAutoOpenMatch ? noticeAutoOpenMatch[1] === 'true' : false;
             document.getElementById('noticeAutoOpenOnStartup').checked = noticeAutoOpenOnStartup;
