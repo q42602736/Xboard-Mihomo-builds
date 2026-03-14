@@ -2829,7 +2829,15 @@
             document.getElementById('provider').addEventListener('change', function() {
                 updateProviderConsistencyState({ source: 'basic' });
             });
-            document.getElementById('profileSelect').addEventListener('change', syncProfileBoundAppTitle);
+            document.getElementById('profileSelect').addEventListener('change', function() {
+                syncProfileBoundAppTitle();
+                if (!isAdminSession()) {
+                    var selected = document.getElementById('profileSelect').value;
+                    if (selected) {
+                        loadProfile();
+                    }
+                }
+            });
             document.getElementById('appTitle').addEventListener('change', displayBuildHistory);
 
             document.getElementById('loadProfileBtn').addEventListener('click', loadProfile);
