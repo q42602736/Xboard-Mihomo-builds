@@ -1281,6 +1281,12 @@ func (h *Handlers) DeleteBuildRecord(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "删除 GitHub 打包产物失败", 500)
 		return
 	}
+	if record.RunID > 0 {
+		if err := h.gh.DeleteWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID); err != nil {
+			jsonError(w, "删除 GitHub Actions 运行失败", 500)
+			return
+		}
+	}
 	if err := deleteBuildRecord(record.ID); err != nil {
 		jsonError(w, "删除打包记录失败", 500)
 		return

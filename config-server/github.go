@@ -430,6 +430,24 @@ func (g *GitHubClient) GetWorkflowRunJobs(buildOwner, buildRepo string, runID in
 	return result.Jobs, nil
 }
 
+func (g *GitHubClient) DeleteWorkflowRun(buildOwner, buildRepo string, runID int64) error {
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/actions/runs/%d",
+		buildOwner, buildRepo, runID,
+	)
+	resp, err := g.doRequest("DELETE", url, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("删除 workflow 运行失败 (%d): %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
 // GetWorkflowRunInputs 获取单个 run 的 workflow_dispatch 输入参数
 func (g *GitHubClient) GetWorkflowRunInputs(buildOwner, buildRepo string, runID int64) (map[string]string, error) {
 	url := fmt.Sprintf(
