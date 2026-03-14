@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -96,106 +97,45 @@ func bindProfileTitle(yamlContent, profileName string) string {
 }
 
 func normalizeSubscriptionConfig(yamlContent string) string {
-	if yamlContent == "" {
+	if strings.TrimSpace(yamlContent) == "" {
 		return yamlContent
 	}
 
-	lines := strings.Split(yamlContent, "\n")
-	preferEncrypt := "false"
-	useExclusiveMode := "false"
-	decryptKey := ""
-	hasLegacy := false
-
-	inXboard := false
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "xboard:" {
-			inXboard = true
-			continue
-		}
-		if !inXboard {
-			continue
-		}
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if !strings.HasPrefix(line, "  ") {
-			break
-		}
-		if strings.HasPrefix(line, "    ") {
-			continue
-		}
-
-		switch {
-		case strings.HasPrefix(trimmed, "prefer_encrypt:"):
-			preferEncrypt = strings.TrimSpace(strings.TrimPrefix(trimmed, "prefer_encrypt:"))
-			hasLegacy = true
-		case strings.HasPrefix(trimmed, "use_exclusive_mode:"):
-			useExclusiveMode = strings.TrimSpace(strings.TrimPrefix(trimmed, "use_exclusive_mode:"))
-			hasLegacy = true
-		case strings.HasPrefix(trimmed, "decrypt_key:"):
-			decryptKey = strings.Trim(strings.TrimSpace(strings.TrimPrefix(trimmed, "decrypt_key:")), "\"'")
-			hasLegacy = true
-		}
-	}
-
-	subscriptionLines := []string{
-		"  subscription:",
-		"    prefer_encrypt: " + preferEncrypt,
-		"    use_exclusive_mode: " + useExclusiveMode,
-		fmt.Sprintf("    decrypt_key: %q", decryptKey),
-	}
-
-	cleaned := make([]string, 0, len(lines)+4)
-	skipSubscriptionSection := false
-	inserted := false
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		if skipSubscriptionSection {
-			if strings.HasPrefix(line, "    ") || trimmed == "" || strings.HasPrefix(trimmed, "#") {
-				continue
-			}
-			skipSubscriptionSection = false
-		}
-
-		if strings.HasPrefix(line, "  subscription:") {
-			if !inserted {
-				cleaned = append(cleaned, subscriptionLines...)
-				inserted = true
-			}
-			skipSubscriptionSection = true
-			continue
-		}
-
-		if strings.HasPrefix(line, "  prefer_encrypt:") || strings.HasPrefix(line, "  use_exclusive_mode:") || strings.HasPrefix(line, "  decrypt_key:") {
-			continue
-		}
-
-		if !inserted && (strings.HasPrefix(line, "  auto_offline:") || strings.HasPrefix(line, "  subscription_cache:") || strings.HasPrefix(line, "  remote_config:") || strings.HasPrefix(line, "  security:") || strings.HasPrefix(line, "  ui:") || strings.HasPrefix(line, "  online_support:")) {
-			cleaned = append(cleaned, subscriptionLines...)
-			inserted = true
-		}
-
-		cleaned = append(cleaned, line)
-	}
-
-	if !inserted && hasLegacy {
-		for len(cleaned) > 0 && strings.TrimSpace(cleaned[len(cleaned)-1]) == "" {
-			cleaned = cleaned[:len(cleaned)-1]
-		}
-		if len(cleaned) > 0 {
-			cleaned = append(cleaned, "")
-		}
-		cleaned = append(cleaned, subscriptionLines...)
-	}
-
-	if !hasLegacy && !inserted {
+	doc, err := parseProfileYamlDocument(yamlContent)
+	if err != nil {
 		return yamlContent
 	}
 
-	return strings.Join(cleaned, "\n")
+	root := ensureDocumentMappingNode(doc)
+	xboard := ensureMapValueNode(root, "xboard")
+	subscription := ensureMapValueNode(xboard, "subscription")
+
+	var preferEncrypt, useExclusiveMode bool
+	var decryptKey string
+	var hasLegacy bool
+
+	preferEncrypt, hasLegacy = readLegacyBool(xboard, "prefer_encrypt", hasLegacy)
+	useExclusiveMode, hasLegacy = readLegacyBool(xboard, "use_exclusive_mode", hasLegacy)
+	decryptKey, hasLegacy = readLegacyString(xboard, "decrypt_key", hasLegacy)
+
+	if hasLegacy {
+		removeMapKeys(xboard, "prefer_encrypt", "use_exclusive_mode", "decrypt_key")
+		setMapBoolValue(subscription, "prefer_encrypt", preferEncrypt)
+		setMapBoolValue(subscription, "use_exclusive_mode", useExclusiveMode)
+		if strings.TrimSpace(decryptKey) != "" {
+			setMapStringValue(subscription, "decrypt_key", decryptKey)
+		}
+	}
+
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(doc); err != nil {
+		return yamlContent
+	}
+	_ = encoder.Close()
+
+	return strings.TrimRight(buf.String(), "\n")
 }
 
 func validateYamlContent(yamlContent string) error {
@@ -209,18 +149,6 @@ func validateYamlContent(yamlContent string) error {
 		return err
 	}
 	return nil
-}
-
-func marshalProfilePayload(yamlContent string) (json.RawMessage, error) {
-	payload := map[string]interface{}{
-		"yaml_content": yamlContent,
-		"last_updated": time.Now().Format("2006/1/2 15:04:05"),
-	}
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-	return json.RawMessage(data), nil
 }
 
 // ==================== 认证 ====================
@@ -333,42 +261,38 @@ func (h *Handlers) AdminLogin(w http.ResponseWriter, r *http.Request) {
 
 // ==================== 配置档案 ====================
 
-const profilesPath = "config-profiles.json"
-
 func (h *Handlers) ListProfiles(w http.ResponseWriter, r *http.Request) {
-	content, _, _ := h.gh.GetFile(profilesPath)
-	var profiles map[string]interface{}
-	if content != "" {
-		json.Unmarshal([]byte(content), &profiles)
-	}
-	if profiles == nil {
-		profiles = make(map[string]interface{})
+	profiles, err := h.listStoredProfiles()
+	if err != nil {
+		jsonError(w, "加载档案列表失败: "+err.Error(), 500)
+		return
 	}
 
 	claims := getClaims(r)
 	list := []map[string]string{}
 
 	if claims.Permissions == "admin" || len(claims.AllowedProfiles) == 0 {
-		// 管理员：返回所有已有档案
-		for name, data := range profiles {
+		names := make([]string, 0, len(profiles))
+		for name := range profiles {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+
+		for _, name := range names {
 			item := map[string]string{"name": name}
-			if m, ok := data.(map[string]interface{}); ok {
-				if lu, ok := m["last_updated"].(string); ok {
-					item["last_updated"] = lu
-				}
+			if lu := profiles[name]; lu != "" {
+				item["last_updated"] = lu
 			}
 			list = append(list, item)
 		}
 	} else {
-		// 普通用户：始终返回 allowed_profiles 中的所有名称，不管是否已创建
-		for _, name := range claims.AllowedProfiles {
+		names := append([]string(nil), claims.AllowedProfiles...)
+		sort.Strings(names)
+
+		for _, name := range names {
 			item := map[string]string{"name": name}
-			if data, exists := profiles[name]; exists {
-				if m, ok := data.(map[string]interface{}); ok {
-					if lu, ok := m["last_updated"].(string); ok {
-						item["last_updated"] = lu
-					}
-				}
+			if lu, exists := profiles[name]; exists && lu != "" {
+				item["last_updated"] = lu
 			}
 			list = append(list, item)
 		}
@@ -378,7 +302,7 @@ func (h *Handlers) ListProfiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
+	name := strings.TrimSpace(chi.URLParam(r, "name"))
 	claims := getClaims(r)
 
 	if !claims.canAccessProfile(name) {
@@ -386,51 +310,37 @@ func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content, _, err := h.gh.GetFile(profilesPath)
+	content, _, lastUpdated, exists, err := h.getStoredProfile(name)
 	if err != nil {
-		// 文件不存在，返回空档案让用户从零开始
+		jsonError(w, "加载档案失败: "+err.Error(), 500)
+		return
+	}
+	if !exists {
 		logAudit(claims.CodeID, claims.CodeName, "load_profile", name+" (新建)", r.RemoteAddr)
 		jsonResponse(w, map[string]interface{}{"yaml_content": "", "is_new": true})
 		return
 	}
 
-	var profiles map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(content), &profiles); err != nil {
-		jsonError(w, "解析档案数据失败", 500)
-		return
-	}
-
-	profileData, ok := profiles[name]
-	if !ok {
-		// 档案名称存在于 allowed_profiles 但还没创建过，返回空内容
-		logAudit(claims.CodeID, claims.CodeName, "load_profile", name+" (新建)", r.RemoteAddr)
-		jsonResponse(w, map[string]interface{}{"yaml_content": "", "is_new": true})
-		return
-	}
-
-	var payload struct {
+	payload := struct {
 		YamlContent string `json:"yaml_content"`
 		LastUpdated string `json:"last_updated,omitempty"`
-	}
-	if err := json.Unmarshal(profileData, &payload); err != nil {
-		jsonError(w, "解析档案失败", 500)
-		return
-	}
+	}{YamlContent: content, LastUpdated: lastUpdated}
+
 	if payload.YamlContent != "" {
 		cleaned := normalizeSubscriptionConfig(payload.YamlContent)
 		if cleaned != payload.YamlContent {
 			payload.YamlContent = cleaned
-			updatedProfile, err := marshalProfilePayload(cleaned)
-			if err != nil {
-				jsonError(w, "修复档案失败", 500)
-				return
+			filePath, err := profileFilePath(name)
+			if err == nil {
+				_ = h.gh.SaveFileWithRetry(filePath, func(_ string) string {
+					return cleaned
+				}, "修复配置档案: "+name, 3)
 			}
-			profiles[name] = updatedProfile
-			newContent, _ := json.MarshalIndent(profiles, "", "  ")
-			_ = h.gh.SaveFileWithRetry(profilesPath, func(_ string) string {
-				return string(newContent)
-			}, "修复配置档案: "+name, 3)
 		}
+	}
+	if err := validateYamlContent(payload.YamlContent); err != nil {
+		jsonError(w, "配置格式错误: "+err.Error(), 500)
+		return
 	}
 
 	logAudit(claims.CodeID, claims.CodeName, "load_profile", name, r.RemoteAddr)
@@ -440,7 +350,7 @@ func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
+	name := strings.TrimSpace(chi.URLParam(r, "name"))
 	claims := getClaims(r)
 
 	if !claims.canAccessProfile(name) {
@@ -449,11 +359,25 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		YamlContent string `json:"yaml_content"`
+		YamlContent     string            `json:"yaml_content"`
+		BaseYamlContent string            `json:"base_yaml_content"`
+		FormState       *ProfileFormState `json:"form_state"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
 		return
+	}
+	if req.FormState != nil {
+		baseYamlContent := req.BaseYamlContent
+		if strings.TrimSpace(baseYamlContent) == "" {
+			baseYamlContent = req.YamlContent
+		}
+		mergedYamlContent, err := mergeProfileYamlWithForm(baseYamlContent, *req.FormState)
+		if err != nil {
+			jsonError(w, "合并配置失败: "+err.Error(), 400)
+			return
+		}
+		req.YamlContent = mergedYamlContent
 	}
 	if claims.Permissions != "admin" {
 		req.YamlContent = bindProfileTitle(req.YamlContent, name)
@@ -464,24 +388,23 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content, sha, err := h.gh.GetFile(profilesPath)
-	var profiles map[string]interface{}
+	filePath, err := profileFilePath(name)
 	if err != nil {
-		profiles = make(map[string]interface{})
-		sha = ""
-	} else {
-		if err := json.Unmarshal([]byte(content), &profiles); err != nil {
-			profiles = make(map[string]interface{})
+		jsonError(w, err.Error(), 400)
+		return
+	}
+
+	_, sha, err := h.gh.GetFile(filePath)
+	if err != nil {
+		if strings.Contains(err.Error(), "404") {
+			sha = ""
+		} else {
+			jsonError(w, "加载档案失败: "+err.Error(), 500)
+			return
 		}
 	}
 
-	profiles[name] = map[string]interface{}{
-		"yaml_content": req.YamlContent,
-		"last_updated": time.Now().Format("2006/1/2 15:04:05"),
-	}
-
-	newContent, _ := json.MarshalIndent(profiles, "", "  ")
-	_, err = h.gh.SaveFile(profilesPath, string(newContent), sha, "保存配置档案: "+name)
+	_, err = h.gh.SaveFile(filePath, req.YamlContent, sha, "保存配置档案: "+name)
 	if err != nil {
 		jsonError(w, "保存失败: "+err.Error(), 500)
 		return
@@ -493,7 +416,7 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
+	name := strings.TrimSpace(chi.URLParam(r, "name"))
 	claims := getClaims(r)
 
 	if !claims.canAccessProfile(name) {
@@ -501,25 +424,22 @@ func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content, sha, err := h.gh.GetFile(profilesPath)
+	filePath, err := profileFilePath(name)
 	if err != nil {
-		jsonError(w, "加载档案失败", 500)
+		jsonError(w, err.Error(), 400)
 		return
 	}
 
-	var profiles map[string]interface{}
-	if err := json.Unmarshal([]byte(content), &profiles); err != nil {
-		jsonError(w, "解析档案数据失败", 500)
+	_, sha, _, exists, err := h.getStoredProfile(name)
+	if err != nil {
+		jsonError(w, "加载档案失败: "+err.Error(), 500)
 		return
 	}
-
-	delete(profiles, name)
-
-	newContent, _ := json.MarshalIndent(profiles, "", "  ")
-	_, err = h.gh.SaveFile(profilesPath, string(newContent), sha, "删除配置档案: "+name)
-	if err != nil {
-		jsonError(w, "删除失败: "+err.Error(), 500)
-		return
+	if exists {
+		if err := h.gh.DeleteFile(filePath, sha, "删除配置档案: "+name); err != nil {
+			jsonError(w, "删除失败: "+err.Error(), 500)
+			return
+		}
 	}
 
 	logAudit(claims.CodeID, claims.CodeName, "delete_profile", name, r.RemoteAddr)
@@ -830,38 +750,24 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) validateProfileYaml(profileName string) error {
-	content, _, err := h.gh.GetFile(profilesPath)
+	content, _, _, exists, err := h.getStoredProfile(profileName)
 	if err != nil {
 		return fmt.Errorf("读取档案失败")
 	}
-	var profiles map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(content), &profiles); err != nil {
-		return fmt.Errorf("解析档案数据失败")
-	}
-	profileData, ok := profiles[profileName]
-	if !ok {
+	if !exists {
 		return fmt.Errorf("未找到档案")
 	}
-	var payload struct {
-		YamlContent string `json:"yaml_content"`
-	}
-	if err := json.Unmarshal(profileData, &payload); err != nil {
-		return fmt.Errorf("解析档案失败")
-	}
-	cleaned := normalizeSubscriptionConfig(payload.YamlContent)
-	if cleaned != payload.YamlContent {
-		payload.YamlContent = cleaned
-		updatedProfile, err := marshalProfilePayload(cleaned)
+	cleaned := normalizeSubscriptionConfig(content)
+	if cleaned != content {
+		filePath, err := profileFilePath(profileName)
 		if err != nil {
 			return fmt.Errorf("修复档案失败")
 		}
-		profiles[profileName] = updatedProfile
-		newContent, _ := json.MarshalIndent(profiles, "", "  ")
-		_ = h.gh.SaveFileWithRetry(profilesPath, func(_ string) string {
-			return string(newContent)
+		_ = h.gh.SaveFileWithRetry(filePath, func(_ string) string {
+			return cleaned
 		}, "修复配置档案: "+profileName, 3)
 	}
-	return validateYamlContent(payload.YamlContent)
+	return validateYamlContent(cleaned)
 }
 
 func (h *Handlers) GetBuildHistory(w http.ResponseWriter, r *http.Request) {

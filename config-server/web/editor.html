@@ -2945,12 +2945,14 @@
                 }
                 var data = await response.json();
                 if (data.is_new || !data.yaml_content) {
-                    document.getElementById('editor').value = getDefaultYamlTemplate();
+                    currentProfileBaseYaml = getDefaultYamlTemplate();
+                    document.getElementById('editor').value = currentProfileBaseYaml;
                     yamlToForm();
                     syncProfileBoundAppTitle();
                     setStatus('档案 "' + name + '" 尚未创建，请配置后保存', 'info');
                 } else {
-                    document.getElementById('editor').value = data.yaml_content;
+                    currentProfileBaseYaml = data.yaml_content;
+                    document.getElementById('editor').value = currentProfileBaseYaml;
                     yamlToForm();
                     syncProfileBoundAppTitle();
                     setStatus('已加载: ' + name, 'success');
@@ -2980,6 +2982,69 @@
         }
 
         var autoSaveProfileTimer = null;
+        var currentProfileBaseYaml = '';
+
+        function buildCurrentProfileFormState() {
+            collectSources();
+            collectSupportItems();
+
+            var validSources = sources.filter(function(source) {
+                return source && String(source.url || '').trim();
+            }).map(function(source) {
+                return {
+                    merge_key: source._merge_key || '',
+                    name: normalizeSourceType(source.name),
+                    url: String(source.url || '').trim(),
+                    encryption_key: String(source.encryption_key || '').trim()
+                };
+            });
+
+            var validSupportItems = onlineSupportItems.filter(function(item) {
+                if (!item) return false;
+                if (item.type === 'browser' && item.url) return true;
+                if (item.type === 'crisp' && item.website_id) return true;
+                if (item.type === 'chatra' && (item.chatra_id || item.widget_code)) return true;
+                if (item.type === 'chatway' && item.widget_id) return true;
+                if (item.type === 'tawkto' && (item.property_id || item.widget_id)) return true;
+                if (item.type === 'chatwoot' && (item.website_token || item.base_url)) return true;
+                return false;
+            }).map(function(item) {
+                return {
+                    merge_key: item._merge_key || '',
+                    type: item.type || '',
+                    description: item.description || '',
+                    url: item.url || '',
+                    website_id: item.website_id || '',
+                    chatra_id: item.chatra_id || '',
+                    widget_code: item.widget_code || '',
+                    widget_id: item.widget_id || '',
+                    property_id: item.property_id || '',
+                    website_token: item.website_token || '',
+                    base_url: item.base_url || ''
+                };
+            });
+
+            return {
+                provider: document.getElementById('provider').value.trim(),
+                app_title: getBoundAppTitleValue(),
+                logo_type: document.getElementById('logoType').value,
+                logo_image_url: document.getElementById('logoImageUrl').value.trim(),
+                app_icon_url: document.getElementById('appIconUrl').value.trim(),
+                auth_background_enabled: document.getElementById('authBackgroundEnabled').checked,
+                auth_background_image_url: document.getElementById('authBackgroundImageUrl').value.trim(),
+                prefer_encrypt: document.getElementById('preferEncrypt').checked,
+                use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
+                decrypt_key: document.getElementById('decryptKey').value.trim(),
+                auto_offline_enabled: document.getElementById('autoOfflineEnabled').checked,
+                subscription_cache_enabled: document.getElementById('subscriptionCacheEnabled').checked,
+                subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
+                hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
+                notice_auto_open_on_startup: document.getElementById('noticeAutoOpenOnStartup').checked,
+                gift_card_show_button: document.getElementById('giftCardShowButton').checked,
+                sources: validSources,
+                online_support_items: validSupportItems
+            };
+        }
 
         async function saveProfileByName(profileName, options) {
             options = options || {};
@@ -2990,19 +3055,19 @@
             }
 
             formToYaml();
-            var yamlContent = document.getElementById('editor').value;
-            if (!yamlContent.trim()) {
+            var baseYamlContent = String(currentProfileBaseYaml || document.getElementById('editor').value || '').trim();
+            if (!baseYamlContent) {
                 setStatus('配置内容为空，无法保存', 'error');
                 return false;
             }
-
-            yamlContent = yamlContent.replace(/config_cache:/g, 'subscription_cache:');
-            document.getElementById('editor').value = yamlContent;
+            baseYamlContent = baseYamlContent.replace(/config_cache:/g, 'subscription_cache:');
             setStatus(options.loadingMessage || '正在保存...', 'info');
 
             try {
                 var response = await api('PUT', '/profiles/' + encodeURIComponent(profileName), {
-                    yaml_content: yamlContent
+                    yaml_content: baseYamlContent,
+                    base_yaml_content: baseYamlContent,
+                    form_state: buildCurrentProfileFormState()
                 });
                 if (!response) return false;
                 var respBody = await response.json();
@@ -3010,7 +3075,8 @@
                     throw new Error(respBody.error || '保存失败');
                 }
                 if (respBody && respBody.yaml_content) {
-                    document.getElementById('editor').value = respBody.yaml_content;
+                    currentProfileBaseYaml = respBody.yaml_content;
+                    document.getElementById('editor').value = currentProfileBaseYaml;
                     yamlToForm();
                 }
 
@@ -3684,6 +3750,9 @@
             var div = document.createElement('div');
             div.className = 'source-item';
             div.dataset.index = index;
+            if (source._merge_key !== undefined && source._merge_key !== null && source._merge_key !== '') {
+                div.dataset.mergeKey = String(source._merge_key);
+            }
             div.innerHTML = '<div class="source-index">配置源 #' + (index + 1) + '</div>' +
                 '<button type="button" class="btn-remove" onclick="removeSource(' + index + ')">删除</button>' +
                 '<div class="form-row">' +
@@ -3734,11 +3803,15 @@
             var items = document.querySelectorAll('#sourcesContainer .source-item');
             sources = [];
             items.forEach(function(item) {
-                sources.push({
+                var obj = {
                     name: normalizeSourceType(item.querySelector('.source-name').value),
                     url: item.querySelector('.source-url').value.trim(),
                     encryption_key: item.querySelector('.source-key').value.trim()
-                });
+                };
+                if (item.dataset.mergeKey) {
+                    obj._merge_key = item.dataset.mergeKey;
+                }
+                sources.push(obj);
             });
             return sources;
         }
@@ -4626,6 +4699,9 @@
             var div = document.createElement('div');
             div.className = 'support-item';
             div.dataset.index = index;
+            if (item._merge_key !== undefined && item._merge_key !== null && item._merge_key !== '') {
+                div.dataset.mergeKey = String(item._merge_key);
+            }
             if (item.widget_code) {
                 div.dataset.legacyChatraWidgetCode = item.widget_code;
             }
@@ -4732,6 +4808,9 @@
                     type: type,
                     description: item.querySelector('.support-description').value.trim()
                 };
+                if (item.dataset.mergeKey) {
+                    obj._merge_key = item.dataset.mergeKey;
+                }
                 if (type === 'browser') {
                     obj.url = item.querySelector('.support-url').value.trim();
                 } else if (type === 'crisp') {
@@ -4857,7 +4936,12 @@
                     }
                     if (/^\s*-\s*name:\s*(.*)/.test(line)) {
                         if (currentSource) sources.push(currentSource);
-                        currentSource = { name: normalizeSourceType(line.match(/^\s*-\s*name:\s*(.*)/)[1].trim()), url: '', encryption_key: '' };
+                        currentSource = {
+                            _merge_key: String(sources.length),
+                            name: normalizeSourceType(line.match(/^\s*-\s*name:\s*(.*)/)[1].trim()),
+                            url: '',
+                            encryption_key: ''
+                        };
                     } else if (currentSource && /^\s+url:\s*(.*)/.test(line)) {
                         currentSource.url = line.match(/^\s+url:\s*(.*)/)[1].trim();
                     } else if (currentSource && /^\s+encryption_key:\s*(.*)/.test(line)) {
@@ -4906,7 +4990,10 @@
                     }
                     if (/^      - type:\s*(.*)/.test(supportLine)) {
                         if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
-                        currentSupportItem = { type: supportLine.match(/^      - type:\s*(.*)/)[1].trim() };
+                        currentSupportItem = {
+                            _merge_key: String(onlineSupportItems.length),
+                            type: supportLine.match(/^      - type:\s*(.*)/)[1].trim()
+                        };
                     } else if (currentSupportItem) {
                         if (/^        url:\s*(.*)/.test(supportLine)) {
                             currentSupportItem.url = supportLine.match(/^        url:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
@@ -4948,386 +5035,8 @@
         }
 
         function formToYaml() {
-            var yaml = document.getElementById('editor').value;
-            if (!yaml.trim()) return;
-            var updateValue = function(key, value) {
-                var re = new RegExp('(' + key + ':[^\\S\\n]*)(.*)');
-                if (yaml.match(re)) {
-                    yaml = yaml.replace(re, '$1' + value);
-                }
-            };
-            var providerValue = document.getElementById('provider').value.trim();
-            yaml = yaml.replace(/(xboard:\s*\n(?:\s*#[^\n]*\n)*\s*provider:[^\S\n]*)(.*)/, '$1' + providerValue);
-            updateValue('title', getBoundAppTitleValue());
-            yaml = yaml.replace(/(logo:[\s\S]*?type:[^\S\n]*)(\w+)/, '$1' + document.getElementById('logoType').value);
-            yaml = yaml.replace(/(logo:[\s\S]*?image_url:[^\S\n]*)(.*)/, '$1' + document.getElementById('logoImageUrl').value);
-            yaml = yaml.replace(/(app_icon:[\s\S]*?image_url:[^\S\n]*)(.*)/, '$1' + document.getElementById('appIconUrl').value);
-            var authBackgroundEnabled = document.getElementById('authBackgroundEnabled').checked;
-            var authBackgroundImageUrl = document.getElementById('authBackgroundImageUrl').value.trim().replace(/"/g, '\\"');
-            var upsertAuthBackground = function(content) {
-                var authLines = [
-                    '    auth_background:',
-                    '      enabled: ' + authBackgroundEnabled,
-                    '      image_url: "' + authBackgroundImageUrl + '"'
-                ];
-                var lines = content.split('\n');
-                var newLines = [];
-                var appFound = false;
-                var inApp = false;
-                var skipAuthSection = false;
-                var authInserted = false;
-
-                for (var idx = 0; idx < lines.length; idx++) {
-                    var currentLine = lines[idx];
-                    if (/^  app:\s*$/.test(currentLine)) {
-                        appFound = true;
-                        inApp = true;
-                        newLines.push(currentLine);
-                        continue;
-                    }
-                    if (skipAuthSection) {
-                        if (/^      /.test(currentLine) || currentLine.trim() === '') {
-                            continue;
-                        }
-                        skipAuthSection = false;
-                    }
-                    if (inApp) {
-                        if (/^    auth_background:\s*$/.test(currentLine)) {
-                            newLines = newLines.concat(authLines);
-                            authInserted = true;
-                            skipAuthSection = true;
-                            continue;
-                        }
-                        if (/^  [a-z_]+:/i.test(currentLine)) {
-                            if (!authInserted) {
-                                newLines = newLines.concat(authLines);
-                                authInserted = true;
-                            }
-                            inApp = false;
-                        }
-                    }
-                    newLines.push(currentLine);
-                }
-                if (appFound && inApp && !authInserted) {
-                    newLines = newLines.concat(authLines);
-                }
-                if (!appFound) {
-                    while (newLines.length > 0 && newLines[newLines.length - 1].trim() === '') {
-                        newLines.pop();
-                    }
-                    if (newLines.length > 0) {
-                        newLines.push('');
-                    }
-                    newLines.push('  app:');
-                    newLines = newLines.concat(authLines);
-                }
-                return newLines.join('\n');
-            };
-            yaml = upsertAuthBackground(yaml);
-            var upsertSubscription = function(content) {
-                var preferEncrypt = document.getElementById('preferEncrypt').checked;
-                var useExclusiveMode = document.getElementById('useExclusiveMode').checked;
-                var decryptKey = document.getElementById('decryptKey').value.trim().replace(/"/g, '\\"');
-                var subscriptionLines = [
-                    '  subscription:',
-                    '    prefer_encrypt: ' + preferEncrypt,
-                    '    use_exclusive_mode: ' + useExclusiveMode,
-                    '    decrypt_key: "' + decryptKey + '"'
-                ];
-                var lines = content.split('\n');
-                var newLines = [];
-                var skipSubscriptionSection = false;
-                var inserted = false;
-
-                for (var idx = 0; idx < lines.length; idx++) {
-                    var currentLine = lines[idx];
-                    var trimmedLine = currentLine.trim();
-
-                    if (skipSubscriptionSection) {
-                        if (/^    /.test(currentLine) || trimmedLine === '' || /^\s*#/.test(currentLine)) {
-                            continue;
-                        }
-                        skipSubscriptionSection = false;
-                    }
-
-                    if (/^  subscription:\s*$/.test(currentLine)) {
-                        if (!inserted) {
-                            newLines = newLines.concat(subscriptionLines);
-                            inserted = true;
-                        }
-                        skipSubscriptionSection = true;
-                        continue;
-                    }
-
-                    if (/^  (prefer_encrypt|use_exclusive_mode|decrypt_key):/.test(currentLine)) {
-                        continue;
-                    }
-
-                    if (!inserted && (/^  auto_offline:\s*$/.test(currentLine) || /^  subscription_cache:\s*$/.test(currentLine) || /^  remote_config:\s*$/.test(currentLine) || /^  security:\s*$/.test(currentLine) || /^  ui:\s*$/.test(currentLine) || /^  online_support:\s*$/.test(currentLine))) {
-                        newLines = newLines.concat(subscriptionLines);
-                        inserted = true;
-                    }
-
-                    newLines.push(currentLine);
-                }
-
-                if (!inserted) {
-                    while (newLines.length > 0 && newLines[newLines.length - 1].trim() === '') {
-                        newLines.pop();
-                    }
-                    if (newLines.length > 0) {
-                        newLines.push('');
-                    }
-                    newLines = newLines.concat(subscriptionLines);
-                }
-
-                return newLines.join('\n');
-            };
-            yaml = upsertSubscription(yaml);
-            var autoOfflineEnabled = document.getElementById('autoOfflineEnabled').checked;
-            yaml = yaml.replace(/(auto_offline:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*)(true|false)/, '$1' + autoOfflineEnabled);
-            var subCacheEnabled = document.getElementById('subscriptionCacheEnabled').checked;
-            var subCacheTtl = document.getElementById('subscriptionCacheTtl').value || '24';
-            yaml = yaml.replace(/(subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*)(true|false)/, '$1' + subCacheEnabled);
-            yaml = yaml.replace(/(subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*)(\d+)/, '$1' + subCacheTtl);
-            var hideTrafficDetails = document.getElementById('hideTrafficDetails').checked;
-            yaml = yaml.replace(/(ui:\s*\n(?:\s*#[^\n]*\n)*\s*hide_traffic_details:\s*)(true|false)/, '$1' + hideTrafficDetails);
-
-            // 更新 sources
             collectSources();
-            var lines = yaml.split('\n');
-            var newLines = [];
-            var inSources = false;
-            for (var i = 0; i < lines.length; i++) {
-                var line = lines[i];
-                if (/^    sources:\s*$/.test(line)) {
-                    inSources = true;
-                    newLines.push(line);
-                    sources.forEach(function(source) {
-                        if (source.url) {
-                            newLines.push('      - name: ' + normalizeSourceType(source.name));
-                            newLines.push('        url: ' + source.url);
-                            if (source.encryption_key) {
-                                newLines.push('        encryption_key: "' + source.encryption_key + '"');
-                            }
-                        }
-                    });
-                    continue;
-                }
-                if (inSources) {
-                    if (/^  [a-z_]+:/i.test(line) || /^  #/.test(line) || line.trim() === '') {
-                        if (/^  [a-z_]+:/i.test(line)) {
-                            inSources = false;
-                            newLines.push('');
-                            newLines.push(line);
-                        } else if (line.trim() === '') {
-                            if (i + 1 < lines.length && /^  [a-z_]+:/i.test(lines[i + 1])) {
-                                inSources = false;
-                                newLines.push(line);
-                            }
-                        }
-                    }
-                    continue;
-                }
-                newLines.push(line);
-            }
-            yaml = newLines.join('\n');
-
-            // 更新 online_support
             collectSupportItems();
-            var validItems = onlineSupportItems.filter(function(item) {
-                if (item.type === 'browser' && item.url) return true;
-                if (item.type === 'crisp' && item.website_id) return true;
-                if (item.type === 'chatra' && (item.chatra_id || item.widget_code)) return true;
-                if (item.type === 'chatway' && item.widget_id) return true;
-                if (item.type === 'tawkto' && (item.property_id || item.widget_id)) return true;
-                if (item.type === 'chatwoot' && (item.website_token || item.base_url)) return true;
-                return false;
-            });
-
-            var supportLines = yaml.split('\n');
-            var newSupportLines = [];
-            var inOnlineSupportSection = false;
-            for (var k = 0; k < supportLines.length; k++) {
-                var sLine = supportLines[k];
-                if (/^\s*#\s*在线客服/.test(sLine)) continue;
-                if (/^  online_support:/.test(sLine)) {
-                    inOnlineSupportSection = true;
-                    continue;
-                }
-                if (inOnlineSupportSection) {
-                    if (/^    /.test(sLine) || /^      /.test(sLine) || /^        /.test(sLine) || sLine.trim() === '') {
-                        continue;
-                    }
-                    if (/^  [a-z_]+:/i.test(sLine)) {
-                        inOnlineSupportSection = false;
-                        newSupportLines.push(sLine);
-                    }
-                    continue;
-                }
-                newSupportLines.push(sLine);
-            }
-
-            while (newSupportLines.length > 0 && newSupportLines[newSupportLines.length - 1].trim() === '') {
-                newSupportLines.pop();
-            }
-            newSupportLines.push('');
-            newSupportLines.push('  # 在线客服配置');
-            newSupportLines.push('  online_support:');
-            if (validItems.length > 0) {
-                newSupportLines.push('    items:');
-                validItems.forEach(function(item) {
-                    newSupportLines.push('      - type: ' + item.type);
-                    if (item.type === 'browser') {
-                        newSupportLines.push('        url: "' + item.url + '"');
-                    } else if (item.type === 'crisp') {
-                        newSupportLines.push('        website_id: "' + item.website_id + '"');
-                    } else if (item.type === 'chatra') {
-                        if (item.chatra_id) {
-                            newSupportLines.push('        chatra_id: "' + escapeYamlDoubleQuotedValue(item.chatra_id) + '"');
-                        } else if (item.widget_code) {
-                            if (item.widget_code.indexOf('\n') >= 0) {
-                                newSupportLines.push('        widget_code: |');
-                                item.widget_code.split('\n').forEach(function(widgetLine) {
-                                    newSupportLines.push('          ' + widgetLine);
-                                });
-                            } else {
-                                newSupportLines.push('        widget_code: "' + escapeYamlDoubleQuotedValue(item.widget_code) + '"');
-                            }
-                        }
-                    } else if (item.type === 'chatway') {
-                        newSupportLines.push('        widget_id: "' + item.widget_id + '"');
-                    } else if (item.type === 'tawkto') {
-                        newSupportLines.push('        property_id: "' + (item.property_id || '') + '"');
-                        newSupportLines.push('        widget_id: "' + (item.widget_id || '') + '"');
-                    } else if (item.type === 'chatwoot') {
-                        newSupportLines.push('        website_token: "' + (item.website_token || '') + '"');
-                        newSupportLines.push('        base_url: "' + (item.base_url || '') + '"');
-                    }
-                    if (item.description) {
-                        newSupportLines.push('        description: "' + item.description + '"');
-                    }
-                });
-            } else {
-                newSupportLines.push('    items: []');
-            }
-            yaml = newSupportLines.join('\n');
-
-            // 更新 UI 配置
-            var hideTrafficDetails = document.getElementById('hideTrafficDetails').checked;
-            var noticeAutoOpenOnStartup = document.getElementById('noticeAutoOpenOnStartup').checked;
-            var giftCardShowButton = document.getElementById('giftCardShowButton').checked;
-            var uiLines = yaml.split('\n');
-            var newUiLines = [];
-            var inUiSection = false;
-            var skipNoticeSection = false;
-            var skipGiftCardSection = false;
-            var uiSectionFound = false;
-            var hideTrafficInserted = false;
-            var noticeInserted = false;
-            var giftCardInserted = false;
-            for (var u = 0; u < uiLines.length; u++) {
-                var uLine = uiLines[u];
-                if (/^  ui:/.test(uLine)) {
-                    uiSectionFound = true;
-                    inUiSection = true;
-                    newUiLines.push(uLine);
-                    continue;
-                }
-                if (skipNoticeSection) {
-                    if (/^      /.test(uLine) || uLine.trim() === '' || /^\s*#/.test(uLine)) {
-                        continue;
-                    }
-                    skipNoticeSection = false;
-                }
-                if (skipGiftCardSection) {
-                    if (/^      /.test(uLine) || uLine.trim() === '' || /^\s*#/.test(uLine)) {
-                        continue;
-                    }
-                    skipGiftCardSection = false;
-                }
-                if (inUiSection) {
-                    if (/^    hide_traffic_details:/.test(uLine)) {
-                        newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
-                        hideTrafficInserted = true;
-                        continue;
-                    }
-                    if (/^    notice:\s*$/.test(uLine)) {
-                        if (!hideTrafficInserted) {
-                            newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
-                            hideTrafficInserted = true;
-                        }
-                        newUiLines.push('    notice:');
-                        newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
-                        noticeInserted = true;
-                        skipNoticeSection = true;
-                        continue;
-                    }
-                    if (/^    gift_card:\s*$/.test(uLine)) {
-                        if (!hideTrafficInserted) {
-                            newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
-                            hideTrafficInserted = true;
-                        }
-                        if (!noticeInserted) {
-                            newUiLines.push('    notice:');
-                            newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
-                            noticeInserted = true;
-                        }
-                        newUiLines.push('    gift_card:');
-                        newUiLines.push('      show_button: ' + giftCardShowButton);
-                        giftCardInserted = true;
-                        skipGiftCardSection = true;
-                        continue;
-                    }
-                    if (/^  [a-z_]+:/i.test(uLine)) {
-                        if (!hideTrafficInserted) {
-                            newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
-                            hideTrafficInserted = true;
-                        }
-                        if (!noticeInserted) {
-                            newUiLines.push('    notice:');
-                            newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
-                            noticeInserted = true;
-                        }
-                        if (!giftCardInserted) {
-                            newUiLines.push('    gift_card:');
-                            newUiLines.push('      show_button: ' + giftCardShowButton);
-                            giftCardInserted = true;
-                        }
-                        inUiSection = false;
-                    }
-                }
-                newUiLines.push(uLine);
-            }
-            if (uiSectionFound && inUiSection) {
-                if (!hideTrafficInserted) {
-                    newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
-                }
-                if (!noticeInserted) {
-                    newUiLines.push('    notice:');
-                    newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
-                }
-                if (!giftCardInserted) {
-                    newUiLines.push('    gift_card:');
-                    newUiLines.push('      show_button: ' + giftCardShowButton);
-                }
-            }
-            if (!uiSectionFound) {
-                while (newUiLines.length > 0 && newUiLines[newUiLines.length - 1].trim() === '') {
-                    newUiLines.pop();
-                }
-                newUiLines.push('');
-                newUiLines.push('  # UI 配置');
-                newUiLines.push('  ui:');
-                newUiLines.push('    hide_traffic_details: ' + hideTrafficDetails);
-                newUiLines.push('    notice:');
-                newUiLines.push('      auto_open_on_startup: ' + noticeAutoOpenOnStartup);
-                newUiLines.push('    gift_card:');
-                newUiLines.push('      show_button: ' + giftCardShowButton);
-            }
-            yaml = newUiLines.join('\n');
-
-            document.getElementById('editor').value = yaml;
             updateProviderConsistencyState();
             syncRemoteConfigJsonPreview({ silentStatus: true });
         }

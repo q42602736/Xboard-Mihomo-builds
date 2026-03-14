@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type GitHubClient struct {
@@ -24,6 +25,14 @@ func NewGitHubClient(token, owner, repo, branch string) *GitHubClient {
 
 func (g *GitHubClient) apiURL(path string) string {
 	return fmt.Sprintf("https://api.github.com/repos/%s/%s/%s", g.Owner, g.Repo, path)
+}
+
+func escapeGitHubContentPath(filePath string) string {
+	parts := strings.Split(filePath, "/")
+	for i, part := range parts {
+		parts[i] = url.PathEscape(part)
+	}
+	return strings.Join(parts, "/")
 }
 
 func (g *GitHubClient) doRequest(method, url string, body interface{}) (*http.Response, error) {
@@ -57,7 +66,7 @@ type ghFileResponse struct {
 
 // GetFile 从 GitHub 仓库读取文件，返回解码后的内容和 SHA
 func (g *GitHubClient) GetFile(path string) (content string, sha string, err error) {
-	url := g.apiURL("contents/" + path + "?ref=" + g.Branch)
+	url := g.apiURL("contents/" + escapeGitHubContentPath(path) + "?ref=" + url.QueryEscape(g.Branch))
 	resp, err := g.doRequest("GET", url, nil)
 	if err != nil {
 		return "", "", err
@@ -86,7 +95,7 @@ func (g *GitHubClient) GetFile(path string) (content string, sha string, err err
 
 // SaveFile 创建或更新 GitHub 仓库中的文件。sha 为空时创建新文件，非空时更新。
 func (g *GitHubClient) SaveFile(path, content, sha, message string) (string, error) {
-	url := g.apiURL("contents/" + path)
+	url := g.apiURL("contents/" + escapeGitHubContentPath(path))
 	encoded := base64.StdEncoding.EncodeToString([]byte(content))
 
 	body := map[string]string{
@@ -117,6 +126,95 @@ func (g *GitHubClient) SaveFile(path, content, sha, message string) (string, err
 	json.NewDecoder(resp.Body).Decode(&result)
 
 	return result.Content.SHA, nil
+}
+
+func (g *GitHubClient) DeleteFile(path, sha, message string) error {
+	url := g.apiURL("contents/" + escapeGitHubContentPath(path))
+	body := map[string]string{
+		"message": message,
+		"sha":     sha,
+		"branch":  g.Branch,
+	}
+
+	resp, err := g.doRequest("DELETE", url, body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("GitHub API 错误 (%d): %s", resp.StatusCode, string(respBody))
+	}
+
+	return nil
+}
+
+type GitHubContentItem struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+	Type string `json:"type"`
+	SHA  string `json:"sha"`
+}
+
+func (g *GitHubClient) ListDirectory(dirPath string) ([]GitHubContentItem, error) {
+	apiURL := g.apiURL("contents/" + escapeGitHubContentPath(dirPath) + "?ref=" + url.QueryEscape(g.Branch))
+	resp, err := g.doRequest("GET", apiURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("GitHub API 错误 (%d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var items []GitHubContentItem
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func (g *GitHubClient) GetLatestCommitTime(filePath string) (string, error) {
+	apiURL := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/commits?sha=%s&path=%s&per_page=1",
+		g.Owner,
+		g.Repo,
+		url.QueryEscape(g.Branch),
+		url.QueryEscape(filePath),
+	)
+	resp, err := g.doRequest("GET", apiURL, nil)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("GitHub API 错误 (%d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var commits []struct {
+		Commit struct {
+			Committer struct {
+				Date string `json:"date"`
+			} `json:"committer"`
+		} `json:"commit"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&commits); err != nil {
+		return "", err
+	}
+	if len(commits) == 0 || commits[0].Commit.Committer.Date == "" {
+		return "", nil
+	}
+
+	t, err := time.Parse(time.RFC3339, commits[0].Commit.Committer.Date)
+	if err != nil {
+		return commits[0].Commit.Committer.Date, nil
+	}
+	return t.In(time.FixedZone("CST", 8*3600)).Format("2006/1/2 15:04:05"), nil
 }
 
 // TriggerWorkflow 触发 GitHub Actions 工作流

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       profile:
-        description: '配置档案名称（从 config-profiles.json 中选择）'
+        description: '配置档案名称（对应 main 分支 profiles 目录中的 YAML 档案名）'
         required: true
         type: string
       tag:
@@ -151,35 +151,24 @@ jobs:
           PROFILE_NAME="${{ github.event.inputs.profile }}"
           echo "=== Applying profile: $PROFILE_NAME ==="
           
-          # 从 main 分支读取配置档案（确保所有分支都能使用完整的配置档案列表）
-          echo "Reading config-profiles.json from main branch..."
-          git show main:config-profiles.json > .config-profiles-temp.json
-          
-          if [ ! -f ".config-profiles-temp.json" ]; then
-            echo "Error: Failed to read config-profiles.json from main branch"
+          # 从 main 分支读取 YAML 配置档案（确保所有分支都能使用最新档案）
+          PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
+          echo "Reading $PROFILE_PATH from main branch..."
+          if ! git show "main:$PROFILE_PATH" > assets/config/xboard.config.yaml; then
+            echo "Error: Failed to read $PROFILE_PATH from main branch"
             exit 1
           fi
           
-          # 使用 node 提取 yaml_content 并获取应用名称
+          # 使用 node 提取应用名称
           APP_NAME=$(node -e "
             const fs = require('fs');
-            const profiles = JSON.parse(fs.readFileSync('.config-profiles-temp.json', 'utf8'));
-            const profile = profiles['$PROFILE_NAME'];
-            if (!profile || !profile.yaml_content) {
-              console.error('Error: Profile \"$PROFILE_NAME\" not found or has no yaml_content');
-              process.exit(1);
-            }
-            fs.writeFileSync('assets/config/xboard.config.yaml', profile.yaml_content);
-            
-            // 提取应用名称
-            const yaml = profile.yaml_content;
-            const match = yaml.match(/title:\s*['\"]?([^'\"\\n]+)['\"]?/);
-            const appName = match ? match[1].trim() : '$PROFILE_NAME';
+            const yaml = fs.readFileSync('assets/config/xboard.config.yaml', 'utf8');
+            const appBlockMatch = yaml.match(/(?:^|\\n)  app:\\n((?:    .*?(?:\\n|$)|\\n)*)/);
+            const appTitleMatch = appBlockMatch ? appBlockMatch[1].match(/(?:^|\\n)    title:\\s*['\\\"]?([^'\\\"\\\\n]+)['\\\"]?/) : null;
+            const rootTitleMatch = yaml.match(/(?:^|\\n)  title:\\s*['\\\"]?([^'\\\"\\\\n]+)['\\\"]?/);
+            const appName = appTitleMatch ? appTitleMatch[1].trim() : (rootTitleMatch ? rootTitleMatch[1].trim() : '$PROFILE_NAME');
             console.log(appName);
           ")
-          
-          # 清理临时文件
-          rm -f .config-profiles-temp.json
           
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
           echo "Successfully applied profile: $PROFILE_NAME, App Name: $APP_NAME"
@@ -560,38 +549,31 @@ jobs:
         run: |
           PROFILE_NAME="${{ github.event.inputs.profile }}"
           
-          # 通过 GitHub API 获取 config-profiles.json
+          PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
+          ENCODED_PROFILE_PATH=$(node -e "console.log(process.argv[1].split('/').map(encodeURIComponent).join('/'))" "$PROFILE_PATH")
+
+          # 通过 GitHub API 获取 YAML 配置档案
           API_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
-            "https://api.github.com/repos/q42602736/Xboard-Mihomo_sub/contents/config-profiles.json")
+            "https://api.github.com/repos/q42602736/Xboard-Mihomo_sub/contents/${ENCODED_PROFILE_PATH}?ref=main")
           
           # 检查是否成功获取
           if echo "$API_RESPONSE" | grep -q '"content"'; then
-            CONFIG_JSON=$(echo "$API_RESPONSE" | node -e "
+            PROFILE_YAML=$(echo "$API_RESPONSE" | node -e "
               const d=require('fs').readFileSync(0,'utf8');
               const j=JSON.parse(d);
-              if(j.content) console.log(Buffer.from(j.content,'base64').toString());
-              else console.log('{}');
+              if(j.content) process.stdout.write(Buffer.from(String(j.content).replace(/\\n/g, ''),'base64').toString());
             ")
             
-            APP_NAME=$(echo "$CONFIG_JSON" | node -e "
+            APP_NAME=$(printf '%s' "$PROFILE_YAML" | node -e "
               const fs = require('fs');
-              const input = fs.readFileSync(0, 'utf8');
-              try {
-                const profiles = JSON.parse(input);
-                const profile = profiles['$PROFILE_NAME'];
-                if (profile && profile.yaml_content) {
-                  const yaml = profile.yaml_content;
-                  const match = yaml.match(/title:\s*['\"]?([^'\"\\n]+)['\"]?/);
-                  console.log(match ? match[1].trim() : '$PROFILE_NAME');
-                } else {
-                  console.log('$PROFILE_NAME');
-                }
-              } catch(e) {
-                console.log('$PROFILE_NAME');
-              }
+              const yaml = fs.readFileSync(0, 'utf8');
+              const appBlockMatch = yaml.match(/(?:^|\\n)  app:\\n((?:    .*?(?:\\n|$)|\\n)*)/);
+              const appTitleMatch = appBlockMatch ? appBlockMatch[1].match(/(?:^|\\n)    title:\\s*['\\\"]?([^'\\\"\\\\n]+)['\\\"]?/) : null;
+              const rootTitleMatch = yaml.match(/(?:^|\\n)  title:\\s*['\\\"]?([^'\\\"\\\\n]+)['\\\"]?/);
+              console.log(appTitleMatch ? appTitleMatch[1].trim() : (rootTitleMatch ? rootTitleMatch[1].trim() : '$PROFILE_NAME'));
             ")
           else
-            echo "Failed to get config, using profile name as app name"
+            echo "Failed to get profile yaml, using profile name as app name"
             APP_NAME="$PROFILE_NAME"
           fi
           
