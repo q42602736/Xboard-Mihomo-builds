@@ -1991,6 +1991,7 @@
         }
 
         function logout() {
+            sessionStorage.removeItem(getBuildPollKey());
             sessionStorage.removeItem(SESSION_KEY);
             window.location.href = '/';
         }
@@ -2012,6 +2013,7 @@
 
             var response = await fetch('/api' + path, options);
             if (response.status === 401) {
+                sessionStorage.removeItem(getBuildPollKey());
                 sessionStorage.removeItem(SESSION_KEY);
                 window.location.href = '/';
                 return null;
@@ -5042,11 +5044,19 @@
         }
 
         // ==================== 构建进度追踪 ====================
-        var BUILD_POLL_KEY = 'xboard_building_profile';
+        var BUILD_POLL_KEY_BASE = 'xboard_building_profile';
         var buildPollTimer = null;
         var buildPollContext = null;
         var buildNotFoundCount = 0;
         var maxNotFoundRetries = 12;
+
+        function getBuildPollKey() {
+            var session = getSession();
+            if (session && session.name) {
+                return BUILD_POLL_KEY_BASE + ':' + session.name;
+            }
+            return BUILD_POLL_KEY_BASE;
+        }
 
         function normalizeBuildPollContext(context) {
             if (!context) return null;
@@ -5073,15 +5083,16 @@
 
         function saveBuildingProfile(context) {
             var normalized = normalizeBuildPollContext(context);
+            var key = getBuildPollKey();
             if (normalized) {
-                sessionStorage.setItem(BUILD_POLL_KEY, JSON.stringify(normalized));
+                sessionStorage.setItem(key, JSON.stringify(normalized));
             } else {
-                sessionStorage.removeItem(BUILD_POLL_KEY);
+                sessionStorage.removeItem(key);
             }
         }
 
         function getSavedBuildingProfile() {
-            var raw = sessionStorage.getItem(BUILD_POLL_KEY);
+            var raw = sessionStorage.getItem(getBuildPollKey());
             if (!raw) return null;
             try {
                 return normalizeBuildPollContext(JSON.parse(raw));
