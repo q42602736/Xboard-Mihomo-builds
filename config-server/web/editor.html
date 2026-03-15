@@ -1731,9 +1731,18 @@
                                                 <label>最新版本（latest_version）</label>
                                                 <input type="text" id="remoteConfigUpdateLatestVersion" placeholder="1.0.1">
                                             </div>
+                                            <div class="form-group">
+                                                <label>Android 下载地址（download_urls.android）</label>
+                                                <input type="text" id="remoteConfigUpdateDownloadUrlAndroid" placeholder="https://wgyssp.com/download/app-android.apk">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Windows 下载地址（download_urls.windows）</label>
+                                                <input type="text" id="remoteConfigUpdateDownloadUrlWindows" placeholder="https://wgyssp.com/download/app-windows.exe">
+                                            </div>
                                             <div class="form-group form-group-full">
-                                                <label>下载地址（download_url）</label>
-                                                <input type="text" id="remoteConfigUpdateDownloadUrl" placeholder="https://wgyssp.com/download/app-android.apk">
+                                                <label>macOS 下载地址（download_urls.macos）</label>
+                                                <input type="text" id="remoteConfigUpdateDownloadUrlMacos" placeholder="https://wgyssp.com/download/app-macos.dmg">
+                                                <div class="help-text">支持按平台增量填写；留空的平台不会写入 JSON。导入旧版 <code>download_url</code> 时会自动回填到 Android 地址。</div>
                                             </div>
                                             <div class="form-group">
                                                 <label>强制标记（update_available）</label>
@@ -3860,10 +3869,65 @@
                 description: '静态更新配置',
                 latest_version: '1.0.1',
                 update_available: false,
-                download_url: 'https://wgyssp.com/download/app-android.apk',
+                download_urls: {
+                    android: 'https://wgyssp.com/download/app-android.apk',
+                    windows: '',
+                    macos: ''
+                },
                 release_notes: '修复若干问题，优化稳定性',
                 force_update: false
             };
+        }
+
+        function pickRemoteConfigUpdateDownloadUrl(downloadUrls, keys) {
+            if (!downloadUrls || typeof downloadUrls !== 'object') {
+                return '';
+            }
+            for (var i = 0; i < keys.length; i += 1) {
+                var key = keys[i];
+                if (downloadUrls[key] == null) {
+                    continue;
+                }
+                var value = String(downloadUrls[key]).trim();
+                if (value) {
+                    return value;
+                }
+            }
+            return '';
+        }
+
+        function normalizeRemoteConfigUpdateDownloadUrls(item, defaults) {
+            item = item || {};
+            defaults = defaults || {};
+            var hasDownloadConfigField =
+                Object.prototype.hasOwnProperty.call(item, 'download_urls') ||
+                Object.prototype.hasOwnProperty.call(item, 'downloadUrls') ||
+                Object.prototype.hasOwnProperty.call(item, 'download_url') ||
+                Object.prototype.hasOwnProperty.call(item, 'downloadUrl');
+            var rawDownloadUrls = item.download_urls && typeof item.download_urls === 'object'
+                ? item.download_urls
+                : (item.downloadUrls && typeof item.downloadUrls === 'object' ? item.downloadUrls : {});
+            var legacyDownloadUrl = String(
+                item.download_url != null
+                    ? item.download_url
+                    : (item.downloadUrl != null ? item.downloadUrl : '')
+            ).trim();
+            return {
+                android: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, ['android']) || legacyDownloadUrl || (hasDownloadConfigField ? '' : String(defaults.android || '').trim()),
+                windows: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, ['windows', 'win']) || (hasDownloadConfigField ? '' : String(defaults.windows || '').trim()),
+                macos: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, ['macos', 'mac', 'darwin', 'osx']) || (hasDownloadConfigField ? '' : String(defaults.macos || '').trim())
+            };
+        }
+
+        function buildRemoteConfigUpdateDownloadUrls(downloadUrls) {
+            var result = {};
+            ['android', 'windows', 'macos'].forEach(function(platform) {
+                var value = String(downloadUrls && downloadUrls[platform] != null ? downloadUrls[platform] : '').trim();
+                if (value) {
+                    result[platform] = value;
+                }
+            });
+            return result;
         }
 
         function normalizeRemoteConfigUpdateItem(item) {
@@ -3881,7 +3945,7 @@
                 description: String(item.description != null ? item.description : defaults.description).trim() || defaults.description,
                 latest_version: String(item.latest_version != null ? item.latest_version : defaults.latest_version).trim(),
                 update_available: !!updateAvailableValue,
-                download_url: String(item.download_url != null ? item.download_url : defaults.download_url).trim(),
+                download_urls: normalizeRemoteConfigUpdateDownloadUrls(item, defaults.download_urls),
                 release_notes: String(item.release_notes != null ? item.release_notes : defaults.release_notes).trim() || defaults.release_notes,
                 force_update: !!forceUpdateValue
             };
@@ -3893,17 +3957,21 @@
             var enabledInput = document.getElementById('remoteConfigUpdateEnabled');
             var descriptionInput = document.getElementById('remoteConfigUpdateDescription');
             var latestVersionInput = document.getElementById('remoteConfigUpdateLatestVersion');
-            var downloadUrlInput = document.getElementById('remoteConfigUpdateDownloadUrl');
+            var downloadUrlAndroidInput = document.getElementById('remoteConfigUpdateDownloadUrlAndroid');
+            var downloadUrlWindowsInput = document.getElementById('remoteConfigUpdateDownloadUrlWindows');
+            var downloadUrlMacosInput = document.getElementById('remoteConfigUpdateDownloadUrlMacos');
             var updateAvailableInput = document.getElementById('remoteConfigUpdateAvailable');
             var releaseNotesInput = document.getElementById('remoteConfigUpdateReleaseNotes');
             var forceUpdateInput = document.getElementById('remoteConfigUpdateForceUpdate');
-            if (!descriptionInput || !latestVersionInput || !downloadUrlInput || !updateAvailableInput || !releaseNotesInput || !forceUpdateInput || !enabledInput) {
+            if (!descriptionInput || !latestVersionInput || !downloadUrlAndroidInput || !downloadUrlWindowsInput || !downloadUrlMacosInput || !updateAvailableInput || !releaseNotesInput || !forceUpdateInput || !enabledInput) {
                 return;
             }
 
             descriptionInput.value = normalized.description;
             latestVersionInput.value = normalized.latest_version;
-            downloadUrlInput.value = normalized.download_url;
+            downloadUrlAndroidInput.value = normalized.download_urls.android || '';
+            downloadUrlWindowsInput.value = normalized.download_urls.windows || '';
+            downloadUrlMacosInput.value = normalized.download_urls.macos || '';
             updateAvailableInput.value = normalized.update_available ? 'true' : 'false';
             releaseNotesInput.value = normalized.release_notes;
             forceUpdateInput.value = normalized.force_update ? 'true' : 'false';
@@ -3938,18 +4006,27 @@
                 description: document.getElementById('remoteConfigUpdateDescription').value,
                 latest_version: document.getElementById('remoteConfigUpdateLatestVersion').value,
                 update_available: document.getElementById('remoteConfigUpdateAvailable').value,
-                download_url: document.getElementById('remoteConfigUpdateDownloadUrl').value,
+                download_urls: {
+                    android: document.getElementById('remoteConfigUpdateDownloadUrlAndroid').value,
+                    windows: document.getElementById('remoteConfigUpdateDownloadUrlWindows').value,
+                    macos: document.getElementById('remoteConfigUpdateDownloadUrlMacos').value
+                },
                 release_notes: document.getElementById('remoteConfigUpdateReleaseNotes').value,
                 force_update: document.getElementById('remoteConfigUpdateForceUpdate').value
             });
+            item.download_urls = buildRemoteConfigUpdateDownloadUrls(item.download_urls);
 
             if (requireComplete) {
                 if (!item.latest_version) {
                     throw new Error('请填写静态更新配置的最新版本（latest_version）');
                 }
-                if (!item.download_url) {
-                    throw new Error('请填写静态更新配置的下载地址（download_url）');
+                if (!Object.keys(item.download_urls).length) {
+                    throw new Error('请至少填写一个静态更新下载地址（download_urls.android / download_urls.windows / download_urls.macos）');
                 }
+            }
+
+            if (!Object.keys(item.download_urls).length) {
+                delete item.download_urls;
             }
 
             return [item];
@@ -4217,7 +4294,9 @@
             var updateFieldIds = [
                 'remoteConfigUpdateDescription',
                 'remoteConfigUpdateLatestVersion',
-                'remoteConfigUpdateDownloadUrl',
+                'remoteConfigUpdateDownloadUrlAndroid',
+                'remoteConfigUpdateDownloadUrlWindows',
+                'remoteConfigUpdateDownloadUrlMacos',
                 'remoteConfigUpdateAvailable',
                 'remoteConfigUpdateReleaseNotes',
                 'remoteConfigUpdateForceUpdate'
