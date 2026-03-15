@@ -1739,10 +1739,18 @@
                                                 <label>Windows 下载地址（download_urls.windows）</label>
                                                 <input type="text" id="remoteConfigUpdateDownloadUrlWindows" placeholder="https://example.com/download/app-windows.exe">
                                             </div>
+                                            <div class="form-group">
+                                                <label>macOS Apple Silicon 下载地址（download_urls[macos-arm64]）</label>
+                                                <input type="text" id="remoteConfigUpdateDownloadUrlMacosArm64" placeholder="https://example.com/download/app-macos-arm64.dmg">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>macOS Intel 下载地址（download_urls[macos-amd64]）</label>
+                                                <input type="text" id="remoteConfigUpdateDownloadUrlMacosAmd64" placeholder="https://example.com/download/app-macos-amd64.dmg">
+                                            </div>
                                             <div class="form-group form-group-full">
-                                                <label>macOS 下载地址（download_urls.macos）</label>
-                                                <input type="text" id="remoteConfigUpdateDownloadUrlMacos" placeholder="https://example.com/download/app-macos.dmg">
-                                                <div class="help-text">支持按平台增量填写；留空的平台不会写入 JSON。导入旧版 <code>download_url</code> 时会自动回填到 Android 地址。</div>
+                                                <label>手动更新地址（manual_download_url）</label>
+                                                <input type="text" id="remoteConfigUpdateManualDownloadUrl" placeholder="https://example.com/downloads">
+                                                <div class="help-text">支持填写网盘页、官网发布页等手动下载跳转地址。客户端会优先使用自动更新下载地址；静态配置中的 macOS 自动更新已直接拆分为 arm64 和 intel 两个地址。导入旧版 <code>download_urls.macos</code> 时会自动同时回填到这两个输入框。</div>
                                             </div>
                                             <div class="form-group">
                                                 <label>强制标记（update_available）</label>
@@ -3872,11 +3880,32 @@
                 download_urls: {
                     android: '',
                     windows: '',
-                    macos: ''
+                    macos_arm64: '',
+                    macos_amd64: ''
                 },
+                manual_download_url: '',
                 release_notes: '修复若干问题，优化稳定性',
                 force_update: false
             };
+        }
+
+        function readRemoteConfigUpdateStringValue(source, keyPath) {
+            if (!source || typeof source !== 'object') {
+                return '';
+            }
+            var segments = Array.isArray(keyPath) ? keyPath : [keyPath];
+            var current = source;
+            for (var i = 0; i < segments.length; i += 1) {
+                var segment = segments[i];
+                if (!segment || typeof current !== 'object' || !Object.prototype.hasOwnProperty.call(current, segment)) {
+                    return '';
+                }
+                current = current[segment];
+            }
+            if (current == null || typeof current === 'object') {
+                return '';
+            }
+            return String(current).trim();
         }
 
         function pickRemoteConfigUpdateDownloadUrl(downloadUrls, keys) {
@@ -3885,10 +3914,7 @@
             }
             for (var i = 0; i < keys.length; i += 1) {
                 var key = keys[i];
-                if (downloadUrls[key] == null) {
-                    continue;
-                }
-                var value = String(downloadUrls[key]).trim();
+                var value = readRemoteConfigUpdateStringValue(downloadUrls, key);
                 if (value) {
                     return value;
                 }
@@ -3912,21 +3938,33 @@
                     ? item.download_url
                     : (item.downloadUrl != null ? item.downloadUrl : '')
             ).trim();
+            var legacyMacosDownloadUrl = pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, ['macos', 'mac', 'darwin', 'osx', ['macos', 'default']]);
             return {
                 android: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, ['android']) || legacyDownloadUrl || (hasDownloadConfigField ? '' : String(defaults.android || '').trim()),
                 windows: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, ['windows', 'win']) || (hasDownloadConfigField ? '' : String(defaults.windows || '').trim()),
-                macos: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, ['macos', 'mac', 'darwin', 'osx']) || (hasDownloadConfigField ? '' : String(defaults.macos || '').trim())
+                macos_arm64: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, [['macos', 'arm64'], ['macos', 'aarch64'], 'macos-arm64', 'macos_arm64', 'macos arm64', 'macosarm64', 'darwin-arm64', 'darwin_arm64']) || legacyMacosDownloadUrl || (hasDownloadConfigField ? '' : String(defaults.macos_arm64 || '').trim()),
+                macos_amd64: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, [['macos', 'amd64'], ['macos', 'x64'], ['macos', 'intel'], 'macos-amd64', 'macos_amd64', 'macos amd64', 'macosamd64', 'macos-x64', 'macos_x64', 'darwin-amd64', 'darwin_x64', 'intel']) || legacyMacosDownloadUrl || (hasDownloadConfigField ? '' : String(defaults.macos_amd64 || '').trim())
             };
         }
 
         function buildRemoteConfigUpdateDownloadUrls(downloadUrls) {
             var result = {};
-            ['android', 'windows', 'macos'].forEach(function(platform) {
-                var value = String(downloadUrls && downloadUrls[platform] != null ? downloadUrls[platform] : '').trim();
-                if (value) {
-                    result[platform] = value;
-                }
-            });
+            var androidValue = String(downloadUrls && downloadUrls.android != null ? downloadUrls.android : '').trim();
+            var windowsValue = String(downloadUrls && downloadUrls.windows != null ? downloadUrls.windows : '').trim();
+            var macosArm64Value = String(downloadUrls && downloadUrls.macos_arm64 != null ? downloadUrls.macos_arm64 : '').trim();
+            var macosAmd64Value = String(downloadUrls && downloadUrls.macos_amd64 != null ? downloadUrls.macos_amd64 : '').trim();
+            if (androidValue) {
+                result.android = androidValue;
+            }
+            if (windowsValue) {
+                result.windows = windowsValue;
+            }
+            if (macosArm64Value) {
+                result['macos-arm64'] = macosArm64Value;
+            }
+            if (macosAmd64Value) {
+                result['macos-amd64'] = macosAmd64Value;
+            }
             return result;
         }
 
@@ -3941,11 +3979,17 @@
             if (typeof forceUpdateValue === 'string') {
                 forceUpdateValue = forceUpdateValue === 'true';
             }
+            var manualDownloadUrlValue = String(
+                item.manual_download_url != null
+                    ? item.manual_download_url
+                    : (item.manualDownloadUrl != null ? item.manualDownloadUrl : defaults.manual_download_url)
+            ).trim();
             return {
                 description: String(item.description != null ? item.description : defaults.description).trim() || defaults.description,
                 latest_version: String(item.latest_version != null ? item.latest_version : defaults.latest_version).trim(),
                 update_available: !!updateAvailableValue,
                 download_urls: normalizeRemoteConfigUpdateDownloadUrls(item, defaults.download_urls),
+                manual_download_url: manualDownloadUrlValue,
                 release_notes: String(item.release_notes != null ? item.release_notes : defaults.release_notes).trim() || defaults.release_notes,
                 force_update: !!forceUpdateValue
             };
@@ -3959,11 +4003,13 @@
             var latestVersionInput = document.getElementById('remoteConfigUpdateLatestVersion');
             var downloadUrlAndroidInput = document.getElementById('remoteConfigUpdateDownloadUrlAndroid');
             var downloadUrlWindowsInput = document.getElementById('remoteConfigUpdateDownloadUrlWindows');
-            var downloadUrlMacosInput = document.getElementById('remoteConfigUpdateDownloadUrlMacos');
+            var downloadUrlMacosArm64Input = document.getElementById('remoteConfigUpdateDownloadUrlMacosArm64');
+            var downloadUrlMacosAmd64Input = document.getElementById('remoteConfigUpdateDownloadUrlMacosAmd64');
+            var manualDownloadUrlInput = document.getElementById('remoteConfigUpdateManualDownloadUrl');
             var updateAvailableInput = document.getElementById('remoteConfigUpdateAvailable');
             var releaseNotesInput = document.getElementById('remoteConfigUpdateReleaseNotes');
             var forceUpdateInput = document.getElementById('remoteConfigUpdateForceUpdate');
-            if (!descriptionInput || !latestVersionInput || !downloadUrlAndroidInput || !downloadUrlWindowsInput || !downloadUrlMacosInput || !updateAvailableInput || !releaseNotesInput || !forceUpdateInput || !enabledInput) {
+            if (!descriptionInput || !latestVersionInput || !downloadUrlAndroidInput || !downloadUrlWindowsInput || !downloadUrlMacosArm64Input || !downloadUrlMacosAmd64Input || !manualDownloadUrlInput || !updateAvailableInput || !releaseNotesInput || !forceUpdateInput || !enabledInput) {
                 return;
             }
 
@@ -3971,7 +4017,9 @@
             latestVersionInput.value = normalized.latest_version;
             downloadUrlAndroidInput.value = normalized.download_urls.android || '';
             downloadUrlWindowsInput.value = normalized.download_urls.windows || '';
-            downloadUrlMacosInput.value = normalized.download_urls.macos || '';
+            downloadUrlMacosArm64Input.value = normalized.download_urls.macos_arm64 || '';
+            downloadUrlMacosAmd64Input.value = normalized.download_urls.macos_amd64 || '';
+            manualDownloadUrlInput.value = normalized.manual_download_url || '';
             updateAvailableInput.value = normalized.update_available ? 'true' : 'false';
             releaseNotesInput.value = normalized.release_notes;
             forceUpdateInput.value = normalized.force_update ? 'true' : 'false';
@@ -4009,8 +4057,10 @@
                 download_urls: {
                     android: document.getElementById('remoteConfigUpdateDownloadUrlAndroid').value,
                     windows: document.getElementById('remoteConfigUpdateDownloadUrlWindows').value,
-                    macos: document.getElementById('remoteConfigUpdateDownloadUrlMacos').value
+                    macos_arm64: document.getElementById('remoteConfigUpdateDownloadUrlMacosArm64').value,
+                    macos_amd64: document.getElementById('remoteConfigUpdateDownloadUrlMacosAmd64').value
                 },
+                manual_download_url: document.getElementById('remoteConfigUpdateManualDownloadUrl').value,
                 release_notes: document.getElementById('remoteConfigUpdateReleaseNotes').value,
                 force_update: document.getElementById('remoteConfigUpdateForceUpdate').value
             });
@@ -4020,13 +4070,16 @@
                 if (!item.latest_version) {
                     throw new Error('请填写静态更新配置的最新版本（latest_version）');
                 }
-                if (!Object.keys(item.download_urls).length) {
-                    throw new Error('请至少填写一个静态更新下载地址（download_urls.android / download_urls.windows / download_urls.macos）');
+                if (!Object.keys(item.download_urls).length && !item.manual_download_url) {
+                    throw new Error('请至少填写一个自动更新下载地址（如 android / windows / macos-arm64 / macos-amd64），或提供手动更新地址（manual_download_url）');
                 }
             }
 
             if (!Object.keys(item.download_urls).length) {
                 delete item.download_urls;
+            }
+            if (!item.manual_download_url) {
+                delete item.manual_download_url;
             }
 
             return [item];
@@ -4296,7 +4349,9 @@
                 'remoteConfigUpdateLatestVersion',
                 'remoteConfigUpdateDownloadUrlAndroid',
                 'remoteConfigUpdateDownloadUrlWindows',
-                'remoteConfigUpdateDownloadUrlMacos',
+                'remoteConfigUpdateDownloadUrlMacosArm64',
+                'remoteConfigUpdateDownloadUrlMacosAmd64',
+                'remoteConfigUpdateManualDownloadUrl',
                 'remoteConfigUpdateAvailable',
                 'remoteConfigUpdateReleaseNotes',
                 'remoteConfigUpdateForceUpdate'
