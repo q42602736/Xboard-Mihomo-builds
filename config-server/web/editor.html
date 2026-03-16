@@ -1894,7 +1894,7 @@
                                 <select id="buildBranch">
                                     <option value="main">main</option>
                                 </select>
-                                <div class="help-text error" style="font-weight: 600;">请选择与你当前面板类型对应的源码分支：XBoard、V2Board 和 xiaov2board 请选择 <code>main</code>，SSPanel 请选择 <code>sspanel</code>，避免打包出与后端不匹配的客户端。</div>
+                                <div class="help-text error" style="font-weight: 600;">请选择与你当前面板类型对应的源码分支：XBoard、V2Board 和 xiaov2board 请选择 <code>main</code>，SSPanel 请选择对应分支。若打包平台包含 <code>Android TV</code> 且这里选择的是 <code>main</code>，TV 任务会自动切到 <code>tv</code> 分支，其他平台仍使用当前分支。</div>
                             </div>
                             <div class="form-group">
                                 <label>版本标签</label>
@@ -1905,7 +1905,7 @@
                         <div class="form-group">
                             <label>选择打包平台</label>
                             <div class="platform-checkboxes">
-                                <label class="platform-checkbox"><input type="checkbox" value="all" id="platformAll" checked><span class="platform-checkbox-label">全部平台（不含 TV）</span></label>
+                                <label class="platform-checkbox"><input type="checkbox" value="all" id="platformAll" checked><span class="platform-checkbox-label">全部平台</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="windows" class="platformItem"><span class="platform-checkbox-label">Windows</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem"><span class="platform-checkbox-label">Android（手机）</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="android-tv" class="platformItem"><span class="platform-checkbox-label">Android TV</span></label>
@@ -1913,7 +1913,7 @@
                                 <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem"><span class="platform-checkbox-label">macOS ARM64</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem"><span class="platform-checkbox-label">macOS AMD64</span></label>
                             </div>
-                            <div class="help-text">Android TV 使用独立入口和 TV 界面，不包含在“全部平台”内，需要单独勾选。</div>
+                            <div class="help-text">Android TV 使用独立入口和 TV 界面，也包含在“全部平台”中。</div>
                         </div>
                         <div id="buildQueue" style="margin-top: 15px; padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
                             <span style="color: #aaa; font-size: 13px;">打包队列：</span>

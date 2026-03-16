@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       branch:
-        description: '源码分支（如: main, feature/sspanel）'
+        description: '源码分支（如: main, feature/sspanel；Android TV 在 main 下会自动切到 tv）'
         required: false
         type: string
         default: 'main'
@@ -22,7 +22,7 @@ on:
         type: string
         default: 'all'
         # 可选值: all, windows, android, android-tv, macos, macos-arm64, macos-amd64
-        # 注意: all 默认不包含 android-tv，需要单独选择
+        # 注意: all 包含 android-tv
         # 示例: windows,android 或 macos-arm64,android-tv
       request_id:
         description: '构建请求唯一标识（由配置服务器生成，用于匹配本次构建运行）'
@@ -63,7 +63,7 @@ jobs:
             build_flavor: tv
             build_target: lib/main_tv.dart
             os: ubuntu-latest
-            include_in_all: false
+            include_in_all: true
           - platform: macos
             build_platform: macos
             os: macos-latest
@@ -90,7 +90,7 @@ jobs:
           
           SHOULD_RUN="false"
           
-          # 检查是否选择了 all（默认不包含 android-tv）
+          # 检查是否选择了 all
           if [[ "$SELECTED" == "all" ]] && [ "$INCLUDE_IN_ALL" = "true" ]; then
             SHOULD_RUN="true"
           # 检查是否包含当前平台
@@ -152,10 +152,16 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           git clone git@github.com:${{ env.PRIVATE_REPO }}.git source
           cd source
-          SOURCE_REF="${{ github.event.inputs.branch }}"
+          REQUESTED_REF="${{ github.event.inputs.branch }}"
+          SOURCE_REF="$REQUESTED_REF"
           if [ -z "$SOURCE_REF" ]; then
             SOURCE_REF="${{ github.event.inputs.tag }}"
           fi
+          if [ "${{ matrix.platform }}" = "android-tv" ] && { [ -z "$REQUESTED_REF" ] || [ "$REQUESTED_REF" = "main" ]; }; then
+            echo "android-tv 构建检测到默认 main 分支，自动切换到 tv 源码分支"
+            SOURCE_REF="tv"
+          fi
+          echo "Requested source ref: ${REQUESTED_REF:-<empty>}"
           echo "Checking out source ref: $SOURCE_REF"
           git checkout "$SOURCE_REF"
           echo "Checked out commit: $(git rev-parse HEAD)"
@@ -181,9 +187,9 @@ jobs:
           APP_NAME=$(node -e "
             const fs = require('fs');
             const yaml = fs.readFileSync('assets/config/xboard.config.yaml', 'utf8');
-            const appBlockMatch = yaml.match(/(?:^|\\n)  app:\\n((?:    .*?(?:\\n|$)|\\n)*)/);
-            const appTitleMatch = appBlockMatch ? appBlockMatch[1].match(/(?:^|\\n)    title:\\s*['\\\"]?([^'\\\"\\\\n]+)['\\\"]?/) : null;
-            const rootTitleMatch = yaml.match(/(?:^|\\n)  title:\\s*['\\\"]?([^'\\\"\\\\n]+)['\\\"]?/);
+            const appBlockMatch = yaml.match(/(?:^|\r?\n)  app:\r?\n((?:    .*?(?:\r?\n|$)|\r?\n)*)/);
+            const appTitleMatch = appBlockMatch ? appBlockMatch[1].match(/(?:^|\r?\n)    title:\s*['\\\"]?([^'\"\\r\\n]+)['\\\"]?/) : null;
+            const rootTitleMatch = yaml.match(/(?:^|\r?\n)  title:\s*['\\\"]?([^'\"\\r\\n]+)['\\\"]?/);
             const rawName = appTitleMatch ? appTitleMatch[1].trim() : (rootTitleMatch ? rootTitleMatch[1].trim() : '$PROFILE_NAME');
             const appName = String(rawName || '').replace(/[\\r\\n]+/g, ' ').trim();
             console.log(appName);
@@ -589,9 +595,9 @@ jobs:
             APP_NAME=$(printf '%s' "$PROFILE_YAML" | node -e "
               const fs = require('fs');
               const yaml = fs.readFileSync(0, 'utf8');
-              const appBlockMatch = yaml.match(/(?:^|\\n)  app:\\n((?:    .*?(?:\\n|$)|\\n)*)/);
-              const appTitleMatch = appBlockMatch ? appBlockMatch[1].match(/(?:^|\\n)    title:\\s*['\\\"]?([^'\\\"\\\\n]+)['\\\"]?/) : null;
-              const rootTitleMatch = yaml.match(/(?:^|\\n)  title:\\s*['\\\"]?([^'\\\"\\\\n]+)['\\\"]?/);
+              const appBlockMatch = yaml.match(/(?:^|\r?\n)  app:\r?\n((?:    .*?(?:\r?\n|$)|\r?\n)*)/);
+              const appTitleMatch = appBlockMatch ? appBlockMatch[1].match(/(?:^|\r?\n)    title:\s*['\\\"]?([^'\"\\r\\n]+)['\\\"]?/) : null;
+              const rootTitleMatch = yaml.match(/(?:^|\r?\n)  title:\s*['\\\"]?([^'\"\\r\\n]+)['\\\"]?/);
               const rawName = appTitleMatch ? appTitleMatch[1].trim() : (rootTitleMatch ? rootTitleMatch[1].trim() : '$PROFILE_NAME');
               console.log(String(rawName || '').replace(/[\\r\\n]+/g, ' ').trim());
             ")
