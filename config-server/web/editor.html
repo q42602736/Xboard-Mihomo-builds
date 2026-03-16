@@ -2785,10 +2785,14 @@
         var myBuildRecordsExpanded = false;
         var clientUpdatesLoaded = false;
         var clientUpdatesLoadedBranch = '';
+        var buildQueuePollTimer = null;
+        var buildQueuePollInFlight = false;
         var buildQueueAvailable = false;
         var buildQueueStatusMessage = '正在加载打包队列...';
         var buildPermissionAvailable = false;
         var buildPermissionStatusMessage = '正在加载软件打包状态...';
+        var BUILD_QUEUE_POLL_VISIBLE_INTERVAL = 15000;
+        var BUILD_QUEUE_POLL_HIDDEN_INTERVAL = 60000;
 
         // ==================== 导航切换 ====================
         function switchSection(sectionName, triggerElement) {
@@ -2892,6 +2896,17 @@
             loadBuildHistory();
             loadBranches();
             loadBuildQueue();
+
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    scheduleBuildQueuePolling();
+                    return;
+                }
+                loadBuildQueue();
+            });
+            window.addEventListener('beforeunload', function() {
+                stopBuildQueuePolling();
+            });
         };
 
         function getDefaultYamlTemplate() {
@@ -3623,8 +3638,35 @@
             }
         }
 
-        async function loadBuildQueue() {
+        function getBuildQueuePollInterval() {
+            return document.hidden ? BUILD_QUEUE_POLL_HIDDEN_INTERVAL : BUILD_QUEUE_POLL_VISIBLE_INTERVAL;
+        }
+
+        function stopBuildQueuePolling() {
+            if (buildQueuePollTimer) {
+                clearTimeout(buildQueuePollTimer);
+                buildQueuePollTimer = null;
+            }
+        }
+
+        function scheduleBuildQueuePolling(delay) {
+            stopBuildQueuePolling();
+            buildQueuePollTimer = setTimeout(function() {
+                loadBuildQueue({ isAutoPoll: true });
+            }, typeof delay === 'number' ? delay : getBuildQueuePollInterval());
+        }
+
+        async function loadBuildQueue(options) {
+            options = options || {};
             var el = document.getElementById('buildQueueInfo');
+            if (!el) return;
+            if (buildQueuePollInFlight) {
+                if (!options.isAutoPoll) {
+                    scheduleBuildQueuePolling();
+                }
+                return;
+            }
+            buildQueuePollInFlight = true;
             try {
                 var response = await api('GET', '/build/queue');
                 if (!response) return;
@@ -3641,9 +3683,12 @@
             } catch (e) {
                 buildQueueAvailable = true;
                 buildQueueStatusMessage = '';
-                document.getElementById('buildQueueInfo').textContent = '无法获取队列状态';
+                el.textContent = '无法获取队列状态';
+            } finally {
+                buildQueuePollInFlight = false;
+                scheduleBuildQueuePolling();
+                updateBuildActionState();
             }
-            updateBuildActionState();
         }
 
         async function triggerBuild() {
