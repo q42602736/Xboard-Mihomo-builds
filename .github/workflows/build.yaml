@@ -17,12 +17,13 @@ on:
         type: string
         default: 'main'
       platforms:
-        description: '选择要编译的平台（多选用逗号分隔，如: windows,android）'
+        description: '选择要编译的平台（多选用逗号分隔，如: windows,android 或 android-tv）'
         required: true
         type: string
         default: 'all'
-        # 可选值: all, windows, android, macos, macos-arm64, macos-amd64
-        # 示例: windows,android 或 macos-arm64,windows
+        # 可选值: all, windows, android, android-tv, macos, macos-arm64, macos-amd64
+        # 注意: all 默认不包含 android-tv，需要单独选择
+        # 示例: windows,android 或 macos-arm64,android-tv
       request_id:
         description: '构建请求唯一标识（由配置服务器生成，用于匹配本次构建运行）'
         required: false
@@ -47,17 +48,32 @@ jobs:
       matrix:
         include:
           - platform: windows
+            build_platform: windows
             os: Windows-2022
             arch: amd64
+            include_in_all: true
           - platform: android
+            build_platform: android
+            build_flavor: mobile
             os: ubuntu-latest
-            # 不指定arch，自动构建所有3个架构: armeabi-v7a, arm64-v8a, x86_64
+            # 显式固定 mobile flavor，避免 all 把 tv 产物一起打出来
+            include_in_all: true
+          - platform: android-tv
+            build_platform: android
+            build_flavor: tv
+            build_target: lib/main_tv.dart
+            os: ubuntu-latest
+            include_in_all: false
           - platform: macos
+            build_platform: macos
             os: macos-latest
             arch: arm64
+            include_in_all: true
           - platform: macos
+            build_platform: macos
             os: macos-15-intel
             arch: amd64
+            include_in_all: true
 
     steps:
       - name: Check if platform should run
@@ -65,15 +81,17 @@ jobs:
         run: |
           SELECTED="${{ github.event.inputs.platforms }}"
           CURRENT="${{ matrix.platform }}"
+          BUILD_PLATFORM="${{ matrix.build_platform }}"
           ARCH="${{ matrix.arch }}"
+          INCLUDE_IN_ALL="${{ matrix.include_in_all }}"
           
           echo "Selected platforms: $SELECTED"
-          echo "Current matrix: platform=$CURRENT, arch=$ARCH"
+          echo "Current matrix: platform=$CURRENT, build_platform=$BUILD_PLATFORM, arch=$ARCH"
           
           SHOULD_RUN="false"
           
-          # 检查是否选择了 all
-          if [[ "$SELECTED" == "all" ]]; then
+          # 检查是否选择了 all（默认不包含 android-tv）
+          if [[ "$SELECTED" == "all" ]] && [ "$INCLUDE_IN_ALL" = "true" ]; then
             SHOULD_RUN="true"
           # 检查是否包含当前平台
           elif [[ ",$SELECTED," == *",$CURRENT,"* ]]; then
@@ -94,7 +112,7 @@ jobs:
           fi
 
       - name: Free Disk Space (Android)
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'android'
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'android'
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: true
@@ -106,7 +124,7 @@ jobs:
           swap-storage: true
 
       - name: Additional Disk Cleanup (Android)
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'android'
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'android'
         run: |
           echo "=== 额外清理磁盘空间 ==="
           df -h
@@ -179,7 +197,7 @@ jobs:
           head -30 assets/config/xboard.config.yaml
 
       - name: Setup Android Signing
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'android'
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'android'
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 --decode > source/android/app/keystore.jks
           echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> source/android/local.properties
@@ -187,7 +205,7 @@ jobs:
           echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> source/android/local.properties
 
       - name: Setup Windows Build Environment
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'windows'
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'windows'
         shell: bash
         run: |
           # 创建持久化工具目录
@@ -220,7 +238,7 @@ jobs:
           echo "✓ CMake configured to ignore policy warnings"
 
       - name: Setup Rust (x64)
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'windows' && matrix.arch == 'amd64'
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'windows' && matrix.arch == 'amd64'
         shell: bash
         run: |
           if ! command -v cargo &> /dev/null; then
@@ -241,7 +259,7 @@ jobs:
           cache-dependency-path: source/core/go.sum
 
       - name: Setup Flutter (Windows x64)
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'windows' && matrix.arch == 'amd64'
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'windows' && matrix.arch == 'amd64'
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -249,7 +267,7 @@ jobs:
           cache: true
 
       - name: Setup Flutter (Android)
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'android'
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'android'
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -257,7 +275,7 @@ jobs:
           cache: true
 
       - name: Setup Flutter (macOS)
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'macos'
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'macos'
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -313,7 +331,7 @@ jobs:
           grep -A 10 "assets:" pubspec.yaml || echo "No assets section found"
 
       - name: Prepare Windows Build Environment
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'windows'
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'windows'
         shell: bash
         run: |
           # 确保PATH包含Pub Cache bin和Inno Setup
@@ -328,7 +346,7 @@ jobs:
           echo "✓ flutter_distributor installed"
 
       - name: Clean Windows Build Cache
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'windows'
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'windows'
         shell: bash
         run: |
           echo "🧹 清理 Windows 构建缓存（解决 CMake 安装问题）..."
@@ -342,7 +360,7 @@ jobs:
           echo "✓ 构建缓存已清理，CMake 策略已配置"
 
       - name: Prepare Android Build Environment
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'android'
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'android'
         run: |
           echo "Preparing Android build environment..."
           # 安装 flutter_distributor
@@ -350,7 +368,7 @@ jobs:
           echo "✓ flutter_distributor installed"
 
       - name: Prepare macOS Build Environment
-        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'macos'
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'macos'
         run: |
           echo "Preparing macOS build environment..."
           
@@ -373,7 +391,10 @@ jobs:
           cd source
           echo "=== Build Environment ==="
           echo "Platform: ${{ matrix.platform }}"
+          echo "Build platform: ${{ matrix.build_platform }}"
           echo "Arch: ${{ matrix.arch }}"
+          echo "Flavor: ${{ matrix.build_flavor }}"
+          echo "Flutter target: ${{ matrix.build_target }}"
           echo "IS_STABLE: ${{ env.IS_STABLE }}"
           echo "Current directory: $(pwd)"
           echo ""
@@ -384,7 +405,7 @@ jobs:
           which go && go version || echo "go not found"
           echo ""
 
-          if [ "${{ matrix.platform }}" = "macos" ]; then
+          if [ "${{ matrix.build_platform }}" = "macos" ]; then
             echo "=== macOS Pre-Build Check ==="
             echo "Xcode version:"
             xcodebuild -version
@@ -400,7 +421,7 @@ jobs:
             echo ""
           fi
 
-          if [ "${{ matrix.platform }}" = "windows" ]; then
+          if [ "${{ matrix.build_platform }}" = "windows" ]; then
             echo "=== Windows Build Tools ==="
             which cmake && cmake --version || echo "cmake not found"
             which msbuild && msbuild -version || echo "msbuild not found"
@@ -419,11 +440,11 @@ jobs:
           ls -la "/c/Program Files (x86)/Inno Setup 6/" 2>/dev/null || echo "Inno Setup dir not found"
           echo ""
           echo "=== Build Command ==="
-          echo "Running: dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} --version ${{ github.event.inputs.tag }}"
+          echo "Running: dart setup.dart ${{ matrix.build_platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ matrix.build_flavor && format('--flavor {0}', matrix.build_flavor) || '' }} ${{ matrix.build_target && format('--flutter-target {0}', matrix.build_target) || '' }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} --version ${{ github.event.inputs.tag }}"
           echo ""
           echo "=== Build Output ==="
           set -o pipefail
-          dart setup.dart ${{ matrix.platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} --version ${{ github.event.inputs.tag }} 2>&1 | tee build.log
+          dart setup.dart ${{ matrix.build_platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ matrix.build_flavor && format('--flavor {0}', matrix.build_flavor) || '' }} ${{ matrix.build_target && format('--flutter-target {0}', matrix.build_target) || '' }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} --version ${{ github.event.inputs.tag }} 2>&1 | tee build.log
           BUILD_EXIT_CODE=${PIPESTATUS[0]}
           echo ""
           echo "=== Build Exit Code: $BUILD_EXIT_CODE ==="
@@ -432,7 +453,7 @@ jobs:
             echo ""
             echo "=== BUILD FAILED - Collecting Debug Information ==="
             echo ""
-            if [ "${{ matrix.platform }}" = "windows" ]; then
+            if [ "${{ matrix.build_platform }}" = "windows" ]; then
               echo "=== CMake Error Logs ==="
               find ./build/windows -name "CMakeError.log" -exec echo "File: {}" \; -exec cat {} \; 2>/dev/null || echo "No CMakeError.log found"
               echo ""
@@ -452,7 +473,7 @@ jobs:
               echo "=== Windows Build Directory Structure ==="
               ls -laR ./build/windows/ 2>/dev/null | head -100 || echo "No build directory"
               echo ""
-            elif [ "${{ matrix.platform }}" = "macos" ]; then
+            elif [ "${{ matrix.build_platform }}" = "macos" ]; then
               echo "=== macOS Core File Check ==="
               echo "libclash/macos contents:"
               ls -la ./libclash/macos/ 2>/dev/null || echo "libclash/macos not found"
@@ -512,13 +533,13 @@ jobs:
           find ./source/dist -type f 2>/dev/null || echo "No files in dist"
           echo ""
 
-          if [ "${{ matrix.platform }}" = "windows" ]; then
+          if [ "${{ matrix.build_platform }}" = "windows" ]; then
             echo "=== source/build/windows contents ==="
             ls -la ./source/build/windows/ 2>/dev/null || echo "source/build/windows not found"
             echo ""
             echo "=== All exe files in source ==="
             find ./source -name "*.exe" -type f 2>/dev/null | grep -v "build/windows/x64/CMakeFiles" | head -30 || echo "No exe files"
-          elif [ "${{ matrix.platform }}" = "android" ]; then
+          elif [ "${{ matrix.build_platform }}" = "android" ]; then
             echo "=== source/build/app/outputs contents ==="
             ls -la ./source/build/app/outputs/ 2>/dev/null || echo "source/build/app/outputs not found"
             echo ""
