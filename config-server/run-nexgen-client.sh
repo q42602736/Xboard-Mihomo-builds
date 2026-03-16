@@ -13,7 +13,7 @@ fi
 if [ -n "${APP_BINARY:-}" ]; then
   BINARY="$APP_BINARY"
 else
-  for candidate in ./nexgen-client ./dist/nexgen-client-linux-amd64 ./nexgen-client-linux-amd64 ./xboard-config-server ./config-server; do
+  for candidate in ./dist/nexgen-client ./nexgen-client ./dist/nexgen-client-linux-amd64 ./nexgen-client-linux-amd64 ./xboard-config-server ./config-server; do
     if [ -f "$candidate" ]; then
       BINARY="$candidate"
       break
@@ -22,7 +22,7 @@ else
 fi
 
 if [ -z "${BINARY:-}" ]; then
-  echo "未找到可执行文件，请上传 ./nexgen-client、./dist/nexgen-client-linux-amd64、./nexgen-client-linux-amd64、./xboard-config-server 或 ./config-server" >&2
+  echo "未找到可执行文件，请上传 ./dist/nexgen-client、./nexgen-client、./dist/nexgen-client-linux-amd64、./nexgen-client-linux-amd64、./xboard-config-server 或 ./config-server" >&2
   exit 1
 fi
 
