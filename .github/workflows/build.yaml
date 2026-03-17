@@ -463,13 +463,16 @@ jobs:
           sudo apt-get update -y
           echo "=== apt-cache policy (WPE packages) ==="
           apt-cache policy \
+            base-files \
             libwpewebkit-2.0-dev \
             libwpebackend-fdo-1.0-dev \
             libwpe-1.0-dev || true
-          sudo apt-get install -y --no-install-recommends -t trixie \
-            libwpe-1.0-dev \
-            libwpewebkit-2.0-dev \
-            libwpebackend-fdo-1.0-dev
+          # 这里不能再用 `-t trixie`，否则 apt 会把整个 Debian trixie 发行版都当成
+          # 默认候选，像 base-files 这类基础包也会被拉进来，最终在 Ubuntu runner 上冲突。
+          sudo apt-get install -y --no-install-recommends \
+            libwpe-1.0-dev/trixie \
+            libwpewebkit-2.0-dev/trixie \
+            libwpebackend-fdo-1.0-dev/trixie
           echo "=== Linux WebKit/WPE pkg-config check ==="
           pkg-config --modversion wpe-webkit-2.0 || true
           pkg-config --modversion wpe-webkit-1.1 || true
