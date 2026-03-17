@@ -437,9 +437,6 @@ jobs:
             libepoxy-dev \
             libsecret-1-dev \
             libwayland-dev \
-            libwpe-1.0-dev \
-            libwpewebkit-1.0-dev \
-            libwpebackend-fdo-1.0-dev \
             libayatana-appindicator3-dev \
             libkeybinder-3.0-dev \
             curl \
@@ -447,13 +444,39 @@ jobs:
             xz-utils \
             zip \
             unzip \
-            file
+            file \
+            debian-archive-keyring
+          # Ubuntu 24.04 已移除旧的 WPE 1.0 开发包，而 Ubuntu 22.04 的 WebKit API
+          # 又不足以编译 flutter_inappwebview_linux。这里只额外引入 Debian trixie
+          # 的 WPE 2.0 相关包，避免整套基础环境大范围切换发行版。
+          echo "=== Add Debian trixie repository for WPE 2.0 packages ==="
+          echo "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] https://deb.debian.org/debian trixie main" | sudo tee /etc/apt/sources.list.d/debian-trixie.list > /dev/null
+          cat <<'EOF' | sudo tee /etc/apt/preferences.d/debian-trixie-wpe.pref > /dev/null
+          Package: *
+          Pin: release n=trixie
+          Pin-Priority: 100
+
+          Package: libwpe* wpebackend-* libwpewebkit-2.0-1 libjavascriptcoregtk-6.0-* gir1.2-wpewebkit-6.0 gir1.2-javascriptcoregtk-6.0
+          Pin: release n=trixie
+          Pin-Priority: 990
+          EOF
+          sudo apt-get update -y
+          echo "=== apt-cache policy (WPE packages) ==="
+          apt-cache policy \
+            libwpewebkit-2.0-dev \
+            libwpebackend-fdo-1.0-dev \
+            libwpe-1.0-dev || true
+          sudo apt-get install -y --no-install-recommends -t trixie \
+            libwpe-1.0-dev \
+            libwpewebkit-2.0-dev \
+            libwpebackend-fdo-1.0-dev
           echo "=== Linux WebKit/WPE pkg-config check ==="
           pkg-config --modversion wpe-webkit-2.0 || true
           pkg-config --modversion wpe-webkit-1.1 || true
           pkg-config --modversion wpe-webkit-1.0 || true
           pkg-config --modversion wpebackend-fdo-1.0 || true
           pkg-config --modversion wpe-platform-2.0 || true
+          pkg-config --modversion wpe-platform-headless-2.0 || true
           pkg-config --modversion wpe-1.0 || true
           pkg-config --modversion libsecret-1 || true
           pkg-config --modversion wayland-server || true
