@@ -892,6 +892,7 @@ jobs:
           apt-get install -y --no-install-recommends \
             clang \
             cmake \
+            g++ \
             ninja-build \
             pkg-config \
             libgtk-3-dev \
@@ -934,6 +935,7 @@ jobs:
           which flutter && flutter --version || echo "flutter not found"
           which dart && dart --version || echo "dart not found"
           which go && go version || echo "go not found"
+          which g++ && g++ --version | head -1 || echo "g++ not found"
           which flutter_distributor && flutter_distributor --version || echo "flutter_distributor not found"
           echo ""
           echo "=== Build Command ==="
