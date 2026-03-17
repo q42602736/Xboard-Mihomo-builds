@@ -914,6 +914,8 @@ jobs:
           pkg-config --modversion wpe-1.0 || true
           pkg-config --modversion libsecret-1 || true
           pkg-config --modversion wayland-server || true
+          echo "CFLAGS=-Wno-error=deprecated-declarations" >> $GITHUB_ENV
+          echo "CXXFLAGS=-Wno-error=deprecated-declarations" >> $GITHUB_ENV
           flutter config --enable-linux-desktop
           PUB_CACHE_BIN="${HOME}/.pub-cache/bin"
           echo "$PUB_CACHE_BIN" >> $GITHUB_PATH
@@ -936,6 +938,8 @@ jobs:
           which dart && dart --version || echo "dart not found"
           which go && go version || echo "go not found"
           which g++ && g++ --version | head -1 || echo "g++ not found"
+          echo "CFLAGS=${CFLAGS:-<empty>}"
+          echo "CXXFLAGS=${CXXFLAGS:-<empty>}"
           which flutter_distributor && flutter_distributor --version || echo "flutter_distributor not found"
           echo ""
           echo "=== Build Command ==="
