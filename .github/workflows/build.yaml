@@ -837,21 +837,47 @@ jobs:
           if grep -q 'WEBKIT_CHECK_VERSION(2, 50, 0)' "$PLUGIN_FILE"; then
             echo "Plugin already patched"
           else
-            awk '
-              {
-                print
-                if ($0 ~ /if \(webview_ == nullptr\) return std::nullopt;/) {
-                  print ""
-                  print "#if !WEBKIT_CHECK_VERSION(2, 50, 0)"
-                  print "  return std::nullopt;"
-                  print "#else"
-                }
-                if ($0 ~ /gboolean hasColor = webkit_web_view_get_theme_color\\(webview_, &color\\);/) {
-                  print "#endif"
-                }
+            NEW_BLOCK=$(cat <<'EOF'
+            std::optional<std::string> InAppWebView::getMetaThemeColor() const {
+              if (webview_ == nullptr) return std::nullopt;
+
+            #if !WEBKIT_CHECK_VERSION(2, 50, 0)
+              return std::nullopt;
+            #else
+              WebKitColor color;
+              gboolean hasColor = webkit_web_view_get_theme_color(webview_, &color);
+
+              if (!hasColor) {
+                return std::nullopt;
               }
-            ' "$PLUGIN_FILE" > "${PLUGIN_FILE}.tmp"
-            mv "${PLUGIN_FILE}.tmp" "$PLUGIN_FILE"
+            #endif
+
+              // Convert WebKitColor (RGBA in 0.0-1.0 range) to hex string format #RRGGBBAA
+              // Note: WebKitColor has red, green, blue, alpha as gdouble (0.0-1.0)
+              int r = static_cast<int>(color.red * 255.0 + 0.5);
+              int g = static_cast<int>(color.green * 255.0 + 0.5);
+              int b = static_cast<int>(color.blue * 255.0 + 0.5);
+              int a = static_cast<int>(color.alpha * 255.0 + 0.5);
+
+              // Clamp values to 0-255
+              r = std::max(0, std::min(255, r));
+              g = std::max(0, std::min(255, g));
+              b = std::max(0, std::min(255, b));
+              a = std::max(0, std::min(255, a));
+
+              char hexColor[10];
+              if (a == 255) {
+                snprintf(hexColor, sizeof(hexColor), "#%02X%02X%02X", r, g, b);
+              } else {
+                snprintf(hexColor, sizeof(hexColor), "#%02X%02X%02X%02X", r, g, b, a);
+              }
+
+              return std::string(hexColor);
+            }
+            EOF
+            )
+            export NEW_BLOCK
+            perl -0pi -e 'BEGIN { $new = $ENV{"NEW_BLOCK"}; } s@std::optional<std::string> InAppWebView::getMetaThemeColor\(\) const \{\n.*?\n  return std::string\(hexColor\);\n\}@$new@s or die "Failed to patch getMetaThemeColor()\n";' "$PLUGIN_FILE"
           fi
 
           echo "=== Patched getMetaThemeColor snippet ==="
