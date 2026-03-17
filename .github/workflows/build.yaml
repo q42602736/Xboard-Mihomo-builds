@@ -735,6 +735,7 @@ jobs:
             curl \
             file \
             git \
+            jq \
             nodejs \
             openssh-client \
             unzip \
