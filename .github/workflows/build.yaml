@@ -75,16 +75,6 @@ jobs:
             os: macos-15-intel
             arch: amd64
             include_in_all: true
-          - platform: linux
-            build_platform: linux
-            os: ubuntu-24.04
-            arch: amd64
-            include_in_all: true
-          - platform: linux
-            build_platform: linux
-            os: ubuntu-24.04-arm
-            arch: arm64
-            include_in_all: true
 
     steps:
       - name: Check if platform should run
@@ -680,11 +670,301 @@ jobs:
           overwrite: true
           if-no-files-found: error
 
+  build-linux:
+    runs-on: ${{ matrix.os }}
+    container:
+      image: debian:trixie
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux
+            build_platform: linux
+            os: ubuntu-24.04
+            arch: amd64
+            include_in_all: true
+            flutter_channel: stable
+            flutter_arch: x64
+          - platform: linux
+            build_platform: linux
+            os: ubuntu-24.04-arm
+            arch: arm64
+            include_in_all: true
+            flutter_channel: master
+            flutter_arch: arm64
+
+    steps:
+      - name: Check if platform should run
+        id: check
+        run: |
+          SELECTED="${{ github.event.inputs.platforms }}"
+          CURRENT="${{ matrix.platform }}"
+          ARCH="${{ matrix.arch }}"
+          SHOULD_RUN="false"
+
+          echo "Selected platforms: $SELECTED"
+          echo "Current matrix: platform=$CURRENT, arch=$ARCH"
+
+          if [[ "$SELECTED" == "all" ]]; then
+            SHOULD_RUN="true"
+          elif [[ ",$SELECTED," == *",$CURRENT,"* ]]; then
+            SHOULD_RUN="true"
+          elif [[ ",$SELECTED," == *",linux-arm64,"* ]] && [ "$ARCH" = "arm64" ]; then
+            SHOULD_RUN="true"
+          elif [[ ",$SELECTED," == *",linux-amd64,"* ]] && [ "$ARCH" = "amd64" ]; then
+            SHOULD_RUN="true"
+          fi
+
+          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
+
+          if [ "$SHOULD_RUN" = "false" ]; then
+            echo "⏭️ Skipping linux ($ARCH) - not selected"
+          else
+            echo "✅ Building linux ($ARCH)"
+          fi
+
+      - name: Bootstrap Linux Container
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          apt-get update -y
+          apt-get install -y --no-install-recommends \
+            ca-certificates \
+            curl \
+            file \
+            git \
+            nodejs \
+            openssh-client \
+            unzip \
+            wget \
+            xz-utils \
+            zip
+
+      - name: Clone private repo
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.WORKFLOW_TOKEN }}@github.com/".insteadOf "git@github.com:"
+          git config --global url."https://x-access-token:${{ secrets.WORKFLOW_TOKEN }}@github.com/".insteadOf "ssh://git@github.com/"
+          git clone https://x-access-token:${{ secrets.WORKFLOW_TOKEN }}@github.com/${{ env.PRIVATE_REPO }}.git source
+          cd source
+          REQUESTED_REF="${{ github.event.inputs.branch }}"
+          SOURCE_REF="$REQUESTED_REF"
+          if [ -z "$SOURCE_REF" ]; then
+            SOURCE_REF="${{ github.event.inputs.tag }}"
+          fi
+          echo "Requested source ref: ${REQUESTED_REF:-<empty>}"
+          echo "Checking out source ref: $SOURCE_REF"
+          git checkout "$SOURCE_REF"
+          echo "Checked out commit: $(git rev-parse HEAD)"
+          git submodule sync --recursive
+          git submodule update --init --recursive
+
+      - name: Apply profile config
+        id: config
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          cd source
+          PROFILE_NAME="${{ github.event.inputs.profile }}"
+          echo "=== Applying profile: $PROFILE_NAME ==="
+
+          PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
+          echo "Reading $PROFILE_PATH from main branch..."
+          if ! git show "main:$PROFILE_PATH" > assets/config/xboard.config.yaml; then
+            echo "Error: Failed to read $PROFILE_PATH from main branch"
+            exit 1
+          fi
+
+          APP_NAME=$(node -e "
+            const fs = require('fs');
+            const yaml = fs.readFileSync('assets/config/xboard.config.yaml', 'utf8');
+            const appBlockMatch = yaml.match(/(?:^|\r?\n)  app:\r?\n((?:    .*?(?:\r?\n|$)|\r?\n)*)/);
+            const appTitleMatch = appBlockMatch ? appBlockMatch[1].match(/(?:^|\r?\n)    title:\s*['\\\"]?([^'\"\\r\\n]+)['\\\"]?/) : null;
+            const rootTitleMatch = yaml.match(/(?:^|\r?\n)  title:\s*['\\\"]?([^'\"\\r\\n]+)['\\\"]?/);
+            const rawName = appTitleMatch ? appTitleMatch[1].trim() : (rootTitleMatch ? rootTitleMatch[1].trim() : '$PROFILE_NAME');
+            const appName = String(rawName || '').replace(/[\\r\\n]+/g, ' ').trim();
+            console.log(appName);
+          ")
+
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "Successfully applied profile: $PROFILE_NAME, App Name: $APP_NAME"
+          echo ""
+          echo "=== Config file content (first 30 lines) ==="
+          head -30 assets/config/xboard.config.yaml
+
+      - name: Setup Go
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: source/core/go.sum
+
+      - name: Setup Flutter (Linux)
+        if: steps.check.outputs.should_run == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "${{ matrix.flutter_channel }}"
+          flutter-version: "${{ env.FLUTTER_VERSION }}"
+          architecture: "${{ matrix.flutter_arch }}"
+          cache: true
+
+      - name: Get Flutter Dependency
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          cd source
+          flutter pub get
+
+      - name: Generate Executable Names
+        if: steps.check.outputs.should_run == 'true'
+        id: executable_names
+        run: |
+          cd source
+          echo "=== Generating Executable Names ==="
+          dart run scripts/generate_executable_names.dart
+          echo ""
+          echo "=== Generated Executable Names ==="
+          cat lib/generated/executable_names.dart
+
+          PINYIN_NAME=$(grep "const String executableAppName = '" lib/generated/executable_names.dart | sed "s/.*const String executableAppName = '\([^']*\)'.*/\1/")
+          echo "profile_name_safe=$PINYIN_NAME" >> $GITHUB_OUTPUT
+          echo "Extracted pinyin name: $PINYIN_NAME"
+
+      - name: Generate SDK Code
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          cd source/lib/sdk/flutter_xboard_sdk
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Generate Main Project Code
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          cd source
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Generate XBoard Config
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          cd source
+          echo "=== Generating XBoard Config ==="
+          dart run tools/generate_config.dart
+          echo ""
+          echo "=== Generated Config ==="
+          cat lib/xboard/config/core/generated_config.dart
+          echo ""
+          echo "=== Pubspec Assets Check ==="
+          grep -A 10 "assets:" pubspec.yaml || echo "No assets section found"
+
+      - name: Prepare Linux Build Environment
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          echo "Preparing Linux build environment in Debian trixie container..."
+          apt-get update -y
+          apt-get install -y --no-install-recommends \
+            clang \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libgtk-3-dev \
+            libepoxy-dev \
+            libsecret-1-dev \
+            libwayland-dev \
+            libwpe-1.0-dev \
+            libwpewebkit-2.0-dev \
+            libwpebackend-fdo-1.0-dev \
+            libayatana-appindicator3-dev \
+            libkeybinder-3.0-dev
+          echo "=== Linux WebKit/WPE pkg-config check ==="
+          pkg-config --modversion wpe-webkit-2.0 || true
+          pkg-config --modversion wpe-webkit-1.1 || true
+          pkg-config --modversion wpe-webkit-1.0 || true
+          pkg-config --modversion wpebackend-fdo-1.0 || true
+          pkg-config --modversion wpe-platform-2.0 || true
+          pkg-config --modversion wpe-platform-headless-2.0 || true
+          pkg-config --modversion wpe-1.0 || true
+          pkg-config --modversion libsecret-1 || true
+          pkg-config --modversion wayland-server || true
+          flutter config --enable-linux-desktop
+          PUB_CACHE_BIN="${HOME}/.pub-cache/bin"
+          echo "$PUB_CACHE_BIN" >> $GITHUB_PATH
+          export PATH="$PUB_CACHE_BIN:$PATH"
+          dart pub global activate flutter_distributor
+          echo "✓ Linux dependencies and flutter_distributor installed"
+
+      - name: Build
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          cd source
+          echo "=== Build Environment ==="
+          echo "Platform: linux"
+          echo "Arch: ${{ matrix.arch }}"
+          echo "IS_STABLE: ${{ env.IS_STABLE }}"
+          echo "Current directory: $(pwd)"
+          echo ""
+          echo "=== Tool Versions ==="
+          which flutter && flutter --version || echo "flutter not found"
+          which dart && dart --version || echo "dart not found"
+          which go && go version || echo "go not found"
+          which flutter_distributor && flutter_distributor --version || echo "flutter_distributor not found"
+          echo ""
+          echo "=== Build Command ==="
+          echo "Running: dart setup.dart linux --arch ${{ matrix.arch }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} --version ${{ github.event.inputs.tag }}"
+          echo ""
+          echo "=== Build Output ==="
+          set -o pipefail
+          dart setup.dart linux --arch ${{ matrix.arch }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} --version ${{ github.event.inputs.tag }} 2>&1 | tee build.log
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
+          echo ""
+          echo "=== Build Exit Code: $BUILD_EXIT_CODE ==="
+
+          if [ $BUILD_EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "=== BUILD FAILED - Collecting Debug Information ==="
+            echo "=== Linux Build Directory Structure ==="
+            ls -laR ./build/linux/ 2>/dev/null | head -200 || echo "No linux build directory"
+            echo ""
+            echo "=== Linux Packaging Directory Structure ==="
+            ls -laR ./linux/packaging/ 2>/dev/null | head -200 || echo "No linux packaging directory"
+            echo ""
+            echo "=== Linux Output Files ==="
+            find . -type f \( -iname "*.deb" -o -iname "*.appimage" -o -iname "*.rpm" \) 2>/dev/null | head -50 || echo "No Linux packages found"
+            echo ""
+            echo "=== Full Build Log (last 300 lines) ==="
+            tail -300 build.log 2>/dev/null || echo "No build log"
+            exit $BUILD_EXIT_CODE
+          fi
+
+      - name: List dist contents
+        if: success() && steps.check.outputs.should_run == 'true'
+        run: |
+          echo "=== source/dist contents ==="
+          ls -la ./source/dist/ 2>/dev/null || echo "source/dist not found or empty"
+          find ./source/dist -type f 2>/dev/null || echo "No files in dist"
+          echo ""
+          echo "=== source/build/linux contents ==="
+          ls -la ./source/build/linux/ 2>/dev/null || echo "source/build/linux not found"
+          echo ""
+          echo "=== All Linux package files in source ==="
+          find ./source -type f \( -iname "*.deb" -o -iname "*.appimage" -o -iname "*.rpm" \) 2>/dev/null | head -30 || echo "No Linux package files"
+          echo ""
+          echo "=== Build log tail ==="
+          tail -100 ./source/build.log 2>/dev/null || echo "No build log"
+
+      - name: Upload
+        if: success() && steps.check.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.executable_names.outputs.profile_name_safe }}-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ./source/dist
+          overwrite: true
+          if-no-files-found: error
+
   # 合并所有平台的构建产物到一个 Artifact（方便下载）
   merge-artifacts:
     runs-on: ubuntu-latest
-    needs: [ build ]
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    needs: [ build, build-linux ]
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.build-linux.result == 'success' }}
     steps:
       - name: Get app name from config
         id: config
