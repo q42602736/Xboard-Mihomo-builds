@@ -36,6 +36,7 @@ concurrency:
 env:
   IS_STABLE: ${{ !contains(github.event.inputs.tag, '-') }}
   PRIVATE_REPO: q42602736/Xboard-Mihomo_sub
+  FLUTTER_VERSION: "3.41.4"
 
 jobs:
   build:
@@ -280,7 +281,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.35.7"
+          flutter-version: "${{ env.FLUTTER_VERSION }}"
           cache: true
 
       - name: Setup Flutter (Android)
@@ -288,7 +289,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.35.7"
+          flutter-version: "${{ env.FLUTTER_VERSION }}"
           cache: true
 
       - name: Setup Flutter (macOS)
@@ -296,15 +297,27 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.35.7"
+          flutter-version: "${{ env.FLUTTER_VERSION }}"
           cache: true
 
-      - name: Setup Flutter (Linux)
-        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'linux'
+      - name: Setup Flutter (Linux amd64)
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'linux' && matrix.arch == 'amd64'
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.35.7"
+          flutter-version: "${{ env.FLUTTER_VERSION }}"
+          architecture: "x64"
+          cache: true
+
+      - name: Setup Flutter (Linux arm64)
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'linux' && matrix.arch == 'arm64'
+        uses: subosito/flutter-action@v2
+        with:
+          # Flutter 官方 Linux manifest 当前只提供 x64 条目，
+          # arm64 需改走 git tag 安装，避免 setup.sh 按 manifest 架构过滤失败。
+          channel: "master"
+          flutter-version: "${{ env.FLUTTER_VERSION }}"
+          architecture: "arm64"
           cache: true
 
       - name: Get Flutter Dependency
