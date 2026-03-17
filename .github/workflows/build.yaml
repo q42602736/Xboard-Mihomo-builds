@@ -824,6 +824,39 @@ jobs:
           cd source
           flutter pub get
 
+      - name: Patch flutter_inappwebview_linux for WebKit < 2.50
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          PLUGIN_FILE="$(find "${PUB_CACHE:-$HOME/.pub-cache}" -path '*flutter_inappwebview_linux-*/linux/in_app_webview/in_app_webview.cc' | head -1)"
+          if [ -z "$PLUGIN_FILE" ]; then
+            echo "flutter_inappwebview_linux source file not found"
+            exit 1
+          fi
+
+          echo "Patching plugin file: $PLUGIN_FILE"
+          if grep -q 'WEBKIT_CHECK_VERSION(2, 50, 0)' "$PLUGIN_FILE"; then
+            echo "Plugin already patched"
+          else
+            awk '
+              {
+                print
+                if ($0 ~ /if \(webview_ == nullptr\) return std::nullopt;/) {
+                  print ""
+                  print "#if !WEBKIT_CHECK_VERSION(2, 50, 0)"
+                  print "  return std::nullopt;"
+                  print "#else"
+                }
+                if ($0 ~ /gboolean hasColor = webkit_web_view_get_theme_color\\(webview_, &color\\);/) {
+                  print "#endif"
+                }
+              }
+            ' "$PLUGIN_FILE" > "${PLUGIN_FILE}.tmp"
+            mv "${PLUGIN_FILE}.tmp" "$PLUGIN_FILE"
+          fi
+
+          echo "=== Patched getMetaThemeColor snippet ==="
+          sed -n '/std::optional<std::string> InAppWebView::getMetaThemeColor() const {/,/int r = static_cast<int>(color.red/p' "$PLUGIN_FILE" | head -40
+
       - name: Generate Executable Names
         if: steps.check.outputs.should_run == 'true'
         id: executable_names
