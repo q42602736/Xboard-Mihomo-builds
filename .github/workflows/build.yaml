@@ -17,13 +17,13 @@ on:
         type: string
         default: 'main'
       platforms:
-        description: '选择要编译的平台（多选用逗号分隔，如: windows,android 或 android-tv）'
+        description: '选择要编译的平台（多选用逗号分隔，如: windows,android 或 linux-amd64）'
         required: true
         type: string
         default: 'all'
-        # 可选值: all, windows, android, android-tv, macos, macos-arm64, macos-amd64
-        # 注意: all 包含 android-tv
-        # 示例: windows,android 或 macos-arm64,android-tv
+        # 可选值: all, windows, android, android-tv, linux, linux-arm64, linux-amd64, macos, macos-arm64, macos-amd64
+        # 注意: all 包含 android-tv、linux 双架构和 macos 双架构
+        # 示例: windows,android 或 linux-amd64,macos-arm64
       request_id:
         description: '构建请求唯一标识（由配置服务器生成，用于匹配本次构建运行）'
         required: false
@@ -74,6 +74,16 @@ jobs:
             os: macos-15-intel
             arch: amd64
             include_in_all: true
+          - platform: linux
+            build_platform: linux
+            os: ubuntu-24.04
+            arch: amd64
+            include_in_all: true
+          - platform: linux
+            build_platform: linux
+            os: ubuntu-24.04-arm
+            arch: arm64
+            include_in_all: true
 
     steps:
       - name: Check if platform should run
@@ -100,6 +110,11 @@ jobs:
           elif [[ ",$SELECTED," == *",macos-arm64,"* ]] && [ "$CURRENT" = "macos" ] && [ "$ARCH" = "arm64" ]; then
             SHOULD_RUN="true"
           elif [[ ",$SELECTED," == *",macos-amd64,"* ]] && [ "$CURRENT" = "macos" ] && [ "$ARCH" = "amd64" ]; then
+            SHOULD_RUN="true"
+          # Linux 特殊处理
+          elif [[ ",$SELECTED," == *",linux-arm64,"* ]] && [ "$CURRENT" = "linux" ] && [ "$ARCH" = "arm64" ]; then
+            SHOULD_RUN="true"
+          elif [[ ",$SELECTED," == *",linux-amd64,"* ]] && [ "$CURRENT" = "linux" ] && [ "$ARCH" = "amd64" ]; then
             SHOULD_RUN="true"
           fi
           
@@ -288,6 +303,14 @@ jobs:
           flutter-version: "3.35.7"
           cache: true
 
+      - name: Setup Flutter (Linux)
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'linux'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "3.35.7"
+          cache: true
+
       - name: Get Flutter Dependency
         if: steps.check.outputs.should_run == 'true'
         run: |
@@ -390,6 +413,29 @@ jobs:
           cd source/macos
           pod install --repo-update
           echo "✓ CocoaPods dependencies installed"
+
+      - name: Prepare Linux Build Environment
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'linux'
+        run: |
+          echo "Preparing Linux build environment..."
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            clang \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            libkeybinder-3.0-dev \
+            curl \
+            wget \
+            xz-utils \
+            zip \
+            unzip \
+            file
+          flutter config --enable-linux-desktop
+          dart pub global activate flutter_distributor
+          echo "✓ Linux dependencies and flutter_distributor installed"
 
       - name: Build
         if: steps.check.outputs.should_run == 'true'
@@ -523,6 +569,18 @@ jobs:
               echo "=== Flutter Assemble Script Location ==="
               ls -la ./build/macos/Build/Intermediates.noindex/Runner.build/Release/ 2>/dev/null || echo "Build intermediates not found"
               echo ""
+            elif [ "${{ matrix.build_platform }}" = "linux" ]; then
+              echo "=== Linux Build Directory Structure ==="
+              ls -laR ./build/linux/ 2>/dev/null | head -200 || echo "No linux build directory"
+              echo ""
+
+              echo "=== Linux Packaging Directory Structure ==="
+              ls -laR ./linux/packaging/ 2>/dev/null | head -200 || echo "No linux packaging directory"
+              echo ""
+
+              echo "=== Linux Output Files ==="
+              find . -type f \( -iname "*.deb" -o -iname "*.appimage" -o -iname "*.rpm" \) 2>/dev/null | head -50 || echo "No Linux packages found"
+              echo ""
             fi
 
             echo "=== Full Build Log (last 300 lines) ==="
@@ -551,6 +609,12 @@ jobs:
             echo ""
             echo "=== All APK/AAB files in source ==="
             find ./source -name "*.apk" -o -name "*.aab" 2>/dev/null | head -30 || echo "No APK/AAB files"
+          elif [ "${{ matrix.build_platform }}" = "linux" ]; then
+            echo "=== source/build/linux contents ==="
+            ls -la ./source/build/linux/ 2>/dev/null || echo "source/build/linux not found"
+            echo ""
+            echo "=== All Linux package files in source ==="
+            find ./source -type f \( -iname "*.deb" -o -iname "*.appimage" -o -iname "*.rpm" \) 2>/dev/null | head -30 || echo "No Linux package files"
           fi
 
           echo ""
@@ -625,7 +689,7 @@ jobs:
             
             # 从构建产物文件名中提取拼音应用名称
             # 例如：Qieyun-1.0.0-android-arm64-v8a.apk -> Qieyun
-            FIRST_FILE=$(find ./dist -type f \( -name "*.apk" -o -name "*.dmg" -o -name "*.exe" \) | head -1)
+            FIRST_FILE=$(find ./dist -type f \( -iname "*.apk" -o -iname "*.dmg" -o -iname "*.exe" -o -iname "*.deb" -o -iname "*.appimage" -o -iname "*.rpm" \) | head -1)
             if [ -n "$FIRST_FILE" ]; then
               FILENAME=$(basename "$FIRST_FILE")
               # 提取第一个 - 之前的部分作为拼音应用名称

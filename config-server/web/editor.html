@@ -1740,6 +1740,14 @@
                                                 <input type="text" id="remoteConfigUpdateDownloadUrlWindows" placeholder="https://example.com/download/app-windows.exe">
                                             </div>
                                             <div class="form-group">
+                                                <label>Linux ARM64 下载地址（download_urls[linux-arm64]）</label>
+                                                <input type="text" id="remoteConfigUpdateDownloadUrlLinuxArm64" placeholder="https://example.com/download/app-linux-arm64.deb">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Linux AMD64 下载地址（download_urls[linux-amd64]）</label>
+                                                <input type="text" id="remoteConfigUpdateDownloadUrlLinuxAmd64" placeholder="https://example.com/download/app-linux-amd64.AppImage">
+                                            </div>
+                                            <div class="form-group">
                                                 <label>macOS Apple Silicon 下载地址（download_urls[macos-arm64]）</label>
                                                 <input type="text" id="remoteConfigUpdateDownloadUrlMacosArm64" placeholder="https://example.com/download/app-macos-arm64.dmg">
                                             </div>
@@ -1750,7 +1758,7 @@
                                             <div class="form-group form-group-full">
                                                 <label>手动更新地址（manual_download_url）</label>
                                                 <input type="text" id="remoteConfigUpdateManualDownloadUrl" placeholder="https://example.com/downloads">
-                                                <div class="help-text">支持填写网盘页、官网发布页等手动下载跳转地址。客户端会优先使用自动更新下载地址；静态配置中的 macOS 自动更新已直接拆分为 arm64 和 intel 两个地址。导入旧版 <code>download_urls.macos</code> 时会自动同时回填到这两个输入框。</div>
+                                                <div class="help-text">支持填写网盘页、官网发布页等手动下载跳转地址。客户端会优先使用自动更新下载地址；静态配置中的 Linux / macOS 自动更新都已拆分为不同架构。导入旧版 <code>download_urls.linux</code> 或 <code>download_urls.macos</code> 时会自动回填到对应架构输入框。</div>
                                             </div>
                                             <div class="form-group">
                                                 <label>强制标记（update_available）</label>
@@ -1909,11 +1917,14 @@
                                 <label class="platform-checkbox"><input type="checkbox" value="windows" class="platformItem"><span class="platform-checkbox-label">Windows</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem"><span class="platform-checkbox-label">Android（手机）</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="android-tv" class="platformItem"><span class="platform-checkbox-label">Android TV</span></label>
+                                <label class="platform-checkbox"><input type="checkbox" value="linux" class="platformItem"><span class="platform-checkbox-label">Linux (全部)</span></label>
+                                <label class="platform-checkbox"><input type="checkbox" value="linux-arm64" class="platformItem"><span class="platform-checkbox-label">Linux ARM64</span></label>
+                                <label class="platform-checkbox"><input type="checkbox" value="linux-amd64" class="platformItem"><span class="platform-checkbox-label">Linux AMD64</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="macos" class="platformItem"><span class="platform-checkbox-label">macOS (全部)</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem"><span class="platform-checkbox-label">macOS ARM64</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem"><span class="platform-checkbox-label">macOS AMD64</span></label>
                             </div>
-                            <div class="help-text">Android TV 使用独立入口和 TV 界面，也包含在“全部平台”中。</div>
+                            <div class="help-text">Android TV 使用独立入口和 TV 界面，也包含在“全部平台”中。Linux 与 macOS 都支持按架构单独打包，也可以直接选择各自“全部”。</div>
                         </div>
                         <div id="buildQueue" style="margin-top: 15px; padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
                             <span style="color: #aaa; font-size: 13px;">打包队列：</span>
@@ -3927,6 +3938,8 @@
                 download_urls: {
                     android: '',
                     windows: '',
+                    linux_arm64: '',
+                    linux_amd64: '',
                     macos_arm64: '',
                     macos_amd64: ''
                 },
@@ -3985,10 +3998,13 @@
                     ? item.download_url
                     : (item.downloadUrl != null ? item.downloadUrl : '')
             ).trim();
+            var legacyLinuxDownloadUrl = pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, ['linux', ['linux', 'default']]);
             var legacyMacosDownloadUrl = pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, ['macos', 'mac', 'darwin', 'osx', ['macos', 'default']]);
             return {
                 android: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, ['android']) || legacyDownloadUrl || (hasDownloadConfigField ? '' : String(defaults.android || '').trim()),
                 windows: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, ['windows', 'win']) || (hasDownloadConfigField ? '' : String(defaults.windows || '').trim()),
+                linux_arm64: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, [['linux', 'arm64'], ['linux', 'aarch64'], 'linux-arm64', 'linux_arm64', 'linux arm64', 'linuxarm64', 'linux-aarch64', 'linux_aarch64']) || legacyLinuxDownloadUrl || (hasDownloadConfigField ? '' : String(defaults.linux_arm64 || '').trim()),
+                linux_amd64: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, [['linux', 'amd64'], ['linux', 'x64'], ['linux', 'x86_64'], ['linux', 'intel'], 'linux-amd64', 'linux_amd64', 'linux amd64', 'linuxamd64', 'linux-x64', 'linux_x64', 'linux x64', 'linux-x86-64', 'linux_x86_64', 'linux-intel']) || legacyLinuxDownloadUrl || (hasDownloadConfigField ? '' : String(defaults.linux_amd64 || '').trim()),
                 macos_arm64: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, [['macos', 'arm64'], ['macos', 'aarch64'], 'macos-arm64', 'macos_arm64', 'macos arm64', 'macosarm64', 'darwin-arm64', 'darwin_arm64']) || legacyMacosDownloadUrl || (hasDownloadConfigField ? '' : String(defaults.macos_arm64 || '').trim()),
                 macos_amd64: pickRemoteConfigUpdateDownloadUrl(rawDownloadUrls, [['macos', 'amd64'], ['macos', 'x64'], ['macos', 'intel'], 'macos-amd64', 'macos_amd64', 'macos amd64', 'macosamd64', 'macos-x64', 'macos_x64', 'darwin-amd64', 'darwin_x64', 'intel']) || legacyMacosDownloadUrl || (hasDownloadConfigField ? '' : String(defaults.macos_amd64 || '').trim())
             };
@@ -3998,6 +4014,8 @@
             var result = {};
             var androidValue = String(downloadUrls && downloadUrls.android != null ? downloadUrls.android : '').trim();
             var windowsValue = String(downloadUrls && downloadUrls.windows != null ? downloadUrls.windows : '').trim();
+            var linuxArm64Value = String(downloadUrls && downloadUrls.linux_arm64 != null ? downloadUrls.linux_arm64 : '').trim();
+            var linuxAmd64Value = String(downloadUrls && downloadUrls.linux_amd64 != null ? downloadUrls.linux_amd64 : '').trim();
             var macosArm64Value = String(downloadUrls && downloadUrls.macos_arm64 != null ? downloadUrls.macos_arm64 : '').trim();
             var macosAmd64Value = String(downloadUrls && downloadUrls.macos_amd64 != null ? downloadUrls.macos_amd64 : '').trim();
             if (androidValue) {
@@ -4005,6 +4023,12 @@
             }
             if (windowsValue) {
                 result.windows = windowsValue;
+            }
+            if (linuxArm64Value) {
+                result['linux-arm64'] = linuxArm64Value;
+            }
+            if (linuxAmd64Value) {
+                result['linux-amd64'] = linuxAmd64Value;
             }
             if (macosArm64Value) {
                 result['macos-arm64'] = macosArm64Value;
@@ -4050,13 +4074,15 @@
             var latestVersionInput = document.getElementById('remoteConfigUpdateLatestVersion');
             var downloadUrlAndroidInput = document.getElementById('remoteConfigUpdateDownloadUrlAndroid');
             var downloadUrlWindowsInput = document.getElementById('remoteConfigUpdateDownloadUrlWindows');
+            var downloadUrlLinuxArm64Input = document.getElementById('remoteConfigUpdateDownloadUrlLinuxArm64');
+            var downloadUrlLinuxAmd64Input = document.getElementById('remoteConfigUpdateDownloadUrlLinuxAmd64');
             var downloadUrlMacosArm64Input = document.getElementById('remoteConfigUpdateDownloadUrlMacosArm64');
             var downloadUrlMacosAmd64Input = document.getElementById('remoteConfigUpdateDownloadUrlMacosAmd64');
             var manualDownloadUrlInput = document.getElementById('remoteConfigUpdateManualDownloadUrl');
             var updateAvailableInput = document.getElementById('remoteConfigUpdateAvailable');
             var releaseNotesInput = document.getElementById('remoteConfigUpdateReleaseNotes');
             var forceUpdateInput = document.getElementById('remoteConfigUpdateForceUpdate');
-            if (!descriptionInput || !latestVersionInput || !downloadUrlAndroidInput || !downloadUrlWindowsInput || !downloadUrlMacosArm64Input || !downloadUrlMacosAmd64Input || !manualDownloadUrlInput || !updateAvailableInput || !releaseNotesInput || !forceUpdateInput || !enabledInput) {
+            if (!descriptionInput || !latestVersionInput || !downloadUrlAndroidInput || !downloadUrlWindowsInput || !downloadUrlLinuxArm64Input || !downloadUrlLinuxAmd64Input || !downloadUrlMacosArm64Input || !downloadUrlMacosAmd64Input || !manualDownloadUrlInput || !updateAvailableInput || !releaseNotesInput || !forceUpdateInput || !enabledInput) {
                 return;
             }
 
@@ -4064,6 +4090,8 @@
             latestVersionInput.value = normalized.latest_version;
             downloadUrlAndroidInput.value = normalized.download_urls.android || '';
             downloadUrlWindowsInput.value = normalized.download_urls.windows || '';
+            downloadUrlLinuxArm64Input.value = normalized.download_urls.linux_arm64 || '';
+            downloadUrlLinuxAmd64Input.value = normalized.download_urls.linux_amd64 || '';
             downloadUrlMacosArm64Input.value = normalized.download_urls.macos_arm64 || '';
             downloadUrlMacosAmd64Input.value = normalized.download_urls.macos_amd64 || '';
             manualDownloadUrlInput.value = normalized.manual_download_url || '';
@@ -4104,6 +4132,8 @@
                 download_urls: {
                     android: document.getElementById('remoteConfigUpdateDownloadUrlAndroid').value,
                     windows: document.getElementById('remoteConfigUpdateDownloadUrlWindows').value,
+                    linux_arm64: document.getElementById('remoteConfigUpdateDownloadUrlLinuxArm64').value,
+                    linux_amd64: document.getElementById('remoteConfigUpdateDownloadUrlLinuxAmd64').value,
                     macos_arm64: document.getElementById('remoteConfigUpdateDownloadUrlMacosArm64').value,
                     macos_amd64: document.getElementById('remoteConfigUpdateDownloadUrlMacosAmd64').value
                 },
@@ -4118,7 +4148,7 @@
                     throw new Error('请填写静态更新配置的最新版本（latest_version）');
                 }
                 if (!Object.keys(item.download_urls).length && !item.manual_download_url) {
-                    throw new Error('请至少填写一个自动更新下载地址（如 android / windows / macos-arm64 / macos-amd64），或提供手动更新地址（manual_download_url）');
+                    throw new Error('请至少填写一个自动更新下载地址（如 android / windows / linux-arm64 / linux-amd64 / macos-arm64 / macos-amd64），或提供手动更新地址（manual_download_url）');
                 }
             }
 
@@ -4396,6 +4426,8 @@
                 'remoteConfigUpdateLatestVersion',
                 'remoteConfigUpdateDownloadUrlAndroid',
                 'remoteConfigUpdateDownloadUrlWindows',
+                'remoteConfigUpdateDownloadUrlLinuxArm64',
+                'remoteConfigUpdateDownloadUrlLinuxAmd64',
                 'remoteConfigUpdateDownloadUrlMacosArm64',
                 'remoteConfigUpdateDownloadUrlMacosAmd64',
                 'remoteConfigUpdateManualDownloadUrl',
