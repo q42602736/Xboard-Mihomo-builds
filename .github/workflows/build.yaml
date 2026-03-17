@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       branch:
-        description: '源码分支（如: main, feature/sspanel；Android TV 在 main 下会自动切到 tv）'
+        description: '源码分支（如: main, feature/sspanel）'
         required: false
         type: string
         default: 'main'
@@ -171,10 +171,6 @@ jobs:
           SOURCE_REF="$REQUESTED_REF"
           if [ -z "$SOURCE_REF" ]; then
             SOURCE_REF="${{ github.event.inputs.tag }}"
-          fi
-          if [ "${{ matrix.platform }}" = "android-tv" ] && { [ -z "$REQUESTED_REF" ] || [ "$REQUESTED_REF" = "main" ]; }; then
-            echo "android-tv 构建检测到默认 main 分支，自动切换到 tv 源码分支"
-            SOURCE_REF="tv"
           fi
           echo "Requested source ref: ${REQUESTED_REF:-<empty>}"
           echo "Checking out source ref: $SOURCE_REF"
