@@ -434,6 +434,12 @@ jobs:
             ninja-build \
             pkg-config \
             libgtk-3-dev \
+            libepoxy-dev \
+            libsecret-1-dev \
+            libwayland-dev \
+            libwpe-1.0-dev \
+            libwpewebkit-1.0-dev \
+            libwpebackend-fdo-1.0-dev \
             libayatana-appindicator3-dev \
             libkeybinder-3.0-dev \
             curl \
@@ -442,6 +448,15 @@ jobs:
             zip \
             unzip \
             file
+          echo "=== Linux WebKit/WPE pkg-config check ==="
+          pkg-config --modversion wpe-webkit-2.0 || true
+          pkg-config --modversion wpe-webkit-1.1 || true
+          pkg-config --modversion wpe-webkit-1.0 || true
+          pkg-config --modversion wpebackend-fdo-1.0 || true
+          pkg-config --modversion wpe-platform-2.0 || true
+          pkg-config --modversion wpe-1.0 || true
+          pkg-config --modversion libsecret-1 || true
+          pkg-config --modversion wayland-server || true
           flutter config --enable-linux-desktop
           dart pub global activate flutter_distributor
           echo "✓ Linux dependencies and flutter_distributor installed"
