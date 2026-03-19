@@ -21,7 +21,7 @@ on:
         required: true
         type: string
         default: 'all'
-        # 可选值: all, windows, android, android-tv, linux, linux-arm64, linux-amd64, macos, macos-arm64, macos-amd64
+        # 可选值: all, windows, android, android-tv, linux, linux-arm64, linux-amd64, macos-arm64, macos-amd64
         # 注意: all 包含 android-tv、linux 双架构和 macos 双架构
         # 示例: windows,android 或 linux-amd64,macos-arm64
       request_id:
