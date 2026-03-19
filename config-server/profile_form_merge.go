@@ -10,26 +10,27 @@ import (
 )
 
 type ProfileFormState struct {
-	Provider                 string                    `json:"provider"`
-	AppTitle                 string                    `json:"app_title"`
-	LogoType                 string                    `json:"logo_type"`
-	LogoImageURL             string                    `json:"logo_image_url"`
-	AppIconURL               string                    `json:"app_icon_url"`
-	AuthBackgroundEnabled    bool                      `json:"auth_background_enabled"`
-	AuthBackgroundImageURL   string                    `json:"auth_background_image_url"`
-	PreferEncrypt            bool                      `json:"prefer_encrypt"`
-	UseExclusiveMode         bool                      `json:"use_exclusive_mode"`
-	DecryptKey               string                    `json:"decrypt_key"`
-	AutoOfflineEnabled       bool                      `json:"auto_offline_enabled"`
-	SubscriptionCacheEnabled bool                      `json:"subscription_cache_enabled"`
-	SubscriptionCacheTTL     int                       `json:"subscription_cache_ttl"`
-	HideTrafficDetails       bool                      `json:"hide_traffic_details"`
-	HideNodeStatus           bool                      `json:"hide_node_status"`
-	NoticeAutoOpenOnStartup  bool                      `json:"notice_auto_open_on_startup"`
-	GiftCardShowButton       bool                      `json:"gift_card_show_button"`
-	ShowCustomRuleEntry      bool                      `json:"show_custom_rule_entry"`
-	Sources                  []ProfileSourceFormState  `json:"sources"`
-	OnlineSupportItems       []ProfileSupportFormState `json:"online_support_items"`
+	Provider                   string                    `json:"provider"`
+	AppTitle                   string                    `json:"app_title"`
+	LogoType                   string                    `json:"logo_type"`
+	LogoImageURL               string                    `json:"logo_image_url"`
+	AppIconURL                 string                    `json:"app_icon_url"`
+	AuthBackgroundEnabled      bool                      `json:"auth_background_enabled"`
+	AuthBackgroundImageURL     string                    `json:"auth_background_image_url"`
+	PreferEncrypt              bool                      `json:"prefer_encrypt"`
+	UseExclusiveMode           bool                      `json:"use_exclusive_mode"`
+	DecryptKey                 string                    `json:"decrypt_key"`
+	AutoOfflineEnabled         bool                      `json:"auto_offline_enabled"`
+	SubscriptionCacheEnabled   bool                      `json:"subscription_cache_enabled"`
+	SubscriptionCacheTTL       int                       `json:"subscription_cache_ttl"`
+	HideTrafficDetails         bool                      `json:"hide_traffic_details"`
+	HideNodeStatus             bool                      `json:"hide_node_status"`
+	NoticeAutoOpenOnStartup    bool                      `json:"notice_auto_open_on_startup"`
+	GiftCardShowButton         bool                      `json:"gift_card_show_button"`
+	ShowCustomRuleEntry        bool                      `json:"show_custom_rule_entry"`
+	AuthPagesSupportShowButton bool                      `json:"auth_pages_support_show_button"`
+	Sources                    []ProfileSourceFormState  `json:"sources"`
+	OnlineSupportItems         []ProfileSupportFormState `json:"online_support_items"`
 }
 
 type ProfileSourceFormState struct {
@@ -73,7 +74,9 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	ui := ensureMapValueNode(xboard, "ui")
 	notice := ensureMapValueNode(ui, "notice")
 	giftCard := ensureMapValueNode(ui, "gift_card")
-	proxyGroups := ensureMapValueNode(xboard, "proxy_groups")
+	proxyGroups := ensureMapValueNode(ui, "proxy_groups")
+	uiOnlineSupport := ensureMapValueNode(ui, "online_support")
+	authPages := ensureMapValueNode(uiOnlineSupport, "auth_pages")
 	remoteConfig := ensureMapValueNode(xboard, "remote_config")
 	onlineSupport := ensureMapValueNode(xboard, "online_support")
 
@@ -96,6 +99,9 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	setMapBoolValue(notice, "auto_open_on_startup", form.NoticeAutoOpenOnStartup)
 	setMapBoolValue(giftCard, "show_button", form.GiftCardShowButton)
 	setMapBoolValue(proxyGroups, "show_custom_rule_entry", form.ShowCustomRuleEntry)
+	setMapBoolValue(authPages, "show_button", form.AuthPagesSupportShowButton)
+	removeMapKeys(xboard, "proxy_groups", "proxyGroups")
+	removeMapKeys(onlineSupport, "auth_pages", "authPages")
 
 	setMapNodeValue(remoteConfig, "sources", mergeProfileSources(getSequenceValueNode(remoteConfig, "sources"), form.Sources))
 	setMapNodeValue(onlineSupport, "items", mergeProfileSupportItems(getSequenceValueNode(onlineSupport, "items"), form.OnlineSupportItems))
