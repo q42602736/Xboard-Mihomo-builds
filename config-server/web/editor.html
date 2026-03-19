@@ -1506,8 +1506,8 @@
                                 <div class="switch-card-header">
                                     <span class="switch-card-label">显示分流组自定义规则入口</span>
                                     <div class="switch-group">
-                                        <label class="switch"><input type="checkbox" id="showCustomRuleEntry"><span class="slider"></span></label>
-                                        <span id="showCustomRuleEntryLabel">关闭</span>
+                                        <label class="switch"><input type="checkbox" id="showCustomRuleEntry" checked><span class="slider"></span></label>
+                                        <span id="showCustomRuleEntryLabel">开启</span>
                                     </div>
                                 </div>
                                 <div class="help-text">控制桌面端和 Android 手机分流组弹窗里的“自定义规则”入口显示；关闭后会隐藏该入口。</div>
@@ -2974,7 +2974,7 @@
                 '    notice:',
                 '      auto_open_on_startup: false',
                 '    proxy_groups:',
-                '      show_custom_rule_entry: false',
+                '      show_custom_rule_entry: true',
                 '    online_support:',
                 '      auth_pages:',
                 '        show_button: false',
@@ -5166,7 +5166,7 @@
             var showCustomRuleEntryMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}proxy_groups:\s*\n(?:[\s\S]*?)^\s{6}show_custom_rule_entry:\s*(true|false)/m) ||
                 yaml.match(/proxy_groups:\s*\n(?:[\s\S]*?)show_custom_rule_entry:\s*(true|false)/);
-            var showCustomRuleEntry = showCustomRuleEntryMatch ? showCustomRuleEntryMatch[1] === 'true' : false;
+            var showCustomRuleEntry = showCustomRuleEntryMatch ? showCustomRuleEntryMatch[1] === 'true' : true;
             document.getElementById('showCustomRuleEntry').checked = showCustomRuleEntry;
             document.getElementById('showCustomRuleEntryLabel').textContent = showCustomRuleEntry ? '开启' : '关闭';
             var authPagesSupportShowButtonMatch =
