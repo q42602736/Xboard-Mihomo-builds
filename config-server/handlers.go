@@ -988,8 +988,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 				}
 				inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
 				matchesByInputs := err == nil && buildRequestMatches(inputs, profile, requestID, tag, branch, platforms)
-				matchesByPending := hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)
-				if matchesByInputs || matchesByPending {
+				if matchesByInputs {
 					matchedRun = run
 					if err == nil {
 						matchedInputs = inputs
