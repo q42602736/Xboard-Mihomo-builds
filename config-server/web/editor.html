@@ -4055,6 +4055,7 @@
                     : (item.manualDownloadUrl != null ? item.manualDownloadUrl : defaults.manual_download_url)
             ).trim();
             return {
+                url: '',
                 description: String(item.description != null ? item.description : defaults.description).trim() || defaults.description,
                 latest_version: String(item.latest_version != null ? item.latest_version : defaults.latest_version).trim(),
                 update_available: !!updateAvailableValue,
