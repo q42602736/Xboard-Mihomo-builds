@@ -1504,6 +1504,16 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">显示分流组自定义规则入口</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="showCustomRuleEntry"><span class="slider"></span></label>
+                                        <span id="showCustomRuleEntryLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">控制桌面端和 Android 手机分流组弹窗里的“自定义规则”入口显示；关闭后会隐藏该入口。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">显示礼品卡按钮</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="giftCardShowButton"><span class="slider"></span></label>
@@ -2948,6 +2958,8 @@
                 '        url: ""',
                 '  online_support:',
                 '    items: []',
+                '  proxy_groups:',
+                '    show_custom_rule_entry: false',
                 '  ui:',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
@@ -3107,6 +3119,7 @@
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
                 notice_auto_open_on_startup: document.getElementById('noticeAutoOpenOnStartup').checked,
+                show_custom_rule_entry: document.getElementById('showCustomRuleEntry').checked,
                 gift_card_show_button: document.getElementById('giftCardShowButton').checked,
                 sources: validSources,
                 online_support_items: validSupportItems
@@ -3796,7 +3809,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'noticeAutoOpenOnStartup', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -5136,6 +5149,10 @@
             var noticeAutoOpenOnStartup = noticeAutoOpenMatch ? noticeAutoOpenMatch[1] === 'true' : false;
             document.getElementById('noticeAutoOpenOnStartup').checked = noticeAutoOpenOnStartup;
             document.getElementById('noticeAutoOpenOnStartupLabel').textContent = noticeAutoOpenOnStartup ? '开启' : '关闭';
+            var showCustomRuleEntryMatch = yaml.match(/proxy_groups:\s*\n(?:[\s\S]*?)show_custom_rule_entry:\s*(true|false)/);
+            var showCustomRuleEntry = showCustomRuleEntryMatch ? showCustomRuleEntryMatch[1] === 'true' : false;
+            document.getElementById('showCustomRuleEntry').checked = showCustomRuleEntry;
+            document.getElementById('showCustomRuleEntryLabel').textContent = showCustomRuleEntry ? '开启' : '关闭';
             var giftCardShowButtonMatch = yaml.match(/gift_card:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);
             var giftCardShowButton = giftCardShowButtonMatch ? giftCardShowButtonMatch[1] === 'true' : false;
             document.getElementById('giftCardShowButton').checked = giftCardShowButton;

@@ -27,6 +27,7 @@ type ProfileFormState struct {
 	HideNodeStatus           bool                      `json:"hide_node_status"`
 	NoticeAutoOpenOnStartup  bool                      `json:"notice_auto_open_on_startup"`
 	GiftCardShowButton       bool                      `json:"gift_card_show_button"`
+	ShowCustomRuleEntry      bool                      `json:"show_custom_rule_entry"`
 	Sources                  []ProfileSourceFormState  `json:"sources"`
 	OnlineSupportItems       []ProfileSupportFormState `json:"online_support_items"`
 }
@@ -72,6 +73,7 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	ui := ensureMapValueNode(xboard, "ui")
 	notice := ensureMapValueNode(ui, "notice")
 	giftCard := ensureMapValueNode(ui, "gift_card")
+	proxyGroups := ensureMapValueNode(xboard, "proxy_groups")
 	remoteConfig := ensureMapValueNode(xboard, "remote_config")
 	onlineSupport := ensureMapValueNode(xboard, "online_support")
 
@@ -93,6 +95,7 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	setMapBoolValue(ui, "hide_node_status", form.HideNodeStatus)
 	setMapBoolValue(notice, "auto_open_on_startup", form.NoticeAutoOpenOnStartup)
 	setMapBoolValue(giftCard, "show_button", form.GiftCardShowButton)
+	setMapBoolValue(proxyGroups, "show_custom_rule_entry", form.ShowCustomRuleEntry)
 
 	setMapNodeValue(remoteConfig, "sources", mergeProfileSources(getSequenceValueNode(remoteConfig, "sources"), form.Sources))
 	setMapNodeValue(onlineSupport, "items", mergeProfileSupportItems(getSequenceValueNode(onlineSupport, "items"), form.OnlineSupportItems))
