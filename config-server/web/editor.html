@@ -5259,12 +5259,14 @@
                 if (inItems) {
                     if (/^  [a-z_]+:/i.test(supportLine) && !/^  online_support/.test(supportLine) && !/^    /.test(supportLine)) {
                         if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
+                        currentSupportItem = null;
                         break;
                     }
                     if (supportLine.trim() === '' && j + 1 < lines.length) {
                         var nextLine = lines[j + 1];
                         if (/^  [a-z_]+:/i.test(nextLine) && !/^    /.test(nextLine)) {
                             if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
+                            currentSupportItem = null;
                             break;
                         }
                     }
