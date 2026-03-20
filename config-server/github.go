@@ -441,11 +441,12 @@ func (g *GitHubClient) DeleteWorkflowRun(buildOwner, buildRepo string, runID int
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusNoContent {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("删除 workflow 运行失败 (%d): %s", resp.StatusCode, string(respBody))
+	if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound {
+		return nil
 	}
-	return nil
+
+	respBody, _ := io.ReadAll(resp.Body)
+	return fmt.Errorf("删除 workflow 运行失败 (%d): %s", resp.StatusCode, string(respBody))
 }
 
 // GetWorkflowRunInputs 获取单个 run 的 workflow_dispatch 输入参数
