@@ -3448,69 +3448,64 @@
                 html += '<div style="display:flex; flex-direction:column; gap:4px; min-width:0;">';
                 html += '<span style="color:#fff; font-size:13px; word-break:break-all;">' + asset.name + '</span>';
                 html += '<span style="color:#aaa; font-size:12px;">' + formatFileSize(asset.size) + ' · 下载 ' + asset.download_count + ' 次</span>';
+                html += '<span style="color:#666; font-size:11px;">每次获取的下载链接 10 分钟内有效，过期后可重新申请。</span>';
                 html += '</div>';
+                html += '<div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">';
+                html += '<button type="button" class="btn btn-secondary" style="padding:6px 10px; font-size:12px;" onclick=\'copyBuildAssetDownloadLink(' + recordId + ', ' + asset.id + ', ' + JSON.stringify(asset.name) + ')\'>复制链接</button>';
                 html += '<button type="button" class="btn btn-primary" style="padding:6px 10px; font-size:12px;" onclick=\'downloadBuildAsset(' + recordId + ', ' + asset.id + ', ' + JSON.stringify(asset.name) + ')\'>下载</button>';
+                html += '</div>';
                 html += '</div>';
             });
             container.innerHTML = html;
         }
 
-        function downloadBuildAsset(recordId, assetId, fileName) {
-            var token = getToken();
-            if (!token) return;
-            if (activeDownloadRequest) {
-                showAppAlert('当前已有下载任务正在进行，请等待当前下载完成后再试。', '正在下载');
-                return;
+        function formatBuildAssetLinkExpiry(value) {
+            if (!value) return '10 分钟内';
+            var date = new Date(value);
+            if (isNaN(date.getTime())) return '10 分钟内';
+            return date.toLocaleString('zh-CN', { hour12: false });
+        }
+
+        async function createBuildAssetDownloadLink(recordId, assetId) {
+            var response = await api('POST', '/build/records/' + recordId + '/download/' + assetId + '/link');
+            if (!response) return null;
+            var data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || '生成下载链接失败');
             }
+            if (!data.download_url) {
+                throw new Error('下载链接生成失败，请稍后重试');
+            }
+            return data;
+        }
 
-            showDownloadProgressDialog(fileName);
-            setBuildStatus('正在下载打包产物...', 'info');
-            activeDownloadFileName = fileName;
+        async function downloadBuildAsset(recordId, assetId, fileName) {
+            try {
+                setBuildStatus('正在生成下载链接...', 'info');
+                var data = await createBuildAssetDownloadLink(recordId, assetId);
+                if (!data) return;
+                setBuildStatus('下载链接已生成，浏览器将开始下载：' + fileName + '（有效期至 ' + formatBuildAssetLinkExpiry(data.expires_at) + '）', 'success');
+                window.location.href = data.download_url;
+            } catch (e) {
+                setBuildStatus('下载失败: ' + e.message, 'error');
+            }
+        }
 
-            var xhr = new XMLHttpRequest();
-            activeDownloadRequest = xhr;
-            xhr.open('GET', '/api/build/records/' + recordId + '/download/' + assetId, true);
-            xhr.responseType = 'blob';
-            xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-
-            xhr.onprogress = function(event) {
-                if (activeDownloadRequest !== xhr) return;
-                updateDownloadProgressDialog(event.loaded, event.total, event.lengthComputable);
-            };
-
-            xhr.onload = function() {
-                if (activeDownloadRequest !== xhr) return;
-                activeDownloadRequest = null;
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    var blob = xhr.response;
-                    triggerBrowserDownload(blob, fileName);
-                    finishDownloadProgressDialog('success', '文件已开始下载：' + fileName, blob && blob.size ? ('共 ' + formatFileSize(blob.size)) : '请查看浏览器下载列表');
-                    setBuildStatus('下载已开始: ' + fileName, 'success');
-                    return;
-                }
-                readBlobAsText(xhr.response).then(function(errorText) {
-                    var message = normalizeDownloadErrorMessage(errorText, xhr.status);
-                    finishDownloadProgressDialog('error', message, '请稍后重试，或检查网络连接是否稳定。');
-                    setBuildStatus('下载失败: ' + message, 'error');
+        async function copyBuildAssetDownloadLink(recordId, assetId, fileName) {
+            try {
+                setBuildStatus('正在生成可复制的下载链接...', 'info');
+                var data = await createBuildAssetDownloadLink(recordId, assetId);
+                if (!data) return;
+                var expireText = formatBuildAssetLinkExpiry(data.expires_at);
+                navigator.clipboard.writeText(data.download_url).then(function() {
+                    setBuildStatus('下载链接已复制：' + fileName + '（请在 ' + expireText + ' 前使用）', 'success');
+                }).catch(function() {
+                    showAppAlert('复制失败，请手动复制以下下载链接：\n' + data.download_url, '复制下载链接');
+                    setBuildStatus('复制失败，已弹出手动复制提示。', 'error');
                 });
-            };
-
-            xhr.onerror = function() {
-                if (activeDownloadRequest !== xhr) return;
-                activeDownloadRequest = null;
-                var message = '网络连接失败，请检查网络后重试';
-                finishDownloadProgressDialog('error', message, '如果文件较大，建议稍后重新下载。');
-                setBuildStatus('下载失败: ' + message, 'error');
-            };
-
-            xhr.onabort = function() {
-                if (activeDownloadRequest !== xhr) return;
-                activeDownloadRequest = null;
-                finishDownloadProgressDialog('cancelled', '下载已取消：' + fileName, '如需重新下载，请再次点击下载按钮。');
-                setBuildStatus('已取消下载: ' + fileName, 'info');
-            };
-
-            xhr.send();
+            } catch (e) {
+                setBuildStatus('复制链接失败: ' + e.message, 'error');
+            }
         }
 
         async function deleteMyBuildRecord(recordId) {

@@ -19,9 +19,16 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+type BuildAssetDownloadClaims struct {
+	RecordID int64 `json:"record_id"`
+	AssetID  int64 `json:"asset_id"`
+	jwt.RegisteredClaims
+}
+
 type contextKey string
 
 const claimsKey contextKey = "claims"
+const buildAssetDownloadTokenSubject = "build_asset_download"
 
 func generateJWT(codeID int, codeName, permissions string, allowedProfiles []string) (string, error) {
 	claims := &Claims{
@@ -50,6 +57,49 @@ func parseJWT(tokenString string) (*Claims, error) {
 	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
 		return nil, fmt.Errorf("无效的 Token")
+	}
+
+	return claims, nil
+}
+
+func generateBuildAssetDownloadToken(recordID, assetID int64, ttl time.Duration) (string, time.Time, error) {
+	expireAt := time.Now().Add(ttl)
+	claims := &BuildAssetDownloadClaims{
+		RecordID: recordID,
+		AssetID:  assetID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   buildAssetDownloadTokenSubject,
+			ExpiresAt: jwt.NewNumericDate(expireAt),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now().Add(-10 * time.Second)),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(cfg.JWTSecret))
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	return tokenString, expireAt, nil
+}
+
+func parseBuildAssetDownloadToken(tokenString string) (*BuildAssetDownloadClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &BuildAssetDownloadClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(cfg.JWTSecret), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	claims, ok := token.Claims.(*BuildAssetDownloadClaims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("无效的下载令牌")
+	}
+	if claims.Subject != buildAssetDownloadTokenSubject {
+		return nil, fmt.Errorf("无效的下载令牌")
+	}
+	if claims.RecordID <= 0 || claims.AssetID <= 0 {
+		return nil, fmt.Errorf("无效的下载令牌")
 	}
 
 	return claims, nil

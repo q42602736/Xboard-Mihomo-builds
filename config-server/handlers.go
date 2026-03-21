@@ -3,20 +3,25 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/golang-jwt/jwt/v5"
 	"gopkg.in/yaml.v3"
 )
 
 const maxBuildRecordHistory = 5
+const buildAssetDownloadLinkTTL = 10 * time.Minute
 
 type Handlers struct {
 	gh *GitHubClient
@@ -35,6 +40,102 @@ func jsonError(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+func requestScheme(r *http.Request) string {
+	forwardedProto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto"))
+	if forwardedProto != "" {
+		return strings.TrimSpace(strings.Split(forwardedProto, ",")[0])
+	}
+	if r.TLS != nil {
+		return "https"
+	}
+	return "http"
+}
+
+func requestHost(r *http.Request) string {
+	forwardedHost := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+	if forwardedHost != "" {
+		return strings.TrimSpace(strings.Split(forwardedHost, ",")[0])
+	}
+	return r.Host
+}
+
+func buildAssetSignedDownloadURL(r *http.Request, recordID, assetID int64, token string) string {
+	values := url.Values{}
+	values.Set("token", token)
+	return (&url.URL{
+		Scheme:   requestScheme(r),
+		Host:     requestHost(r),
+		Path:     fmt.Sprintf("/download/build/records/%d/assets/%d", recordID, assetID),
+		RawQuery: values.Encode(),
+	}).String()
+}
+
+func writeDownloadLinkStatusPage(w http.ResponseWriter, statusCode int, title, message string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.WriteHeader(statusCode)
+	_, _ = io.WriteString(w, fmt.Sprintf(`<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>%s</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #0b1220 0%%, #111827 100%%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #e5eefc;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .card {
+      width: min(520px, 100%%);
+      padding: 28px 24px;
+      border-radius: 16px;
+      background: rgba(17, 24, 39, 0.92);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      color: #fff;
+    }
+    p {
+      margin: 0;
+      line-height: 1.8;
+      color: #c7d2e3;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+    .hint {
+      margin-top: 14px;
+      color: #8fb4ff;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>%s</h1>
+    <p>%s</p>
+    <p class="hint">请返回“我的打包记录”重新获取新的下载链接。</p>
+  </div>
+</body>
+</html>`,
+		html.EscapeString(title),
+		html.EscapeString(title),
+		html.EscapeString(message),
+	))
 }
 
 func bindProfileTitle(yamlContent, profileName string) string {
@@ -620,6 +721,61 @@ func buildRecordResponse(record BuildRecord) map[string]interface{} {
 		"release_tag":    releaseTag,
 		"download_ready": record.RunID > 0 && record.Status == "completed" && record.Conclusion == "success",
 	}
+}
+
+func findReleaseAssetByID(release *Release, assetID int64) *ReleaseAsset {
+	if release == nil {
+		return nil
+	}
+	for i := range release.Assets {
+		if release.Assets[i].ID == assetID {
+			return &release.Assets[i]
+		}
+	}
+	return nil
+}
+
+func (h *Handlers) resolveBuildRecordAsset(record *BuildRecord, assetID int64) (*ReleaseAsset, error) {
+	if record == nil {
+		return nil, fmt.Errorf("打包记录不存在")
+	}
+
+	releaseTag := buildReleaseTag(record)
+	if releaseTag == "" {
+		return nil, fmt.Errorf("当前打包尚未生成可下载产物")
+	}
+
+	release, err := h.gh.GetReleaseByTag(cfg.BuildOwner, cfg.BuildRepo, releaseTag)
+	if err != nil {
+		return nil, fmt.Errorf("获取打包产物失败")
+	}
+	if release == nil {
+		return nil, fmt.Errorf("当前打包尚未生成可下载产物")
+	}
+
+	matchedAsset := findReleaseAssetByID(release, assetID)
+	if matchedAsset == nil {
+		return nil, fmt.Errorf("打包产物不存在")
+	}
+
+	return matchedAsset, nil
+}
+
+func writeReleaseAssetToResponse(w http.ResponseWriter, asset *ReleaseAsset, resp *http.Response) {
+	contentType := asset.ContentType
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", asset.Name))
+	w.Header().Set("Cache-Control", "private, no-store, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if asset.Size > 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(asset.Size, 10))
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.Copy(w, resp.Body)
 }
 
 func (h *Handlers) deleteBuildRecordRelease(record *BuildRecord) error {
@@ -1253,6 +1409,60 @@ func (h *Handlers) GetBuildRecordAssets(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+func (h *Handlers) CreateBuildRecordAssetDownloadLink(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	recordID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil || recordID <= 0 {
+		jsonError(w, "无效的打包记录 ID", 400)
+		return
+	}
+	assetID, err := strconv.ParseInt(chi.URLParam(r, "assetID"), 10, 64)
+	if err != nil || assetID <= 0 {
+		jsonError(w, "无效的资源 ID", 400)
+		return
+	}
+
+	record, err := getBuildRecord(recordID)
+	if err != nil {
+		jsonError(w, "打包记录不存在", 404)
+		return
+	}
+	if !canAccessBuildRecord(claims, record) {
+		jsonError(w, "无权访问该打包产物", 403)
+		return
+	}
+
+	asset, err := h.resolveBuildRecordAsset(record, assetID)
+	if err != nil {
+		switch err.Error() {
+		case "当前打包尚未生成可下载产物", "打包产物不存在":
+			jsonError(w, err.Error(), 404)
+		default:
+			jsonError(w, err.Error(), 500)
+		}
+		return
+	}
+
+	token, expiresAt, err := generateBuildAssetDownloadToken(record.ID, asset.ID, buildAssetDownloadLinkTTL)
+	if err != nil {
+		jsonError(w, "生成下载链接失败", 500)
+		return
+	}
+
+	logAudit(claims.CodeID, claims.CodeName, "create_build_asset_download_link",
+		fmt.Sprintf("record_id=%d asset_id=%d asset_name=%s expires_at=%s", record.ID, asset.ID, asset.Name, expiresAt.UTC().Format(time.RFC3339)),
+		r.RemoteAddr)
+
+	jsonResponse(w, map[string]interface{}{
+		"record_id":          record.ID,
+		"asset_id":           asset.ID,
+		"asset_name":         asset.Name,
+		"download_url":       buildAssetSignedDownloadURL(r, record.ID, asset.ID, token),
+		"expires_at":         expiresAt.UTC().Format(time.RFC3339),
+		"expires_in_seconds": int(buildAssetDownloadLinkTTL.Seconds()),
+	})
+}
+
 func (h *Handlers) DeleteBuildRecord(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	recordID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
@@ -1328,31 +1538,14 @@ func (h *Handlers) DownloadBuildRecordAsset(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	releaseTag := buildReleaseTag(record)
-	if releaseTag == "" {
-		jsonError(w, "当前打包尚未生成可下载产物", 404)
-		return
-	}
-
-	release, err := h.gh.GetReleaseByTag(cfg.BuildOwner, cfg.BuildRepo, releaseTag)
+	matchedAsset, err := h.resolveBuildRecordAsset(record, assetID)
 	if err != nil {
-		jsonError(w, "获取打包产物失败", 500)
-		return
-	}
-	if release == nil {
-		jsonError(w, "当前打包尚未生成可下载产物", 404)
-		return
-	}
-
-	var matchedAsset *ReleaseAsset
-	for i := range release.Assets {
-		if release.Assets[i].ID == assetID {
-			matchedAsset = &release.Assets[i]
-			break
+		switch err.Error() {
+		case "当前打包尚未生成可下载产物", "打包产物不存在":
+			jsonError(w, err.Error(), 404)
+		default:
+			jsonError(w, err.Error(), 500)
 		}
-	}
-	if matchedAsset == nil {
-		jsonError(w, "打包产物不存在", 404)
 		return
 	}
 
@@ -1363,24 +1556,68 @@ func (h *Handlers) DownloadBuildRecordAsset(w http.ResponseWriter, r *http.Reque
 	}
 	defer resp.Body.Close()
 
-	contentType := matchedAsset.ContentType
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
-	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", matchedAsset.Name))
-	w.Header().Set("Cache-Control", "private, no-store, max-age=0")
-	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	if matchedAsset.Size > 0 {
-		w.Header().Set("Content-Length", strconv.FormatInt(matchedAsset.Size, 10))
-	}
-	w.WriteHeader(http.StatusOK)
-	if _, err := io.Copy(w, resp.Body); err != nil {
+	writeReleaseAssetToResponse(w, matchedAsset, resp)
+
+	logAudit(claims.CodeID, claims.CodeName, "download_build_asset",
+		fmt.Sprintf("record_id=%d asset_id=%d asset_name=%s", record.ID, matchedAsset.ID, matchedAsset.Name),
+		r.RemoteAddr)
+}
+
+func (h *Handlers) DownloadBuildRecordAssetByToken(w http.ResponseWriter, r *http.Request) {
+	tokenString := strings.TrimSpace(r.URL.Query().Get("token"))
+	if tokenString == "" {
+		writeDownloadLinkStatusPage(w, http.StatusBadRequest, "下载链接无效", "缺少下载令牌，请重新获取下载链接后再试。")
 		return
 	}
 
-	logAudit(claims.CodeID, claims.CodeName, "download_build_asset",
+	downloadClaims, err := parseBuildAssetDownloadToken(tokenString)
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			writeDownloadLinkStatusPage(w, http.StatusGone, "下载链接已过期", "该下载链接仅在生成后的 10 分钟内有效，当前链接已经失效。")
+			return
+		}
+		writeDownloadLinkStatusPage(w, http.StatusForbidden, "下载链接无效", "当前下载链接无法通过校验，可能已经损坏、被修改或不再可用。")
+		return
+	}
+
+	recordID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil || recordID <= 0 || recordID != downloadClaims.RecordID {
+		writeDownloadLinkStatusPage(w, http.StatusForbidden, "下载链接无效", "下载链接中的记录信息不匹配，请重新获取新的下载链接。")
+		return
+	}
+	assetID, err := strconv.ParseInt(chi.URLParam(r, "assetID"), 10, 64)
+	if err != nil || assetID <= 0 || assetID != downloadClaims.AssetID {
+		writeDownloadLinkStatusPage(w, http.StatusForbidden, "下载链接无效", "下载链接中的产物信息不匹配，请重新获取新的下载链接。")
+		return
+	}
+
+	record, err := getBuildRecord(recordID)
+	if err != nil {
+		writeDownloadLinkStatusPage(w, http.StatusNotFound, "打包记录不存在", "对应的打包记录已不存在，可能已被删除。")
+		return
+	}
+
+	matchedAsset, err := h.resolveBuildRecordAsset(record, assetID)
+	if err != nil {
+		switch err.Error() {
+		case "当前打包尚未生成可下载产物", "打包产物不存在":
+			writeDownloadLinkStatusPage(w, http.StatusNotFound, "打包产物不存在", "当前打包产物已不存在、尚未生成，或已经被删除。")
+		default:
+			writeDownloadLinkStatusPage(w, http.StatusInternalServerError, "下载暂时不可用", "服务器暂时无法读取该打包产物，请稍后重新获取下载链接再试。")
+		}
+		return
+	}
+
+	resp, err := h.gh.DownloadReleaseAsset(cfg.BuildOwner, cfg.BuildRepo, matchedAsset.ID)
+	if err != nil {
+		writeDownloadLinkStatusPage(w, http.StatusBadGateway, "下载暂时不可用", "服务器暂时无法连接到产物源，请稍后重新获取下载链接再试。")
+		return
+	}
+	defer resp.Body.Close()
+
+	writeReleaseAssetToResponse(w, matchedAsset, resp)
+
+	logAudit(record.CodeID, record.CodeName, "download_build_asset_signed",
 		fmt.Sprintf("record_id=%d asset_id=%d asset_name=%s", record.ID, matchedAsset.ID, matchedAsset.Name),
 		r.RemoteAddr)
 }

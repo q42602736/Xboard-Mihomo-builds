@@ -84,6 +84,7 @@ func main() {
 	// 认证接口（公开）
 	r.Post("/api/auth/login", h.Login)
 	r.Post("/api/auth/admin", h.AdminLogin)
+	r.Get("/download/build/records/{id}/assets/{assetID}", h.DownloadBuildRecordAssetByToken)
 
 	// 需要登录的 API
 	r.Group(func(r chi.Router) {
@@ -100,6 +101,7 @@ func main() {
 		r.Get("/api/build/records", h.ListBuildRecords)
 		r.Delete("/api/build/records/{id}", h.DeleteBuildRecord)
 		r.Get("/api/build/records/{id}/assets", h.GetBuildRecordAssets)
+		r.Post("/api/build/records/{id}/download/{assetID}/link", h.CreateBuildRecordAssetDownloadLink)
 		r.Get("/api/build/records/{id}/download/{assetID}", h.DownloadBuildRecordAsset)
 		r.Get("/api/build/queue", h.GetBuildQueue)
 		r.Get("/api/build/status", h.GetBuildStatus)
