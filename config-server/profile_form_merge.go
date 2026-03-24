@@ -18,6 +18,7 @@ type ProfileFormState struct {
 	AuthBackgroundEnabled      bool                      `json:"auth_background_enabled"`
 	AuthBackgroundImageURL     string                    `json:"auth_background_image_url"`
 	PreferEncrypt              bool                      `json:"prefer_encrypt"`
+	SubscriptionUserAgent      string                    `json:"user_agent"`
 	UseExclusiveMode           bool                      `json:"use_exclusive_mode"`
 	DecryptKey                 string                    `json:"decrypt_key"`
 	AutoOfflineEnabled         bool                      `json:"auto_offline_enabled"`
@@ -89,6 +90,7 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	setMapBoolValue(authBackground, "enabled", form.AuthBackgroundEnabled)
 	setMapStringValue(authBackground, "image_url", strings.TrimSpace(form.AuthBackgroundImageURL))
 	setMapBoolValue(subscription, "prefer_encrypt", form.PreferEncrypt)
+	setMapStringValue(subscription, "user_agent", strings.TrimSpace(form.SubscriptionUserAgent))
 	setMapBoolValue(subscription, "use_exclusive_mode", form.UseExclusiveMode)
 	setMapStringValue(subscription, "decrypt_key", form.DecryptKey)
 	setMapBoolValue(autoOffline, "enabled", form.AutoOfflineEnabled)

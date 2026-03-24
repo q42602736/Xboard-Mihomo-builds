@@ -1560,7 +1560,7 @@
                     <div class="page-header">
                         <div class="page-header-content">
                             <h2>订阅设置</h2>
-                            <p class="subtitle">专用模式、离线与缓存配置</p>
+                            <p class="subtitle">普通模式 UA、专用模式、离线与缓存配置</p>
                         </div>
                     </div>
                     <div class="editor-container">
@@ -1610,6 +1610,11 @@
                                         <div class="exclusive-mode-notice-foot">未完成后端改造前请不要直接开启，否则可能出现订阅失败、返回错误格式配置、专用节点不生效等问题。当前补丁脚本仅支持 XBoard 与 V2Board，暂不支持 SSPanel 系面板。</div>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="form-group">
+                                <label>普通模式订阅 UA</label>
+                                <input type="text" id="subscriptionUserAgent" placeholder="留空时默认使用 Clash Meta">
+                                <div class="help-text">仅在关闭“专用客户端模式”时生效；专用模式仍固定使用 XBoardMihomo/1.0，不受这里影响。</div>
                             </div>
                             <div class="form-group config-control-hidden">
                                 <label>订阅解密密钥</label>
@@ -2892,6 +2897,12 @@
             document.getElementById('provider').addEventListener('change', function() {
                 updateProviderConsistencyState({ source: 'basic' });
             });
+            ['subscriptionUserAgent'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('input', formToYaml);
+                el.addEventListener('change', formToYaml);
+            });
             document.getElementById('profileSelect').addEventListener('change', function() {
                 syncProfileBoundAppTitle();
                 if (!isAdminSession()) {
@@ -2954,6 +2965,7 @@
                 '      image_url: ""',
                 '  subscription:',
                 '    prefer_encrypt: false',
+                '    user_agent: Clash Meta',
                 '    use_exclusive_mode: false',
                 '    decrypt_key: ""',
                 '  auto_offline:',
@@ -3123,6 +3135,7 @@
                 auth_background_enabled: document.getElementById('authBackgroundEnabled').checked,
                 auth_background_image_url: document.getElementById('authBackgroundImageUrl').value.trim(),
                 prefer_encrypt: document.getElementById('preferEncrypt').checked,
+                user_agent: document.getElementById('subscriptionUserAgent').value.trim(),
                 use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
                 auto_offline_enabled: document.getElementById('autoOfflineEnabled').checked,
@@ -5131,6 +5144,7 @@
             if (iconMatch) document.getElementById('appIconUrl').value = iconMatch[1].trim().replace(/^["']|["']$/g, '');
             document.getElementById('preferEncrypt').checked = getSubscriptionBool('prefer_encrypt');
             document.getElementById('preferEncryptLabel').textContent = getSubscriptionBool('prefer_encrypt') ? '开启' : '关闭';
+            document.getElementById('subscriptionUserAgent').value = getSubscriptionValue('user_agent');
             document.getElementById('useExclusiveMode').checked = getSubscriptionBool('use_exclusive_mode');
             document.getElementById('useExclusiveModeLabel').textContent = getSubscriptionBool('use_exclusive_mode') ? '开启' : '关闭';
             document.getElementById('decryptKey').value = getSubscriptionValue('decrypt_key');
