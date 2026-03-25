@@ -2409,6 +2409,18 @@
             return '';
         }
 
+        function getSelectedBuildPlatformsValue() {
+            var allCheckbox = document.getElementById('platformAll');
+            if (!allCheckbox || allCheckbox.checked) {
+                return 'all';
+            }
+            var selected = [];
+            document.querySelectorAll('.platformItem:checked').forEach(function(cb) {
+                selected.push(cb.value);
+            });
+            return selected.length > 0 ? selected.join(',') : 'all';
+        }
+
         function updateBuildActionState() {
             var btn = document.getElementById('buildBtn');
             if (!btn) return;
@@ -3713,17 +3725,33 @@
             }
             buildQueuePollInFlight = true;
             try {
-                var response = await api('GET', '/build/queue');
+                var selectedPlatforms = options.platforms || getSelectedBuildPlatformsValue();
+                var query = selectedPlatforms ? ('?platforms=' + encodeURIComponent(selectedPlatforms)) : '';
+                var response = await api('GET', '/build/queue' + query);
                 if (!response) return;
                 var data = await response.json();
+                var activeJobs = typeof data.active_jobs === 'number' ? data.active_jobs : (data.running || 0);
+                var maxJobs = typeof data.max_jobs === 'number' ? data.max_jobs : (data.max || 0);
+                var activeMacOSJobs = typeof data.active_macos_jobs === 'number' ? data.active_macos_jobs : 0;
+                var maxMacOSJobs = typeof data.max_macos_jobs === 'number' ? data.max_macos_jobs : 0;
+                var requestedJobs = typeof data.requested_jobs === 'number' ? data.requested_jobs : 0;
+                var requestedMacOSJobs = typeof data.requested_macos_jobs === 'number' ? data.requested_macos_jobs : 0;
+                var summary = '<span style="color:' + (data.available ? '#00ff88' : '#ff6b6b') + ';">活跃 ' + activeJobs + '/' + maxJobs + ' jobs</span>';
+                summary += ' · macOS ' + activeMacOSJobs + '/' + maxMacOSJobs;
+                if (requestedJobs > 0) {
+                    summary += ' · 本次需 ' + requestedJobs + ' jobs';
+                    if (requestedMacOSJobs > 0) {
+                        summary += '（macOS ' + requestedMacOSJobs + '）';
+                    }
+                }
                 if (data.available) {
                     buildQueueAvailable = true;
                     buildQueueStatusMessage = '';
-                    el.innerHTML = '<span style="color:#00ff88;">' + data.running + '/' + data.max + ' 运行中</span> · 可提交新打包';
+                    el.innerHTML = summary + ' · 可提交新打包';
                 } else {
                     buildQueueAvailable = false;
-                    buildQueueStatusMessage = '当前打包队列已满，请稍后再试';
-                    el.innerHTML = '<span style="color:#ff6b6b;">' + data.running + '/' + data.max + ' 运行中</span> · 队列已满，请稍后';
+                    buildQueueStatusMessage = data.message || '当前打包队列已满，请稍后再试';
+                    el.innerHTML = summary + ' · 队列已满，请稍后';
                 }
             } catch (e) {
                 buildQueueAvailable = true;
@@ -3766,17 +3794,7 @@
                 return;
             }
 
-            var platforms = 'all';
-            var allCheckbox = document.getElementById('platformAll');
-            if (!allCheckbox.checked) {
-                var selected = [];
-                document.querySelectorAll('.platformItem:checked').forEach(function(cb) {
-                    selected.push(cb.value);
-                });
-                if (selected.length > 0) {
-                    platforms = selected.join(',');
-                }
-            }
+            var platforms = getSelectedBuildPlatformsValue();
 
             setBuildStatus('正在提交打包...', 'info');
             try {
@@ -3852,6 +3870,8 @@
                 if (this.checked) {
                     itemCheckboxes.forEach(function(cb) { cb.checked = false; });
                 }
+                loadBuildQueue();
+                updateBuildActionState();
             });
             itemCheckboxes.forEach(function(cb) {
                 cb.addEventListener('change', function() {
@@ -3862,6 +3882,8 @@
                     if (!anyChecked) {
                         allCheckbox.checked = true;
                     }
+                    loadBuildQueue();
+                    updateBuildActionState();
                 });
             });
         }

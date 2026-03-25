@@ -555,9 +555,30 @@ func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 
 // ==================== 构建 ====================
 
-const maxConcurrentBuilds = 3
+const maxConcurrentBuildJobs = 20
+const maxConcurrentMacOSBuildJobs = 5
 
 const recentWorkflowRunsSearchLimit = 30
+
+type BuildJobDemand struct {
+	Total int
+	MacOS int
+}
+
+type BuildQueueSnapshot struct {
+	ActiveRuns         int    `json:"active_runs"`
+	ActiveJobs         int    `json:"active_jobs"`
+	ActiveMacOSJobs    int    `json:"active_macos_jobs"`
+	MaxJobs            int    `json:"max_jobs"`
+	MaxMacOSJobs       int    `json:"max_macos_jobs"`
+	RequestedPlatforms string `json:"requested_platforms,omitempty"`
+	RequestedJobs      int    `json:"requested_jobs,omitempty"`
+	RequestedMacOSJobs int    `json:"requested_macos_jobs,omitempty"`
+	RemainingJobs      int    `json:"remaining_jobs"`
+	RemainingMacOSJobs int    `json:"remaining_macos_jobs"`
+	Available          bool   `json:"available"`
+	Message            string `json:"message,omitempty"`
+}
 
 type PendingBuild struct {
 	CodeID      int
@@ -571,6 +592,161 @@ type PendingBuild struct {
 // 缓存构建请求对应的最近 run_id，避免每次轮询都搜索所有 runs
 var profileRunCache = make(map[string]int64)
 var pendingBuildCache = make(map[string]PendingBuild)
+
+func estimateBuildJobDemand(platforms string) BuildJobDemand {
+	allJobs := []string{
+		"windows-amd64",
+		"windows-arm64",
+		"android",
+		"android-tv",
+		"linux-amd64",
+		"linux-arm64",
+		"macos-amd64",
+		"macos-arm64",
+	}
+	selectedJobs := make(map[string]struct{})
+	normalized := strings.TrimSpace(strings.ToLower(platforms))
+	if normalized == "" {
+		normalized = "all"
+	}
+
+	addJob := func(job string) {
+		if job != "" {
+			selectedJobs[job] = struct{}{}
+		}
+	}
+
+	addJobsByPlatform := func(token string) {
+		switch token {
+		case "all":
+			for _, job := range allJobs {
+				addJob(job)
+			}
+		case "windows":
+			addJob("windows-amd64")
+			addJob("windows-arm64")
+		case "linux":
+			addJob("linux-amd64")
+			addJob("linux-arm64")
+		case "macos":
+			addJob("macos-amd64")
+			addJob("macos-arm64")
+		case "windows-amd64", "windows-arm64",
+			"android", "android-tv",
+			"linux-amd64", "linux-arm64",
+			"macos-amd64", "macos-arm64":
+			addJob(token)
+		}
+	}
+
+	for _, token := range strings.Split(normalized, ",") {
+		token = strings.TrimSpace(token)
+		if token == "" {
+			continue
+		}
+		if token == "all" {
+			addJobsByPlatform(token)
+			break
+		}
+		addJobsByPlatform(token)
+	}
+
+	demand := BuildJobDemand{Total: len(selectedJobs)}
+	for job := range selectedJobs {
+		if strings.HasPrefix(job, "macos-") {
+			demand.MacOS++
+		}
+	}
+	return demand
+}
+
+func isMacOSWorkflowJob(job WorkflowJob) bool {
+	return strings.Contains(strings.ToLower(job.Name), "macos")
+}
+
+func formatBuildQueueExceededMessage(activeJobs, activeMacOSJobs int, demand BuildJobDemand) string {
+	base := fmt.Sprintf(
+		"当前活跃 %d/%d 个构建 job（macOS %d/%d），本次请求需要 %d 个 job",
+		activeJobs, maxConcurrentBuildJobs, activeMacOSJobs, maxConcurrentMacOSBuildJobs, demand.Total,
+	)
+	if demand.MacOS > 0 {
+		base += fmt.Sprintf("（其中 macOS %d 个）", demand.MacOS)
+	}
+	return base + "，超过并发限制，请稍后再试"
+}
+
+func (h *Handlers) getActiveBuildJobUsage() (BuildQueueSnapshot, error) {
+	snapshot := BuildQueueSnapshot{
+		MaxJobs:      maxConcurrentBuildJobs,
+		MaxMacOSJobs: maxConcurrentMacOSBuildJobs,
+	}
+
+	runs, err := h.gh.GetActiveWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml")
+	if err != nil {
+		return snapshot, err
+	}
+
+	snapshot.ActiveRuns = len(runs)
+	for _, run := range runs {
+		jobs, jobsErr := h.gh.GetWorkflowRunJobs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+		if jobsErr == nil && len(jobs) > 0 {
+			for _, job := range jobs {
+				if !isActiveWorkflowStatus(job.Status) {
+					continue
+				}
+				snapshot.ActiveJobs++
+				if isMacOSWorkflowJob(job) {
+					snapshot.ActiveMacOSJobs++
+				}
+			}
+			continue
+		}
+
+		inputs, inputsErr := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+		demand := BuildJobDemand{Total: 1}
+		if inputsErr == nil {
+			if estimated := estimateBuildJobDemand(inputs["platforms"]); estimated.Total > 0 {
+				demand = estimated
+			}
+		}
+		snapshot.ActiveJobs += demand.Total
+		snapshot.ActiveMacOSJobs += demand.MacOS
+	}
+
+	snapshot.RemainingJobs = maxConcurrentBuildJobs - snapshot.ActiveJobs
+	if snapshot.RemainingJobs < 0 {
+		snapshot.RemainingJobs = 0
+	}
+	snapshot.RemainingMacOSJobs = maxConcurrentMacOSBuildJobs - snapshot.ActiveMacOSJobs
+	if snapshot.RemainingMacOSJobs < 0 {
+		snapshot.RemainingMacOSJobs = 0
+	}
+	snapshot.Available = snapshot.ActiveJobs < maxConcurrentBuildJobs &&
+		snapshot.ActiveMacOSJobs < maxConcurrentMacOSBuildJobs
+
+	return snapshot, nil
+}
+
+func (h *Handlers) getBuildQueueSnapshot(platforms string) (BuildQueueSnapshot, error) {
+	snapshot, err := h.getActiveBuildJobUsage()
+	if err != nil {
+		return snapshot, err
+	}
+
+	demand := estimateBuildJobDemand(platforms)
+	if demand.Total > 0 {
+		snapshot.RequestedPlatforms = platforms
+		snapshot.RequestedJobs = demand.Total
+		snapshot.RequestedMacOSJobs = demand.MacOS
+		snapshot.Available = snapshot.ActiveJobs+demand.Total <= maxConcurrentBuildJobs &&
+			snapshot.ActiveMacOSJobs+demand.MacOS <= maxConcurrentMacOSBuildJobs
+		if !snapshot.Available {
+			snapshot.Message = formatBuildQueueExceededMessage(snapshot.ActiveJobs, snapshot.ActiveMacOSJobs, demand)
+		}
+	}
+
+	return snapshot, nil
+}
 
 func buildPendingCacheKey(codeID int, profile, tag, branch, platforms string) string {
 	return fmt.Sprintf("code:%d|profile:%s|tag:%s|branch:%s|platforms:%s", codeID, profile, tag, branch, platforms)
@@ -841,9 +1017,15 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		req.Branch = "main"
 	}
 
-	running, err := h.gh.GetRunningWorkflowCount(cfg.BuildOwner, cfg.BuildRepo, "build.yaml")
-	if err == nil && running >= maxConcurrentBuilds {
-		jsonError(w, fmt.Sprintf("当前有 %d 个打包任务正在运行，最多允许 %d 个并发打包，请稍后再试", running, maxConcurrentBuilds), 429)
+	demand := estimateBuildJobDemand(req.Platforms)
+	if demand.Total <= 0 {
+		jsonError(w, "无效的打包平台选择", 400)
+		return
+	}
+
+	queueSnapshot, err := h.getBuildQueueSnapshot(req.Platforms)
+	if err == nil && !queueSnapshot.Available {
+		jsonError(w, queueSnapshot.Message, 429)
 		return
 	}
 
@@ -1311,19 +1493,31 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) GetBuildQueue(w http.ResponseWriter, r *http.Request) {
-	running, err := h.gh.GetRunningWorkflowCount(cfg.BuildOwner, cfg.BuildRepo, "build.yaml")
+	platforms := strings.TrimSpace(r.URL.Query().Get("platforms"))
+	queueSnapshot, err := h.getBuildQueueSnapshot(platforms)
 	if err != nil {
-		jsonResponse(w, map[string]interface{}{
-			"running":   0,
-			"max":       maxConcurrentBuilds,
-			"available": true,
+		jsonResponse(w, BuildQueueSnapshot{
+			MaxJobs:      maxConcurrentBuildJobs,
+			MaxMacOSJobs: maxConcurrentMacOSBuildJobs,
+			Available:    true,
 		})
 		return
 	}
 	jsonResponse(w, map[string]interface{}{
-		"running":   running,
-		"max":       maxConcurrentBuilds,
-		"available": running < maxConcurrentBuilds,
+		"running":              queueSnapshot.ActiveJobs,
+		"max":                  queueSnapshot.MaxJobs,
+		"active_runs":          queueSnapshot.ActiveRuns,
+		"active_jobs":          queueSnapshot.ActiveJobs,
+		"active_macos_jobs":    queueSnapshot.ActiveMacOSJobs,
+		"max_jobs":             queueSnapshot.MaxJobs,
+		"max_macos_jobs":       queueSnapshot.MaxMacOSJobs,
+		"requested_platforms":  queueSnapshot.RequestedPlatforms,
+		"requested_jobs":       queueSnapshot.RequestedJobs,
+		"requested_macos_jobs": queueSnapshot.RequestedMacOSJobs,
+		"remaining_jobs":       queueSnapshot.RemainingJobs,
+		"remaining_macos_jobs": queueSnapshot.RemainingMacOSJobs,
+		"available":            queueSnapshot.Available,
+		"message":              queueSnapshot.Message,
 	})
 }
 

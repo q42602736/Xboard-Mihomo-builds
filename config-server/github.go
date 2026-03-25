@@ -353,6 +353,47 @@ type Release struct {
 	Assets  []ReleaseAsset `json:"assets"`
 }
 
+// GetActiveWorkflowRuns 获取指定 workflow 当前仍处于活动状态的运行实例
+func (g *GitHubClient) GetActiveWorkflowRuns(buildOwner, buildRepo, workflow string) ([]WorkflowRun, error) {
+	activeStatuses := []string{"in_progress", "queued", "waiting", "pending", "requested"}
+	runMap := make(map[int64]WorkflowRun)
+
+	for _, status := range activeStatuses {
+		url := fmt.Sprintf(
+			"https://api.github.com/repos/%s/%s/actions/workflows/%s/runs?status=%s&per_page=100&event=workflow_dispatch",
+			buildOwner, buildRepo, workflow, status,
+		)
+		resp, err := g.doRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			continue
+		}
+
+		var result struct {
+			WorkflowRuns []WorkflowRun `json:"workflow_runs"`
+		}
+		err = json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, run := range result.WorkflowRuns {
+			runMap[run.ID] = run
+		}
+	}
+
+	runs := make([]WorkflowRun, 0, len(runMap))
+	for _, run := range runMap {
+		runs = append(runs, run)
+	}
+	return runs, nil
+}
+
 // GetRecentWorkflowRuns 获取最近的工作流运行列表
 func (g *GitHubClient) GetRecentWorkflowRuns(buildOwner, buildRepo, workflow string, count int) ([]WorkflowRun, error) {
 	url := fmt.Sprintf(
