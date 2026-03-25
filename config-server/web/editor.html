@@ -2421,6 +2421,99 @@
             return selected.length > 0 ? selected.join(',') : 'all';
         }
 
+        function estimateRequestedBuildJobs(platforms) {
+            var normalized = String(platforms || 'all').trim().toLowerCase();
+            if (!normalized) normalized = 'all';
+            var selected = {};
+
+            function addJob(job) {
+                if (job) selected[job] = true;
+            }
+
+            function addJobsByToken(token) {
+                switch (token) {
+                    case 'all':
+                        ['windows-amd64', 'windows-arm64', 'android', 'android-tv', 'linux-amd64', 'linux-arm64', 'macos-amd64', 'macos-arm64'].forEach(addJob);
+                        break;
+                    case 'windows':
+                        addJob('windows-amd64');
+                        addJob('windows-arm64');
+                        break;
+                    case 'linux':
+                        addJob('linux-amd64');
+                        addJob('linux-arm64');
+                        break;
+                    case 'macos':
+                        addJob('macos-amd64');
+                        addJob('macos-arm64');
+                        break;
+                    case 'windows-amd64':
+                    case 'windows-arm64':
+                    case 'android':
+                    case 'android-tv':
+                    case 'linux-amd64':
+                    case 'linux-arm64':
+                    case 'macos-amd64':
+                    case 'macos-arm64':
+                        addJob(token);
+                        break;
+                }
+            }
+
+            normalized.split(',').forEach(function(token) {
+                token = token.trim();
+                if (!token) return;
+                if (token === 'all') {
+                    addJobsByToken('all');
+                    return;
+                }
+                addJobsByToken(token);
+            });
+
+            var macos = 0;
+            Object.keys(selected).forEach(function(job) {
+                if (job.indexOf('macos-') === 0) {
+                    macos += 1;
+                }
+            });
+
+            return {
+                total: Object.keys(selected).length,
+                macos: macos
+            };
+        }
+
+        function renderBuildQueueSummary(snapshot, requestedPlatforms, isRefreshing) {
+            var el = document.getElementById('buildQueueInfo');
+            if (!el || !snapshot) return;
+
+            var activeJobs = typeof snapshot.active_jobs === 'number' ? snapshot.active_jobs : (snapshot.running || 0);
+            var maxJobs = typeof snapshot.max_jobs === 'number' ? snapshot.max_jobs : (snapshot.max || 0);
+            var activeMacOSJobs = typeof snapshot.active_macos_jobs === 'number' ? snapshot.active_macos_jobs : 0;
+            var maxMacOSJobs = typeof snapshot.max_macos_jobs === 'number' ? snapshot.max_macos_jobs : 0;
+            var demand = estimateRequestedBuildJobs(requestedPlatforms || snapshot.requested_platforms || getSelectedBuildPlatformsValue());
+            var available = activeJobs + demand.total <= maxJobs && activeMacOSJobs + demand.macos <= maxMacOSJobs;
+
+            var summary = '<span style="color:' + (available ? '#00ff88' : '#ff6b6b') + ';">活跃 ' + activeJobs + '/' + maxJobs + ' jobs</span>';
+            summary += ' · macOS ' + activeMacOSJobs + '/' + maxMacOSJobs;
+            if (demand.total > 0) {
+                summary += ' · 本次需 ' + demand.total + ' jobs';
+                if (demand.macos > 0) {
+                    summary += '（macOS ' + demand.macos + '）';
+                }
+            }
+
+            if (available) {
+                buildQueueAvailable = true;
+                buildQueueStatusMessage = '';
+                el.innerHTML = summary + (isRefreshing ? ' · 正在刷新...' : ' · 可提交新打包');
+            } else {
+                buildQueueAvailable = false;
+                buildQueueStatusMessage = snapshot.message || '当前打包队列已满，请稍后再试';
+                el.innerHTML = summary + (isRefreshing ? ' · 正在刷新...' : ' · 队列已满，请稍后');
+            }
+        }
+
         function updateBuildActionState() {
             var btn = document.getElementById('buildBtn');
             if (!btn) return;
@@ -2834,6 +2927,8 @@
         var clientUpdatesLoadedBranch = '';
         var buildQueuePollTimer = null;
         var buildQueuePollInFlight = false;
+        var buildQueuePendingPlatforms = '';
+        var buildQueueLastSnapshot = null;
         var buildQueueAvailable = false;
         var buildQueueStatusMessage = '正在加载打包队列...';
         var buildPermissionAvailable = false;
@@ -3717,48 +3812,38 @@
             options = options || {};
             var el = document.getElementById('buildQueueInfo');
             if (!el) return;
+            var selectedPlatforms = options.platforms || getSelectedBuildPlatformsValue();
             if (buildQueuePollInFlight) {
                 if (!options.isAutoPoll) {
-                    scheduleBuildQueuePolling();
+                    buildQueuePendingPlatforms = selectedPlatforms;
+                    if (buildQueueLastSnapshot) {
+                        renderBuildQueueSummary(buildQueueLastSnapshot, selectedPlatforms, true);
+                    } else {
+                        el.textContent = '正在刷新打包队列...';
+                    }
                 }
                 return;
             }
             buildQueuePollInFlight = true;
             try {
-                var selectedPlatforms = options.platforms || getSelectedBuildPlatformsValue();
                 var query = selectedPlatforms ? ('?platforms=' + encodeURIComponent(selectedPlatforms)) : '';
                 var response = await api('GET', '/build/queue' + query);
                 if (!response) return;
                 var data = await response.json();
-                var activeJobs = typeof data.active_jobs === 'number' ? data.active_jobs : (data.running || 0);
-                var maxJobs = typeof data.max_jobs === 'number' ? data.max_jobs : (data.max || 0);
-                var activeMacOSJobs = typeof data.active_macos_jobs === 'number' ? data.active_macos_jobs : 0;
-                var maxMacOSJobs = typeof data.max_macos_jobs === 'number' ? data.max_macos_jobs : 0;
-                var requestedJobs = typeof data.requested_jobs === 'number' ? data.requested_jobs : 0;
-                var requestedMacOSJobs = typeof data.requested_macos_jobs === 'number' ? data.requested_macos_jobs : 0;
-                var summary = '<span style="color:' + (data.available ? '#00ff88' : '#ff6b6b') + ';">活跃 ' + activeJobs + '/' + maxJobs + ' jobs</span>';
-                summary += ' · macOS ' + activeMacOSJobs + '/' + maxMacOSJobs;
-                if (requestedJobs > 0) {
-                    summary += ' · 本次需 ' + requestedJobs + ' jobs';
-                    if (requestedMacOSJobs > 0) {
-                        summary += '（macOS ' + requestedMacOSJobs + '）';
-                    }
-                }
-                if (data.available) {
-                    buildQueueAvailable = true;
-                    buildQueueStatusMessage = '';
-                    el.innerHTML = summary + ' · 可提交新打包';
-                } else {
-                    buildQueueAvailable = false;
-                    buildQueueStatusMessage = data.message || '当前打包队列已满，请稍后再试';
-                    el.innerHTML = summary + ' · 队列已满，请稍后';
-                }
+                buildQueueLastSnapshot = data;
+                renderBuildQueueSummary(data, selectedPlatforms, false);
             } catch (e) {
                 buildQueueAvailable = true;
                 buildQueueStatusMessage = '';
                 el.textContent = '无法获取队列状态';
             } finally {
                 buildQueuePollInFlight = false;
+                if (buildQueuePendingPlatforms) {
+                    var pendingPlatforms = buildQueuePendingPlatforms;
+                    buildQueuePendingPlatforms = '';
+                    loadBuildQueue({ platforms: pendingPlatforms });
+                    return;
+                }
                 scheduleBuildQueuePolling();
                 updateBuildActionState();
             }
