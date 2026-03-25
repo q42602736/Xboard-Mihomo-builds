@@ -21,9 +21,9 @@ on:
         required: true
         type: string
         default: 'all'
-        # 可选值: all, windows, android, android-tv, linux, linux-arm64, linux-amd64, macos-arm64, macos-amd64
-        # 注意: all 包含 android-tv、linux 双架构和 macos 双架构
-        # 示例: windows,android 或 linux-amd64,macos-arm64
+        # 可选值: all, windows, windows-amd64, windows-arm64, android, android-tv, linux, linux-arm64, linux-amd64, macos-arm64, macos-amd64
+        # 注意: all 包含 windows/linux/macos 双架构，以及 android-tv
+        # 示例: windows,android 或 windows-arm64,linux-amd64,macos-arm64
       request_id:
         description: '构建请求唯一标识（由配置服务器生成，用于匹配本次构建运行）'
         required: false
@@ -52,6 +52,11 @@ jobs:
             build_platform: windows
             os: Windows-2022
             arch: amd64
+            include_in_all: true
+          - platform: windows
+            build_platform: windows
+            os: windows-11-arm
+            arch: arm64
             include_in_all: true
           - platform: android
             build_platform: android
@@ -96,6 +101,11 @@ jobs:
             SHOULD_RUN="true"
           # 检查是否包含当前平台
           elif [[ ",$SELECTED," == *",$CURRENT,"* ]]; then
+            SHOULD_RUN="true"
+          # Windows 特殊处理
+          elif [[ ",$SELECTED," == *",windows-arm64,"* ]] && [ "$CURRENT" = "windows" ] && [ "$ARCH" = "arm64" ]; then
+            SHOULD_RUN="true"
+          elif [[ ",$SELECTED," == *",windows-amd64,"* ]] && [ "$CURRENT" = "windows" ] && [ "$ARCH" = "amd64" ]; then
             SHOULD_RUN="true"
           # macOS 特殊处理
           elif [[ ",$SELECTED," == *",macos-arm64,"* ]] && [ "$CURRENT" = "macos" ] && [ "$ARCH" = "arm64" ]; then
@@ -259,6 +269,20 @@ jobs:
           fi
           cargo --version
 
+      - name: Setup Rust (Windows arm64)
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'windows' && matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+            Write-Host "Installing Rust for arm64..."
+            Invoke-WebRequest -Uri "https://win.rustup.rs/aarch64" -OutFile rustup-init.exe
+            .\rustup-init.exe -y --default-toolchain stable
+            "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          } else {
+            Write-Host "✓ Rust/Cargo already available"
+          }
+          cargo --version
+
       - name: Setup Go
         if: steps.check.outputs.should_run == 'true'
         uses: actions/setup-go@v5
@@ -272,6 +296,15 @@ jobs:
         with:
           channel: "stable"
           flutter-version: "${{ env.FLUTTER_VERSION }}"
+          cache: true
+
+      - name: Setup Flutter (Windows arm64)
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'windows' && matrix.arch == 'arm64'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "${{ env.FLUTTER_VERSION }}"
+          architecture: "arm64"
           cache: true
 
       - name: Setup Flutter (Android)

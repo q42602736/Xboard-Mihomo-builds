@@ -1939,7 +1939,8 @@
                             <label>选择打包平台</label>
                             <div class="platform-checkboxes">
                                 <label class="platform-checkbox"><input type="checkbox" value="all" id="platformAll" checked><span class="platform-checkbox-label">全部平台</span></label>
-                                <label class="platform-checkbox"><input type="checkbox" value="windows" class="platformItem"><span class="platform-checkbox-label">Windows</span></label>
+                                <label class="platform-checkbox"><input type="checkbox" value="windows-arm64" class="platformItem"><span class="platform-checkbox-label">Windows ARM64</span></label>
+                                <label class="platform-checkbox"><input type="checkbox" value="windows-amd64" class="platformItem"><span class="platform-checkbox-label">Windows AMD64</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem"><span class="platform-checkbox-label">Android（手机）</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="android-tv" class="platformItem"><span class="platform-checkbox-label">Android TV</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="linux-arm64" class="platformItem"><span class="platform-checkbox-label">Linux ARM64</span></label>
@@ -1947,7 +1948,7 @@
                                 <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem"><span class="platform-checkbox-label">macOS ARM64</span></label>
                                 <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem"><span class="platform-checkbox-label">macOS AMD64</span></label>
                             </div>
-                            <div class="help-text">Android TV 使用独立入口和 TV 界面，也包含在“全部平台”中。Linux 和 macOS 都只保留 ARM64 / AMD64 两个架构选项；如需全平台请直接选择“全部平台”。</div>
+                            <div class="help-text">Windows、Linux 和 macOS 都只保留 ARM64 / AMD64 两个架构选项。Android TV 使用独立入口和 TV 界面，也包含在“全部平台”中；如需全平台请直接选择“全部平台”。</div>
                         </div>
                         <div id="buildQueue" style="margin-top: 15px; padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
                             <span style="color: #aaa; font-size: 13px;">打包队列：</span>
