@@ -39,7 +39,106 @@ env:
   FLUTTER_VERSION: "3.41.4"
 
 jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.release.outputs.release_id }}
+      upload_url: ${{ steps.release.outputs.upload_url }}
+      release_tag: ${{ steps.release.outputs.release_tag }}
+      app_name: ${{ steps.release.outputs.app_name }}
+    steps:
+      - name: Prepare Draft Release
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+        run: |
+          PROFILE_NAME="${{ github.event.inputs.profile }}"
+          VERSION="${{ github.event.inputs.tag }}"
+          RELEASE_TAG="${PROFILE_NAME}-${VERSION}-${{ github.run_id }}"
+          PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
+          ENCODED_PROFILE_PATH=$(node -e "console.log(process.argv[1].split('/').map(encodeURIComponent).join('/'))" "$PROFILE_PATH")
+
+          API_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ env.PRIVATE_REPO }}/contents/${ENCODED_PROFILE_PATH}?ref=main")
+
+          if echo "$API_RESPONSE" | grep -q '"content"'; then
+            PROFILE_YAML=$(echo "$API_RESPONSE" | node -e "
+              const d=require('fs').readFileSync(0,'utf8');
+              const j=JSON.parse(d);
+              if (j.content) process.stdout.write(Buffer.from(String(j.content).replace(/\\n/g, ''), 'base64').toString());
+            ")
+
+            APP_NAME=$(printf '%s' "$PROFILE_YAML" | node -e "
+              const fs = require('fs');
+              const yaml = fs.readFileSync(0, 'utf8');
+              const appBlockMatch = yaml.match(/(?:^|\r?\n)  app:\r?\n((?:    .*?(?:\r?\n|$)|\r?\n)*)/);
+              const appTitleMatch = appBlockMatch ? appBlockMatch[1].match(/(?:^|\r?\n)    title:\s*['\\\"]?([^'\"\\r\\n]+)['\\\"]?/) : null;
+              const rootTitleMatch = yaml.match(/(?:^|\r?\n)  title:\s*['\\\"]?([^'\"\\r\\n]+)['\\\"]?/);
+              const rawName = appTitleMatch ? appTitleMatch[1].trim() : (rootTitleMatch ? rootTitleMatch[1].trim() : '$PROFILE_NAME');
+              process.stdout.write(String(rawName || '').replace(/[\\r\\n]+/g, ' ').trim());
+            ")
+          else
+            echo "Failed to get profile yaml, using profile name as app name"
+            APP_NAME="$PROFILE_NAME"
+          fi
+
+          echo "Preparing draft release: ${APP_NAME} ${VERSION} (tag: ${RELEASE_TAG})"
+
+          EXISTING_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${RELEASE_TAG}")
+          EXISTING_ID=$(printf '%s' "$EXISTING_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(data && data.id ? String(data.id) : '');
+          ")
+
+          if [ -n "$EXISTING_ID" ]; then
+            echo "Release ${RELEASE_TAG} already exists, deleting..."
+            curl -s -X DELETE -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/${EXISTING_ID}" > /dev/null
+          fi
+
+          RELEASE_PAYLOAD=$(node -e '
+            const [appName, version, releaseTag, profileName] = process.argv.slice(1);
+            process.stdout.write(JSON.stringify({
+              tag_name: releaseTag,
+              name: `${appName} ${version}`,
+              draft: true,
+              body: `${appName} ${version} 构建产物\n\n档案: ${profileName}`
+            }));
+          ' "$APP_NAME" "$VERSION" "$RELEASE_TAG" "$PROFILE_NAME")
+
+          RELEASE_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases" \
+            -d "$RELEASE_PAYLOAD")
+
+          RELEASE_ID=$(printf '%s' "$RELEASE_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(data && data.id ? String(data.id) : '');
+          ")
+          UPLOAD_URL=$(printf '%s' "$RELEASE_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write((data && data.upload_url ? String(data.upload_url) : '').replace(/\\{.*$/, ''));
+          ")
+
+          if [ -z "$RELEASE_ID" ] || [ -z "$UPLOAD_URL" ]; then
+            echo "Failed to create draft release"
+            echo "$RELEASE_RESPONSE"
+            exit 1
+          fi
+
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
+          echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          echo "Draft release ready: https://github.com/${{ github.repository }}/releases"
+
   build:
+    needs: prepare-release
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -157,7 +256,7 @@ jobs:
 
       - name: Setup SSH
         if: steps.check.outputs.should_run == 'true'
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
@@ -285,7 +384,7 @@ jobs:
 
       - name: Setup Go
         if: steps.check.outputs.should_run == 'true'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.22"
           cache-dependency-path: source/core/go.sum
@@ -696,16 +795,57 @@ jobs:
           echo "=== Build log tail ==="
           tail -100 ./source/build.log 2>/dev/null || echo "No build log"
 
-      - name: Upload
+      - name: Upload dist to Draft Release
         if: success() && steps.check.outputs.should_run == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.executable_names.outputs.profile_name_safe }}-${{ matrix.platform }}${{ matrix.arch && format('-{0}', matrix.arch) }}
-          path: ./source/dist
-          overwrite: true
-          if-no-files-found: error
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+          RELEASE_UPLOAD_URL: ${{ needs.prepare-release.outputs.upload_url }}
+        run: |
+          if [ ! -d "./source/dist" ]; then
+            echo "source/dist not found"
+            exit 1
+          fi
+
+          FILE_COUNT=$(find ./source/dist -type f | wc -l | tr -d ' ')
+          if [ "$FILE_COUNT" = "0" ]; then
+            echo "No files found in source/dist"
+            exit 1
+          fi
+
+          ASSETS_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
+
+          cd ./source/dist
+          find . -type f | sort | while IFS= read -r file; do
+            [ -n "$file" ] || continue
+
+            ASSET_NAME=$(basename "$file")
+            EXISTING_ASSET_ID=$(printf '%s' "$ASSETS_RESPONSE" | node -e "
+              const fs = require('fs');
+              const assetName = process.argv[1];
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              const asset = (Array.isArray(data) ? data : []).find(item => item && item.name === assetName);
+              process.stdout.write(asset ? String(asset.id) : '');
+            " "$ASSET_NAME")
+
+            if [ -n "$EXISTING_ASSET_ID" ]; then
+              echo "Deleting existing release asset: $ASSET_NAME"
+              curl -s -X DELETE -H "Authorization: token $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/releases/assets/${EXISTING_ASSET_ID}" > /dev/null
+            fi
+
+            ENCODED_FILENAME=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$ASSET_NAME")
+            echo "Uploading release asset: $ASSET_NAME"
+            curl -sS --fail -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}" \
+              --data-binary @"$file" > /dev/null
+          done
 
   build-linux:
+    needs: prepare-release
     runs-on: ${{ matrix.os }}
     container:
       image: debian:trixie
@@ -831,7 +971,7 @@ jobs:
 
       - name: Setup Go
         if: steps.check.outputs.should_run == 'true'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.22"
           cache-dependency-path: source/core/go.sum
@@ -1020,63 +1160,88 @@ jobs:
           echo "=== Build log tail ==="
           tail -100 ./source/build.log 2>/dev/null || echo "No build log"
 
-      - name: Upload
+      - name: Upload dist to Draft Release
         if: success() && steps.check.outputs.should_run == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.executable_names.outputs.profile_name_safe }}-${{ matrix.platform }}-${{ matrix.arch }}
-          path: ./source/dist
-          overwrite: true
-          if-no-files-found: error
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+          RELEASE_UPLOAD_URL: ${{ needs.prepare-release.outputs.upload_url }}
+        run: |
+          if [ ! -d "./source/dist" ]; then
+            echo "source/dist not found"
+            exit 1
+          fi
 
-  # 合并所有平台的构建产物到一个 Artifact（方便下载）
+          FILE_COUNT=$(find ./source/dist -type f | wc -l | tr -d ' ')
+          if [ "$FILE_COUNT" = "0" ]; then
+            echo "No files found in source/dist"
+            exit 1
+          fi
+
+          ASSETS_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
+
+          cd ./source/dist
+          find . -type f | sort | while IFS= read -r file; do
+            [ -n "$file" ] || continue
+
+            ASSET_NAME=$(basename "$file")
+            EXISTING_ASSET_ID=$(printf '%s' "$ASSETS_RESPONSE" | node -e "
+              const fs = require('fs');
+              const assetName = process.argv[1];
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              const asset = (Array.isArray(data) ? data : []).find(item => item && item.name === assetName);
+              process.stdout.write(asset ? String(asset.id) : '');
+            " "$ASSET_NAME")
+
+            if [ -n "$EXISTING_ASSET_ID" ]; then
+              echo "Deleting existing release asset: $ASSET_NAME"
+              curl -s -X DELETE -H "Authorization: token $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/releases/assets/${EXISTING_ASSET_ID}" > /dev/null
+            fi
+
+            ENCODED_FILENAME=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$ASSET_NAME")
+            echo "Uploading release asset: $ASSET_NAME"
+            curl -sS --fail -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}" \
+              --data-binary @"$file" > /dev/null
+          done
+
+  # 从 Draft Release 汇总所有平台产物并回传合集包
   merge-artifacts:
     runs-on: ubuntu-latest
-    needs: [ build, build-linux ]
+    needs: [ prepare-release, build, build-linux ]
     if: ${{ !cancelled() && needs.build.result == 'success' && needs.build-linux.result == 'success' }}
     steps:
-      - name: Get app name from config
-        id: config
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
         run: |
-          PROFILE_NAME="${{ github.event.inputs.profile }}"
-          
-          PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
-          ENCODED_PROFILE_PATH=$(node -e "console.log(process.argv[1].split('/').map(encodeURIComponent).join('/'))" "$PROFILE_PATH")
+          mkdir -p ./dist
 
-          # 通过 GitHub API 获取 YAML 配置档案
-          API_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
-            "https://api.github.com/repos/q42602736/Xboard-Mihomo_sub/contents/${ENCODED_PROFILE_PATH}?ref=main")
-          
-          # 检查是否成功获取
-          if echo "$API_RESPONSE" | grep -q '"content"'; then
-            PROFILE_YAML=$(echo "$API_RESPONSE" | node -e "
-              const d=require('fs').readFileSync(0,'utf8');
-              const j=JSON.parse(d);
-              if(j.content) process.stdout.write(Buffer.from(String(j.content).replace(/\\n/g, ''),'base64').toString());
-            ")
-            
-            APP_NAME=$(printf '%s' "$PROFILE_YAML" | node -e "
-              const fs = require('fs');
-              const yaml = fs.readFileSync(0, 'utf8');
-              const appBlockMatch = yaml.match(/(?:^|\r?\n)  app:\r?\n((?:    .*?(?:\r?\n|$)|\r?\n)*)/);
-              const appTitleMatch = appBlockMatch ? appBlockMatch[1].match(/(?:^|\r?\n)    title:\s*['\\\"]?([^'\"\\r\\n]+)['\\\"]?/) : null;
-              const rootTitleMatch = yaml.match(/(?:^|\r?\n)  title:\s*['\\\"]?([^'\"\\r\\n]+)['\\\"]?/);
-              const rawName = appTitleMatch ? appTitleMatch[1].trim() : (rootTitleMatch ? rootTitleMatch[1].trim() : '$PROFILE_NAME');
-              console.log(String(rawName || '').replace(/[\\r\\n]+/g, ' ').trim());
-            ")
-          else
-            echo "Failed to get profile yaml, using profile name as app name"
-            APP_NAME="$PROFILE_NAME"
-          fi
-          
-          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
-          echo "App Name: $APP_NAME"
+          ASSETS_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./dist/
-          merge-multiple: true
+          printf '%s' "$ASSETS_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            const assets = (Array.isArray(data) ? data : [])
+              .filter(item => item && item.id && item.name && !item.name.endsWith('-bundle.zip'));
+            for (const asset of assets) {
+              process.stdout.write(String(asset.id) + '\t' + asset.name + '\n');
+            }
+          " | while IFS=$'\t' read -r asset_id asset_name; do
+            [ -n "$asset_id" ] || continue
+            echo "Downloading release asset: $asset_name"
+            curl -L -sS --fail \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/octet-stream" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/assets/${asset_id}" \
+              -o "./dist/${asset_name}"
+          done
 
       - name: Check artifacts
         id: check
@@ -1128,54 +1293,40 @@ jobs:
           echo "package_path=./release/${PACKAGE_NAME}" >> $GITHUB_OUTPUT
           echo "Created bundle: ./release/${PACKAGE_NAME}"
 
-      - name: Upload merged bundle
-        if: steps.check.outputs.has_artifacts == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.check.outputs.profile_name_safe }}-${{ github.event.inputs.tag }}-bundle
-          path: ${{ steps.package.outputs.package_path }}
-          retention-days: 30
-
-      - name: Create Draft Release
+      - name: Upload merged bundle to Draft Release
         if: steps.check.outputs.has_artifacts == 'true'
         env:
           GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+          RELEASE_UPLOAD_URL: ${{ needs.prepare-release.outputs.upload_url }}
         run: |
-          APP_NAME="${{ steps.config.outputs.app_name }}"
-          PROFILE_NAME="${{ github.event.inputs.profile }}"
-          VERSION="${{ github.event.inputs.tag }}"
-          RELEASE_TAG="${PROFILE_NAME}-${VERSION}-${{ github.run_id }}"
           PACKAGE_NAME="${{ steps.package.outputs.package_name }}"
+          ASSETS_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
+          EXISTING_BUNDLE_ID=$(printf '%s' "$ASSETS_RESPONSE" | node -e "
+            const fs = require('fs');
+            const packageName = process.argv[1];
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            const asset = (Array.isArray(data) ? data : []).find(item => item && item.name === packageName);
+            process.stdout.write(asset ? String(asset.id) : '');
+          " "$PACKAGE_NAME")
 
-          echo "Creating draft release: ${APP_NAME} ${VERSION} (tag: ${RELEASE_TAG})"
-
-          # 检查 release 是否已存在（使用 profile+version+run_id 组合标签避免冲突）
-          EXISTING=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/tags/${RELEASE_TAG}" | grep -c '"id"' || true)
-
-          if [ "$EXISTING" -gt 0 ]; then
-            echo "Release ${RELEASE_TAG} already exists, deleting..."
-            RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/tags/${RELEASE_TAG}" | grep '"id"' | head -1 | grep -o '[0-9]*')
-            curl -s -X DELETE -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases/${RELEASE_ID}"
+          if [ -n "$EXISTING_BUNDLE_ID" ]; then
+            echo "Deleting existing bundle asset: $PACKAGE_NAME"
+            curl -s -X DELETE -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/assets/${EXISTING_BUNDLE_ID}" > /dev/null
           fi
 
-          RELEASE_PAYLOAD=$(node -e 'const [appName, version, releaseTag, profileName] = process.argv.slice(1); process.stdout.write(JSON.stringify({ tag_name: releaseTag, name: `${appName} ${version}`, draft: true, body: `${appName} ${version} 构建产物\n\n档案: ${profileName}` }));' "$APP_NAME" "$VERSION" "$RELEASE_TAG" "$PROFILE_NAME")
-
-          RELEASE_RESPONSE=$(curl -s -X POST -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" -H "Content-Type: application/json" "https://api.github.com/repos/q42602736/Xboard-Mihomo-builds/releases" -d "$RELEASE_PAYLOAD")
-
-          RELEASE_ID=$(echo "$RELEASE_RESPONSE" | node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(0,'utf8')); console.log(data.id || '');")
-          UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(0,'utf8')); console.log((data.upload_url || '').replace(/\{.*$/, ''));")
-
-          echo "Release ID: $RELEASE_ID"
-          echo "Upload URL: $UPLOAD_URL"
-
-          # 只上传合集包
           cd ./release
-          filesize=$(du -h "$PACKAGE_NAME" | cut -f1)
-          echo "Uploading bundle: $PACKAGE_NAME ($filesize)"
+          FILESIZE=$(du -h "$PACKAGE_NAME" | cut -f1)
+          ENCODED_FILENAME=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$PACKAGE_NAME")
 
-          encoded_filename=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$PACKAGE_NAME")
+          echo "Uploading merged bundle: $PACKAGE_NAME ($FILESIZE)"
+          curl -sS --fail -X POST \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/zip" \
+            "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}" \
+            --data-binary @"$PACKAGE_NAME" > /dev/null
 
-          curl -s -X POST -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" -H "Content-Type: application/zip" "${UPLOAD_URL}?name=${encoded_filename}" --data-binary @"$PACKAGE_NAME" || echo "Failed to upload $PACKAGE_NAME"
-
-          echo "Draft release created successfully!"
-          echo "View at: https://github.com/q42602736/Xboard-Mihomo-builds/releases"
+          echo "Draft release updated successfully!"
+          echo "View at: https://github.com/${{ github.repository }}/releases"
