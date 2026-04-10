@@ -1621,6 +1621,14 @@
                                 <input type="text" id="decryptKey" placeholder="your_secret_decrypt_key_here">
                             </div>
                         </div>
+                        <div class="section" id="sspanelMetronConfigSection">
+                            <div class="section-title">SSPanel-Metron 专属配置</div>
+                            <div class="form-group">
+                                <label>自定义订阅查询后缀</label>
+                                <input type="text" id="subscriptionCustomQuerySuffix" placeholder="留空时默认使用 clash=1">
+                                <div class="help-text">按需填写。留空时默认使用 <code>clash=1</code>，且不会额外写入该配置；如需 Clash Meta，可填写 <code>clashmeta=1</code>。</div>
+                            </div>
+                        </div>
                         <div class="section">
                             <div class="section-title">自动离线模式</div>
                             <div class="switch-card">
@@ -3005,7 +3013,7 @@
             document.getElementById('provider').addEventListener('change', function() {
                 updateProviderConsistencyState({ source: 'basic' });
             });
-            ['subscriptionUserAgent'].forEach(function(id) {
+            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (!el) return;
                 el.addEventListener('input', formToYaml);
@@ -3244,6 +3252,7 @@
                 auth_background_image_url: document.getElementById('authBackgroundImageUrl').value.trim(),
                 prefer_encrypt: document.getElementById('preferEncrypt').checked,
                 user_agent: document.getElementById('subscriptionUserAgent').value.trim(),
+                custom_query_suffix: document.getElementById('subscriptionCustomQuerySuffix').value.trim(),
                 use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
                 auto_offline_enabled: document.getElementById('autoOfflineEnabled').checked,
@@ -5253,6 +5262,7 @@
             document.getElementById('preferEncrypt').checked = getSubscriptionBool('prefer_encrypt');
             document.getElementById('preferEncryptLabel').textContent = getSubscriptionBool('prefer_encrypt') ? '开启' : '关闭';
             document.getElementById('subscriptionUserAgent').value = getSubscriptionValue('user_agent');
+            document.getElementById('subscriptionCustomQuerySuffix').value = getSubscriptionValue('custom_query_suffix');
             document.getElementById('useExclusiveMode').checked = getSubscriptionBool('use_exclusive_mode');
             document.getElementById('useExclusiveModeLabel').textContent = getSubscriptionBool('use_exclusive_mode') ? '开启' : '关闭';
             document.getElementById('decryptKey').value = getSubscriptionValue('decrypt_key');

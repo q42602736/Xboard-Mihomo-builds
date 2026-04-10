@@ -213,16 +213,17 @@ func normalizeSubscriptionConfig(yamlContent string) string {
 	subscription := ensureMapValueNode(xboard, "subscription")
 
 	var preferEncrypt, useExclusiveMode bool
-	var decryptKey, subscriptionUserAgent string
+	var decryptKey, subscriptionUserAgent, subscriptionCustomQuerySuffix string
 	var hasLegacy bool
 
 	preferEncrypt, hasLegacy = readLegacyBool(xboard, "prefer_encrypt", hasLegacy)
 	useExclusiveMode, hasLegacy = readLegacyBool(xboard, "use_exclusive_mode", hasLegacy)
 	decryptKey, hasLegacy = readLegacyString(xboard, "decrypt_key", hasLegacy)
 	subscriptionUserAgent, hasLegacy = readLegacyString(xboard, "user_agent", hasLegacy)
+	subscriptionCustomQuerySuffix, hasLegacy = readLegacyString(xboard, "custom_query_suffix", hasLegacy)
 
 	if hasLegacy {
-		removeMapKeys(xboard, "prefer_encrypt", "use_exclusive_mode", "decrypt_key", "user_agent")
+		removeMapKeys(xboard, "prefer_encrypt", "use_exclusive_mode", "decrypt_key", "user_agent", "custom_query_suffix")
 		setMapBoolValue(subscription, "prefer_encrypt", preferEncrypt)
 		setMapBoolValue(subscription, "use_exclusive_mode", useExclusiveMode)
 		if strings.TrimSpace(decryptKey) != "" {
@@ -230,6 +231,9 @@ func normalizeSubscriptionConfig(yamlContent string) string {
 		}
 		if strings.TrimSpace(subscriptionUserAgent) != "" {
 			setMapStringValue(subscription, "user_agent", strings.TrimSpace(subscriptionUserAgent))
+		}
+		if strings.TrimSpace(subscriptionCustomQuerySuffix) != "" {
+			setMapStringValue(subscription, "custom_query_suffix", strings.TrimSpace(subscriptionCustomQuerySuffix))
 		}
 	}
 
