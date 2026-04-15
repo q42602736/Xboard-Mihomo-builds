@@ -28,6 +28,8 @@ type ProfileFormState struct {
 	HideTrafficDetails            bool                      `json:"hide_traffic_details"`
 	HideNodeStatus                bool                      `json:"hide_node_status"`
 	HomePanelDefaultLayout        string                    `json:"home_panel_default_layout"`
+	LatencyReductionEnabled       bool                      `json:"latency_reduction_enabled"`
+	LatencyReductionValue         int                       `json:"latency_reduction_value"`
 	NoticeAutoOpenOnStartup       bool                      `json:"notice_auto_open_on_startup"`
 	GiftCardShowButton            bool                      `json:"gift_card_show_button"`
 	ShowCustomRuleEntry           bool                      `json:"show_custom_rule_entry"`
@@ -75,6 +77,7 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	autoOffline := ensureMapValueNode(xboard, "auto_offline")
 	subscriptionCache := ensureMapValueNode(xboard, "subscription_cache")
 	ui := ensureMapValueNode(xboard, "ui")
+	latencyReduction := ensureMapValueNode(ui, "latency_reduction")
 	notice := ensureMapValueNode(ui, "notice")
 	giftCard := ensureMapValueNode(ui, "gift_card")
 	proxyGroups := ensureMapValueNode(ui, "proxy_groups")
@@ -110,6 +113,8 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 		homePanelDefaultLayout = "default"
 	}
 	setMapStringValue(ui, "home_panel_default_layout", homePanelDefaultLayout)
+	setMapBoolValue(latencyReduction, "enabled", form.LatencyReductionEnabled)
+	setMapIntValue(latencyReduction, "value", normalizeLatencyReductionValue(form.LatencyReductionValue))
 	setMapBoolValue(notice, "auto_open_on_startup", form.NoticeAutoOpenOnStartup)
 	setMapBoolValue(giftCard, "show_button", form.GiftCardShowButton)
 	setMapBoolValue(proxyGroups, "show_custom_rule_entry", form.ShowCustomRuleEntry)
@@ -266,6 +271,16 @@ func setMapIntValue(parent *yaml.Node, key string, value int) {
 		Tag:   "!!int",
 		Value: strconv.Itoa(value),
 	})
+}
+
+func normalizeLatencyReductionValue(value int) int {
+	if value < 0 {
+		return 0
+	}
+	if value > 90 {
+		return 90
+	}
+	return value
 }
 
 func newStringYamlNode(value string) *yaml.Node {

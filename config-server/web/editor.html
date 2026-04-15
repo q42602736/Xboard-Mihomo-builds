@@ -2930,6 +2930,22 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">延迟显示调整</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="latencyReductionEnabled"><span class="slider"></span></label>
+                                        <span id="latencyReductionEnabledLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="switch-card-extra">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label>延迟降低百分比</label>
+                                        <input type="number" id="latencyReductionValue" value="0" min="0" max="90" placeholder="0">
+                                    </div>
+                                </div>
+                                <div class="help-text">测速后显示值会按百分比降低。兼容旧写法 <code>latency_reduction: 90</code>，保存时统一写为新格式。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">首页自动弹出公告</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="noticeAutoOpenOnStartup"><span class="slider"></span></label>
@@ -4881,6 +4897,9 @@
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
                 '    home_panel_default_layout: default',
+                '    latency_reduction:',
+                '      enabled: false',
+                '      value: 0',
                 '    notice:',
                 '      auto_open_on_startup: false',
                 '    proxy_groups:',
@@ -5044,6 +5063,8 @@
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
                 home_panel_default_layout: document.getElementById('homePanelDefaultLayout').value,
+                latency_reduction_enabled: document.getElementById('latencyReductionEnabled').checked,
+                latency_reduction_value: normalizeLatencyReductionValue(document.getElementById('latencyReductionValue').value),
                 notice_auto_open_on_startup: document.getElementById('noticeAutoOpenOnStartup').checked,
                 show_custom_rule_entry: document.getElementById('showCustomRuleEntry').checked,
                 auth_pages_support_show_button: document.getElementById('authPagesSupportShowButton').checked,
@@ -5727,7 +5748,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'authPagesSupportShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'authPagesSupportShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -5747,6 +5768,17 @@
             document.getElementById('subscriptionCacheTtl').addEventListener('change', function() {
                 formToYaml();
             });
+            document.getElementById('latencyReductionValue').addEventListener('change', function() {
+                this.value = normalizeLatencyReductionValue(this.value);
+                formToYaml();
+            });
+        }
+
+        function normalizeLatencyReductionValue(value) {
+            var parsed = parseInt(value, 10);
+            if (isNaN(parsed) || parsed < 0) return 0;
+            if (parsed > 90) return 90;
+            return parsed;
         }
 
         function initPlatformCheckboxes() {
@@ -7081,6 +7113,27 @@
             var homePanelDefaultLayout = homePanelDefaultLayoutMatch ? homePanelDefaultLayoutMatch[1].trim().replace(/^["']|["']$/g, '') : 'default';
             document.getElementById('homePanelDefaultLayout').value = homePanelDefaultLayout || 'default';
             syncAllCustomSelects(document.getElementById('homePanelDefaultLayout'));
+            var latencyReductionEnabledMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}latency_reduction:\s*\n(?:[\s\S]*?)^\s{6}enabled:\s*(true|false)/m) ||
+                yaml.match(/latency_reduction:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);
+            var latencyReductionValueMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}latency_reduction:\s*\n(?:[\s\S]*?)^\s{6}value:\s*(-?\d+)/m) ||
+                yaml.match(/latency_reduction:\s*\n(?:[\s\S]*?)value:\s*(-?\d+)/);
+            var legacyLatencyReductionMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}latency_reduction:\s*(-?\d+)/m) ||
+                yaml.match(/latency_reduction:\s*(-?\d+)/);
+            var latencyReductionEnabled = false;
+            var latencyReductionValue = 0;
+            if (latencyReductionEnabledMatch || latencyReductionValueMatch) {
+                latencyReductionEnabled = latencyReductionEnabledMatch ? latencyReductionEnabledMatch[1] === 'true' : false;
+                latencyReductionValue = latencyReductionValueMatch ? normalizeLatencyReductionValue(latencyReductionValueMatch[1]) : 0;
+            } else if (legacyLatencyReductionMatch) {
+                latencyReductionValue = normalizeLatencyReductionValue(legacyLatencyReductionMatch[1]);
+                latencyReductionEnabled = latencyReductionValue > 0;
+            }
+            document.getElementById('latencyReductionEnabled').checked = latencyReductionEnabled;
+            document.getElementById('latencyReductionEnabledLabel').textContent = latencyReductionEnabled ? '开启' : '关闭';
+            document.getElementById('latencyReductionValue').value = latencyReductionValue;
             var noticeAutoOpenMatch = yaml.match(/notice:\s*\n(?:[\s\S]*?)auto_open_on_startup:\s*(true|false)/);
             var noticeAutoOpenOnStartup = noticeAutoOpenMatch ? noticeAutoOpenMatch[1] === 'true' : false;
             document.getElementById('noticeAutoOpenOnStartup').checked = noticeAutoOpenOnStartup;
