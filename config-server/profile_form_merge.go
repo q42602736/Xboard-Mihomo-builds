@@ -27,6 +27,7 @@ type ProfileFormState struct {
 	SubscriptionCacheTTL          int                       `json:"subscription_cache_ttl"`
 	HideTrafficDetails            bool                      `json:"hide_traffic_details"`
 	HideNodeStatus                bool                      `json:"hide_node_status"`
+	HomePanelDefaultLayout        string                    `json:"home_panel_default_layout"`
 	NoticeAutoOpenOnStartup       bool                      `json:"notice_auto_open_on_startup"`
 	GiftCardShowButton            bool                      `json:"gift_card_show_button"`
 	ShowCustomRuleEntry           bool                      `json:"show_custom_rule_entry"`
@@ -104,6 +105,11 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	setMapIntValue(subscriptionCache, "ttl_hours", form.SubscriptionCacheTTL)
 	setMapBoolValue(ui, "hide_traffic_details", form.HideTrafficDetails)
 	setMapBoolValue(ui, "hide_node_status", form.HideNodeStatus)
+	homePanelDefaultLayout := strings.TrimSpace(form.HomePanelDefaultLayout)
+	if homePanelDefaultLayout == "" {
+		homePanelDefaultLayout = "default"
+	}
+	setMapStringValue(ui, "home_panel_default_layout", homePanelDefaultLayout)
 	setMapBoolValue(notice, "auto_open_on_startup", form.NoticeAutoOpenOnStartup)
 	setMapBoolValue(giftCard, "show_button", form.GiftCardShowButton)
 	setMapBoolValue(proxyGroups, "show_custom_rule_entry", form.ShowCustomRuleEntry)

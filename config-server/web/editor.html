@@ -1347,6 +1347,1375 @@
             0% { transform: translateX(-120%); }
             100% { transform: translateX(320%); }
         }
+        .home-preview-panel {
+            margin-top: 18px;
+            padding: 18px;
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .home-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .home-preview-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #f5f7fb;
+        }
+        .home-preview-subtitle {
+            margin-top: 6px;
+            font-size: 12px;
+            line-height: 1.7;
+            color: #94a3b8;
+        }
+        .home-preview-device-switch {
+            display: inline-flex;
+            padding: 4px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255,255,255,0.08);
+            gap: 4px;
+        }
+        .home-preview-device-btn {
+            border: none;
+            border-radius: 999px;
+            padding: 9px 14px;
+            background: transparent;
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .home-preview-device-btn.active {
+            background: linear-gradient(135deg, rgba(0,212,255,0.22), rgba(0,255,136,0.16));
+            color: #e6fbff;
+            box-shadow: inset 0 0 0 1px rgba(0,212,255,0.22);
+        }
+        .home-preview-stage {
+            padding: 20px;
+            border-radius: 18px;
+            background:
+                radial-gradient(circle at top left, rgba(0,212,255,0.12), transparent 34%),
+                radial-gradient(circle at bottom right, rgba(0,255,136,0.10), transparent 28%),
+                linear-gradient(180deg, rgba(8,15,31,0.96), rgba(12,19,34,0.96));
+            border: 1px solid rgba(255,255,255,0.08);
+            overflow: auto;
+        }
+        .home-preview-frame {
+            margin: 0 auto;
+            border-radius: 28px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: linear-gradient(180deg, #0a1222, #101a2d);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .home-preview-frame.desktop {
+            max-width: 960px;
+            min-height: 560px;
+        }
+        .home-preview-frame.mobile {
+            width: 360px;
+            min-height: 740px;
+            border-radius: 34px;
+        }
+        .home-preview-frame-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 18px 0;
+            gap: 12px;
+        }
+        .home-preview-label-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .home-preview-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #dbe8f7;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+        .home-preview-pill.layout {
+            background: rgba(0,212,255,0.10);
+            border-color: rgba(0,212,255,0.18);
+            color: #8feaff;
+        }
+        .home-preview-pill.notice {
+            background: rgba(0,255,136,0.08);
+            border-color: rgba(0,255,136,0.14);
+            color: #86f7c6;
+        }
+        .home-preview-canvas {
+            position: relative;
+            padding: 18px 18px 24px;
+        }
+        .home-preview-canvas.desktop {
+            min-height: 500px;
+        }
+        .home-preview-canvas.mobile {
+            min-height: 670px;
+            padding-top: 20px;
+        }
+        .home-preview-floating-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+        .home-preview-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .home-preview-stack.desktop {
+            max-width: 540px;
+            margin: 0 auto;
+        }
+        .home-preview-stack.desktop.layout1 {
+            max-width: 760px;
+        }
+        .home-preview-stack.mobile {
+            gap: 12px;
+        }
+        .home-preview-card {
+            border-radius: 22px;
+            background: linear-gradient(180deg, rgba(20,31,50,0.94), rgba(15,24,40,0.94));
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+        }
+        .home-preview-subscription {
+            padding: 16px 18px;
+        }
+        .home-preview-subscription.compact {
+            padding: 13px 14px;
+        }
+        .home-preview-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .home-preview-card-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #f8fbff;
+        }
+        .home-preview-card-desc {
+            font-size: 11px;
+            color: #7f93ad;
+        }
+        .home-preview-subscription-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .home-preview-stat {
+            padding: 10px 12px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .home-preview-stat-label {
+            font-size: 10px;
+            color: #7f93ad;
+            margin-bottom: 6px;
+        }
+        .home-preview-stat-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: #f8fbff;
+        }
+        .home-preview-stat-value.accent {
+            color: #6fe6b8;
+        }
+        .home-preview-hero {
+            padding: 22px 18px;
+            text-align: center;
+        }
+        .home-preview-hero.mobile {
+            padding: 18px 16px;
+        }
+        .home-preview-globe {
+            width: 128px;
+            height: 128px;
+            margin: 0 auto 14px;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at 30% 30%, rgba(0,212,255,0.48), transparent 36%),
+                linear-gradient(135deg, rgba(0,212,255,0.16), rgba(0,255,136,0.12));
+            border: 1px solid rgba(0,212,255,0.24);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ce8ff;
+            font-size: 40px;
+            font-weight: 700;
+            box-shadow: 0 18px 40px rgba(0,0,0,0.28);
+        }
+        .home-preview-globe.mobile {
+            width: 108px;
+            height: 108px;
+            font-size: 34px;
+        }
+        .home-preview-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(76,175,80,0.12);
+            border: 1px solid rgba(76,175,80,0.28);
+            color: #8ff2aa;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .home-preview-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #61d27b;
+        }
+        .home-preview-ip {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #8ea4bf;
+        }
+        .home-preview-mode,
+        .home-preview-node,
+        .home-preview-offline {
+            padding: 15px 16px;
+        }
+        .home-preview-mode-options {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .home-preview-mode-option {
+            flex: 1;
+            min-width: 72px;
+            padding: 10px 0;
+            text-align: center;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            color: #8ea4bf;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .home-preview-mode-option.active {
+            background: rgba(0,212,255,0.14);
+            border-color: rgba(0,212,255,0.22);
+            color: #a9efff;
+        }
+        .home-preview-node-list {
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+        .home-preview-node-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .home-preview-node-name {
+            color: #f0f6ff;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .home-preview-node-meta {
+            color: #7f93ad;
+            font-size: 11px;
+        }
+        .home-preview-toggle {
+            position: relative;
+            width: 42px;
+            height: 24px;
+            border-radius: 999px;
+            background: rgba(255,152,0,0.28);
+            border: 1px solid rgba(255,152,0,0.34);
+        }
+        .home-preview-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #ffd59a;
+        }
+        .home-preview-shortcut-grid {
+            display: grid;
+            grid-template-columns: 116px minmax(0, 1fr) 116px;
+            gap: 10px;
+            margin-bottom: 18px;
+            align-items: stretch;
+        }
+        .home-preview-shortcut-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .home-preview-shortcut-card {
+            padding: 14px;
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(19,31,51,0.96), rgba(14,23,39,0.96));
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .home-preview-shortcut-card.mini {
+            padding: 12px;
+        }
+        .home-preview-shortcut-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+            background: rgba(0,212,255,0.12);
+            color: #9ce8ff;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .home-preview-shortcut-text {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            color: #f0f6ff;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .home-preview-shortcut-badge {
+            min-width: 20px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: #00a88b;
+            color: #fff;
+            font-size: 10px;
+            text-align: center;
+        }
+        @media (max-width: 900px) {
+            .home-preview-shortcut-grid {
+                grid-template-columns: 1fr;
+            }
+            .home-preview-frame.desktop {
+                min-width: 760px;
+            }
+        }
+        .home-preview-panel {
+            background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.06));
+            border-color: rgba(255,255,255,0.12);
+        }
+        .home-preview-title {
+            color: #111827;
+        }
+        .home-preview-device-switch {
+            background: rgba(241, 245, 249, 0.95);
+            border-color: rgba(203, 213, 225, 0.9);
+        }
+        .home-preview-device-btn {
+            color: #64748b;
+        }
+        .home-preview-close-btn {
+            border: none;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(241, 245, 249, 0.95);
+            border: 1px solid rgba(203, 213, 225, 0.9);
+            color: #475569;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .home-preview-close-btn:hover {
+            background: rgba(226, 232, 240, 0.98);
+        }
+        .home-preview-launchers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .home-preview-launcher {
+            border: 1px solid rgba(203, 213, 225, 0.85);
+            background: rgba(255,255,255,0.72);
+            border-radius: 14px;
+            padding: 11px 14px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: inherit;
+            min-width: 188px;
+        }
+        .home-preview-launcher:hover {
+            border-color: rgba(148, 163, 184, 0.95);
+            box-shadow: 0 8px 16px rgba(148, 163, 184, 0.12);
+            transform: translateY(-1px);
+        }
+        .home-preview-launcher.active {
+            border-color: rgba(37, 99, 235, 0.72);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+            background: rgba(239, 246, 255, 0.82);
+        }
+        .home-preview-launcher-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+        .home-preview-launcher-title {
+            color: #111827;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .home-preview-launcher-meta {
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        .home-preview-launcher-badge {
+            flex-shrink: 0;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(226, 232, 240, 0.9);
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .home-preview-launcher-badge.current {
+            background: rgba(219, 234, 254, 0.95);
+            color: #2563eb;
+        }
+        .home-preview-empty {
+            padding: 38px 24px;
+            border-radius: 22px;
+            border: 1px dashed rgba(148, 163, 184, 0.45);
+            background: rgba(255,255,255,0.52);
+            text-align: center;
+        }
+        .home-preview-empty-icon {
+            width: 54px;
+            height: 54px;
+            margin: 0 auto 14px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(226, 232, 240, 0.9);
+            color: #64748b;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .home-preview-empty-title {
+            color: #111827;
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .home-preview-empty-text {
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.8;
+        }
+        .home-preview-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 28px;
+        }
+        .home-preview-modal.is-open {
+            display: flex;
+        }
+        .home-preview-modal-backdrop {
+            position: absolute;
+            inset: 0;
+            border: none;
+            padding: 0;
+            background: rgba(15, 23, 42, 0.48);
+            backdrop-filter: blur(6px);
+            cursor: pointer;
+        }
+        .home-preview-modal-dialog {
+            position: relative;
+            z-index: 1;
+            width: min(94vw, 1500px);
+            max-height: 90vh;
+            padding: 14px;
+            border-radius: 24px;
+            background: linear-gradient(180deg, rgba(33, 37, 56, 0.96), rgba(42, 46, 66, 0.96));
+            border: 1px solid rgba(255,255,255,0.10);
+            box-shadow: 0 28px 80px rgba(15, 23, 42, 0.38);
+            overflow: hidden;
+        }
+        .home-preview-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 4px 6px 14px;
+        }
+        .home-preview-modal-title {
+            color: #f8fafc;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .home-preview-modal-desc {
+            color: rgba(226, 232, 240, 0.74);
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .home-preview-stage {
+            max-height: calc(90vh - 78px);
+            overflow: auto;
+        }
+        .home-preview-frame {
+            border-radius: 30px;
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            background: linear-gradient(180deg, #f8fbff, #eef4fa);
+            box-shadow: 0 24px 60px rgba(148, 163, 184, 0.22);
+            color: #6b7280;
+        }
+        .home-preview-frame.desktop {
+            max-width: 1320px;
+            min-height: 720px;
+        }
+        .home-preview-frame.mobile {
+            width: 402px;
+            min-height: 844px;
+            border-radius: 36px;
+        }
+        .home-preview-shell {
+            position: relative;
+            overflow: hidden;
+        }
+        .home-preview-shell.desktop {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            min-height: 720px;
+        }
+        .home-preview-shell.mobile {
+            min-height: 844px;
+        }
+        .home-preview-sidebar-rail {
+            padding: 18px 14px;
+            background: rgba(255,255,255,0.68);
+            border-right: 1px solid rgba(203, 213, 225, 0.55);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .home-preview-sidebar-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 10px;
+            border-radius: 26px;
+            color: #7c7c7c;
+            font-size: 15px;
+            font-weight: 700;
+        }
+        .home-preview-sidebar-item.active {
+            background: rgba(226, 237, 249, 0.95);
+            box-shadow: inset 4px 0 0 #0b61d8;
+            color: #222;
+        }
+        .home-preview-sidebar-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #7f8690;
+            font-size: 20px;
+            font-weight: 800;
+        }
+        .home-preview-sidebar-item.active .home-preview-sidebar-icon {
+            color: #0b61d8;
+        }
+        .home-preview-sidebar-spacer {
+            flex: 1;
+        }
+        .home-preview-main {
+            position: relative;
+            padding: 30px 48px 38px;
+            background:
+                radial-gradient(circle at center, rgba(255,255,255,0.90), rgba(243,247,252,0.88) 58%, rgba(232,239,248,0.90)),
+                linear-gradient(180deg, #f9fcff, #edf3fa);
+        }
+        .home-preview-main.mobile {
+            padding: 16px 20px 108px;
+            min-height: 844px;
+        }
+        .home-preview-floating-corners {
+            position: absolute;
+            top: 28px;
+            left: 48px;
+            right: 48px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+        }
+        .home-preview-main.mobile .home-preview-floating-corners {
+            top: 18px;
+            left: 20px;
+            right: 20px;
+        }
+        .home-preview-main.layout-default {
+            padding-top: 34px;
+        }
+        .home-preview-main.layout-default .home-preview-stack.desktop {
+            padding-top: 96px;
+        }
+        .home-preview-main.mobile.layout-default {
+            padding-top: 84px;
+        }
+        .home-preview-gallery {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            align-items: start;
+        }
+        .home-preview-gallery.is-single {
+            grid-template-columns: 1fr;
+        }
+        .home-preview-scene {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 14px;
+            border-radius: 22px;
+            background: rgba(255,255,255,0.42);
+            border: 1px solid rgba(203, 213, 225, 0.8);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+        }
+        .home-preview-scene.active {
+            border-color: rgba(37, 99, 235, 0.75);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.6),
+                0 0 0 3px rgba(59, 130, 246, 0.16);
+        }
+        .home-preview-scene-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .home-preview-scene-title {
+            color: #111827;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .home-preview-scene-meta {
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .home-preview-scene-badge {
+            flex-shrink: 0;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(226, 232, 240, 0.95);
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .home-preview-scene-badge.active {
+            background: rgba(219, 234, 254, 0.98);
+            color: #2563eb;
+        }
+        .home-preview-image-shell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        .home-preview-image-frame {
+            width: 100%;
+            padding: 10px;
+            border-radius: 26px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.88), rgba(241,245,249,0.92));
+            border: 1px solid rgba(203, 213, 225, 0.92);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.86),
+                0 18px 42px rgba(148, 163, 184, 0.18);
+        }
+        .home-preview-image-frame.desktop {
+            max-width: 1220px;
+        }
+        .home-preview-image-frame.mobile {
+            max-width: 430px;
+        }
+        .home-preview-image-frame img {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: 18px;
+            background: #fff;
+        }
+        .home-preview-image-note {
+            width: 100%;
+            max-width: 760px;
+            text-align: center;
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+        .home-preview-main.layout1 {
+            padding-top: 38px;
+        }
+        .home-preview-stack.desktop {
+            max-width: 1040px;
+            gap: 18px;
+        }
+        .home-preview-stack.mobile {
+            width: min(100%, 352px);
+            margin: 0 auto;
+            gap: 14px;
+        }
+        .home-preview-layout1-header {
+            max-width: 1040px;
+            display: grid;
+            grid-template-columns: 170px minmax(0, 1fr) 170px;
+            gap: 14px;
+            align-items: stretch;
+        }
+        .home-preview-card,
+        .home-preview-shortcut-card {
+            background: rgba(255,255,255,0.75);
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            box-shadow: 0 10px 28px rgba(203, 213, 225, 0.18);
+            backdrop-filter: blur(8px);
+        }
+        .home-preview-card-title {
+            color: #666;
+            font-size: 15px;
+            font-weight: 700;
+        }
+        .home-preview-card-desc {
+            color: #b5b5b5;
+            font-size: 13px;
+        }
+        .home-preview-power-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 22px;
+            padding: 16px 0 4px;
+        }
+        .home-preview-power-wrap.mobile {
+            padding: 0;
+            gap: 8px;
+        }
+        .home-preview-globe {
+            --preview-globe-size: 346px;
+            --preview-ring-inset: 12px;
+            --preview-ring-width: 20px;
+            width: var(--preview-globe-size);
+            height: var(--preview-globe-size);
+            margin: 0;
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            --preview-icon-size: 116px;
+            --preview-icon-stroke: 12px;
+            --preview-icon-line-width: 15px;
+            background:
+                radial-gradient(circle at 32% 24%, rgba(255,255,255,0.98), rgba(245,248,252,0.95) 38%, rgba(229,236,244,0.98) 100%);
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            box-shadow:
+                0 18px 42px rgba(203, 213, 225, 0.35),
+                inset 0 1px 0 rgba(255,255,255,0.7);
+            color: transparent;
+            font-size: 0;
+        }
+        .home-preview-globe.mobile {
+            --preview-globe-size: 172px;
+            --preview-ring-inset: 9px;
+            --preview-ring-width: 14px;
+            --preview-icon-size: 58px;
+            --preview-icon-stroke: 7px;
+            --preview-icon-line-width: 9px;
+        }
+        .home-preview-globe::before {
+            content: '';
+            position: absolute;
+            inset: var(--preview-ring-inset);
+            border-radius: 50%;
+            background: repeating-conic-gradient(
+                from -90deg,
+                rgba(255,255,255,0.34) 0deg 1.8deg,
+                transparent 1.8deg 30deg
+            );
+            -webkit-mask: radial-gradient(
+                farthest-side,
+                transparent calc(100% - var(--preview-ring-width)),
+                #000 calc(100% - var(--preview-ring-width))
+            );
+            mask: radial-gradient(
+                farthest-side,
+                transparent calc(100% - var(--preview-ring-width)),
+                #000 calc(100% - var(--preview-ring-width))
+            );
+            opacity: 0.65;
+        }
+        .home-preview-globe::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.18), transparent 34%);
+            pointer-events: none;
+        }
+        .home-preview-power-icon {
+            position: relative;
+            width: var(--preview-icon-size);
+            height: var(--preview-icon-size);
+            border-radius: 50%;
+            display: block;
+            filter: drop-shadow(0 1px 0 rgba(255,255,255,0.25));
+        }
+        .home-preview-power-icon::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: conic-gradient(
+                from -90deg,
+                transparent 0deg 29deg,
+                rgba(150,150,150,0.94) 29deg 331deg,
+                transparent 331deg 360deg
+            );
+            -webkit-mask: radial-gradient(
+                farthest-side,
+                transparent calc(100% - var(--preview-icon-stroke)),
+                #000 calc(100% - var(--preview-icon-stroke) + 1px)
+            );
+            mask: radial-gradient(
+                farthest-side,
+                transparent calc(100% - var(--preview-icon-stroke)),
+                #000 calc(100% - var(--preview-icon-stroke) + 1px)
+            );
+        }
+        .home-preview-power-icon::after {
+            content: '';
+            position: absolute;
+            top: 22%;
+            left: 50%;
+            width: var(--preview-icon-line-width);
+            height: 40%;
+            border-radius: 999px;
+            background: rgba(150,150,150,0.94);
+            transform: translateX(-50%);
+        }
+        .home-preview-status {
+            padding: 12px 28px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.58);
+            border: 1px solid rgba(209, 213, 219, 0.95);
+            color: #7a7a7a;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .home-preview-status.mobile {
+            font-size: 14px;
+            font-weight: 500;
+            padding: 7px 14px;
+            border-radius: 18px;
+        }
+        .home-preview-status-dot {
+            display: none;
+        }
+        .home-preview-mode,
+        .home-preview-node,
+        .home-preview-offline,
+        .home-preview-subscription {
+            border-radius: 30px;
+            padding: 22px 26px;
+        }
+        .home-preview-subscription.compact {
+            border-radius: 22px;
+            padding: 16px 20px;
+        }
+        .home-preview-card-header {
+            margin-bottom: 18px;
+        }
+        .home-preview-mode-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+        .home-preview-mode-caption {
+            color: #b5b5b5;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: right;
+        }
+        .home-preview-mode-options {
+            flex-wrap: nowrap;
+        }
+        .home-preview-mode-option {
+            background: rgba(255,255,255,0.85);
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            color: #2f2f2f;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 22px;
+            padding: 18px 0;
+        }
+        .home-preview-mode-option.active {
+            background: linear-gradient(180deg, rgba(209,236,236,0.96), rgba(197,229,229,0.96));
+            border-color: rgba(188, 212, 212, 0.96);
+            color: #009c98;
+        }
+        .home-preview-node-row {
+            padding: 18px 20px;
+            border-radius: 24px;
+            background: rgba(255,255,255,0.62);
+            border: 1px solid rgba(226, 232, 240, 0.95);
+        }
+        .home-preview-node-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-width: 0;
+        }
+        .home-preview-node-name-wrap {
+            min-width: 0;
+        }
+        .home-preview-node-flag {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: rgba(239, 68, 68, 0.10);
+            color: #dc2626;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 800;
+        }
+        .home-preview-node-name {
+            color: #2f2f2f;
+            font-size: 18px;
+        }
+        .home-preview-node-meta {
+            color: #9a9a9a;
+            font-size: 14px;
+        }
+        .home-preview-node-latency {
+            color: #4caf50;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .home-preview-node-right {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .home-preview-node-action {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            background: rgba(124, 58, 237, 0.10);
+            color: #8a63d2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        .home-preview-node-arrow {
+            color: #9a9a9a;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .home-preview-subscription-grid {
+            gap: 22px;
+            align-items: start;
+            margin-bottom: 16px;
+        }
+        .home-preview-stat {
+            padding: 0;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+        }
+        .home-preview-stat-label {
+            color: #a8a8a8;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+        .home-preview-stat-value {
+            color: #111827;
+            font-size: 26px;
+            font-weight: 700;
+        }
+        .home-preview-stat-value.accent {
+            color: #009688;
+        }
+        .home-preview-stat-value.warning {
+            color: #ff9800;
+        }
+        .home-preview-subscription-refresh {
+            justify-self: end;
+            align-self: center;
+            padding: 14px 26px;
+            border-radius: 22px;
+            background: #54b948;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .home-preview-progress {
+            position: relative;
+            height: 16px;
+            border-radius: 999px;
+            background: #e8e8e8;
+            overflow: hidden;
+        }
+        .home-preview-progress > span {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 2%;
+            min-width: 14px;
+            border-radius: inherit;
+            background: linear-gradient(180deg, #1cb5a9, #0d9488);
+        }
+        .home-preview-progress-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6f6f6f;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .home-preview-subscription-footer {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 14px;
+            color: #9a9a9a;
+            font-size: 13px;
+            flex-wrap: wrap;
+        }
+        .home-preview-offline-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .home-preview-offline-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+        .home-preview-offline-icon {
+            width: 62px;
+            height: 62px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 184, 166, 0.12);
+            color: #0f766e;
+            font-size: 30px;
+            font-weight: 700;
+        }
+        .home-preview-toggle {
+            width: 120px;
+            height: 58px;
+            background: rgba(220, 220, 220, 0.92);
+            border-color: rgba(200, 200, 200, 0.95);
+        }
+        .home-preview-toggle::after {
+            top: 6px;
+            right: 6px;
+            width: 44px;
+            height: 44px;
+            background: #fff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+        }
+        .home-preview-quick-card {
+            min-width: 168px;
+            max-width: 188px;
+        }
+        .home-preview-quick-card.mobile {
+            min-width: 0;
+            max-width: none;
+        }
+        .home-preview-shortcut-card,
+        .home-preview-shortcut-card.mini {
+            padding: 14px 18px;
+            border-radius: 24px;
+        }
+        .home-preview-shortcut-icon {
+            width: 52px;
+            height: 52px;
+            margin-bottom: 0;
+            border-radius: 16px;
+            background: rgba(15, 184, 166, 0.10);
+            color: #0f9085;
+            font-size: 24px;
+        }
+        .home-preview-shortcut-text {
+            color: #2f2f2f;
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .home-preview-shortcut-card-inner {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .home-preview-shortcut-badge {
+            min-width: 28px;
+            padding: 4px 8px;
+            font-size: 14px;
+            background: #0f9085;
+        }
+        .home-preview-mobile-statusbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 18px 0;
+            color: #555;
+            font-size: 15px;
+            font-weight: 700;
+        }
+        .home-preview-mobile-dynamic {
+            width: 126px;
+            height: 28px;
+            margin: 0 auto 8px;
+            border-radius: 999px;
+            background: #000;
+        }
+        .home-preview-mobile-bottomnav {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 98px;
+            padding: 12px 10px 10px;
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 6px;
+            background: rgba(255,255,255,0.96);
+            border-top: 1px solid rgba(203, 213, 225, 0.8);
+        }
+        .home-preview-mobile-tab {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-radius: 18px;
+            color: #7f8ea7;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .home-preview-mobile-tab.active {
+            background: rgba(226, 237, 249, 0.95);
+            box-shadow: inset 0 0 0 2px rgba(147, 197, 253, 0.7);
+            color: #2563eb;
+        }
+        .home-preview-mobile-fab {
+            position: absolute;
+            right: 18px;
+            bottom: 112px;
+            width: 74px;
+            height: 74px;
+            border-radius: 50%;
+            background: #0c6a8a;
+            box-shadow: 0 16px 26px rgba(14, 116, 144, 0.35);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+        .home-preview-main.mobile .home-preview-subscription,
+        .home-preview-main.mobile .home-preview-mode,
+        .home-preview-main.mobile .home-preview-node,
+        .home-preview-main.mobile .home-preview-offline {
+            border-radius: 16px;
+            padding: 16px;
+        }
+        .home-preview-main.mobile .home-preview-card-title {
+            font-size: 14px;
+        }
+        .home-preview-main.mobile .home-preview-card-desc,
+        .home-preview-main.mobile .home-preview-mode-caption {
+            font-size: 12px;
+        }
+        .home-preview-main.mobile .home-preview-mode-header {
+            margin-bottom: 12px;
+            align-items: flex-start;
+        }
+        .home-preview-main.mobile .home-preview-mode-option {
+            border-radius: 12px;
+            font-size: 14px;
+            padding: 12px 0;
+        }
+        .home-preview-main.mobile .home-preview-node-row {
+            padding: 10px 12px;
+            border-radius: 16px;
+        }
+        .home-preview-main.mobile .home-preview-node-left {
+            gap: 10px;
+        }
+        .home-preview-main.mobile .home-preview-node-flag {
+            width: 36px;
+            height: 26px;
+            border-radius: 5px;
+            font-size: 11px;
+        }
+        .home-preview-main.mobile .home-preview-node-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .home-preview-main.mobile .home-preview-node-meta {
+            font-size: 11px;
+        }
+        .home-preview-main.mobile .home-preview-node-right {
+            gap: 6px;
+        }
+        .home-preview-main.mobile .home-preview-node-latency {
+            font-size: 12px;
+        }
+        .home-preview-main.mobile .home-preview-node-action {
+            width: 24px;
+            height: 24px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .home-preview-main.mobile .home-preview-node-arrow {
+            font-size: 18px;
+        }
+        .home-preview-main.mobile .home-preview-subscription-grid {
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .home-preview-main.mobile .home-preview-stat-label {
+            font-size: 10px;
+            margin-bottom: 4px;
+        }
+        .home-preview-main.mobile .home-preview-stat-value {
+            font-size: 18px;
+        }
+        .home-preview-main.mobile .home-preview-subscription-refresh {
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        .home-preview-main.mobile .home-preview-progress {
+            height: 10px;
+        }
+        .home-preview-main.mobile .home-preview-progress-text {
+            font-size: 10px;
+        }
+        .home-preview-main.mobile .home-preview-subscription-footer {
+            margin-top: 10px;
+            gap: 6px;
+            font-size: 10px;
+        }
+        .home-preview-main.mobile .home-preview-shortcut-row {
+            height: 54px;
+        }
+        .home-preview-shortcut-card.mobile.mini {
+            padding: 8px 12px;
+            border-radius: 14px;
+        }
+        .home-preview-shortcut-card.mobile.mini .home-preview-shortcut-card-inner {
+            height: 100%;
+            gap: 8px;
+        }
+        .home-preview-shortcut-card.mobile.mini .home-preview-shortcut-icon {
+            width: 28px;
+            height: 28px;
+            margin-bottom: 0;
+            border-radius: 9px;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+        .home-preview-shortcut-card.mobile.mini .home-preview-shortcut-text {
+            font-size: 12px;
+        }
+        .home-preview-shortcut-card.mobile.mini .home-preview-shortcut-badge {
+            min-width: 20px;
+            padding: 2px 6px;
+            font-size: 10px;
+        }
+        @media (max-width: 900px) {
+            .home-preview-launchers {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+            .home-preview-gallery {
+                grid-template-columns: 1fr;
+            }
+            .home-preview-modal {
+                padding: 12px;
+            }
+            .home-preview-modal-dialog {
+                width: 100%;
+                max-height: 92vh;
+                padding: 12px;
+                border-radius: 20px;
+            }
+            .home-preview-image-frame {
+                padding: 8px;
+                border-radius: 20px;
+            }
+            .home-preview-image-frame img {
+                border-radius: 14px;
+            }
+            .home-preview-image-frame.desktop,
+            .home-preview-image-frame.mobile {
+                max-width: 100%;
+            }
+            .home-preview-scene-head {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1392,6 +2761,10 @@
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
                     基础设置
                 </div>
+                <div class="nav-item" onclick="switchSection('uiSettings')">
+                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 5a2 2 0 012-2h8a2 2 0 012 2v1a1 1 0 11-2 0V5H6v2h8a2 2 0 012 2v1a1 1 0 11-2 0V9H6v2h8a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-1a1 1 0 112 0v1h8v-2H6a2 2 0 01-2-2v-2a2 2 0 012-2h8V5H6v1a1 1 0 11-2 0V5z" clip-rule="evenodd"/></svg>
+                    UI 设置
+                </div>
                 <div class="nav-item" onclick="switchSection('subscription')">
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
                     订阅设置
@@ -1430,7 +2803,7 @@
                     <div class="page-header">
                         <div class="page-header-content">
                             <h2>基础设置</h2>
-                            <p class="subtitle">应用信息、Logo、图标与界面配置</p>
+                            <p class="subtitle">应用信息、Logo、图标与登录背景配置</p>
                         </div>
                     </div>
                     <div class="editor-container">
@@ -1469,8 +2842,73 @@
                             </div>
                         </div>
                         <div class="section">
-                            <div class="section-title">UI 界面</div>
-                            <div class="switch-card">
+                            <div class="section-title">认证页背景</div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">启用登录背景图</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="authBackgroundEnabled"><span class="slider"></span></label>
+                                        <span id="authBackgroundEnabledLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="switch-card-extra">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label>登录背景图地址</label>
+                                        <input type="text" id="authBackgroundImageUrl" placeholder="支持本地资源路径或网络图片 URL">
+                                    </div>
+                                </div>
+                                <div class="help-text">由打包用户自己配置认证页背景图；关闭时忽略图片地址。</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="page-footer">
+                        <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
+                    </div>
+                </div>
+
+                <!-- UI 设置 -->
+                <div class="content-section" id="uiSettingsSection">
+                    <div class="page-header">
+                        <div class="page-header-content">
+                            <h2>UI 设置</h2>
+                            <p class="subtitle">统一管理首页布局、标签页、导航入口与公告等界面行为配置</p>
+                        </div>
+                    </div>
+                    <div class="editor-container">
+                        <div class="section">
+                            <div class="section-title">首页与界面布局</div>
+                            <div class="form-group">
+                                <label>首页面板布局</label>
+                                <select id="homePanelDefaultLayout">
+                                    <option value="default">默认布局</option>
+                                    <option value="layout1">布局 1（订阅置顶）</option>
+                                </select>
+                                <div class="help-text">仅会写入配置文件，客户端内不提供切换入口，打包后按配置固定。</div>
+                            </div>
+                            <div class="home-preview-panel">
+                                <div class="home-preview-header">
+                                    <div>
+                                        <div class="home-preview-title">首页布局预览</div>
+                                        <div class="home-preview-subtitle">默认不展开预览，点击后直接查看真实截图，比代码模拟预览更接近最终打包效果。</div>
+                                    </div>
+                                    <div class="help-text" style="margin:0;">点击已打开的入口可直接关闭预览</div>
+                                </div>
+                                <div class="home-preview-launchers" id="homePreviewLaunchers"></div>
+                                <div class="home-preview-modal" id="homePreviewModal">
+                                    <button type="button" class="home-preview-modal-backdrop" aria-label="关闭预览" onclick="closeHomePanelPreview()"></button>
+                                    <div class="home-preview-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="homePreviewModalTitle">
+                                        <div class="home-preview-modal-header">
+                                            <div>
+                                                <div class="home-preview-modal-title" id="homePreviewModalTitle">首页布局预览</div>
+                                                <div class="home-preview-modal-desc" id="homePreviewModalDesc">静态截图预览</div>
+                                            </div>
+                                            <button type="button" class="home-preview-close-btn" onclick="closeHomePanelPreview()">关闭预览</button>
+                                        </div>
+                                        <div class="home-preview-stage" id="homePanelPreviewStage"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
                                     <span class="switch-card-label">隐藏流量详情标签页</span>
                                     <div class="switch-group">
@@ -1478,9 +2916,8 @@
                                         <span id="hideTrafficDetailsLabel">关闭</span>
                                     </div>
                                 </div>
-                                <div class="help-text">启用后，将隐藏流量详情标签页和页面</div>
+                                <div class="help-text">启用后，将隐藏流量详情标签页和页面。</div>
                             </div>
-
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
                                     <span class="switch-card-label">隐藏节点状态</span>
@@ -1489,9 +2926,8 @@
                                         <span id="hideNodeStatusLabel">关闭</span>
                                     </div>
                                 </div>
-                                <div class="help-text">启用后，不显示节点在线/离线状态与筛选</div>
+                                <div class="help-text">启用后，不显示节点在线/离线状态与筛选。</div>
                             </div>
-
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
                                     <span class="switch-card-label">首页自动弹出公告</span>
@@ -1500,9 +2936,12 @@
                                         <span id="noticeAutoOpenOnStartupLabel">关闭</span>
                                     </div>
                                 </div>
-                                <div class="help-text">启用后，进入软件首页且存在可见公告时，会自动打开公告详情</div>
+                                <div class="help-text">启用后，进入软件首页且存在可见公告时，会自动打开公告详情。</div>
                             </div>
-                            <div class="switch-card" style="margin-top:16px;">
+                        </div>
+                        <div class="section">
+                            <div class="section-title">功能入口</div>
+                            <div class="switch-card">
                                 <div class="switch-card-header">
                                     <span class="switch-card-label">显示分流组自定义规则入口</span>
                                     <div class="switch-group">
@@ -1530,23 +2969,7 @@
                                         <span id="giftCardShowButtonLabel">关闭</span>
                                     </div>
                                 </div>
-                                <div class="help-text">仅 XBoard / V2Board 后端面板支持；关闭后将隐藏桌面端和移动端导航中的礼品卡入口按钮</div>
-                            </div>
-                            <div class="switch-card" style="margin-top:16px;">
-                                <div class="switch-card-header">
-                                    <span class="switch-card-label">启用登录背景图</span>
-                                    <div class="switch-group">
-                                        <label class="switch"><input type="checkbox" id="authBackgroundEnabled"><span class="slider"></span></label>
-                                        <span id="authBackgroundEnabledLabel">关闭</span>
-                                    </div>
-                                </div>
-                                <div class="switch-card-extra">
-                                    <div class="form-group" style="margin-bottom:0;">
-                                        <label>登录背景图地址</label>
-                                        <input type="text" id="authBackgroundImageUrl" placeholder="支持本地资源路径或网络图片 URL">
-                                    </div>
-                                </div>
-                                <div class="help-text">由打包用户自己配置认证页背景图；关闭时忽略图片地址。</div>
+                                <div class="help-text">仅 XBoard / V2Board 后端面板支持；关闭后将隐藏桌面端和移动端导航中的礼品卡入口按钮。</div>
                             </div>
                         </div>
                     </div>
@@ -2943,6 +4366,364 @@
         var buildPermissionStatusMessage = '正在加载软件打包状态...';
         var BUILD_QUEUE_POLL_VISIBLE_INTERVAL = 15000;
         var BUILD_QUEUE_POLL_HIDDEN_INTERVAL = 60000;
+        var homePanelPreviewTarget = '';
+
+        function openHomePanelPreview(target) {
+            if (!target) {
+                homePanelPreviewTarget = '';
+                renderHomePanelPreview();
+                return;
+            }
+            if (homePanelPreviewTarget === target) {
+                closeHomePanelPreview();
+                return;
+            }
+            homePanelPreviewTarget = target;
+            renderHomePanelPreview();
+        }
+
+        function closeHomePanelPreview() {
+            homePanelPreviewTarget = '';
+            renderHomePanelPreview();
+        }
+
+        function buildHomePreviewSidebarItem(label, icon, active) {
+            return [
+                '<div class="home-preview-sidebar-item' + (active ? ' active' : '') + '">',
+                    '<div class="home-preview-sidebar-icon">' + icon + '</div>',
+                    '<div>' + label + '</div>',
+                '</div>'
+            ].join('');
+        }
+
+        function buildHomePreviewDesktopSidebar() {
+            return [
+                '<div class="home-preview-sidebar-rail">',
+                    buildHomePreviewSidebarItem('首页面板', '▦', true),
+                    buildHomePreviewSidebarItem('购买套餐', '🛒', false),
+                    buildHomePreviewSidebarItem('邀请推广', '🎁', false),
+                    buildHomePreviewSidebarItem('流量详情', '◌', false),
+                    buildHomePreviewSidebarItem('节点状态', '☰', false),
+                    buildHomePreviewSidebarItem('连接状态', '⌘', false),
+                    '<div class="home-preview-sidebar-spacer"></div>',
+                    buildHomePreviewSidebarItem('', '👤', false),
+                    buildHomePreviewSidebarItem('', '⚙', false),
+                    buildHomePreviewSidebarItem('', '⇥', false),
+                '</div>'
+            ].join('');
+        }
+
+        function buildHomePreviewSubscriptionCard(compact) {
+            return [
+                '<div class="home-preview-card home-preview-subscription' + (compact ? ' compact' : '') + '">',
+                    '<div class="home-preview-subscription-grid">',
+                        '<div class="home-preview-stat">',
+                            '<div class="home-preview-stat-label">剩余流量</div>',
+                            '<div class="home-preview-stat-value accent">107 GB</div>',
+                        '</div>',
+                        '<div class="home-preview-stat">',
+                            '<div class="home-preview-stat-label">有效期</div>',
+                            '<div class="home-preview-stat-value warning">4 天</div>',
+                        '</div>',
+                        '<div class="home-preview-subscription-refresh">' + (compact ? '刷新' : '刷新订阅') + '</div>',
+                    '</div>',
+                    '<div class="home-preview-progress">',
+                        '<span></span>',
+                        '<div class="home-preview-progress-text">2%</div>',
+                    '</div>',
+                    '<div class="home-preview-subscription-footer">',
+                        '<span>已用 2.74 GB</span>',
+                        '<span>共 110 GB</span>',
+                        '<span>预计重置日期 2026-04-19</span>',
+                    '</div>',
+                '</div>'
+            ].join('');
+        }
+
+        function buildHomePreviewPowerSection(mobile) {
+            return [
+                '<div class="home-preview-power-wrap' + (mobile ? ' mobile' : '') + '">',
+                    '<div class="home-preview-globe' + (mobile ? ' mobile' : '') + '"><span class="home-preview-power-icon" aria-hidden="true"></span></div>',
+                    '<div class="home-preview-status' + (mobile ? ' mobile' : '') + '">未连接</div>',
+                '</div>'
+            ].join('');
+        }
+
+        function buildHomePreviewModeCard(showTun) {
+            return [
+                '<div class="home-preview-card home-preview-mode">',
+                    '<div class="home-preview-mode-header">',
+                        '<div class="home-preview-card-title">代理模式</div>',
+                        '<div class="home-preview-mode-caption">根据规则自动选择直连或代理</div>',
+                    '</div>',
+                    '<div class="home-preview-mode-options">',
+                        '<div class="home-preview-mode-option active">✓ 规则</div>',
+                        '<div class="home-preview-mode-option">全局</div>',
+                        showTun ? '<div class="home-preview-mode-option">TUN</div>' : '',
+                    '</div>',
+                '</div>'
+            ].join('');
+        }
+
+        function buildHomePreviewNodeCard(mobile) {
+            var subtitle = mobile ? '香港5 IPV6 移动优化' : '新加坡 AWS 2x';
+            var latency = mobile ? '47ms' : '78ms';
+            return [
+                '<div class="home-preview-card home-preview-node">',
+                    '<div class="home-preview-node-row">',
+                        '<div class="home-preview-node-left">',
+                            '<div class="home-preview-node-flag">' + (mobile ? 'HK' : 'SG') + '</div>',
+                            '<div class="home-preview-node-name-wrap">',
+                                '<div class="home-preview-node-name">自动选择</div>',
+                                '<div class="home-preview-node-meta">' + subtitle + '</div>',
+                            '</div>',
+                        '</div>',
+                        '<div class="home-preview-node-right">',
+                            '<div class="home-preview-node-latency">' + latency + '</div>',
+                            '<div class="home-preview-node-action">▶</div>',
+                            '<div class="home-preview-node-arrow">⌄</div>',
+                        '</div>',
+                    '</div>',
+                '</div>'
+            ].join('');
+        }
+
+        function buildHomePreviewOfflineCard() {
+            return [
+                '<div class="home-preview-card home-preview-offline">',
+                    '<div class="home-preview-offline-row">',
+                        '<div class="home-preview-offline-left">',
+                            '<div class="home-preview-offline-icon">⚡</div>',
+                            '<div>',
+                                '<div class="home-preview-card-title">离线模式</div>',
+                                '<div class="home-preview-card-desc">开启后下次无需登录</div>',
+                            '</div>',
+                        '</div>',
+                        '<div class="home-preview-toggle"></div>',
+                    '</div>',
+                '</div>'
+            ].join('');
+        }
+
+        function buildHomePreviewShortcutCard(label, badge, mini) {
+            var icon = label === '官网' ? '◎' : '📢';
+            return [
+                '<div class="home-preview-shortcut-card home-preview-quick-card' + (mini ? ' mobile mini' : '') + '">',
+                    '<div class="home-preview-shortcut-card-inner">',
+                        '<div class="home-preview-shortcut-icon">' + icon + '</div>',
+                        '<div class="home-preview-shortcut-text"><span>' + label + '</span>' + (badge ? '<span class="home-preview-shortcut-badge">' + badge + '</span>' : '') + '</div>',
+                    '</div>',
+                '</div>'
+            ].join('');
+        }
+
+        function buildHomePreviewFloatingCards(mobile) {
+            return [
+                '<div class="home-preview-floating-corners">',
+                    buildHomePreviewShortcutCard('官网', '', mobile),
+                    buildHomePreviewShortcutCard('公告', mobile ? '' : '1', mobile),
+                '</div>'
+            ].join('');
+        }
+
+        function buildHomePreviewMobileShell(content) {
+            return [
+                '<div class="home-preview-frame mobile">',
+                    '<div class="home-preview-shell mobile">',
+                        '<div class="home-preview-mobile-statusbar">',
+                            '<span>17:36</span>',
+                            '<span>◖ ◗</span>',
+                        '</div>',
+                        '<div class="home-preview-mobile-dynamic"></div>',
+                        content,
+                        '<div class="home-preview-mobile-fab">☏</div>',
+                        '<div class="home-preview-mobile-bottomnav">',
+                            '<div class="home-preview-mobile-tab active"><div>⌂</div><div>首页面板</div></div>',
+                            '<div class="home-preview-mobile-tab"><div>🛍</div><div>购买套餐</div></div>',
+                            '<div class="home-preview-mobile-tab"><div>👥</div><div>邀请推广</div></div>',
+                            '<div class="home-preview-mobile-tab"><div>⌘</div><div>连接状态</div></div>',
+                            '<div class="home-preview-mobile-tab"><div>⋯</div><div>更多</div></div>',
+                        '</div>',
+                    '</div>',
+                '</div>'
+            ].join('');
+        }
+
+        function buildDesktopDefaultPreview() {
+            return [
+                '<div class="home-preview-frame desktop">',
+                    '<div class="home-preview-shell desktop">',
+                        buildHomePreviewDesktopSidebar(),
+                        '<div class="home-preview-main layout-default">',
+                            buildHomePreviewFloatingCards(false),
+                            '<div class="home-preview-stack desktop">',
+                                buildHomePreviewPowerSection(false),
+                                buildHomePreviewModeCard(true),
+                                buildHomePreviewNodeCard(false),
+                                buildHomePreviewSubscriptionCard(false),
+                                buildHomePreviewOfflineCard(),
+                            '</div>',
+                        '</div>',
+                    '</div>',
+                '</div>'
+            ].join('');
+        }
+
+        function buildDesktopLayout1Preview() {
+            return [
+                '<div class="home-preview-frame desktop">',
+                    '<div class="home-preview-shell desktop">',
+                        buildHomePreviewDesktopSidebar(),
+                        '<div class="home-preview-main layout1">',
+                            '<div class="home-preview-stack desktop layout1">',
+                                '<div class="home-preview-layout1-header">',
+                                    buildHomePreviewShortcutCard('官网', '', false),
+                                    buildHomePreviewSubscriptionCard(true),
+                                    buildHomePreviewShortcutCard('公告', '1', false),
+                                '</div>',
+                                buildHomePreviewPowerSection(false),
+                                buildHomePreviewModeCard(true),
+                                buildHomePreviewNodeCard(false),
+                            '</div>',
+                        '</div>',
+                    '</div>',
+                '</div>'
+            ].join('');
+        }
+
+        function buildMobileDefaultPreview() {
+            return buildHomePreviewMobileShell([
+                '<div class="home-preview-main mobile layout-default">',
+                    buildHomePreviewFloatingCards(true),
+                    '<div class="home-preview-stack mobile">',
+                        buildHomePreviewPowerSection(true),
+                        buildHomePreviewModeCard(false),
+                        buildHomePreviewNodeCard(true),
+                        buildHomePreviewSubscriptionCard(false),
+                        buildHomePreviewOfflineCard(),
+                    '</div>',
+                '</div>'
+            ].join(''));
+        }
+
+        function buildMobileLayout1Preview() {
+            return buildHomePreviewMobileShell([
+                '<div class="home-preview-main mobile layout1">',
+                    '<div class="home-preview-stack mobile">',
+                        buildHomePreviewSubscriptionCard(false),
+                        '<div class="home-preview-shortcut-row">',
+                            buildHomePreviewShortcutCard('官网', '', true),
+                            buildHomePreviewShortcutCard('公告', '1', true),
+                        '</div>',
+                        buildHomePreviewPowerSection(true),
+                        buildHomePreviewModeCard(false),
+                        buildHomePreviewNodeCard(true),
+                    '</div>',
+                '</div>'
+            ].join(''));
+        }
+
+        function buildHomePreviewScene(title, meta, imageUrl, active, deviceType) {
+            return [
+                '<div class="home-preview-scene' + (active ? ' active' : '') + '">',
+                    '<div class="home-preview-scene-head">',
+                        '<div>',
+                            '<div class="home-preview-scene-title">' + title + '</div>',
+                            '<div class="home-preview-scene-meta">' + meta + '</div>',
+                        '</div>',
+                        '<div class="home-preview-scene-badge' + (active ? ' active' : '') + '">' + (active ? '当前配置' : '对比参考') + '</div>',
+                    '</div>',
+                    '<div class="home-preview-image-shell">',
+                        '<div class="home-preview-image-frame ' + (deviceType === 'mobile' ? 'mobile' : 'desktop') + '">',
+                            '<img src="' + imageUrl + '" alt="' + title + ' 预览截图" loading="eager">',
+                        '</div>',
+                        '<div class="home-preview-image-note">此处展示的是静态截图预览，仅用于核对桌面端与移动端的实际布局结构，最终以打包产物内置配置为准。</div>',
+                    '</div>',
+                '</div>'
+            ].join('');
+        }
+
+        function buildHomePreviewLauncher(target, title, meta, currentLayout) {
+            var targetLayout = target.indexOf('layout1') !== -1 ? 'layout1' : 'default';
+            var isCurrentLayout = currentLayout === targetLayout;
+            var isActive = homePanelPreviewTarget === target;
+            return [
+                '<button type="button" class="home-preview-launcher' + (isActive ? ' active' : '') + '" onclick="openHomePanelPreview(\'' + target + '\')">',
+                    '<div class="home-preview-launcher-head">',
+                        '<div class="home-preview-launcher-title">' + title + '</div>',
+                        '<div class="home-preview-launcher-badge' + (isCurrentLayout ? ' current' : '') + '">' + (isCurrentLayout ? '当前配置' : '点击查看') + '</div>',
+                    '</div>',
+                    '<div class="home-preview-launcher-meta">' + meta + '</div>',
+                '</button>'
+            ].join('');
+        }
+
+        function renderHomePanelPreview() {
+            var stage = document.getElementById('homePanelPreviewStage');
+            var layoutSelect = document.getElementById('homePanelDefaultLayout');
+            var launchers = document.getElementById('homePreviewLaunchers');
+            var modal = document.getElementById('homePreviewModal');
+            var modalTitle = document.getElementById('homePreviewModalTitle');
+            var modalDesc = document.getElementById('homePreviewModalDesc');
+            if (!stage || !layoutSelect || !launchers || !modal) return;
+
+            var layout = layoutSelect.value === 'layout1' ? 'layout1' : 'default';
+            launchers.innerHTML = [
+                buildHomePreviewLauncher('desktop-default', '桌面端 · 默认布局', '顶部浮动官网与公告，订阅信息位于连接区下方。', layout),
+                buildHomePreviewLauncher('desktop-layout1', '桌面端 · 布局 1', '订阅信息上移到顶部横条，连接区和节点卡居中下排。', layout),
+                buildHomePreviewLauncher('mobile-default', '移动端 · 默认布局', '官网与公告保留顶部浮动，底部保留导航栏和客服浮标。', layout),
+                buildHomePreviewLauncher('mobile-layout1', '移动端 · 布局 1', '订阅置顶，官网/公告改为内容区快捷卡，首页不再展示离线模式。', layout)
+            ].join('');
+
+            if (!homePanelPreviewTarget) {
+                modal.classList.remove('is-open');
+                stage.innerHTML = '';
+                return;
+            }
+
+            var sceneMap = {
+                'desktop-default': {
+                    title: '桌面端 · 默认布局',
+                    meta: '顶部保留官网与公告浮动入口，订阅信息位于连接区下方。',
+                    image: './assets/home-previews/desktop-default.png',
+                    deviceType: 'desktop',
+                    active: layout === 'default'
+                },
+                'desktop-layout1': {
+                    title: '桌面端 · 布局 1',
+                    meta: '订阅信息上移到顶部横条，连接区和节点卡居中下排。',
+                    image: './assets/home-previews/desktop-layout1.png',
+                    deviceType: 'desktop',
+                    active: layout === 'layout1'
+                },
+                'mobile-default': {
+                    title: '移动端 · 默认布局',
+                    meta: '官网与公告保留顶部浮动，底部保留导航栏和客服浮标。',
+                    image: './assets/home-previews/mobile-default.png',
+                    deviceType: 'mobile',
+                    active: layout === 'default'
+                },
+                'mobile-layout1': {
+                    title: '移动端 · 布局 1',
+                    meta: '订阅置顶，官网/公告改为内容区快捷卡，首页不再展示离线模式。',
+                    image: './assets/home-previews/mobile-layout1.png',
+                    deviceType: 'mobile',
+                    active: layout === 'layout1'
+                }
+            };
+
+            var currentScene = sceneMap[homePanelPreviewTarget] || sceneMap['desktop-default'];
+            if (modalTitle) modalTitle.textContent = currentScene.title;
+            if (modalDesc) modalDesc.textContent = currentScene.meta;
+            stage.innerHTML = buildHomePreviewScene(
+                currentScene.title,
+                currentScene.meta,
+                currentScene.image,
+                currentScene.active,
+                currentScene.deviceType
+            );
+            modal.classList.add('is-open');
+        }
 
         // ==================== 导航切换 ====================
         function switchSection(sectionName, triggerElement) {
@@ -3045,6 +4826,7 @@
             renderSources();
             renderSupportItems();
             updateProviderConsistencyState();
+            renderHomePanelPreview();
 
             syncProfileBoundAppTitle();
             setMyBuildRecordsExpanded(false);
@@ -3098,6 +4880,7 @@
                 '  ui:',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
+                '    home_panel_default_layout: default',
                 '    notice:',
                 '      auto_open_on_startup: false',
                 '    proxy_groups:',
@@ -3260,6 +5043,7 @@
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
+                home_panel_default_layout: document.getElementById('homePanelDefaultLayout').value,
                 notice_auto_open_on_startup: document.getElementById('noticeAutoOpenOnStartup').checked,
                 show_custom_rule_entry: document.getElementById('showCustomRuleEntry').checked,
                 auth_pages_support_show_button: document.getElementById('authPagesSupportShowButton').checked,
@@ -3952,6 +5736,14 @@
                     scheduleAutoSaveCurrentProfile('开关配置已自动保存');
                 });
             });
+            var homePanelDefaultLayout = document.getElementById('homePanelDefaultLayout');
+            if (homePanelDefaultLayout) {
+                homePanelDefaultLayout.addEventListener('change', function() {
+                    renderHomePanelPreview();
+                    formToYaml();
+                    scheduleAutoSaveCurrentProfile('UI 配置已自动保存');
+                });
+            }
             document.getElementById('subscriptionCacheTtl').addEventListener('change', function() {
                 formToYaml();
             });
@@ -5285,6 +7077,10 @@
             var hideNodeStatus = hideNodeStatusMatch ? hideNodeStatusMatch[1] === 'true' : false;
             document.getElementById('hideNodeStatus').checked = hideNodeStatus;
             document.getElementById('hideNodeStatusLabel').textContent = hideNodeStatus ? '开启' : '关闭';
+            var homePanelDefaultLayoutMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)home_panel_default_layout:\s*([^\s#]+)/);
+            var homePanelDefaultLayout = homePanelDefaultLayoutMatch ? homePanelDefaultLayoutMatch[1].trim().replace(/^["']|["']$/g, '') : 'default';
+            document.getElementById('homePanelDefaultLayout').value = homePanelDefaultLayout || 'default';
+            syncAllCustomSelects(document.getElementById('homePanelDefaultLayout'));
             var noticeAutoOpenMatch = yaml.match(/notice:\s*\n(?:[\s\S]*?)auto_open_on_startup:\s*(true|false)/);
             var noticeAutoOpenOnStartup = noticeAutoOpenMatch ? noticeAutoOpenMatch[1] === 'true' : false;
             document.getElementById('noticeAutoOpenOnStartup').checked = noticeAutoOpenOnStartup;
@@ -5439,6 +7235,7 @@
             if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
             renderSupportItems();
             syncAllCustomSelects(document);
+            renderHomePanelPreview();
             updateProviderConsistencyState({ source: 'basic' });
             syncRemoteConfigJsonPreview({ silentStatus: true });
         }
@@ -5446,6 +7243,7 @@
         function formToYaml() {
             collectSources();
             collectSupportItems();
+            renderHomePanelPreview();
             updateProviderConsistencyState();
             syncRemoteConfigJsonPreview({ silentStatus: true });
         }
