@@ -5002,6 +5002,7 @@
         }
 
         var autoSaveProfileTimer = null;
+        var autoSaveProfileDelayMs = 3 * 60 * 1000;
         var currentProfileBaseYaml = '';
 
         function buildCurrentProfileFormState() {
@@ -5131,7 +5132,7 @@
             autoSaveProfileTimer = setTimeout(function() {
                 autoSaveProfileTimer = null;
                 autoSaveCurrentProfile(successMessage);
-            }, 240);
+            }, autoSaveProfileDelayMs);
         }
 
         async function autoSaveCurrentProfile(successMessage) {
