@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       profile:
-        description: '配置档案名称（对应 main 分支 profiles 目录中的 YAML 档案名）'
+        description: '配置档案名称（对应配置分支 profiles 目录中的 YAML 档案名）'
         required: true
         type: string
+      profile_branch:
+        description: '配置档案分支（默认 profiles）'
+        required: false
+        type: string
+        default: 'profiles'
       tag:
         description: '构建版本号/产物标签（用于 setup.dart --version 和产物命名，例如 v0.1.0）'
         required: true
@@ -53,13 +58,14 @@ jobs:
           GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
         run: |
           PROFILE_NAME="${{ github.event.inputs.profile }}"
+          PROFILE_BRANCH="${{ github.event.inputs.profile_branch }}"
           VERSION="${{ github.event.inputs.tag }}"
           RELEASE_TAG="${PROFILE_NAME}-${VERSION}-${{ github.run_id }}"
           PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
           ENCODED_PROFILE_PATH=$(node -e "console.log(process.argv[1].split('/').map(encodeURIComponent).join('/'))" "$PROFILE_PATH")
 
           API_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ env.PRIVATE_REPO }}/contents/${ENCODED_PROFILE_PATH}?ref=main")
+            "https://api.github.com/repos/${{ env.PRIVATE_REPO }}/contents/${ENCODED_PROFILE_PATH}?ref=${PROFILE_BRANCH}")
 
           if echo "$API_RESPONSE" | grep -q '"content"'; then
             PROFILE_YAML=$(echo "$API_RESPONSE" | node -e "
@@ -284,13 +290,14 @@ jobs:
         run: |
           cd source
           PROFILE_NAME="${{ github.event.inputs.profile }}"
+          PROFILE_BRANCH="${{ github.event.inputs.profile_branch }}"
           echo "=== Applying profile: $PROFILE_NAME ==="
           
-          # 从 main 分支读取 YAML 配置档案（确保所有分支都能使用最新档案）
+          # 从配置分支读取 YAML 配置档案，源码分支与配置分支解耦
           PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
-          echo "Reading $PROFILE_PATH from main branch..."
-          if ! git show "main:$PROFILE_PATH" > assets/config/xboard.config.yaml; then
-            echo "Error: Failed to read $PROFILE_PATH from main branch"
+          echo "Reading $PROFILE_PATH from profile branch origin/$PROFILE_BRANCH..."
+          if ! git show "origin/$PROFILE_BRANCH:$PROFILE_PATH" > assets/config/xboard.config.yaml; then
+            echo "Error: Failed to read $PROFILE_PATH from profile branch $PROFILE_BRANCH"
             exit 1
           fi
           
@@ -943,12 +950,13 @@ jobs:
         run: |
           cd source
           PROFILE_NAME="${{ github.event.inputs.profile }}"
+          PROFILE_BRANCH="${{ github.event.inputs.profile_branch }}"
           echo "=== Applying profile: $PROFILE_NAME ==="
 
           PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
-          echo "Reading $PROFILE_PATH from main branch..."
-          if ! git show "main:$PROFILE_PATH" > assets/config/xboard.config.yaml; then
-            echo "Error: Failed to read $PROFILE_PATH from main branch"
+          echo "Reading $PROFILE_PATH from profile branch origin/$PROFILE_BRANCH..."
+          if ! git show "origin/$PROFILE_BRANCH:$PROFILE_PATH" > assets/config/xboard.config.yaml; then
+            echo "Error: Failed to read $PROFILE_PATH from profile branch $PROFILE_BRANCH"
             exit 1
           fi
 

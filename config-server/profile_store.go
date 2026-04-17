@@ -19,7 +19,7 @@ func profileFilePath(name string) (string, error) {
 }
 
 func (h *Handlers) listStoredProfiles() (map[string]string, error) {
-	items, err := h.gh.ListDirectory(profilesDir)
+	items, err := h.profileGH.ListDirectory(profilesDir)
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
 			return map[string]string{}, nil
@@ -34,7 +34,7 @@ func (h *Handlers) listStoredProfiles() (map[string]string, error) {
 		}
 
 		name := strings.TrimSuffix(item.Name, ".yaml")
-		lastUpdated, err := h.gh.GetLatestCommitTime(item.Path)
+		lastUpdated, err := h.profileGH.GetLatestCommitTime(item.Path)
 		if err != nil {
 			lastUpdated = ""
 		}
@@ -49,7 +49,7 @@ func (h *Handlers) getStoredProfile(name string) (yamlContent string, sha string
 		return "", "", "", false, err
 	}
 
-	content, sha, err := h.gh.GetFile(filePath)
+	content, sha, err := h.profileGH.GetFile(filePath)
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
 			return "", "", "", false, nil
@@ -57,7 +57,7 @@ func (h *Handlers) getStoredProfile(name string) (yamlContent string, sha string
 		return "", "", "", false, err
 	}
 
-	lastUpdated, err = h.gh.GetLatestCommitTime(filePath)
+	lastUpdated, err = h.profileGH.GetLatestCommitTime(filePath)
 	if err != nil {
 		lastUpdated = ""
 	}

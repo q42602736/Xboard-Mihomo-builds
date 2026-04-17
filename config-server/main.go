@@ -17,16 +17,17 @@ import (
 var webFS embed.FS
 
 type Config struct {
-	Port           string
-	GithubToken    string
-	GithubOwner    string
-	GithubRepo     string
-	GithubBranch   string
-	BuildOwner     string
-	BuildRepo      string
-	JWTSecret      string
-	AdminPassword  string
-	ConfigFilepath string
+	Port                string
+	GithubToken         string
+	GithubOwner         string
+	GithubRepo          string
+	GithubBranch        string
+	GithubProfileBranch string
+	BuildOwner          string
+	BuildRepo           string
+	JWTSecret           string
+	AdminPassword       string
+	ConfigFilepath      string
 }
 
 var cfg Config
@@ -35,16 +36,17 @@ func loadConfig() {
 	godotenv.Load()
 
 	cfg = Config{
-		Port:           getEnv("PORT", "8080"),
-		GithubToken:    mustEnv("GITHUB_TOKEN"),
-		GithubOwner:    mustEnv("GITHUB_OWNER"),
-		GithubRepo:     mustEnv("GITHUB_REPO"),
-		GithubBranch:   getEnv("GITHUB_BRANCH", "main"),
-		BuildOwner:     getEnv("BUILD_OWNER", ""),
-		BuildRepo:      getEnv("BUILD_REPO", ""),
-		JWTSecret:      mustEnv("JWT_SECRET"),
-		AdminPassword:  mustEnv("ADMIN_PASSWORD"),
-		ConfigFilepath: getEnv("CONFIG_FILEPATH", "assets/config/xboard.config.yaml"),
+		Port:                getEnv("PORT", "8080"),
+		GithubToken:         mustEnv("GITHUB_TOKEN"),
+		GithubOwner:         mustEnv("GITHUB_OWNER"),
+		GithubRepo:          mustEnv("GITHUB_REPO"),
+		GithubBranch:        getEnv("GITHUB_BRANCH", "main"),
+		GithubProfileBranch: getEnv("GITHUB_PROFILE_BRANCH", ""),
+		BuildOwner:          getEnv("BUILD_OWNER", ""),
+		BuildRepo:           getEnv("BUILD_REPO", ""),
+		JWTSecret:           mustEnv("JWT_SECRET"),
+		AdminPassword:       mustEnv("ADMIN_PASSWORD"),
+		ConfigFilepath:      getEnv("CONFIG_FILEPATH", "assets/config/xboard.config.yaml"),
 	}
 
 	if cfg.BuildOwner == "" {
@@ -52,6 +54,9 @@ func loadConfig() {
 	}
 	if cfg.BuildRepo == "" {
 		cfg.BuildRepo = "Xboard-Mihomo-builds"
+	}
+	if cfg.GithubProfileBranch == "" {
+		cfg.GithubProfileBranch = cfg.GithubBranch
 	}
 }
 
@@ -74,8 +79,19 @@ func main() {
 	loadConfig()
 	initDB()
 
-	gh := NewGitHubClient(cfg.GithubToken, cfg.GithubOwner, cfg.GithubRepo, cfg.GithubBranch)
-	h := NewHandlers(gh)
+	gh := NewGitHubClient(
+		cfg.GithubToken,
+		cfg.GithubOwner,
+		cfg.GithubRepo,
+		cfg.GithubBranch,
+	)
+	profileGH := NewGitHubClient(
+		cfg.GithubToken,
+		cfg.GithubOwner,
+		cfg.GithubRepo,
+		cfg.GithubProfileBranch,
+	)
+	h := NewHandlers(gh, profileGH)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)

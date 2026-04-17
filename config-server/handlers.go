@@ -24,11 +24,15 @@ const maxBuildRecordHistory = 5
 const buildAssetDownloadLinkTTL = 10 * time.Minute
 
 type Handlers struct {
-	gh *GitHubClient
+	gh        *GitHubClient
+	profileGH *GitHubClient
 }
 
-func NewHandlers(gh *GitHubClient) *Handlers {
-	return &Handlers{gh: gh}
+func NewHandlers(gh *GitHubClient, profileGH *GitHubClient) *Handlers {
+	return &Handlers{
+		gh:        gh,
+		profileGH: profileGH,
+	}
 }
 
 func jsonResponse(w http.ResponseWriter, data interface{}) {
@@ -442,7 +446,7 @@ func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 			payload.YamlContent = cleaned
 			filePath, err := profileFilePath(name)
 			if err == nil {
-				_ = h.gh.SaveFileWithRetry(filePath, func(_ string) string {
+				_ = h.profileGH.SaveFileWithRetry(filePath, func(_ string) string {
 					return cleaned
 				}, "修复配置档案: "+name, 3)
 			}
@@ -504,7 +508,7 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, sha, err := h.gh.GetFile(filePath)
+	_, sha, err := h.profileGH.GetFile(filePath)
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
 			sha = ""
@@ -514,7 +518,7 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	_, err = h.gh.SaveFile(filePath, req.YamlContent, sha, "保存配置档案: "+name)
+	_, err = h.profileGH.SaveFile(filePath, req.YamlContent, sha, "保存配置档案: "+name)
 	if err != nil {
 		jsonError(w, "保存失败: "+err.Error(), 500)
 		return
@@ -546,7 +550,7 @@ func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if exists {
-		if err := h.gh.DeleteFile(filePath, sha, "删除配置档案: "+name); err != nil {
+		if err := h.profileGH.DeleteFile(filePath, sha, "删除配置档案: "+name); err != nil {
 			jsonError(w, "删除失败: "+err.Error(), 500)
 			return
 		}
@@ -1061,11 +1065,12 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 
 	requestID := strconv.FormatInt(record.ID, 10)
 	inputs := map[string]string{
-		"profile":    req.Profile,
-		"tag":        req.Tag,
-		"platforms":  req.Platforms,
-		"branch":     req.Branch,
-		"request_id": requestID,
+		"profile":        req.Profile,
+		"profile_branch": cfg.GithubProfileBranch,
+		"tag":            req.Tag,
+		"platforms":      req.Platforms,
+		"branch":         req.Branch,
+		"request_id":     requestID,
 	}
 
 	err = h.gh.TriggerWorkflow(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", inputs)
@@ -1110,7 +1115,7 @@ func (h *Handlers) validateProfileYaml(profileName string) error {
 		if err != nil {
 			return fmt.Errorf("修复档案失败")
 		}
-		_ = h.gh.SaveFileWithRetry(filePath, func(_ string) string {
+		_ = h.profileGH.SaveFileWithRetry(filePath, func(_ string) string {
 			return cleaned
 		}, "修复配置档案: "+profileName, 3)
 	}
