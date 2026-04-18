@@ -5510,14 +5510,15 @@
                     throw new Error(data.error || '停止打包失败');
                 }
 
-                setBuildStatus(data.message || '已提交停止请求', 'success');
+                var cancelConfirmed = !!data.confirmed;
+                setBuildStatus(data.message || (cancelConfirmed ? 'GitHub 已确认取消本次打包' : '已提交停止请求，等待 GitHub 确认取消'), cancelConfirmed ? 'success' : 'info');
                 await refreshMyBuildRecordsIfNeeded(false);
 
                 if (buildPollContext && Number(buildPollContext.buildRecordId) === Number(recordId)) {
                     renderBuildProgress({
                         found: true,
                         record_id: recordId,
-                        status: data.status || 'cancel_requested',
+                        status: data.status || (cancelConfirmed ? 'completed' : 'cancel_requested'),
                         conclusion: data.conclusion || 'cancelled',
                         inputs: {
                             tag: buildPollContext.tag,
@@ -5527,7 +5528,19 @@
                         created_at: new Date().toISOString()
                     });
                     stopBuildPolling();
-                    buildPollTimer = setTimeout(pollBuildStatus, 1500);
+                    if (cancelConfirmed) {
+                        buildCancelInFlightRecordId = 0;
+                        saveBuildingProfile(null);
+                        buildPollContext = null;
+                        loadBuildQueue();
+                        updateBuildProgressCancelAction({
+                            record_id: recordId,
+                            status: data.status || 'completed',
+                            conclusion: data.conclusion || 'cancelled'
+                        });
+                    } else {
+                        buildPollTimer = setTimeout(pollBuildStatus, 1500);
+                    }
                 }
             } catch (e) {
                 buildCancelInFlightRecordId = 0;
@@ -5603,7 +5616,7 @@
                 if (record.status === 'completed') {
                     actionButtonsHtml = '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,68,68,0.18); color:#ff9a9a; border:1px solid rgba(255,68,68,0.35);" onclick="deleteMyBuildRecord(' + record.id + ')">删除记录</button>';
                 } else if (record.status === 'cancel_requested') {
-                    actionButtonsHtml = '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,170,0,0.12); color:#a58a4f; border:1px solid rgba(255,170,0,0.2);" disabled title="已提交停止请求，等待 GitHub 终止">停止中...</button>';
+                    actionButtonsHtml = '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,170,0,0.12); color:#a58a4f; border:1px solid rgba(255,170,0,0.2);" disabled title="已提交停止请求，等待 GitHub 确认取消">停止中...</button>';
                     actionButtonsHtml += '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,68,68,0.18); color:#ff9a9a; border:1px solid rgba(255,68,68,0.35);" onclick="deleteMyBuildRecord(' + record.id + ')">删除记录</button>';
                 } else {
                     actionButtonsHtml = '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,170,0,0.12); color:#ffd27a; border:1px solid rgba(255,170,0,0.35);" onclick="cancelMyBuildRecord(' + record.id + ')">停止打包</button>';
@@ -7551,7 +7564,7 @@
             btn.style.display = 'inline-flex';
             btn.disabled = isStopping || !isBuildCancelableStatus(status || 'dispatching');
             btn.textContent = isStopping ? '停止中...' : '停止打包';
-            btn.title = isStopping ? '已提交停止请求，正在等待 GitHub 终止工作流' : '';
+            btn.title = isStopping ? '已提交停止请求，正在等待 GitHub 确认取消' : '';
         }
 
         function startBuildPolling(context, isResume) {

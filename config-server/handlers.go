@@ -1102,6 +1102,44 @@ func resolveBuildRecordWorkflowStatus(record *BuildRecord, run *WorkflowRun) (st
 	return status, conclusion
 }
 
+func workflowRunConclusion(run *WorkflowRun) string {
+	if run == nil || run.Conclusion == nil {
+		return ""
+	}
+	return *run.Conclusion
+}
+
+func isWorkflowRunCompleted(run *WorkflowRun) bool {
+	return run != nil && run.Status == "completed"
+}
+
+func isWorkflowRunCancelled(run *WorkflowRun) bool {
+	return isWorkflowRunCompleted(run) && workflowRunConclusion(run) == "cancelled"
+}
+
+func (h *Handlers) waitForWorkflowRunTerminalState(record *BuildRecord, runID int64, timeout time.Duration) (*WorkflowRun, error) {
+	if record == nil || runID <= 0 {
+		return nil, nil
+	}
+
+	deadline := time.Now().Add(timeout)
+	var lastRun *WorkflowRun
+	for {
+		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, runID)
+		if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) {
+			lastRun = run
+			if isWorkflowRunCompleted(run) {
+				return run, nil
+			}
+		}
+
+		if time.Now().After(deadline) {
+			return lastRun, nil
+		}
+		time.Sleep(800 * time.Millisecond)
+	}
+}
+
 func (h *Handlers) applyWorkflowRunToBuildRecord(record *BuildRecord, run *WorkflowRun) {
 	if record == nil || run == nil {
 		return
@@ -2146,12 +2184,35 @@ func (h *Handlers) CancelBuildRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if record.Status == "cancel_requested" {
+		if record.RunID > 0 {
+			run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
+			if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) && isWorkflowRunCompleted(run) {
+				conclusion := workflowRunConclusion(run)
+				record, _ = h.persistBuildRecordEvent(record, run.ID, run.Status, conclusion, "github", run.HTMLURL, "")
+				message := "打包已结束，无需停止"
+				confirmed := false
+				if conclusion == "cancelled" {
+					message = "GitHub 已确认取消本次打包"
+					confirmed = true
+				}
+				jsonResponse(w, map[string]interface{}{
+					"message":    message,
+					"record_id":  record.ID,
+					"run_id":     record.RunID,
+					"status":     record.Status,
+					"conclusion": record.Conclusion,
+					"confirmed":  confirmed,
+				})
+				return
+			}
+		}
 		jsonResponse(w, map[string]interface{}{
-			"message":    "已提交停止请求，请稍候刷新状态",
+			"message":    "已提交停止请求，等待 GitHub 确认取消",
 			"record_id":  record.ID,
 			"run_id":     record.RunID,
 			"status":     record.Status,
 			"conclusion": record.Conclusion,
+			"confirmed":  false,
 		})
 		return
 	}
@@ -2163,12 +2224,18 @@ func (h *Handlers) CancelBuildRecord(w http.ResponseWriter, r *http.Request) {
 				conclusion = *run.Conclusion
 			}
 			record, _ = h.persistBuildRecordEvent(record, run.ID, run.Status, conclusion, "github", run.HTMLURL, "")
+			confirmed := conclusion == "cancelled"
+			message := "打包已结束，无需停止"
+			if confirmed {
+				message = "GitHub 已确认取消本次打包"
+			}
 			jsonResponse(w, map[string]interface{}{
-				"message":    "打包已结束，无需停止",
+				"message":    message,
 				"record_id":  record.ID,
 				"run_id":     run.ID,
 				"status":     run.Status,
 				"conclusion": conclusion,
+				"confirmed":  confirmed,
 			})
 			return
 		}
@@ -2191,6 +2258,7 @@ func (h *Handlers) CancelBuildRecord(w http.ResponseWriter, r *http.Request) {
 			"run_id":     record.RunID,
 			"status":     "completed",
 			"conclusion": conclusion,
+			"confirmed":  true,
 		})
 		return
 	}
@@ -2199,22 +2267,42 @@ func (h *Handlers) CancelBuildRecord(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "停止 GitHub 打包失败: "+err.Error(), 500)
 		return
 	}
-	record, err = h.persistBuildRecordEvent(record, run.ID, "cancel_requested", "cancelled", "server", run.HTMLURL, "")
-	if err != nil {
-		jsonError(w, "更新打包记录状态失败", 500)
-		return
+
+	confirmedRun, waitErr := h.waitForWorkflowRunTerminalState(record, run.ID, 8*time.Second)
+	if waitErr != nil {
+		log.Printf("等待 GitHub 取消状态确认失败: record_id=%d run_id=%d err=%v", record.ID, run.ID, waitErr)
+	}
+
+	confirmed := confirmedRun != nil && isWorkflowRunCancelled(confirmedRun)
+	if confirmedRun != nil && isWorkflowRunCompleted(confirmedRun) {
+		record, err = h.persistBuildRecordEvent(record, confirmedRun.ID, confirmedRun.Status, workflowRunConclusion(confirmedRun), "github", confirmedRun.HTMLURL, "")
+		if err != nil {
+			jsonError(w, "更新打包记录状态失败", 500)
+			return
+		}
+	} else {
+		record, err = h.persistBuildRecordEvent(record, run.ID, "cancel_requested", "cancelled", "server", run.HTMLURL, "")
+		if err != nil {
+			jsonError(w, "更新打包记录状态失败", 500)
+			return
+		}
 	}
 
 	logAudit(claims.CodeID, claims.CodeName, "cancel_build",
 		fmt.Sprintf("record_id=%d profile=%s tag=%s platforms=%s branch=%s run_id=%d", record.ID, record.Profile, record.Tag, record.Platforms, record.Branch, run.ID),
 		r.RemoteAddr)
 
+	message := "已提交停止请求，等待 GitHub 确认取消"
+	if confirmed {
+		message = "GitHub 已确认取消本次打包"
+	}
 	jsonResponse(w, map[string]interface{}{
-		"message":    "已提交停止请求，GitHub 正在终止本次打包",
+		"message":    message,
 		"record_id":  record.ID,
-		"run_id":     run.ID,
-		"status":     "cancel_requested",
-		"conclusion": "cancelled",
+		"run_id":     record.RunID,
+		"status":     record.Status,
+		"conclusion": record.Conclusion,
+		"confirmed":  confirmed,
 	})
 }
 
