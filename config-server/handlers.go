@@ -1026,11 +1026,21 @@ func derivePendingBuildForRecord(record *BuildRecord) (PendingBuild, bool) {
 	return PendingBuild{}, false
 }
 
-func workflowRunMatchesRecord(record *BuildRecord, inputs map[string]string) bool {
-	if record == nil || len(inputs) == 0 {
+func workflowRunMatchesRecord(record *BuildRecord, run *WorkflowRun, inputs map[string]string) bool {
+	if record == nil {
 		return false
 	}
-	return buildRequestMatches(inputs, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms)
+	if len(inputs) > 0 && buildRequestMatches(inputs, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms) {
+		return true
+	}
+	// 绑定回调已经把 run_id 明确写进数据库后，后续查询不再强依赖 GitHub run 详情里必须带 inputs。
+	if run != nil && record.RunID > 0 && run.ID == record.RunID {
+		switch strings.TrimSpace(record.StatusSource) {
+		case "callback", "webhook", "github":
+			return true
+		}
+	}
+	return false
 }
 
 func (h *Handlers) findWorkflowRunByRequestID(requestID string, activeOnly bool) (*WorkflowRun, map[string]string, error) {
@@ -1068,7 +1078,7 @@ func (h *Handlers) findActiveWorkflowRunForRecord(record *BuildRecord) (*Workflo
 
 	if record.RunID > 0 {
 		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
-		if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) && isActiveWorkflowStatus(run.Status) {
+		if err == nil && run != nil && workflowRunMatchesRecord(record, run, inputs) && isActiveWorkflowStatus(run.Status) {
 			return run, nil
 		}
 	}
@@ -1126,7 +1136,7 @@ func (h *Handlers) waitForWorkflowRunTerminalState(record *BuildRecord, runID in
 	var lastRun *WorkflowRun
 	for {
 		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, runID)
-		if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) {
+		if err == nil && run != nil && workflowRunMatchesRecord(record, run, inputs) {
 			lastRun = run
 			if isWorkflowRunCompleted(run) {
 				return run, nil
@@ -1200,7 +1210,7 @@ func (h *Handlers) reconcileBuildRecords(records []BuildRecord, deep bool) []Bui
 		}
 		if record.RunID > 0 {
 			run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
-			if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) {
+			if err == nil && run != nil && workflowRunMatchesRecord(record, run, inputs) {
 				h.applyWorkflowRunToBuildRecord(record, run)
 				if record.Status == "completed" || record.RunID > 0 {
 					continue
@@ -1919,7 +1929,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	if record != nil {
 		if record.RunID > 0 {
 			run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
-			if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) {
+			if err == nil && run != nil && workflowRunMatchesRecord(record, run, inputs) {
 				matchedRun = run
 				matchedInputs = inputs
 			}
@@ -2186,7 +2196,7 @@ func (h *Handlers) CancelBuildRecord(w http.ResponseWriter, r *http.Request) {
 	if record.Status == "cancel_requested" {
 		if record.RunID > 0 {
 			run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
-			if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) && isWorkflowRunCompleted(run) {
+			if err == nil && run != nil && workflowRunMatchesRecord(record, run, inputs) && isWorkflowRunCompleted(run) {
 				conclusion := workflowRunConclusion(run)
 				record, _ = h.persistBuildRecordEvent(record, run.ID, run.Status, conclusion, "github", run.HTMLURL, "")
 				message := "打包已结束，无需停止"
@@ -2218,7 +2228,7 @@ func (h *Handlers) CancelBuildRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	if record.RunID > 0 {
 		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
-		if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) && run.Status == "completed" {
+		if err == nil && run != nil && workflowRunMatchesRecord(record, run, inputs) && run.Status == "completed" {
 			conclusion := ""
 			if run.Conclusion != nil {
 				conclusion = *run.Conclusion
@@ -2526,7 +2536,7 @@ func (h *Handlers) DeleteBuildRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	if record.RunID > 0 {
 		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
-		if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) {
+		if err == nil && run != nil && workflowRunMatchesRecord(record, run, inputs) {
 			if err := h.gh.DeleteWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID); err != nil {
 				jsonError(w, "删除 GitHub Actions 运行失败", 500)
 				return
