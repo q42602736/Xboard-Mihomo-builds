@@ -25,6 +25,8 @@ type Config struct {
 	GithubProfileBranch string
 	BuildOwner          string
 	BuildRepo           string
+	BuildEventToken     string
+	GitHubWebhookSecret string
 	JWTSecret           string
 	AdminPassword       string
 	ConfigFilepath      string
@@ -44,6 +46,8 @@ func loadConfig() {
 		GithubProfileBranch: getEnv("GITHUB_PROFILE_BRANCH", ""),
 		BuildOwner:          getEnv("BUILD_OWNER", ""),
 		BuildRepo:           getEnv("BUILD_REPO", ""),
+		BuildEventToken:     getEnv("BUILD_EVENT_TOKEN", ""),
+		GitHubWebhookSecret: getEnv("GITHUB_WEBHOOK_SECRET", ""),
 		JWTSecret:           mustEnv("JWT_SECRET"),
 		AdminPassword:       mustEnv("ADMIN_PASSWORD"),
 		ConfigFilepath:      getEnv("CONFIG_FILEPATH", "assets/config/xboard.config.yaml"),
@@ -100,6 +104,9 @@ func main() {
 	// 认证接口（公开）
 	r.Post("/api/auth/login", h.Login)
 	r.Post("/api/auth/admin", h.AdminLogin)
+	r.Post("/api/internal/build-events/bind", h.InternalBindBuildRun)
+	r.Post("/api/internal/build-events/complete", h.InternalCompleteBuildRun)
+	r.Post("/api/internal/github/webhook", h.HandleGitHubWebhook)
 	r.Get("/download/build/records/{id}/assets/{assetID}", h.DownloadBuildRecordAssetByToken)
 
 	// 需要登录的 API
@@ -115,6 +122,7 @@ func main() {
 		r.Post("/api/build/trigger", h.TriggerBuild)
 		r.Get("/api/build/history", h.GetBuildHistory)
 		r.Get("/api/build/records", h.ListBuildRecords)
+		r.Post("/api/build/records/{id}/cancel", h.CancelBuildRecord)
 		r.Delete("/api/build/records/{id}", h.DeleteBuildRecord)
 		r.Get("/api/build/records/{id}/assets", h.GetBuildRecordAssets)
 		r.Post("/api/build/records/{id}/download/{assetID}/link", h.CreateBuildRecordAssetDownloadLink)

@@ -1053,6 +1053,25 @@
             border-color: rgba(255,68,68,0.3);
             background: rgba(255,68,68,0.1);
         }
+        .build-progress-cancel {
+            min-width: 88px;
+            padding: 6px 10px;
+            border: 1px solid rgba(255,170,0,0.35);
+            border-radius: 6px;
+            background: rgba(255,170,0,0.12);
+            color: #ffd27a;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .build-progress-cancel:hover:not(:disabled) {
+            background: rgba(255,170,0,0.18);
+            border-color: rgba(255,170,0,0.5);
+        }
+        .build-progress-cancel:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
         .build-progress-params {
             display: flex;
             flex-wrap: wrap;
@@ -1095,6 +1114,7 @@
         .build-progress-status-icon.success { background: #00ff88; }
         .build-progress-status-icon.failure { background: #ff4444; }
         .build-progress-status-icon.cancelled { background: #888; }
+        .build-progress-status-icon.skipped { background: #888; }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
@@ -1125,6 +1145,7 @@
         .build-job-item.in_progress { border-left-color: #00d4ff; }
         .build-job-item.success { border-left-color: #00ff88; }
         .build-job-item.failure { border-left-color: #ff4444; }
+        .build-job-item.cancelled { border-left-color: #555; opacity: 0.6; }
         .build-job-item.skipped { border-left-color: #555; opacity: 0.6; }
         .build-job-icon {
             font-size: 14px;
@@ -3429,6 +3450,7 @@
                         <div class="build-progress-header">
                             <h3 id="buildProgressTitle">打包进度</h3>
                             <div style="display:flex; align-items:center; gap:8px;">
+                                <button type="button" id="cancelBuildBtn" class="build-progress-cancel" style="display:none;" onclick="cancelCurrentBuild()">停止打包</button>
                                 <button onclick="dismissBuildProgress()" class="build-progress-close" title="关闭">✕</button>
                             </div>
                         </div>
@@ -5457,10 +5479,70 @@
                 }
                 delete buildAssetCache[recordId];
                 setBuildStatus('打包记录已删除', 'success');
-                loadMyBuildRecords();
+                refreshMyBuildRecordsIfNeeded(false);
             } catch (e) {
                 setBuildStatus('删除失败: ' + e.message, 'error');
             }
+        }
+
+        async function cancelBuildRecord(recordId, options) {
+            options = options || {};
+            if (!recordId) return;
+
+            if (!options.skipConfirm) {
+                if (!await showAppConfirm('确定要停止这次 GitHub 打包吗？已开始执行的 job 会被请求终止。', '停止打包', '确认停止')) {
+                    return;
+                }
+            }
+
+            buildCancelInFlightRecordId = Number(recordId);
+            updateBuildProgressCancelAction({ record_id: recordId, status: 'cancel_requested' });
+
+            try {
+                var response = await api('POST', '/build/records/' + recordId + '/cancel');
+                if (!response) {
+                    buildCancelInFlightRecordId = 0;
+                    updateBuildProgressCancelAction(buildPollContext ? { record_id: buildPollContext.buildRecordId, status: buildPollContext.status || 'dispatching' } : null);
+                    return;
+                }
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '停止打包失败');
+                }
+
+                setBuildStatus(data.message || '已提交停止请求', 'success');
+                await refreshMyBuildRecordsIfNeeded(false);
+
+                if (buildPollContext && Number(buildPollContext.buildRecordId) === Number(recordId)) {
+                    renderBuildProgress({
+                        found: true,
+                        record_id: recordId,
+                        status: data.status || 'cancel_requested',
+                        conclusion: data.conclusion || 'cancelled',
+                        inputs: {
+                            tag: buildPollContext.tag,
+                            branch: buildPollContext.branch,
+                            platforms: buildPollContext.platforms
+                        },
+                        created_at: new Date().toISOString()
+                    });
+                    stopBuildPolling();
+                    buildPollTimer = setTimeout(pollBuildStatus, 1500);
+                }
+            } catch (e) {
+                buildCancelInFlightRecordId = 0;
+                updateBuildProgressCancelAction(buildPollContext ? { record_id: buildPollContext.buildRecordId, status: buildPollContext.status || 'dispatching' } : null);
+                setBuildStatus('停止打包失败: ' + e.message, 'error');
+            }
+        }
+
+        async function cancelMyBuildRecord(recordId) {
+            return cancelBuildRecord(recordId);
+        }
+
+        async function cancelCurrentBuild() {
+            if (!buildPollContext || !buildPollContext.buildRecordId) return;
+            return cancelBuildRecord(buildPollContext.buildRecordId);
         }
 
         async function toggleBuildAssets(recordId) {
@@ -5504,9 +5586,12 @@
             records.forEach(function(record) {
                 var statusText = getStatusText(record.status, record.conclusion || '');
                 var statusColor = '#00d4ff';
+                if (record.status === 'dispatching') statusColor = '#ffaa00';
                 if (record.status === 'completed' && record.conclusion === 'success') statusColor = '#00ff88';
                 if (record.status === 'completed' && record.conclusion === 'failure') statusColor = '#ff6b6b';
                 if (record.status === 'completed' && record.conclusion === 'trigger_failed') statusColor = '#ff6b6b';
+                if (record.status === 'completed' && record.conclusion === 'cancelled') statusColor = '#b9bec7';
+                if (record.status === 'cancel_requested') statusColor = '#ffd27a';
                 html += '<div style="padding:10px 12px; background:rgba(255,255,255,0.03); border-radius:8px;">';
                 html += '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">';
                 html += '<div style="display:flex; flex-direction:column; gap:6px; min-width:0;">';
@@ -5514,16 +5599,20 @@
                 html += '<div style="color:#aaa; font-size:12px;">分支: ' + record.branch + ' · 平台: ' + record.platforms + '</div>';
                 html += '<div style="color:#888; font-size:12px;">创建时间: ' + record.created_at + '</div>';
                 html += '</div>';
-                var deleteButtonHtml = '';
+                var actionButtonsHtml = '';
                 if (record.status === 'completed') {
-                    deleteButtonHtml = '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,68,68,0.18); color:#ff9a9a; border:1px solid rgba(255,68,68,0.35);" onclick="deleteMyBuildRecord(' + record.id + ')">删除记录</button>';
+                    actionButtonsHtml = '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,68,68,0.18); color:#ff9a9a; border:1px solid rgba(255,68,68,0.35);" onclick="deleteMyBuildRecord(' + record.id + ')">删除记录</button>';
+                } else if (record.status === 'cancel_requested') {
+                    actionButtonsHtml = '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,170,0,0.12); color:#a58a4f; border:1px solid rgba(255,170,0,0.2);" disabled title="已提交停止请求，等待 GitHub 终止">停止中...</button>';
+                    actionButtonsHtml += '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,68,68,0.18); color:#ff9a9a; border:1px solid rgba(255,68,68,0.35);" onclick="deleteMyBuildRecord(' + record.id + ')">删除记录</button>';
                 } else {
-                    deleteButtonHtml = '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,255,255,0.06); color:#777; border:1px solid rgba(255,255,255,0.08);" disabled title="正在打包的记录暂不支持删除">删除记录</button>';
+                    actionButtonsHtml = '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,170,0,0.12); color:#ffd27a; border:1px solid rgba(255,170,0,0.35);" onclick="cancelMyBuildRecord(' + record.id + ')">停止打包</button>';
+                    actionButtonsHtml += '<button type="button" class="btn" style="padding:6px 10px; font-size:12px; background:rgba(255,68,68,0.18); color:#ff9a9a; border:1px solid rgba(255,68,68,0.35);" onclick="deleteMyBuildRecord(' + record.id + ')">删除记录</button>';
                 }
                 html += '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex-shrink:0;">';
                 html += '<span style="color:' + statusColor + '; font-size:12px;">' + statusText + '</span>';
                 html += '<button type="button" class="btn btn-secondary" style="padding:6px 10px; font-size:12px;" onclick="toggleBuildAssets(' + record.id + ')">' + (record.download_ready ? '查看下载' : '查看产物') + '</button>';
-                html += deleteButtonHtml;
+                html += actionButtonsHtml;
                 html += '</div>';
                 html += '</div>';
                 html += '<div id="buildAssets-' + record.id + '" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.06);"></div>';
@@ -5560,8 +5649,10 @@
                 tag: record.tag || '',
                 branch: record.branch || 'main',
                 platforms: record.platforms || 'all',
-                requestId: String(record.id),
-                buildRecordId: record.id
+                requestId: record.request_id || String(record.id),
+                buildRecordId: record.id,
+                status: record.status || '',
+                conclusion: record.conclusion || ''
             };
         }
 
@@ -5603,6 +5694,14 @@
                 }
                 return [];
             }
+        }
+
+        function refreshMyBuildRecordsIfNeeded(force) {
+            if (force || myBuildRecordsExpanded || myBuildRecordsCache === null) {
+                return loadMyBuildRecords();
+            }
+            myBuildRecordsCache = null;
+            return Promise.resolve([]);
         }
 
         function getBuildQueuePollInterval() {
@@ -5718,7 +5817,7 @@
                 setBuildStatus('软件打包已提交！档案: ' + profileName + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
                 await loadBuildHistory();
                 loadBuildQueue();
-                loadMyBuildRecords();
+                refreshMyBuildRecordsIfNeeded(false);
                 await loadCurrentUserInfo();
                 startBuildPolling({
                     profile: profileName,
@@ -5726,7 +5825,9 @@
                     branch: buildBranch,
                     platforms: platforms,
                     requestId: result.request_id || '',
-                    buildRecordId: result.record_id || 0
+                    buildRecordId: result.record_id || 0,
+                    status: 'dispatching',
+                    conclusion: ''
                 }, false);
             } catch (e) {
                 setBuildStatus('触发失败: ' + e.message, 'error');
@@ -7306,6 +7407,7 @@
         var BUILD_POLL_KEY_BASE = 'xboard_building_profile';
         var buildPollTimer = null;
         var buildPollContext = null;
+        var buildCancelInFlightRecordId = 0;
         var buildNotFoundCount = 0;
         var maxNotFoundRetries = 12;
 
@@ -7326,7 +7428,9 @@
                     branch: 'main',
                     platforms: 'all',
                     requestId: '',
-                    buildRecordId: 0
+                    buildRecordId: 0,
+                    status: '',
+                    conclusion: ''
                 };
             }
             if (!context.profile) return null;
@@ -7336,7 +7440,9 @@
                 branch: context.branch || 'main',
                 platforms: context.platforms || 'all',
                 requestId: context.requestId || context.request_id || '',
-                buildRecordId: context.buildRecordId || context.build_record_id || 0
+                buildRecordId: context.buildRecordId || context.build_record_id || 0,
+                status: context.status || '',
+                conclusion: context.conclusion || ''
             };
         }
 
@@ -7398,9 +7504,54 @@
         function dismissBuildProgress() {
             stopBuildPolling();
             buildPollContext = null;
+            buildCancelInFlightRecordId = 0;
             buildNotFoundCount = 0;
             saveBuildingProfile(null);
             document.getElementById('buildProgressPanel').style.display = 'none';
+            updateBuildProgressCancelAction();
+        }
+
+        function isBuildTerminalStatus(status) {
+            return status === 'completed';
+        }
+
+        function isBuildCancelableStatus(status) {
+            return status === 'dispatching' || status === 'queued' || status === 'waiting' || status === 'requested' || status === 'pending' || status === 'in_progress';
+        }
+
+        function updateBuildProgressCancelAction(data) {
+            var btn = document.getElementById('cancelBuildBtn');
+            if (!btn) return;
+
+            if (!buildPollContext || !buildPollContext.buildRecordId) {
+                btn.style.display = 'none';
+                btn.disabled = true;
+                btn.textContent = '停止打包';
+                btn.title = '';
+                return;
+            }
+
+            var currentRecordId = Number(buildPollContext.buildRecordId || 0);
+            var recordId = data && data.record_id ? Number(data.record_id) : currentRecordId;
+            var status = data && data.status ? data.status : '';
+            if (recordId !== currentRecordId) {
+                recordId = currentRecordId;
+                status = buildPollContext.status || '';
+            }
+            var isStopping = (status === 'cancel_requested' && recordId === currentRecordId) || buildCancelInFlightRecordId === currentRecordId;
+
+            if (isBuildTerminalStatus(status)) {
+                btn.style.display = 'none';
+                btn.disabled = true;
+                btn.textContent = '停止打包';
+                btn.title = '';
+                return;
+            }
+
+            btn.style.display = 'inline-flex';
+            btn.disabled = isStopping || !isBuildCancelableStatus(status || 'dispatching');
+            btn.textContent = isStopping ? '停止中...' : '停止打包';
+            btn.title = isStopping ? '已提交停止请求，正在等待 GitHub 终止工作流' : '';
         }
 
         function startBuildPolling(context, isResume) {
@@ -7416,13 +7567,14 @@
             document.getElementById('buildJobsList').innerHTML = '';
             document.getElementById('buildProgressTime').textContent = '';
             renderBuildProgressParams();
+            updateBuildProgressCancelAction({ record_id: normalized.buildRecordId, status: normalized.status || 'dispatching' });
 
             if (isResume) {
                 document.getElementById('buildProgressText').textContent = '正在查询打包状态...';
-                document.getElementById('buildProgressIcon').className = 'build-progress-status-icon in_progress';
+                document.getElementById('buildProgressIcon').className = 'build-progress-status-icon ' + getStatusClass(normalized.status || 'dispatching', normalized.conclusion || '');
                 pollBuildStatus();
             } else {
-                document.getElementById('buildProgressText').textContent = '正在匹配本次 GitHub 打包运行...';
+                document.getElementById('buildProgressText').textContent = '正在提交打包请求，等待 GitHub 运行绑定...';
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
                 setTimeout(function() { pollBuildStatus(); }, 5000);
             }
@@ -7471,12 +7623,15 @@
                     buildPollContext.platforms = data.inputs.platforms || buildPollContext.platforms;
                     saveBuildingProfile(buildPollContext);
                 }
+                buildPollContext.status = data.status || '';
+                buildPollContext.conclusion = data.conclusion || '';
+                saveBuildingProfile(buildPollContext);
                 renderBuildProgress(data);
                 if (buildPollContext.buildRecordId) {
-                    loadMyBuildRecords();
+                    refreshMyBuildRecordsIfNeeded(false);
                 }
 
-                if (data.found && data.status !== 'completed') {
+                if (data.found && !isBuildTerminalStatus(data.status)) {
                     buildNotFoundCount = 0;
                     buildPollTimer = setTimeout(pollBuildStatus, 15000);
                 } else if (!data.found) {
@@ -7487,11 +7642,16 @@
                         buildPollTimer = setTimeout(pollBuildStatus, 10000);
                     }
                 } else {
+                    buildCancelInFlightRecordId = 0;
                     saveBuildingProfile(null);
                     buildPollContext = null;
                     loadBuildQueue();
+                    updateBuildProgressCancelAction(data);
                 }
             } catch (e) {
+                document.getElementById('buildProgressText').textContent = '打包状态查询失败，稍后自动重试';
+                document.getElementById('buildProgressTime').textContent = e && e.message ? e.message : '';
+                updateBuildProgressCancelAction(buildPollContext ? { record_id: buildPollContext.buildRecordId, status: buildPollContext.status || 'dispatching' } : null);
                 buildPollTimer = setTimeout(pollBuildStatus, 20000);
             }
         }
@@ -7501,8 +7661,9 @@
             stopBuildPolling();
             saveBuildingProfile(null);
             buildPollContext = null;
+            buildCancelInFlightRecordId = 0;
             document.getElementById('buildProgressIcon').className = 'build-progress-status-icon cancelled';
-            document.getElementById('buildProgressText').textContent = '暂时还没匹配到本次 GitHub 打包运行，GitHub 侧可能仍在排队，请稍后重试';
+            document.getElementById('buildProgressText').textContent = '未找到对应打包记录，记录可能已被删除或已过期';
             var details = [];
             var requestId = (data && data.request_id) || (currentContext && currentContext.requestId) || '';
             var recordId = (data && data.record_id) || (currentContext && currentContext.buildRecordId) || 0;
@@ -7520,6 +7681,8 @@
                 if (conclusion === 'skipped') return '⊘';
                 return '?';
             }
+            if (status === 'cancel_requested') return '…';
+            if (status === 'dispatching') return '◦';
             if (status === 'in_progress') return '⟳';
             if (status === 'queued' || status === 'waiting' || status === 'requested' || status === 'pending') return '◦';
             return '…';
@@ -7533,7 +7696,9 @@
                 if (conclusion === 'cancelled') return 'skipped';
                 return '';
             }
+            if (status === 'cancel_requested') return 'cancelled';
             if (status === 'in_progress') return 'in_progress';
+            if (status === 'dispatching') return 'queued';
             return 'queued';
         }
 
@@ -7545,6 +7710,8 @@
                 if (conclusion === 'cancelled') return '已取消';
                 return '已完成';
             }
+            if (status === 'cancel_requested') return '正在停止打包...';
+            if (status === 'dispatching') return '正在提交打包，等待 GitHub 运行绑定...';
             if (status === 'in_progress') return '正在打包...';
             if (status === 'queued' || status === 'waiting' || status === 'requested' || status === 'pending') return '排队等待中...';
             return status;
@@ -7598,7 +7765,7 @@
 
             if (!data.found) {
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
-                document.getElementById('buildProgressText').textContent = '正在匹配 GitHub 打包运行... (' + buildNotFoundCount + '/' + maxNotFoundRetries + ')';
+                document.getElementById('buildProgressText').textContent = '未找到对应打包记录';
                 var waitingDetails = [];
                 if (data.record_id || (buildPollContext && buildPollContext.buildRecordId)) waitingDetails.push('记录ID: ' + (data.record_id || buildPollContext.buildRecordId));
                 if (data.request_id || (buildPollContext && buildPollContext.requestId)) waitingDetails.push('请求ID: ' + (data.request_id || buildPollContext.requestId));
@@ -7606,6 +7773,10 @@
                 if (data.pending_detected) waitingDetails.push('已恢复排队上下文');
                 document.getElementById('buildProgressTime').textContent = waitingDetails.join(' · ');
                 document.getElementById('buildJobsList').innerHTML = '';
+                updateBuildProgressCancelAction({
+                    record_id: data.record_id || (buildPollContext && buildPollContext.buildRecordId),
+                    status: data.record_status || 'dispatching'
+                });
                 return;
             }
 
@@ -7614,8 +7785,9 @@
 
             document.getElementById('buildProgressIcon').className = 'build-progress-status-icon ' + statusClass;
             document.getElementById('buildProgressText').textContent = statusText;
+            updateBuildProgressCancelAction(data);
 
-            if (data.status !== 'completed') {
+            if (!isBuildTerminalStatus(data.status)) {
                 document.getElementById('buildProgressTime').textContent = formatDuration(data.created_at);
             } else {
                 document.getElementById('buildProgressTime').textContent = '';

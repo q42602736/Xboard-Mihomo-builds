@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -566,7 +568,7 @@ func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 const maxConcurrentBuildJobs = 20
 const maxConcurrentMacOSBuildJobs = 5
 
-const recentWorkflowRunsSearchLimit = 30
+const recentWorkflowRunsSearchLimit = 100
 
 type BuildJobDemand struct {
 	Total int
@@ -852,8 +854,8 @@ func buildRequestMatches(inputs map[string]string, profile, requestID, tag, bran
 	if len(inputs) == 0 {
 		return false
 	}
-	if requestID != "" && inputs["request_id"] != "" {
-		return inputs["request_id"] == requestID
+	if requestID != "" {
+		return strings.TrimSpace(inputs["request_id"]) == strings.TrimSpace(requestID)
 	}
 	if inputs["profile"] != profile {
 		return false
@@ -874,8 +876,34 @@ func isActiveWorkflowStatus(status string) bool {
 	return status != "" && status != "completed"
 }
 
+func buildRecordRequestID(record *BuildRecord) string {
+	if record == nil {
+		return ""
+	}
+	if strings.TrimSpace(record.RequestID) != "" {
+		return strings.TrimSpace(record.RequestID)
+	}
+	if record.ID > 0 {
+		return strconv.FormatInt(record.ID, 10)
+	}
+	return ""
+}
+
+func buildWorkflowRunURL(runID int64) string {
+	if runID <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("https://github.com/%s/%s/actions/runs/%d", cfg.BuildOwner, cfg.BuildRepo, runID)
+}
+
 func buildReleaseTag(record *BuildRecord) string {
-	if record == nil || record.RunID <= 0 {
+	if record == nil {
+		return ""
+	}
+	if strings.TrimSpace(record.ReleaseTag) != "" {
+		return strings.TrimSpace(record.ReleaseTag)
+	}
+	if record.RunID <= 0 {
 		return ""
 	}
 	return fmt.Sprintf("%s-%s-%d", record.Profile, record.Tag, record.RunID)
@@ -897,18 +925,298 @@ func buildRecordResponse(record BuildRecord) map[string]interface{} {
 		"id":             record.ID,
 		"code_id":        record.CodeID,
 		"code_name":      record.CodeName,
+		"request_id":     buildRecordRequestID(&record),
 		"profile":        record.Profile,
 		"tag":            record.Tag,
 		"branch":         record.Branch,
 		"platforms":      record.Platforms,
 		"run_id":         record.RunID,
+		"run_url":        record.RunURL,
 		"status":         record.Status,
 		"conclusion":     record.Conclusion,
+		"status_source":  record.StatusSource,
+		"bound_at":       record.BoundAt,
+		"finished_at":    record.FinishedAt,
+		"last_sync_at":   record.LastSyncAt,
 		"created_at":     record.CreatedAt,
 		"updated_at":     record.UpdatedAt,
 		"release_tag":    releaseTag,
-		"download_ready": record.RunID > 0 && record.Status == "completed" && record.Conclusion == "success",
+		"download_ready": releaseTag != "" && record.Status == "completed" && record.Conclusion == "success",
 	}
+}
+
+func buildRecordInputs(record *BuildRecord) map[string]string {
+	if record == nil {
+		return nil
+	}
+	return map[string]string{
+		"profile":    record.Profile,
+		"tag":        record.Tag,
+		"branch":     record.Branch,
+		"platforms":  record.Platforms,
+		"request_id": buildRecordRequestID(record),
+	}
+}
+
+func buildStatusResponseFromRecord(record *BuildRecord) map[string]interface{} {
+	if record == nil {
+		return map[string]interface{}{"found": false}
+	}
+	return map[string]interface{}{
+		"found":         true,
+		"record_id":     record.ID,
+		"run_id":        record.RunID,
+		"run_url":       record.RunURL,
+		"status":        record.Status,
+		"conclusion":    record.Conclusion,
+		"status_source": record.StatusSource,
+		"bound_at":      record.BoundAt,
+		"finished_at":   record.FinishedAt,
+		"last_sync_at":  record.LastSyncAt,
+		"created_at":    record.CreatedAt,
+		"updated_at":    record.UpdatedAt,
+		"release_tag":   buildReleaseTag(record),
+		"request_id":    buildRecordRequestID(record),
+		"inputs":        buildRecordInputs(record),
+	}
+}
+
+func shouldUseLocalBuildStatus(record *BuildRecord) bool {
+	if record == nil {
+		return false
+	}
+	if record.Status == "cancel_requested" {
+		return true
+	}
+	return record.Status == "completed" && record.Conclusion != ""
+}
+
+func buildPendingMatchesRecordTime(record *BuildRecord, pending PendingBuild) bool {
+	if record == nil {
+		return false
+	}
+	createdAt, ok := parseDBTimestamp(record.CreatedAt)
+	if !ok {
+		return false
+	}
+	earliest := pending.TriggeredAt.Add(-20 * time.Minute)
+	latest := pending.TriggeredAt.Add(20 * time.Minute)
+	return !createdAt.Before(earliest) && !createdAt.After(latest)
+}
+
+func derivePendingBuildForRecord(record *BuildRecord) (PendingBuild, bool) {
+	if record == nil {
+		return PendingBuild{}, false
+	}
+	if pendingBuild, ok := getPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Platforms); ok {
+		if buildPendingMatchesRecordTime(record, pendingBuild) {
+			return pendingBuild, true
+		}
+	}
+	if createdAt, ok := parseDBTimestamp(record.CreatedAt); ok {
+		return PendingBuild{
+			CodeID:      record.CodeID,
+			Profile:     record.Profile,
+			Tag:         record.Tag,
+			Branch:      record.Branch,
+			Platforms:   record.Platforms,
+			TriggeredAt: createdAt,
+		}, true
+	}
+	return PendingBuild{}, false
+}
+
+func workflowRunMatchesRecord(record *BuildRecord, inputs map[string]string) bool {
+	if record == nil || len(inputs) == 0 {
+		return false
+	}
+	return buildRequestMatches(inputs, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms)
+}
+
+func (h *Handlers) findWorkflowRunByRequestID(requestID string, activeOnly bool) (*WorkflowRun, map[string]string, error) {
+	requestID = strings.TrimSpace(requestID)
+	if requestID == "" {
+		return nil, nil, nil
+	}
+
+	runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", recentWorkflowRunsSearchLimit)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for i := range runs {
+		run := &runs[i]
+		if activeOnly && !isActiveWorkflowStatus(run.Status) {
+			continue
+		}
+		inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+		if err != nil {
+			continue
+		}
+		if strings.TrimSpace(inputs["request_id"]) == requestID {
+			return run, inputs, nil
+		}
+	}
+
+	return nil, nil, nil
+}
+
+func (h *Handlers) findActiveWorkflowRunForRecord(record *BuildRecord) (*WorkflowRun, error) {
+	if record == nil {
+		return nil, nil
+	}
+
+	if record.RunID > 0 {
+		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
+		if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) && isActiveWorkflowStatus(run.Status) {
+			return run, nil
+		}
+	}
+
+	run, _, err := h.findWorkflowRunByRequestID(buildRecordRequestID(record), true)
+	if err != nil {
+		return nil, err
+	}
+	return run, nil
+}
+
+func (h *Handlers) findStrictActiveWorkflowRunForRecord(record *BuildRecord) (*WorkflowRun, error) {
+	return h.findActiveWorkflowRunForRecord(record)
+}
+
+func resolveBuildRecordWorkflowStatus(record *BuildRecord, run *WorkflowRun) (string, string) {
+	if record == nil || run == nil {
+		return "", ""
+	}
+	conclusion := ""
+	if run.Conclusion != nil {
+		conclusion = *run.Conclusion
+	}
+	status := run.Status
+	if record.Status == "cancel_requested" && run.Status != "completed" {
+		status = "cancel_requested"
+		if conclusion == "" {
+			conclusion = record.Conclusion
+		}
+	}
+	return status, conclusion
+}
+
+func (h *Handlers) applyWorkflowRunToBuildRecord(record *BuildRecord, run *WorkflowRun) {
+	if record == nil || run == nil {
+		return
+	}
+	status, conclusion := resolveBuildRecordWorkflowStatus(record, run)
+	if status == "" {
+		return
+	}
+	runURL := run.HTMLURL
+	if runURL == "" {
+		runURL = buildWorkflowRunURL(run.ID)
+	}
+	releaseTag := buildReleaseTag(record)
+	if err := updateBuildRecordStatusExt(record.ID, run.ID, status, conclusion, "github", runURL, releaseTag); err != nil {
+		return
+	}
+	record.RunID = run.ID
+	if runURL != "" {
+		record.RunURL = runURL
+	}
+	if releaseTag != "" {
+		record.ReleaseTag = releaseTag
+	}
+	record.Status = status
+	record.Conclusion = conclusion
+	record.StatusSource = "github"
+	if run.CreatedAt != "" {
+		record.CreatedAt = run.CreatedAt
+	}
+	if run.UpdatedAt != "" {
+		record.UpdatedAt = run.UpdatedAt
+	}
+	if run.Status == "completed" {
+		clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Platforms)
+		delete(profileRunCache, buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms))
+	} else {
+		profileRunCache[buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms)] = run.ID
+	}
+}
+
+func (h *Handlers) reconcileBuildRecords(records []BuildRecord, deep bool) []BuildRecord {
+	if len(records) == 0 {
+		return records
+	}
+
+	type unresolvedRecord struct {
+		index      int
+		pending    PendingBuild
+		hasPending bool
+		requestID  string
+	}
+
+	unresolved := make([]unresolvedRecord, 0)
+	for i := range records {
+		record := &records[i]
+		if record.Status == "completed" {
+			continue
+		}
+		if record.RunID > 0 {
+			run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
+			if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) {
+				h.applyWorkflowRunToBuildRecord(record, run)
+				if record.Status == "completed" || record.RunID > 0 {
+					continue
+				}
+			}
+		}
+
+		requestID := buildRecordRequestID(record)
+		pendingBuild, hasPendingBuild := derivePendingBuildForRecord(record)
+
+		unresolved = append(unresolved, unresolvedRecord{
+			index:      i,
+			pending:    pendingBuild,
+			hasPending: hasPendingBuild,
+			requestID:  requestID,
+		})
+	}
+
+	if len(unresolved) == 0 {
+		return records
+	}
+	if !deep {
+		return records
+	}
+
+	runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", recentWorkflowRunsSearchLimit)
+	if err != nil {
+		return records
+	}
+
+	resolved := make(map[int]struct{})
+	for i := range runs {
+		run := &runs[i]
+		inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+		for _, item := range unresolved {
+			if _, ok := resolved[item.index]; ok {
+				continue
+			}
+			record := &records[item.index]
+			matchesByInputs := err == nil && buildRequestMatches(inputs, record.Profile, item.requestID, record.Tag, record.Branch, record.Platforms)
+			matchesByPending := item.requestID == "" && run.Status != "completed" && item.hasPending && matchRunByPendingBuild(run, item.pending)
+			if !matchesByInputs && !matchesByPending {
+				continue
+			}
+			h.applyWorkflowRunToBuildRecord(record, run)
+			resolved[item.index] = struct{}{}
+			break
+		}
+		if len(resolved) == len(unresolved) {
+			break
+		}
+	}
+
+	return records
 }
 
 func findReleaseAssetByID(release *Release, assetID int64) *ReleaseAsset {
@@ -1063,7 +1371,7 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestID := strconv.FormatInt(record.ID, 10)
+	requestID := buildRecordRequestID(record)
 	inputs := map[string]string{
 		"profile":        req.Profile,
 		"profile_branch": cfg.GithubProfileBranch,
@@ -1078,14 +1386,14 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		if usageConsumed {
 			_ = rollbackBuildUsage(claims.CodeID)
 		}
-		updateBuildRecordStatus(record.ID, 0, "completed", "trigger_failed")
+		_ = updateBuildRecordStatusExt(record.ID, 0, "completed", "trigger_failed", "server", "", "")
 		jsonError(w, err.Error(), 500)
 		return
 	}
 
 	rememberPendingBuild(claims.CodeID, req.Profile, req.Tag, req.Branch, req.Platforms)
 
-	delete(profileRunCache, buildRunCacheKey(claims.CodeID, req.Profile, "", req.Tag, req.Branch, req.Platforms))
+	delete(profileRunCache, buildRunCacheKey(claims.CodeID, req.Profile, requestID, req.Tag, req.Branch, req.Platforms))
 	delete(profileRunCache, buildRunCacheKey(claims.CodeID, req.Profile, "", "", "", ""))
 
 	logAudit(claims.CodeID, claims.CodeName, "trigger_build",
@@ -1098,6 +1406,297 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		"message":    "打包已提交",
 		"record_id":  record.ID,
 		"request_id": requestID,
+	})
+}
+
+func secureCompareString(expected, actual string) bool {
+	expected = strings.TrimSpace(expected)
+	actual = strings.TrimSpace(actual)
+	if expected == "" || actual == "" {
+		return false
+	}
+	return hmac.Equal([]byte(expected), []byte(actual))
+}
+
+func authorizeBuildEventRequest(r *http.Request) bool {
+	return secureCompareString(cfg.BuildEventToken, r.Header.Get("X-Build-Event-Token"))
+}
+
+func verifyGitHubWebhookSignature(secret, signature string, body []byte) bool {
+	secret = strings.TrimSpace(secret)
+	signature = strings.TrimSpace(signature)
+	if secret == "" || signature == "" {
+		return false
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write(body)
+	expected := fmt.Sprintf("sha256=%x", mac.Sum(nil))
+	return hmac.Equal([]byte(expected), []byte(signature))
+}
+
+func buildReleaseTagForRun(record *BuildRecord, runID int64, releaseTag string) string {
+	releaseTag = strings.TrimSpace(releaseTag)
+	if releaseTag != "" {
+		return releaseTag
+	}
+	if record == nil {
+		return ""
+	}
+	if strings.TrimSpace(record.ReleaseTag) != "" {
+		return strings.TrimSpace(record.ReleaseTag)
+	}
+	if runID > 0 {
+		return fmt.Sprintf("%s-%s-%d", record.Profile, record.Tag, runID)
+	}
+	return ""
+}
+
+func (h *Handlers) persistBuildRecordEvent(record *BuildRecord, runID int64, status, conclusion, statusSource, runURL, releaseTag string) (*BuildRecord, error) {
+	if record == nil {
+		return nil, fmt.Errorf("打包记录不存在")
+	}
+
+	status = strings.TrimSpace(status)
+	if status == "" {
+		status = record.Status
+	}
+	conclusion = strings.TrimSpace(conclusion)
+	if conclusion == "" {
+		conclusion = record.Conclusion
+	}
+	runURL = strings.TrimSpace(runURL)
+	if runURL == "" && runID > 0 {
+		runURL = buildWorkflowRunURL(runID)
+	}
+	releaseTag = buildReleaseTagForRun(record, runID, releaseTag)
+
+	if err := updateBuildRecordStatusExt(record.ID, runID, status, conclusion, statusSource, runURL, releaseTag); err != nil {
+		return nil, err
+	}
+
+	cacheKey := buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms)
+	if status == "completed" {
+		clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Platforms)
+		delete(profileRunCache, cacheKey)
+	} else if runID > 0 {
+		profileRunCache[cacheKey] = runID
+	}
+
+	updatedRecord, err := getBuildRecord(record.ID)
+	if err != nil {
+		return record, nil
+	}
+	return updatedRecord, nil
+}
+
+func (h *Handlers) InternalBindBuildRun(w http.ResponseWriter, r *http.Request) {
+	if !authorizeBuildEventRequest(r) {
+		jsonError(w, "未授权的内部回调请求", 401)
+		return
+	}
+
+	var req struct {
+		RequestID  string `json:"request_id"`
+		RunID      int64  `json:"run_id"`
+		RunURL     string `json:"run_url"`
+		Status     string `json:"status"`
+		Conclusion string `json:"conclusion"`
+		ReleaseTag string `json:"release_tag"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "请求格式错误", 400)
+		return
+	}
+
+	req.RequestID = strings.TrimSpace(req.RequestID)
+	if req.RequestID == "" || req.RunID <= 0 {
+		jsonError(w, "缺少 request_id 或 run_id", 400)
+		return
+	}
+
+	record, err := getBuildRecordByRequestID(req.RequestID)
+	if err != nil {
+		jsonError(w, "打包记录不存在", 404)
+		return
+	}
+
+	status := strings.TrimSpace(req.Status)
+	if status == "" || status == "dispatching" {
+		status = "in_progress"
+	}
+	record, err = h.persistBuildRecordEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag)
+	if err != nil {
+		jsonError(w, "绑定打包运行失败", 500)
+		return
+	}
+
+	jsonResponse(w, map[string]interface{}{
+		"message": "绑定成功",
+		"record":  buildRecordResponse(*record),
+	})
+}
+
+func (h *Handlers) InternalCompleteBuildRun(w http.ResponseWriter, r *http.Request) {
+	if !authorizeBuildEventRequest(r) {
+		jsonError(w, "未授权的内部回调请求", 401)
+		return
+	}
+
+	var req struct {
+		RequestID  string `json:"request_id"`
+		RunID      int64  `json:"run_id"`
+		RunURL     string `json:"run_url"`
+		Status     string `json:"status"`
+		Conclusion string `json:"conclusion"`
+		ReleaseTag string `json:"release_tag"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "请求格式错误", 400)
+		return
+	}
+
+	req.RequestID = strings.TrimSpace(req.RequestID)
+	if req.RequestID == "" {
+		jsonError(w, "缺少 request_id", 400)
+		return
+	}
+
+	record, err := getBuildRecordByRequestID(req.RequestID)
+	if err != nil {
+		jsonError(w, "打包记录不存在", 404)
+		return
+	}
+
+	if req.RunID <= 0 {
+		req.RunID = record.RunID
+	}
+	status := strings.TrimSpace(req.Status)
+	if status == "" {
+		status = "completed"
+	}
+	record, err = h.persistBuildRecordEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag)
+	if err != nil {
+		jsonError(w, "更新打包完成状态失败", 500)
+		return
+	}
+
+	jsonResponse(w, map[string]interface{}{
+		"message": "回写成功",
+		"record":  buildRecordResponse(*record),
+	})
+}
+
+func (h *Handlers) HandleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
+	if strings.TrimSpace(cfg.GitHubWebhookSecret) == "" {
+		jsonError(w, "未启用 GitHub webhook", 503)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		jsonError(w, "读取 webhook 请求失败", 400)
+		return
+	}
+	if !verifyGitHubWebhookSignature(cfg.GitHubWebhookSecret, r.Header.Get("X-Hub-Signature-256"), body) {
+		jsonError(w, "webhook 签名校验失败", 401)
+		return
+	}
+	if strings.TrimSpace(r.Header.Get("X-GitHub-Event")) != "workflow_run" {
+		jsonResponse(w, map[string]interface{}{"message": "已忽略非 workflow_run 事件"})
+		return
+	}
+
+	var payload struct {
+		Action     string `json:"action"`
+		Repository struct {
+			FullName string `json:"full_name"`
+		} `json:"repository"`
+		Workflow struct {
+			Path string `json:"path"`
+		} `json:"workflow"`
+		WorkflowRun struct {
+			ID         int64   `json:"id"`
+			Event      string  `json:"event"`
+			Status     string  `json:"status"`
+			Conclusion *string `json:"conclusion"`
+			HTMLURL    string  `json:"html_url"`
+			Path       string  `json:"path"`
+		} `json:"workflow_run"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		jsonError(w, "webhook 请求体解析失败", 400)
+		return
+	}
+
+	if payload.Repository.FullName != "" && payload.Repository.FullName != fmt.Sprintf("%s/%s", cfg.BuildOwner, cfg.BuildRepo) {
+		jsonResponse(w, map[string]interface{}{"message": "已忽略其他仓库事件"})
+		return
+	}
+	if payload.WorkflowRun.Event != "" && payload.WorkflowRun.Event != "workflow_dispatch" {
+		jsonResponse(w, map[string]interface{}{"message": "已忽略非手动触发构建事件"})
+		return
+	}
+	workflowPath := strings.TrimSpace(payload.Workflow.Path)
+	if workflowPath == "" {
+		workflowPath = strings.TrimSpace(payload.WorkflowRun.Path)
+	}
+	if workflowPath != "" && !strings.HasSuffix(workflowPath, "build.yaml") {
+		jsonResponse(w, map[string]interface{}{"message": "已忽略非 build.yaml 工作流"})
+		return
+	}
+	if payload.WorkflowRun.ID <= 0 {
+		jsonResponse(w, map[string]interface{}{"message": "已忽略缺少 run_id 的事件"})
+		return
+	}
+
+	run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, payload.WorkflowRun.ID)
+	if err != nil || run == nil {
+		jsonResponse(w, map[string]interface{}{"message": "获取 workflow run 详情失败，已忽略"})
+		return
+	}
+	requestID := strings.TrimSpace(inputs["request_id"])
+	if requestID == "" {
+		if fallbackInputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, payload.WorkflowRun.ID); err == nil {
+			inputs = fallbackInputs
+			requestID = strings.TrimSpace(fallbackInputs["request_id"])
+		}
+	}
+	if requestID == "" {
+		jsonResponse(w, map[string]interface{}{"message": "未找到 request_id，已忽略"})
+		return
+	}
+
+	record, err := getBuildRecordByRequestID(requestID)
+	if err != nil {
+		jsonResponse(w, map[string]interface{}{"message": "未匹配到本地打包记录，已忽略", "request_id": requestID})
+		return
+	}
+
+	status := strings.TrimSpace(run.Status)
+	if status == "" {
+		status = strings.TrimSpace(payload.WorkflowRun.Status)
+	}
+	conclusion := ""
+	if run.Conclusion != nil {
+		conclusion = *run.Conclusion
+	} else if payload.WorkflowRun.Conclusion != nil {
+		conclusion = *payload.WorkflowRun.Conclusion
+	}
+	runURL := strings.TrimSpace(run.HTMLURL)
+	if runURL == "" {
+		runURL = strings.TrimSpace(payload.WorkflowRun.HTMLURL)
+	}
+
+	record, err = h.persistBuildRecordEvent(record, run.ID, status, conclusion, "webhook", runURL, "")
+	if err != nil {
+		jsonError(w, "同步 webhook 状态失败", 500)
+		return
+	}
+
+	jsonResponse(w, map[string]interface{}{
+		"message":    "同步成功",
+		"request_id": requestID,
+		"record":     buildRecordResponse(*record),
 	})
 }
 
@@ -1176,59 +1775,72 @@ func (h *Handlers) ListBranches(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
-	profile := r.URL.Query().Get("profile")
-	requestID := r.URL.Query().Get("request_id")
-	tag := r.URL.Query().Get("tag")
-	branch := r.URL.Query().Get("branch")
-	platforms := r.URL.Query().Get("platforms")
+	profile := strings.TrimSpace(r.URL.Query().Get("profile"))
+	requestID := strings.TrimSpace(r.URL.Query().Get("request_id"))
+	tag := strings.TrimSpace(r.URL.Query().Get("tag"))
+	branch := strings.TrimSpace(r.URL.Query().Get("branch"))
+	platforms := strings.TrimSpace(r.URL.Query().Get("platforms"))
 
 	recordID, _ := strconv.ParseInt(r.URL.Query().Get("record_id"), 10, 64)
-	if recordID == 0 && requestID != "" {
-		parsedRecordID, err := strconv.ParseInt(requestID, 10, 64)
-		if err != nil {
-			jsonError(w, "request_id 参数无效", 400)
-			return
-		}
-		recordID = parsedRecordID
-	}
 
 	var record *BuildRecord
-	if recordID > 0 {
-		loadedRecord, err := getBuildRecord(recordID)
-		if err != nil {
-			jsonError(w, "打包记录不存在", 404)
-			return
+	if requestID != "" {
+		if loadedRecord, err := getBuildRecordByRequestID(requestID); err == nil {
+			record = loadedRecord
 		}
-		if !canAccessBuildRecord(claims, loadedRecord) {
+	}
+	if recordID > 0 {
+		if loadedRecord, err := getBuildRecord(recordID); err == nil {
+			record = loadedRecord
+		}
+	}
+
+	if record != nil {
+		if !canAccessBuildRecord(claims, record) {
 			jsonError(w, "无权访问该打包记录", 403)
 			return
 		}
-		record = loadedRecord
-		requestID = strconv.FormatInt(loadedRecord.ID, 10)
+		recordID = record.ID
+		requestID = buildRecordRequestID(record)
 		if profile == "" {
-			profile = loadedRecord.Profile
+			profile = record.Profile
 		}
 		if tag == "" {
-			tag = loadedRecord.Tag
+			tag = record.Tag
 		}
 		if branch == "" {
-			branch = loadedRecord.Branch
+			branch = record.Branch
 		}
 		if platforms == "" {
-			platforms = loadedRecord.Platforms
+			platforms = record.Platforms
 		}
 	}
 
-	if record == nil && claims.Permissions != "admin" {
-		jsonError(w, "普通用户查询打包状态必须提供自己的 record_id 或 request_id", 400)
-		return
+	if record == nil {
+		if recordID > 0 || requestID != "" {
+			result := map[string]interface{}{
+				"found": false,
+			}
+			if recordID > 0 {
+				result["record_id"] = recordID
+			}
+			if requestID != "" {
+				result["request_id"] = requestID
+			}
+			jsonResponse(w, result)
+			return
+		}
+		if claims.Permissions != "admin" {
+			jsonError(w, "普通用户查询打包状态必须提供自己的 record_id 或 request_id", 400)
+			return
+		}
 	}
 	if record == nil && profile != "" && !claims.canAccessProfile(profile) {
 		jsonError(w, "无权查看该档案的打包状态", 403)
 		return
 	}
 
-	if profile == "" && requestID == "" {
+	if profile == "" && requestID == "" && recordID == 0 {
 		jsonError(w, "缺少 profile、request_id 或 record_id 参数", 400)
 		return
 	}
@@ -1239,19 +1851,12 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	} else if claims.Permissions != "admin" {
 		pendingCodeID = claims.CodeID
 	}
-	pendingBuild, hasPendingBuild := getPendingBuild(pendingCodeID, profile, tag, branch, platforms)
-	if !hasPendingBuild && record != nil {
-		if createdAt, ok := parseDBTimestamp(record.CreatedAt); ok {
-			pendingBuild = PendingBuild{
-				CodeID:      record.CodeID,
-				Profile:     record.Profile,
-				Tag:         record.Tag,
-				Branch:      record.Branch,
-				Platforms:   record.Platforms,
-				TriggeredAt: createdAt,
-			}
-			hasPendingBuild = true
-		}
+	pendingBuild := PendingBuild{}
+	hasPendingBuild := false
+	if record != nil {
+		pendingBuild, hasPendingBuild = derivePendingBuildForRecord(record)
+	} else {
+		pendingBuild, hasPendingBuild = getPendingBuild(pendingCodeID, profile, tag, branch, platforms)
 	}
 	if !hasPendingBuild && profile != "" && claims.Permissions == "admin" {
 		if inferredPending, ok := getLatestPendingBuildByProfile(pendingCodeID, profile); ok {
@@ -1273,128 +1878,175 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	var matchedRun *WorkflowRun
 	var matchedInputs map[string]string
 
-	if record != nil && record.RunID > 0 {
-		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
-		if err == nil {
-			matchedRun = run
-			matchedInputs = inputs
-			profileRunCache[cacheKey] = run.ID
-			if matchedRun.Status == "completed" {
-				delete(profileRunCache, cacheKey)
-				clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
+	if record != nil {
+		if record.RunID > 0 {
+			run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
+			if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) {
+				matchedRun = run
+				matchedInputs = inputs
 			}
 		}
+		if matchedRun == nil {
+			run, inputs, err := h.findWorkflowRunByRequestID(requestID, false)
+			if err != nil {
+				result := buildStatusResponseFromRecord(record)
+				result["sync_error"] = true
+				jsonResponse(w, result)
+				return
+			}
+			if run != nil {
+				matchedRun = run
+				matchedInputs = inputs
+			}
+		}
+		if matchedRun == nil {
+			result := buildStatusResponseFromRecord(record)
+			if hasPendingBuild {
+				result["pending_detected"] = true
+			}
+			jsonResponse(w, result)
+			return
+		}
+
+		h.applyWorkflowRunToBuildRecord(record, matchedRun)
+		result := buildStatusResponseFromRecord(record)
+		if matchedInputs != nil && len(matchedInputs) > 0 {
+			result["inputs"] = matchedInputs
+			if strings.TrimSpace(matchedInputs["request_id"]) != "" {
+				result["request_id"] = strings.TrimSpace(matchedInputs["request_id"])
+			}
+		}
+		if hasPendingBuild {
+			result["pending_detected"] = true
+		}
+
+		jobs, err := h.gh.GetWorkflowRunJobs(cfg.BuildOwner, cfg.BuildRepo, matchedRun.ID)
+		if err == nil {
+			jobList := []map[string]interface{}{}
+			for _, job := range jobs {
+				jobConclusion := ""
+				if job.Conclusion != nil {
+					jobConclusion = *job.Conclusion
+				}
+				stepList := []map[string]interface{}{}
+				for _, step := range job.Steps {
+					stepConclusion := ""
+					if step.Conclusion != nil {
+						stepConclusion = *step.Conclusion
+					}
+					stepList = append(stepList, map[string]interface{}{
+						"name":       step.Name,
+						"status":     step.Status,
+						"conclusion": stepConclusion,
+						"number":     step.Number,
+					})
+				}
+				jobList = append(jobList, map[string]interface{}{
+					"name":       job.Name,
+					"status":     job.Status,
+					"conclusion": jobConclusion,
+					"steps":      stepList,
+				})
+			}
+			result["jobs"] = jobList
+		}
+
+		jsonResponse(w, result)
+		return
 	}
 
-	if matchedRun == nil {
-		if cachedRunID, ok := profileRunCache[cacheKey]; ok {
-			run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, cachedRunID)
-			if err == nil {
-				if buildRequestMatches(inputs, profile, requestID, tag, branch, platforms) || (hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)) {
-					matchedRun = run
-					matchedInputs = inputs
-					if matchedRun.Status == "completed" {
-						delete(profileRunCache, cacheKey)
-						clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
-					}
-				} else {
+	if cachedRunID, ok := profileRunCache[cacheKey]; ok {
+		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, cachedRunID)
+		if err == nil {
+			if buildRequestMatches(inputs, profile, requestID, tag, branch, platforms) || (requestID == "" && hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)) {
+				matchedRun = run
+				matchedInputs = inputs
+				if matchedRun.Status == "completed" {
 					delete(profileRunCache, cacheKey)
+					clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
 				}
 			} else {
 				delete(profileRunCache, cacheKey)
 			}
+		} else {
+			delete(profileRunCache, cacheKey)
 		}
 	}
 
 	if matchedRun == nil {
-		runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", recentWorkflowRunsSearchLimit)
-		if err != nil {
-			jsonError(w, "查询构建状态失败", 500)
-			return
-		}
-
-		for i := range runs {
-			run := &runs[i]
-			if !isActiveWorkflowStatus(run.Status) {
-				continue
+		if requestID != "" {
+			run, inputs, err := h.findWorkflowRunByRequestID(requestID, false)
+			if err != nil {
+				jsonError(w, "查询构建状态失败", 500)
+				return
 			}
-			inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
-			matchesByInputs := err == nil && buildRequestMatches(inputs, profile, requestID, tag, branch, platforms)
-			matchesByPending := hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)
-			if matchesByInputs || matchesByPending {
+			if run != nil {
 				matchedRun = run
-				if err == nil {
-					matchedInputs = inputs
+				matchedInputs = inputs
+				if matchedRun.Status == "completed" {
+					clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
+				} else {
+					profileRunCache[cacheKey] = run.ID
 				}
-				profileRunCache[cacheKey] = run.ID
-				break
 			}
-		}
+		} else {
+			runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", recentWorkflowRunsSearchLimit)
+			if err != nil {
+				jsonError(w, "查询构建状态失败", 500)
+				return
+			}
 
-		if matchedRun == nil {
 			for i := range runs {
 				run := &runs[i]
-				if run.Status != "completed" {
+				if !isActiveWorkflowStatus(run.Status) {
 					continue
 				}
 				inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
 				matchesByInputs := err == nil && buildRequestMatches(inputs, profile, requestID, tag, branch, platforms)
-				if matchesByInputs {
+				matchesByPending := hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)
+				if matchesByInputs || matchesByPending {
 					matchedRun = run
 					if err == nil {
 						matchedInputs = inputs
 					}
-					clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
+					profileRunCache[cacheKey] = run.ID
 					break
+				}
+			}
+
+			if matchedRun == nil {
+				for i := range runs {
+					run := &runs[i]
+					if run.Status != "completed" {
+						continue
+					}
+					inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+					matchesByInputs := err == nil && buildRequestMatches(inputs, profile, requestID, tag, branch, platforms)
+					if matchesByInputs {
+						matchedRun = run
+						if err == nil {
+							matchedInputs = inputs
+						}
+						clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
+						break
+					}
 				}
 			}
 		}
 	}
 
 	if matchedRun == nil {
-		if record != nil && record.RunID == 0 && record.Status == "completed" && record.Conclusion == "trigger_failed" {
-			fallbackInputs := map[string]string{
-				"profile":    record.Profile,
-				"tag":        record.Tag,
-				"branch":     record.Branch,
-				"platforms":  record.Platforms,
-				"request_id": strconv.FormatInt(record.ID, 10),
-			}
-			jsonResponse(w, map[string]interface{}{
-				"found":      true,
-				"record_id":  record.ID,
-				"run_id":     record.RunID,
-				"status":     record.Status,
-				"conclusion": record.Conclusion,
-				"created_at": record.CreatedAt,
-				"updated_at": record.UpdatedAt,
-				"request_id": fallbackInputs["request_id"],
-				"inputs":     fallbackInputs,
-			})
-			return
+		result := map[string]interface{}{
+			"found": false,
 		}
 		if recordID > 0 {
-			updateBuildRecordStatus(recordID, 0, "queued", "")
-		}
-		result := map[string]interface{}{
-			"found":     false,
-			"record_id": recordID,
+			result["record_id"] = recordID
 		}
 		if requestID != "" {
 			result["request_id"] = requestID
 		}
 		if hasPendingBuild {
 			result["pending_detected"] = true
-		}
-		if record != nil {
-			result["record_status"] = record.Status
-			result["inputs"] = map[string]string{
-				"profile":    record.Profile,
-				"tag":        record.Tag,
-				"branch":     record.Branch,
-				"platforms":  record.Platforms,
-				"request_id": strconv.FormatInt(record.ID, 10),
-			}
 		}
 		jsonResponse(w, result)
 		return
@@ -1404,14 +2056,11 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	if matchedRun.Conclusion != nil {
 		conclusion = *matchedRun.Conclusion
 	}
-	if recordID > 0 {
-		updateBuildRecordStatus(recordID, matchedRun.ID, matchedRun.Status, conclusion)
-	}
-
 	result := map[string]interface{}{
 		"found":      true,
 		"record_id":  recordID,
 		"run_id":     matchedRun.ID,
+		"run_url":    matchedRun.HTMLURL,
 		"status":     matchedRun.Status,
 		"conclusion": conclusion,
 		"created_at": matchedRun.CreatedAt,
@@ -1420,45 +2069,8 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 
 	if matchedInputs != nil && len(matchedInputs) > 0 {
 		result["inputs"] = matchedInputs
-		if matchedInputs["request_id"] != "" {
-			result["request_id"] = matchedInputs["request_id"]
-		}
-	} else {
-		fallbackInputs := map[string]string{}
-		if profile != "" {
-			fallbackInputs["profile"] = profile
-		}
-		if tag != "" {
-			fallbackInputs["tag"] = tag
-		}
-		if branch != "" {
-			fallbackInputs["branch"] = branch
-		}
-		if platforms != "" {
-			fallbackInputs["platforms"] = platforms
-		}
-		if requestID != "" {
-			fallbackInputs["request_id"] = requestID
-		}
-		if record != nil {
-			if fallbackInputs["profile"] == "" {
-				fallbackInputs["profile"] = record.Profile
-			}
-			if fallbackInputs["tag"] == "" {
-				fallbackInputs["tag"] = record.Tag
-			}
-			if fallbackInputs["branch"] == "" {
-				fallbackInputs["branch"] = record.Branch
-			}
-			if fallbackInputs["platforms"] == "" {
-				fallbackInputs["platforms"] = record.Platforms
-			}
-		}
-		if len(fallbackInputs) > 0 {
-			result["inputs"] = fallbackInputs
-		}
-		if requestID != "" {
-			result["request_id"] = requestID
+		if strings.TrimSpace(matchedInputs["request_id"]) != "" {
+			result["request_id"] = strings.TrimSpace(matchedInputs["request_id"])
 		}
 	}
 	if requestID != "" {
@@ -1501,6 +2113,111 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, result)
 }
 
+func (h *Handlers) CancelBuildRecord(w http.ResponseWriter, r *http.Request) {
+	claims := getClaims(r)
+	recordID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil || recordID <= 0 {
+		jsonError(w, "无效的打包记录 ID", 400)
+		return
+	}
+
+	record, err := getBuildRecord(recordID)
+	if err != nil {
+		jsonError(w, "打包记录不存在", 404)
+		return
+	}
+	if !canAccessBuildRecord(claims, record) {
+		jsonError(w, "无权停止该打包记录", 403)
+		return
+	}
+	reconciled := h.reconcileBuildRecords([]BuildRecord{*record}, true)
+	if len(reconciled) > 0 {
+		record = &reconciled[0]
+	}
+
+	if record.Status == "completed" {
+		jsonResponse(w, map[string]interface{}{
+			"message":    "打包已结束，无需停止",
+			"record_id":  record.ID,
+			"run_id":     record.RunID,
+			"status":     record.Status,
+			"conclusion": record.Conclusion,
+		})
+		return
+	}
+	if record.Status == "cancel_requested" {
+		jsonResponse(w, map[string]interface{}{
+			"message":    "已提交停止请求，请稍候刷新状态",
+			"record_id":  record.ID,
+			"run_id":     record.RunID,
+			"status":     record.Status,
+			"conclusion": record.Conclusion,
+		})
+		return
+	}
+	if record.RunID > 0 {
+		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
+		if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) && run.Status == "completed" {
+			conclusion := ""
+			if run.Conclusion != nil {
+				conclusion = *run.Conclusion
+			}
+			record, _ = h.persistBuildRecordEvent(record, run.ID, run.Status, conclusion, "github", run.HTMLURL, "")
+			jsonResponse(w, map[string]interface{}{
+				"message":    "打包已结束，无需停止",
+				"record_id":  record.ID,
+				"run_id":     run.ID,
+				"status":     run.Status,
+				"conclusion": conclusion,
+			})
+			return
+		}
+	}
+
+	run, err := h.findActiveWorkflowRunForRecord(record)
+	if err != nil {
+		jsonError(w, "查询可停止的 GitHub 运行失败", 500)
+		return
+	}
+	if run == nil {
+		conclusion := record.Conclusion
+		if conclusion == "" {
+			conclusion = "cancelled"
+		}
+		record, _ = h.persistBuildRecordEvent(record, record.RunID, "completed", conclusion, "server", record.RunURL, record.ReleaseTag)
+		jsonResponse(w, map[string]interface{}{
+			"message":    "未发现仍在运行的 GitHub 打包，已将本地记录标记为已取消",
+			"record_id":  record.ID,
+			"run_id":     record.RunID,
+			"status":     "completed",
+			"conclusion": conclusion,
+		})
+		return
+	}
+
+	if err := h.gh.CancelWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, run.ID); err != nil {
+		jsonError(w, "停止 GitHub 打包失败: "+err.Error(), 500)
+		return
+	}
+	record, err = h.persistBuildRecordEvent(record, run.ID, "cancel_requested", "cancelled", "server", run.HTMLURL, "")
+	if err != nil {
+		jsonError(w, "更新打包记录状态失败", 500)
+		return
+	}
+
+	logAudit(claims.CodeID, claims.CodeName, "cancel_build",
+		fmt.Sprintf("record_id=%d profile=%s tag=%s platforms=%s branch=%s run_id=%d", record.ID, record.Profile, record.Tag, record.Platforms, record.Branch, run.ID),
+		r.RemoteAddr)
+
+	jsonResponse(w, map[string]interface{}{
+		"message":    "已提交停止请求，GitHub 正在终止本次打包",
+		"record_id":  record.ID,
+		"run_id":     run.ID,
+		"status":     "cancel_requested",
+		"conclusion": "cancelled",
+	})
+}
+
 func (h *Handlers) GetBuildQueue(w http.ResponseWriter, r *http.Request) {
 	platforms := strings.TrimSpace(r.URL.Query().Get("platforms"))
 	queueSnapshot, err := h.getBuildQueueSnapshot(platforms)
@@ -1538,6 +2255,7 @@ func (h *Handlers) ListBuildRecords(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "获取打包记录失败", 500)
 		return
 	}
+	records = h.reconcileBuildRecords(records, false)
 
 	items := make([]map[string]interface{}, 0, len(records))
 	for _, record := range records {
@@ -1568,6 +2286,10 @@ func (h *Handlers) GetBuildRecordAssets(w http.ResponseWriter, r *http.Request) 
 	if !canAccessBuildRecord(claims, record) {
 		jsonError(w, "无权访问该打包记录", 403)
 		return
+	}
+	reconciled := h.reconcileBuildRecords([]BuildRecord{*record}, true)
+	if len(reconciled) > 0 {
+		record = &reconciled[0]
 	}
 
 	releaseTag := buildReleaseTag(record)
@@ -1687,9 +2409,26 @@ func (h *Handlers) DeleteBuildRecord(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "无权删除该打包记录", 403)
 		return
 	}
+	reconciled := h.reconcileBuildRecords([]BuildRecord{*record}, true)
+	if len(reconciled) > 0 {
+		record = &reconciled[0]
+	}
 	if isActiveWorkflowStatus(record.Status) {
-		jsonError(w, "正在打包的记录暂不支持删除", 409)
-		return
+		activeRun, activeErr := h.findStrictActiveWorkflowRunForRecord(record)
+		if activeErr == nil && activeRun == nil {
+			conclusion := record.Conclusion
+			if conclusion == "" {
+				conclusion = "cancelled"
+			}
+			if strings.TrimSpace(record.ReleaseTag) == "" {
+				record.ReleaseTag = buildReleaseTag(record)
+			}
+			record, _ = h.persistBuildRecordEvent(record, record.RunID, "completed", conclusion, "server", record.RunURL, record.ReleaseTag)
+			record.RunID = 0
+		} else {
+			jsonError(w, "正在打包的记录暂不支持删除", 409)
+			return
+		}
 	}
 
 	releaseTag := buildReleaseTag(record)
@@ -1698,9 +2437,12 @@ func (h *Handlers) DeleteBuildRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if record.RunID > 0 {
-		if err := h.gh.DeleteWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID); err != nil {
-			jsonError(w, "删除 GitHub Actions 运行失败", 500)
-			return
+		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
+		if err == nil && run != nil && workflowRunMatchesRecord(record, inputs) {
+			if err := h.gh.DeleteWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID); err != nil {
+				jsonError(w, "删除 GitHub Actions 运行失败", 500)
+				return
+			}
 		}
 	}
 	if err := deleteBuildRecord(record.ID); err != nil {
@@ -1708,7 +2450,7 @@ func (h *Handlers) DeleteBuildRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	delete(profileRunCache, buildRunCacheKey(record.CodeID, record.Profile, strconv.FormatInt(record.ID, 10), record.Tag, record.Branch, record.Platforms))
+	delete(profileRunCache, buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms))
 	clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Platforms)
 
 	logAudit(claims.CodeID, claims.CodeName, "delete_build_record",

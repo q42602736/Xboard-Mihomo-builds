@@ -51,7 +51,8 @@ func (g *GitHubClient) doRequest(method, url string, body interface{}) (*http.Re
 	}
 
 	req.Header.Set("Authorization", "token "+g.Token)
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -488,6 +489,47 @@ func (g *GitHubClient) DeleteWorkflowRun(buildOwner, buildRepo string, runID int
 
 	respBody, _ := io.ReadAll(resp.Body)
 	return fmt.Errorf("删除 workflow 运行失败 (%d): %s", resp.StatusCode, string(respBody))
+}
+
+func (g *GitHubClient) forceCancelWorkflowRun(buildOwner, buildRepo string, runID int64) error {
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/actions/runs/%d/force-cancel",
+		buildOwner, buildRepo, runID,
+	)
+	resp, err := g.doRequest("POST", url, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusAccepted || resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+
+	respBody, _ := io.ReadAll(resp.Body)
+	return fmt.Errorf("强制停止 workflow 运行失败 (%d): %s", resp.StatusCode, string(respBody))
+}
+
+func (g *GitHubClient) CancelWorkflowRun(buildOwner, buildRepo string, runID int64) error {
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/actions/runs/%d/cancel",
+		buildOwner, buildRepo, runID,
+	)
+	resp, err := g.doRequest("POST", url, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusAccepted || resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	if resp.StatusCode == http.StatusConflict {
+		return g.forceCancelWorkflowRun(buildOwner, buildRepo, runID)
+	}
+
+	respBody, _ := io.ReadAll(resp.Body)
+	return fmt.Errorf("停止 workflow 运行失败 (%d): %s", resp.StatusCode, string(respBody))
 }
 
 // GetWorkflowRunInputs 获取单个 run 的 workflow_dispatch 输入参数

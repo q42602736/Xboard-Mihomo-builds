@@ -56,20 +56,27 @@ func initDB() {
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
 
-		CREATE TABLE IF NOT EXISTS build_records (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			code_id INTEGER NOT NULL,
-			code_name TEXT NOT NULL,
-			profile TEXT NOT NULL,
-			tag TEXT NOT NULL,
-			branch TEXT NOT NULL,
-			platforms TEXT NOT NULL,
-			run_id INTEGER DEFAULT 0,
-			status TEXT NOT NULL DEFAULT 'queued',
-			conclusion TEXT DEFAULT '',
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		);
+			CREATE TABLE IF NOT EXISTS build_records (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				code_id INTEGER NOT NULL,
+				code_name TEXT NOT NULL,
+				request_id TEXT NOT NULL UNIQUE,
+				profile TEXT NOT NULL,
+				tag TEXT NOT NULL,
+				branch TEXT NOT NULL,
+				platforms TEXT NOT NULL,
+				run_id INTEGER DEFAULT 0,
+				run_url TEXT DEFAULT '',
+				release_tag TEXT DEFAULT '',
+				status TEXT NOT NULL DEFAULT 'queued',
+				conclusion TEXT DEFAULT '',
+				status_source TEXT DEFAULT '',
+				bound_at DATETIME,
+				finished_at DATETIME,
+				last_sync_at DATETIME,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			);
 
 		CREATE TABLE IF NOT EXISTS system_settings (
 			key TEXT PRIMARY KEY,
@@ -82,9 +89,23 @@ func initDB() {
 	`)
 	// 兼容旧表：如果 allowed_profiles 列不存在则添加
 	db.Exec("ALTER TABLE activation_codes ADD COLUMN allowed_profiles TEXT DEFAULT '[]'")
+	ensureBuildRecordColumn("request_id", "TEXT DEFAULT ''")
+	ensureBuildRecordColumn("run_url", "TEXT DEFAULT ''")
+	ensureBuildRecordColumn("release_tag", "TEXT DEFAULT ''")
+	ensureBuildRecordColumn("status_source", "TEXT DEFAULT ''")
+	ensureBuildRecordColumn("bound_at", "DATETIME")
+	ensureBuildRecordColumn("finished_at", "DATETIME")
+	ensureBuildRecordColumn("last_sync_at", "DATETIME")
+	db.Exec("UPDATE build_records SET request_id = CAST(id AS TEXT) WHERE request_id IS NULL OR TRIM(request_id) = ''")
+	db.Exec("UPDATE build_records SET last_sync_at = COALESCE(updated_at, created_at) WHERE last_sync_at IS NULL")
+	db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_build_records_request_id ON build_records (request_id)")
 	if err != nil {
 		log.Fatalf("初始化数据库表失败: %v", err)
 	}
+}
+
+func ensureBuildRecordColumn(columnName, definition string) {
+	_, _ = db.Exec(fmt.Sprintf("ALTER TABLE build_records ADD COLUMN %s %s", columnName, definition))
 }
 
 type ActivationCode struct {
@@ -101,25 +122,33 @@ type ActivationCode struct {
 }
 
 type BuildRecord struct {
-	ID         int64  `json:"id"`
-	CodeID     int    `json:"code_id"`
-	CodeName   string `json:"code_name"`
-	Profile    string `json:"profile"`
-	Tag        string `json:"tag"`
-	Branch     string `json:"branch"`
-	Platforms  string `json:"platforms"`
-	RunID      int64  `json:"run_id"`
-	Status     string `json:"status"`
-	Conclusion string `json:"conclusion"`
-	CreatedAt  string `json:"created_at"`
-	UpdatedAt  string `json:"updated_at"`
+	ID           int64  `json:"id"`
+	CodeID       int    `json:"code_id"`
+	CodeName     string `json:"code_name"`
+	RequestID    string `json:"request_id"`
+	Profile      string `json:"profile"`
+	Tag          string `json:"tag"`
+	Branch       string `json:"branch"`
+	Platforms    string `json:"platforms"`
+	RunID        int64  `json:"run_id"`
+	RunURL       string `json:"run_url"`
+	ReleaseTag   string `json:"release_tag"`
+	Status       string `json:"status"`
+	Conclusion   string `json:"conclusion"`
+	StatusSource string `json:"status_source"`
+	BoundAt      string `json:"bound_at"`
+	FinishedAt   string `json:"finished_at"`
+	LastSyncAt   string `json:"last_sync_at"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
 }
 
 func createBuildRecord(codeID int, codeName, profile, tag, branch, platforms string) (*BuildRecord, error) {
+	requestID := generateBuildRequestID()
 	result, err := db.Exec(
-		`INSERT INTO build_records (code_id, code_name, profile, tag, branch, platforms, status, conclusion)
-		 VALUES (?, ?, ?, ?, ?, ?, 'queued', '')`,
-		codeID, codeName, profile, tag, branch, platforms,
+		`INSERT INTO build_records (code_id, code_name, request_id, profile, tag, branch, platforms, status, conclusion, status_source, last_sync_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, 'dispatching', '', 'server', CURRENT_TIMESTAMP)`,
+		codeID, codeName, requestID, profile, tag, branch, platforms,
 	)
 	if err != nil {
 		return nil, err
@@ -134,6 +163,10 @@ func createBuildRecord(codeID int, codeName, profile, tag, branch, platforms str
 }
 
 func updateBuildRecordStatus(recordID, runID int64, status, conclusion string) error {
+	return updateBuildRecordStatusExt(recordID, runID, status, conclusion, "", "", "")
+}
+
+func updateBuildRecordStatusExt(recordID, runID int64, status, conclusion, statusSource, runURL, releaseTag string) error {
 	if recordID <= 0 {
 		return nil
 	}
@@ -141,11 +174,25 @@ func updateBuildRecordStatus(recordID, runID int64, status, conclusion string) e
 	_, err := db.Exec(
 		`UPDATE build_records
 		 SET run_id = CASE WHEN ? > 0 THEN ? ELSE run_id END,
+		     run_url = CASE WHEN ? != '' THEN ? ELSE run_url END,
+		     release_tag = CASE WHEN ? != '' THEN ? ELSE release_tag END,
 		     status = CASE WHEN ? != '' THEN ? ELSE status END,
 		     conclusion = ?,
+		     status_source = CASE WHEN ? != '' THEN ? ELSE status_source END,
+		     bound_at = CASE WHEN ? > 0 AND (bound_at IS NULL OR bound_at = '') THEN CURRENT_TIMESTAMP ELSE bound_at END,
+		     finished_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE finished_at END,
+		     last_sync_at = CURRENT_TIMESTAMP,
 		     updated_at = CURRENT_TIMESTAMP
 		 WHERE id = ?`,
-		runID, runID, status, status, conclusion, recordID,
+		runID, runID,
+		runURL, runURL,
+		releaseTag, releaseTag,
+		status, status,
+		conclusion,
+		statusSource, statusSource,
+		runID,
+		status,
+		recordID,
 	)
 	return err
 }
@@ -153,7 +200,8 @@ func updateBuildRecordStatus(recordID, runID int64, status, conclusion string) e
 func getBuildRecord(recordID int64) (*BuildRecord, error) {
 	var record BuildRecord
 	row := db.QueryRow(
-		`SELECT id, code_id, code_name, profile, tag, branch, platforms, run_id, status, conclusion, created_at, updated_at
+		`SELECT id, code_id, code_name, request_id, profile, tag, branch, platforms, run_id, run_url, release_tag, status, conclusion, status_source,
+		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records WHERE id = ?`,
 		recordID,
 	)
@@ -161,13 +209,57 @@ func getBuildRecord(recordID int64) (*BuildRecord, error) {
 		&record.ID,
 		&record.CodeID,
 		&record.CodeName,
+		&record.RequestID,
 		&record.Profile,
 		&record.Tag,
 		&record.Branch,
 		&record.Platforms,
 		&record.RunID,
+		&record.RunURL,
+		&record.ReleaseTag,
 		&record.Status,
 		&record.Conclusion,
+		&record.StatusSource,
+		&record.BoundAt,
+		&record.FinishedAt,
+		&record.LastSyncAt,
+		&record.CreatedAt,
+		&record.UpdatedAt,
+	); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func getBuildRecordByRequestID(requestID string) (*BuildRecord, error) {
+	if strings.TrimSpace(requestID) == "" {
+		return nil, fmt.Errorf("构建请求 ID 不能为空")
+	}
+	var record BuildRecord
+	row := db.QueryRow(
+		`SELECT id, code_id, code_name, request_id, profile, tag, branch, platforms, run_id, run_url, release_tag, status, conclusion, status_source,
+		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
+		 FROM build_records WHERE request_id = ?`,
+		requestID,
+	)
+	if err := row.Scan(
+		&record.ID,
+		&record.CodeID,
+		&record.CodeName,
+		&record.RequestID,
+		&record.Profile,
+		&record.Tag,
+		&record.Branch,
+		&record.Platforms,
+		&record.RunID,
+		&record.RunURL,
+		&record.ReleaseTag,
+		&record.Status,
+		&record.Conclusion,
+		&record.StatusSource,
+		&record.BoundAt,
+		&record.FinishedAt,
+		&record.LastSyncAt,
 		&record.CreatedAt,
 		&record.UpdatedAt,
 	); err != nil {
@@ -181,7 +273,8 @@ func listBuildRecords(codeID int, isAdmin bool, limit int) ([]BuildRecord, error
 		limit = 20
 	}
 
-	query := `SELECT id, code_id, code_name, profile, tag, branch, platforms, run_id, status, conclusion, created_at, updated_at
+	query := `SELECT id, code_id, code_name, request_id, profile, tag, branch, platforms, run_id, run_url, release_tag, status, conclusion, status_source,
+	                 COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		FROM build_records`
 	args := []interface{}{}
 	if !isAdmin {
@@ -204,13 +297,20 @@ func listBuildRecords(codeID int, isAdmin bool, limit int) ([]BuildRecord, error
 			&record.ID,
 			&record.CodeID,
 			&record.CodeName,
+			&record.RequestID,
 			&record.Profile,
 			&record.Tag,
 			&record.Branch,
 			&record.Platforms,
 			&record.RunID,
+			&record.RunURL,
+			&record.ReleaseTag,
 			&record.Status,
 			&record.Conclusion,
+			&record.StatusSource,
+			&record.BoundAt,
+			&record.FinishedAt,
+			&record.LastSyncAt,
 			&record.CreatedAt,
 			&record.UpdatedAt,
 		); err != nil {
@@ -227,7 +327,8 @@ func listOverflowBuildRecords(codeID int, keep int) ([]BuildRecord, error) {
 	}
 
 	rows, err := db.Query(
-		`SELECT id, code_id, code_name, profile, tag, branch, platforms, run_id, status, conclusion, created_at, updated_at
+		`SELECT id, code_id, code_name, request_id, profile, tag, branch, platforms, run_id, run_url, release_tag, status, conclusion, status_source,
+		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records
 		 WHERE code_id = ?
 		 ORDER BY created_at DESC, id DESC
@@ -246,13 +347,20 @@ func listOverflowBuildRecords(codeID int, keep int) ([]BuildRecord, error) {
 			&record.ID,
 			&record.CodeID,
 			&record.CodeName,
+			&record.RequestID,
 			&record.Profile,
 			&record.Tag,
 			&record.Branch,
 			&record.Platforms,
 			&record.RunID,
+			&record.RunURL,
+			&record.ReleaseTag,
 			&record.Status,
 			&record.Conclusion,
+			&record.StatusSource,
+			&record.BoundAt,
+			&record.FinishedAt,
+			&record.LastSyncAt,
 			&record.CreatedAt,
 			&record.UpdatedAt,
 		); err != nil {
@@ -440,6 +548,12 @@ func generateCode() string {
 	b := make([]byte, 8)
 	rand.Read(b)
 	return "XB-" + hex.EncodeToString(b)
+}
+
+func generateBuildRequestID() string {
+	b := make([]byte, 12)
+	rand.Read(b)
+	return "BR-" + hex.EncodeToString(b)
 }
 
 func normalizeExpiresAt(expiresAt string) (*string, error) {

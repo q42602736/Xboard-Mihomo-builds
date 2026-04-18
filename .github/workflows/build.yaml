@@ -34,6 +34,8 @@ on:
         required: false
         type: string
 
+run-name: build-${{ github.event.inputs.request_id || github.run_id }}-${{ github.event.inputs.profile }}-${{ github.event.inputs.tag }}
+
 concurrency:
   group: build-${{ github.event.inputs.profile }}
   cancel-in-progress: false
@@ -142,6 +144,38 @@ jobs:
           echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
           echo "Draft release ready: https://github.com/${{ github.repository }}/releases"
+
+      - name: Bind Build Record
+        env:
+          CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+          CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+        run: |
+          if [ -z "$CONFIG_SERVER_URL" ] || [ -z "$CONFIG_SERVER_EVENT_TOKEN" ] || [ -z "$REQUEST_ID" ]; then
+            echo "Skip bind callback: missing CONFIG_SERVER_URL / CONFIG_SERVER_EVENT_TOKEN / request_id"
+            exit 0
+          fi
+
+          CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/bind"
+          PAYLOAD=$(node -e '
+            const payload = {
+              request_id: process.env.REQUEST_ID,
+              run_id: Number(process.env.RUN_ID || 0),
+              run_url: process.env.RUN_URL || "",
+              status: "in_progress",
+              release_tag: process.env.RELEASE_TAG || ""
+            };
+            process.stdout.write(JSON.stringify(payload));
+          ')
+
+          curl -fsS -X POST "$CALLBACK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+            -d "$PAYLOAD" \
+            || echo "Bind callback failed, continue workflow"
 
   build:
     needs: prepare-release
@@ -1338,3 +1372,52 @@ jobs:
 
           echo "Draft release updated successfully!"
           echo "View at: https://github.com/${{ github.repository }}/releases"
+
+  notify-build-complete:
+    runs-on: ubuntu-latest
+    needs: [ prepare-release, build, build-linux, merge-artifacts ]
+    if: ${{ always() }}
+    steps:
+      - name: Complete Build Record
+        env:
+          CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+          CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RELEASE_TAG: ${{ needs.prepare-release.outputs.release_tag }}
+          PREPARE_RESULT: ${{ needs.prepare-release.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          BUILD_LINUX_RESULT: ${{ needs.build-linux.result }}
+          MERGE_RESULT: ${{ needs.merge-artifacts.result }}
+        run: |
+          if [ -z "$CONFIG_SERVER_URL" ] || [ -z "$CONFIG_SERVER_EVENT_TOKEN" ] || [ -z "$REQUEST_ID" ]; then
+            echo "Skip complete callback: missing CONFIG_SERVER_URL / CONFIG_SERVER_EVENT_TOKEN / request_id"
+            exit 0
+          fi
+
+          CONCLUSION="success"
+          if [ "$PREPARE_RESULT" = "failure" ] || [ "$BUILD_RESULT" = "failure" ] || [ "$BUILD_LINUX_RESULT" = "failure" ] || [ "$MERGE_RESULT" = "failure" ]; then
+            CONCLUSION="failure"
+          elif [ "$PREPARE_RESULT" = "cancelled" ] || [ "$BUILD_RESULT" = "cancelled" ] || [ "$BUILD_LINUX_RESULT" = "cancelled" ] || [ "$MERGE_RESULT" = "cancelled" ]; then
+            CONCLUSION="cancelled"
+          fi
+
+          CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/complete"
+          PAYLOAD=$(node -e '
+            const payload = {
+              request_id: process.env.REQUEST_ID,
+              run_id: Number(process.env.RUN_ID || 0),
+              run_url: process.env.RUN_URL || "",
+              status: "completed",
+              conclusion: process.env.CONCLUSION || "",
+              release_tag: process.env.RELEASE_TAG || ""
+            };
+            process.stdout.write(JSON.stringify(payload));
+          ')
+
+          curl -fsS -X POST "$CALLBACK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+            -d "$PAYLOAD" \
+            || echo "Complete callback failed, continue workflow"
