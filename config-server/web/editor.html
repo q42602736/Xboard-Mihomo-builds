@@ -5669,6 +5669,71 @@
             };
         }
 
+        function findBuildRecordByPollContext(records, context) {
+            if (!records || !records.length || !context) return null;
+            for (var i = 0; i < records.length; i++) {
+                var record = records[i];
+                if (!record) continue;
+                if (context.buildRecordId && Number(record.id) === Number(context.buildRecordId)) {
+                    return record;
+                }
+                if (context.requestId && record.request_id && String(record.request_id) === String(context.requestId)) {
+                    return record;
+                }
+            }
+            return null;
+        }
+
+        function buildProgressDataFromRecord(record) {
+            if (!record) return null;
+            return {
+                found: true,
+                record_id: record.id,
+                request_id: record.request_id || '',
+                run_id: record.run_id || 0,
+                run_url: record.run_url || '',
+                status: record.status || '',
+                conclusion: record.conclusion || '',
+                created_at: record.created_at || '',
+                updated_at: record.updated_at || '',
+                inputs: {
+                    tag: record.tag || '',
+                    branch: record.branch || 'main',
+                    platforms: record.platforms || 'all'
+                }
+            };
+        }
+
+        function syncBuildProgressWithRecords(records) {
+            if (!buildPollContext) return;
+            var matchedRecord = findBuildRecordByPollContext(records || [], buildPollContext);
+            if (!matchedRecord) return;
+
+            buildPollContext.buildRecordId = matchedRecord.id || buildPollContext.buildRecordId;
+            buildPollContext.requestId = matchedRecord.request_id || buildPollContext.requestId;
+            buildPollContext.status = matchedRecord.status || '';
+            buildPollContext.conclusion = matchedRecord.conclusion || '';
+            buildPollContext.tag = matchedRecord.tag || buildPollContext.tag;
+            buildPollContext.branch = matchedRecord.branch || buildPollContext.branch;
+            buildPollContext.platforms = matchedRecord.platforms || buildPollContext.platforms;
+            saveBuildingProfile(buildPollContext);
+
+            renderBuildProgress(buildProgressDataFromRecord(matchedRecord));
+
+            if (isBuildTerminalStatus(matchedRecord.status)) {
+                stopBuildPolling();
+                buildCancelInFlightRecordId = 0;
+                saveBuildingProfile(null);
+                buildPollContext = null;
+                loadBuildQueue();
+                updateBuildProgressCancelAction({
+                    record_id: matchedRecord.id,
+                    status: matchedRecord.status,
+                    conclusion: matchedRecord.conclusion || ''
+                });
+            }
+        }
+
         function setMyBuildRecordsExpanded(expanded) {
             var body = document.getElementById('myBuildRecordsBody');
             var toggleBtn = document.getElementById('myBuildRecordsToggleBtn');
@@ -5698,6 +5763,7 @@
                 }
                 myBuildRecordsCache = data.records || [];
                 renderMyBuildRecords(myBuildRecordsCache);
+                syncBuildProgressWithRecords(myBuildRecordsCache);
                 return myBuildRecordsCache;
             } catch (e) {
                 myBuildRecordsCache = [];
@@ -7853,15 +7919,24 @@
 
         // 页面加载时恢复构建进度追踪
         async function checkActiveBuild() {
-            // 优先从 sessionStorage 恢复（刷新页面后保持追踪）
             var savedProfile = getSavedBuildingProfile();
-            if (savedProfile) {
-                startBuildPolling(savedProfile, true);
-                return;
-            }
             var records = myBuildRecordsCache;
             if (records === null) {
                 records = await loadMyBuildRecords();
+            }
+            if (savedProfile) {
+                var savedRecord = findBuildRecordByPollContext(records || [], savedProfile);
+                if (savedRecord) {
+                    var savedContext = createBuildPollContextFromRecord(savedRecord);
+                    if (savedContext) {
+                        startBuildPolling(savedContext, true);
+                        if (isBuildTerminalStatus(savedRecord.status)) {
+                            syncBuildProgressWithRecords(records || []);
+                        }
+                        return;
+                    }
+                }
+                saveBuildingProfile(null);
             }
             var profile = document.getElementById('profileSelect').value;
             var activeRecord = findLatestActiveBuildRecord(records || [], profile);
