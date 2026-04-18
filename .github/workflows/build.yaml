@@ -54,6 +54,25 @@ jobs:
       release_tag: ${{ steps.release.outputs.release_tag }}
       app_name: ${{ steps.release.outputs.app_name }}
     steps:
+      - name: Validate Config Server Callback
+        env:
+          CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+          CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+        run: |
+          if [ -z "$REQUEST_ID" ]; then
+            echo "::error::缺少 request_id，配置服务器无法绑定本次打包记录。"
+            exit 1
+          fi
+          if [ -z "$CONFIG_SERVER_URL" ]; then
+            echo "::error::缺少 GitHub Actions secret: CONFIG_SERVER_URL"
+            exit 1
+          fi
+          if [ -z "$CONFIG_SERVER_EVENT_TOKEN" ]; then
+            echo "::error::缺少 GitHub Actions secret: CONFIG_SERVER_EVENT_TOKEN"
+            exit 1
+          fi
+
       - name: Prepare Draft Release
         id: release
         env:
@@ -174,8 +193,7 @@ jobs:
           curl -fsS -X POST "$CALLBACK_URL" \
             -H "Content-Type: application/json" \
             -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
-            -d "$PAYLOAD" \
-            || echo "Bind callback failed, continue workflow"
+            -d "$PAYLOAD"
 
   build:
     needs: prepare-release
@@ -1391,9 +1409,17 @@ jobs:
           BUILD_LINUX_RESULT: ${{ needs.build-linux.result }}
           MERGE_RESULT: ${{ needs.merge-artifacts.result }}
         run: |
-          if [ -z "$CONFIG_SERVER_URL" ] || [ -z "$CONFIG_SERVER_EVENT_TOKEN" ] || [ -z "$REQUEST_ID" ]; then
-            echo "Skip complete callback: missing CONFIG_SERVER_URL / CONFIG_SERVER_EVENT_TOKEN / request_id"
-            exit 0
+          if [ -z "$REQUEST_ID" ]; then
+            echo "::error::缺少 request_id，无法回写打包完成状态。"
+            exit 1
+          fi
+          if [ -z "$CONFIG_SERVER_URL" ]; then
+            echo "::error::缺少 GitHub Actions secret: CONFIG_SERVER_URL"
+            exit 1
+          fi
+          if [ -z "$CONFIG_SERVER_EVENT_TOKEN" ]; then
+            echo "::error::缺少 GitHub Actions secret: CONFIG_SERVER_EVENT_TOKEN"
+            exit 1
           fi
 
           CONCLUSION="success"
@@ -1419,5 +1445,4 @@ jobs:
           curl -fsS -X POST "$CALLBACK_URL" \
             -H "Content-Type: application/json" \
             -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
-            -d "$PAYLOAD" \
-            || echo "Complete callback failed, continue workflow"
+            -d "$PAYLOAD"
