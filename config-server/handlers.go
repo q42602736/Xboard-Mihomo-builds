@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +25,8 @@ import (
 
 const maxBuildRecordHistory = 5
 const buildAssetDownloadLinkTTL = 10 * time.Minute
+
+var buildRequestIDPattern = regexp.MustCompile(`BR-[0-9a-fA-F]{24}`)
 
 type Handlers struct {
 	gh        *GitHubClient
@@ -896,6 +899,11 @@ func buildWorkflowRunURL(runID int64) string {
 	return fmt.Sprintf("https://github.com/%s/%s/actions/runs/%d", cfg.BuildOwner, cfg.BuildRepo, runID)
 }
 
+func extractBuildRequestIDFromText(value string) string {
+	match := buildRequestIDPattern.FindString(strings.TrimSpace(value))
+	return strings.TrimSpace(match)
+}
+
 func buildReleaseTag(record *BuildRecord) string {
 	if record == nil {
 		return ""
@@ -1708,6 +1716,12 @@ func (h *Handlers) HandleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 			inputs = fallbackInputs
 			requestID = strings.TrimSpace(fallbackInputs["request_id"])
 		}
+	}
+	if requestID == "" {
+		requestID = extractBuildRequestIDFromText(run.Name)
+	}
+	if requestID == "" {
+		requestID = extractBuildRequestIDFromText(payload.WorkflowRun.HTMLURL)
 	}
 	if requestID == "" {
 		jsonResponse(w, map[string]interface{}{"message": "未找到 request_id，已忽略"})
