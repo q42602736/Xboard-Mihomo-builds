@@ -7838,6 +7838,7 @@
 
         function renderBuildProgress(data) {
             var panel = document.getElementById('buildProgressPanel');
+            var jobsListEl = document.getElementById('buildJobsList');
             panel.style.display = 'block';
 
             renderBuildProgressParams(data);
@@ -7851,7 +7852,7 @@
                 if (data.record_status) waitingDetails.push('记录状态: ' + data.record_status);
                 if (data.pending_detected) waitingDetails.push('已恢复排队上下文');
                 document.getElementById('buildProgressTime').textContent = waitingDetails.join(' · ');
-                document.getElementById('buildJobsList').innerHTML = '';
+                jobsListEl.innerHTML = '';
                 updateBuildProgressCancelAction({
                     record_id: data.record_id || (buildPollContext && buildPollContext.buildRecordId),
                     status: data.record_status || 'dispatching'
@@ -7873,7 +7874,8 @@
             }
 
             var jobsHtml = '';
-            if (data.jobs && data.jobs.length > 0) {
+            var hasIncomingJobs = !!(data.jobs && data.jobs.length > 0);
+            if (hasIncomingJobs) {
                 data.jobs.forEach(function(job) {
                     var jobClass = getStatusClass(job.status, job.conclusion);
                     var jobIcon = getStatusIcon(job.status, job.conclusion);
@@ -7914,7 +7916,11 @@
                     jobsHtml += '</div>';
                 });
             }
-            document.getElementById('buildJobsList').innerHTML = jobsHtml;
+
+            // GitHub 轮询偶发拿不到 jobs 时，保留上一帧进度，避免界面闪烁消失。
+            if (hasIncomingJobs || isBuildTerminalStatus(data.status) || !jobsListEl.innerHTML.trim()) {
+                jobsListEl.innerHTML = jobsHtml;
+            }
         }
 
         // 页面加载时恢复构建进度追踪
