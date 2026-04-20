@@ -2832,13 +2832,13 @@
                             <div class="section-title">应用信息</div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>提供商标识 (provider)</label>
-                                    <input type="text" id="provider" placeholder="如: 软件云、Bluetile">
-                                    <div class="help-text" id="providerHelpText">必须与远程配置 panels 对象中的键名一致</div>
+                                    <label>站点分组名称（provider / panels 键名）</label>
+                                    <input type="text" id="provider" placeholder="建议直接填你的品牌名或项目名">
+                                    <div class="help-text" id="providerHelpText">建议直接填写你的品牌名或项目名。这个值必须与“远程配置文件”里的“站点分组名称”完全一致，remote.config.json 会用它作为 panels 的键名。</div>
                                 </div>
                                 <div class="form-group" id="appTitleGroup">
                                     <label>应用名称</label>
-                                    <input type="text" id="appTitle" placeholder="如: 软件云">
+                                    <input type="text" id="appTitle" placeholder="如：你的应用名称">
                                 </div>
                                 <div class="form-group">
                                     <label>Logo类型</label>
@@ -3171,7 +3171,7 @@
                             <div class="section">
                                 <div class="section-title">操作流程</div>
                                 <div class="remote-config-workflow">
-                                    <div class="remote-config-step"><strong>1. 填写配置项</strong><span>直接填写面板类型、官网地址、提供商标识、站点列表和静态更新配置，系统会实时生成 remote.config.json。</span></div>
+                                    <div class="remote-config-step"><strong>1. 填写配置项</strong><span>直接填写面板类型、官网地址、站点分组名称、站点列表和静态更新配置，系统会实时生成 remote.config.json。</span></div>
                                     <div class="remote-config-step"><strong>2. 检查源码预览</strong><span>上方“remote.config.json 源码”页签会实时显示最终 JSON，提交前可先核对格式和字段。</span></div>
                                     <div class="remote-config-step remote-config-step-recommended"><strong class="remote-config-step-title">3. 按需加密配置文件 <span class="remote-config-badge">推荐操作</span></strong><span>首次加密建议点击“生成密钥并加密配置文件”；如果是后续更新配置，直接填写已保存的密钥，再点击“使用当前密钥加密”。</span></div>
                                     <div class="remote-config-step"><strong>4. 保存密钥并下载配置文件</strong><span>如果不需要加密，可直接下载 remote.config.json；若已加密，请保存好密钥，并将它填写到远程配置源的“加密密钥（可选）”中。</span></div>
@@ -3198,9 +3198,9 @@
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>提供商标识（panels 键名）</label>
-                                    <input type="text" id="remoteConfigProviderKey" placeholder="必须与基础设置中的 provider 完全一致">
-                                    <div class="help-text" id="remoteConfigProviderKeyHelpText">这里非常重要：填写的值必须与基础设置里的“提供商标识（provider）”完全一致，包括大小写；remote.config.json 会用它作为 panels 的键名，如果不一致，软件可能无法正确识别站点，甚至无法正常启动。</div>
+                                    <label>站点分组名称（remote.config.json > panels 键名）</label>
+                                    <input type="text" id="remoteConfigProviderKey" placeholder="必须与基础设置中的“站点分组名称”完全一致">
+                                    <div class="help-text" id="remoteConfigProviderKeyHelpText">这里非常重要：这个值必须与基础设置里的“站点分组名称”完全一致，包括大小写。建议两个地方都直接填写品牌名；remote.config.json 会用它作为 panels 的键名，如果不一致，软件可能无法正确识别站点，甚至无法正常启动。</div>
                                 </div>
 
                                 <div class="section" style="margin-top: 20px;">
@@ -3209,7 +3209,7 @@
                                     <div class="remote-config-actions" style="margin-top: 10px; margin-bottom: 10px;">
                                         <button type="button" class="btn btn-primary" id="addRemoteConfigPanelBtn">+ 添加站点</button>
                                     </div>
-                                    <div class="help-text">面板类型、提供商标识、至少一个站点地址（url）为必填；站点说明（description）留空时会自动使用“站点1、站点2 ...”。</div>
+                                    <div class="help-text">面板类型、站点分组名称、至少一个站点地址（url）为必填；站点说明（description）留空时会自动使用“站点1、站点2 ...”。</div>
                                 </div>
 
                                 <div class="section" style="margin-top: 20px; margin-bottom: 0;">
@@ -4394,8 +4394,8 @@
         var remoteConfigActiveTab = 'visual';
         var REMOTE_CONFIG_HISTORY_STORAGE_KEY = 'nexgen_remote_config_history_v1';
         var remoteConfigHistoryRecords = [];
-        var PROVIDER_HELP_TEXT = '必须与远程配置 panels 对象中的键名一致';
-        var REMOTE_CONFIG_PROVIDER_HELP_TEXT = '这里非常重要：填写的值必须与基础设置里的“提供商标识（provider）”完全一致，包括大小写；remote.config.json 会用它作为 panels 的键名，如果不一致，软件可能无法正确识别站点，甚至无法正常启动。';
+        var PROVIDER_HELP_TEXT = '建议直接填写你的品牌名或项目名。这个值必须与“远程配置文件”里的“站点分组名称”完全一致，remote.config.json 会用它作为 panels 的键名。';
+        var REMOTE_CONFIG_PROVIDER_HELP_TEXT = '这里非常重要：这个值必须与基础设置里的“站点分组名称”完全一致，包括大小写。建议两个地方都直接填写品牌名；remote.config.json 会用它作为 panels 的键名，如果不一致，软件可能无法正确识别站点，甚至无法正常启动。';
         var onlineSupportItems = [];
         var profilesCache = [];
         var buildHistoryData = {};
@@ -6485,13 +6485,13 @@
             }
             if (providerHelpText) {
                 providerHelpText.textContent = isMismatch
-                    ? '当前与远程配置文件里的 panels 键名不一致，请改成和“提供商标识（panels 键名）”完全相同。'
+                    ? '当前与远程配置文件里的“站点分组名称”不一致，请改成完全相同。'
                     : PROVIDER_HELP_TEXT;
                 providerHelpText.classList.toggle('warning', isMismatch);
             }
             if (remoteProviderHelpText) {
                 remoteProviderHelpText.textContent = isMismatch
-                    ? '当前与基础设置里的“提供商标识（provider）”不一致，请保持完全相同，否则软件可能无法识别站点。'
+                    ? '当前与基础设置里的“站点分组名称”不一致，请保持完全相同，否则软件可能无法识别站点。'
                     : REMOTE_CONFIG_PROVIDER_HELP_TEXT;
                 remoteProviderHelpText.classList.toggle('warning', isMismatch);
             }
@@ -6531,13 +6531,13 @@
                     throw new Error('请选择面板类型（panelType）');
                 }
                 if (!providerValue) {
-                    throw new Error('请填写提供商标识（panels 键名）');
+                    throw new Error('请填写站点分组名称');
                 }
                 if (!basicProviderValue) {
-                    throw new Error('请先在基础设置中填写提供商标识（provider）');
+                    throw new Error('请先在基础设置中填写站点分组名称');
                 }
                 if (basicProviderValue !== providerValue) {
-                    throw new Error('远程配置页的提供商标识必须与基础设置中的 provider 完全一致');
+                    throw new Error('远程配置页的站点分组名称必须与基础设置中的站点分组名称完全一致');
                 }
                 if (panelItems.length === 0) {
                     throw new Error('请至少添加一个站点并填写站点地址（url）');
@@ -6946,7 +6946,7 @@
                 html += '<div class="remote-config-history-title">' + escapeHtml(recordTitle) + '</div>';
                 html += '<div class="remote-config-history-time">' + escapeHtml(formatRemoteConfigHistoryTime(record.saved_at)) + '</div>';
                 html += '</div>';
-                html += '<div class="remote-config-history-meta">面板类型：' + escapeHtml(record.panel_type || '-') + ' · 提供商标识：' + escapeHtml(record.provider_key || '-') + ' · 站点数：' + escapeHtml(String(record.site_count || 0)) + ' · 更新项：' + escapeHtml(String(record.update_count || 0)) + '</div>';
+                html += '<div class="remote-config-history-meta">面板类型：' + escapeHtml(record.panel_type || '-') + ' · 站点分组名称：' + escapeHtml(record.provider_key || '-') + ' · 站点数：' + escapeHtml(String(record.site_count || 0)) + ' · 更新项：' + escapeHtml(String(record.update_count || 0)) + '</div>';
                 if (record.website_url) {
                     html += '<div class="remote-config-history-meta">官网地址：' + escapeHtml(record.website_url) + '</div>';
                 }
