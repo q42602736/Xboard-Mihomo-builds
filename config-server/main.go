@@ -108,6 +108,7 @@ func main() {
 	r.Post("/api/internal/build-events/complete", h.InternalCompleteBuildRun)
 	r.Post("/api/internal/github/webhook", h.HandleGitHubWebhook)
 	r.Get("/download/build/records/{id}/assets/{assetID}", h.DownloadBuildRecordAssetByToken)
+	r.Get("/profile-assets/history/{id}", h.GetProfileAsset)
 
 	// 需要登录的 API
 	r.Group(func(r chi.Router) {
@@ -117,6 +118,8 @@ func main() {
 		r.Get("/api/profiles", h.ListProfiles)
 		r.Get("/api/profiles/{name}", h.GetProfile)
 		r.Put("/api/profiles/{name}", h.SaveProfile)
+		r.Post("/api/profiles/{name}/assets/{kind}", h.UploadProfileAsset)
+		r.Get("/api/profile-assets/history", h.ListProfileAssetHistory)
 		r.Delete("/api/profiles/{name}", h.DeleteProfile)
 		r.Get("/api/branches", h.ListBranches)
 		r.Post("/api/build/trigger", h.TriggerBuild)

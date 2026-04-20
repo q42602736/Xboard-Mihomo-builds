@@ -84,8 +84,23 @@ func initDB() {
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
 
+		CREATE TABLE IF NOT EXISTS profile_asset_history (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			code_id INTEGER NOT NULL,
+			code_name TEXT NOT NULL,
+			profile_name TEXT NOT NULL DEFAULT '',
+			asset_kind TEXT NOT NULL,
+			asset_path TEXT NOT NULL UNIQUE,
+			asset_url TEXT NOT NULL,
+			content_type TEXT NOT NULL DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+
 		CREATE INDEX IF NOT EXISTS idx_build_records_code_id_created_at
 		ON build_records (code_id, created_at DESC);
+
+		CREATE INDEX IF NOT EXISTS idx_profile_asset_history_code_kind_created_at
+		ON profile_asset_history (code_id, asset_kind, created_at DESC, id DESC);
 	`)
 	// 兼容旧表：如果 allowed_profiles 列不存在则添加
 	db.Exec("ALTER TABLE activation_codes ADD COLUMN allowed_profiles TEXT DEFAULT '[]'")
@@ -141,6 +156,18 @@ type BuildRecord struct {
 	LastSyncAt   string `json:"last_sync_at"`
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at"`
+}
+
+type ProfileAssetHistoryRecord struct {
+	ID          int64  `json:"id"`
+	CodeID      int    `json:"code_id"`
+	CodeName    string `json:"code_name"`
+	ProfileName string `json:"profile_name"`
+	AssetKind   string `json:"asset_kind"`
+	AssetPath   string `json:"asset_path"`
+	AssetURL    string `json:"asset_url"`
+	ContentType string `json:"content_type"`
+	CreatedAt   string `json:"created_at"`
 }
 
 func createBuildRecord(codeID int, codeName, profile, tag, branch, platforms string) (*BuildRecord, error) {
@@ -383,6 +410,154 @@ func deleteBuildRecord(recordID int64) error {
 	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("打包记录不存在")
+	}
+	return nil
+}
+
+func createProfileAssetHistoryRecord(codeID int, codeName, profileName, assetKind, assetPath, assetURL, contentType string) (*ProfileAssetHistoryRecord, error) {
+	result, err := db.Exec(
+		`INSERT INTO profile_asset_history (code_id, code_name, profile_name, asset_kind, asset_path, asset_url, content_type)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		codeID, codeName, profileName, assetKind, assetPath, assetURL, contentType,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	recordID, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+	return getProfileAssetHistoryRecord(recordID)
+}
+
+func updateProfileAssetHistoryURL(recordID int64, assetURL string) error {
+	_, err := db.Exec(
+		`UPDATE profile_asset_history
+		 SET asset_url = ?
+		 WHERE id = ?`,
+		assetURL, recordID,
+	)
+	return err
+}
+
+func getProfileAssetHistoryRecord(recordID int64) (*ProfileAssetHistoryRecord, error) {
+	var record ProfileAssetHistoryRecord
+	err := db.QueryRow(
+		`SELECT id, code_id, code_name, profile_name, asset_kind, asset_path, asset_url, content_type, created_at
+		 FROM profile_asset_history
+		 WHERE id = ?`,
+		recordID,
+	).Scan(
+		&record.ID,
+		&record.CodeID,
+		&record.CodeName,
+		&record.ProfileName,
+		&record.AssetKind,
+		&record.AssetPath,
+		&record.AssetURL,
+		&record.ContentType,
+		&record.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("图标历史不存在")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func listProfileAssetHistoryRecords(codeID int, assetKind string, limit int) ([]ProfileAssetHistoryRecord, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 5
+	}
+
+	rows, err := db.Query(
+		`SELECT id, code_id, code_name, profile_name, asset_kind, asset_path, asset_url, content_type, created_at
+		 FROM profile_asset_history
+		 WHERE code_id = ? AND asset_kind = ?
+		 ORDER BY created_at DESC, id DESC
+		 LIMIT ?`,
+		codeID, assetKind, limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	records := []ProfileAssetHistoryRecord{}
+	for rows.Next() {
+		var record ProfileAssetHistoryRecord
+		if err := rows.Scan(
+			&record.ID,
+			&record.CodeID,
+			&record.CodeName,
+			&record.ProfileName,
+			&record.AssetKind,
+			&record.AssetPath,
+			&record.AssetURL,
+			&record.ContentType,
+			&record.CreatedAt,
+		); err != nil {
+			continue
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}
+
+func listOverflowProfileAssetHistoryRecords(codeID int, assetKind string, keep int) ([]ProfileAssetHistoryRecord, error) {
+	if keep < 0 {
+		keep = 0
+	}
+
+	rows, err := db.Query(
+		`SELECT id, code_id, code_name, profile_name, asset_kind, asset_path, asset_url, content_type, created_at
+		 FROM profile_asset_history
+		 WHERE code_id = ? AND asset_kind = ?
+		 ORDER BY created_at DESC, id DESC
+		 LIMIT -1 OFFSET ?`,
+		codeID, assetKind, keep,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	records := []ProfileAssetHistoryRecord{}
+	for rows.Next() {
+		var record ProfileAssetHistoryRecord
+		if err := rows.Scan(
+			&record.ID,
+			&record.CodeID,
+			&record.CodeName,
+			&record.ProfileName,
+			&record.AssetKind,
+			&record.AssetPath,
+			&record.AssetURL,
+			&record.ContentType,
+			&record.CreatedAt,
+		); err != nil {
+			continue
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}
+
+func deleteProfileAssetHistoryRecord(recordID int64) error {
+	result, err := db.Exec(`DELETE FROM profile_asset_history WHERE id = ?`, recordID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("图标历史不存在")
 	}
 	return nil
 }

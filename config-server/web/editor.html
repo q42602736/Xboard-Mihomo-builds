@@ -367,6 +367,142 @@
             font-size: 14px;
         }
         .form-group input:focus { outline: none; border-color: #00d4ff; }
+        .asset-upload-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .asset-upload-tip {
+            font-size: 12px;
+            color: #8b949e;
+        }
+        .asset-preview {
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+        }
+        .asset-preview[hidden] { display: none !important; }
+        .asset-preview-image {
+            width: 72px;
+            height: 72px;
+            object-fit: cover;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+        .asset-preview-meta {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .asset-preview-title {
+            font-size: 13px;
+            color: #dce7f3;
+            font-weight: 600;
+        }
+        .asset-preview-url {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #8b949e;
+            word-break: break-all;
+        }
+        .asset-history {
+            margin-top: 16px;
+        }
+        .asset-history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .asset-history-title {
+            font-size: 13px;
+            color: #dce7f3;
+            font-weight: 600;
+        }
+        .asset-history-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(132px, 132px));
+            justify-content: flex-start;
+            gap: 12px;
+        }
+        .asset-history-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+            min-width: 0;
+        }
+        .asset-history-image {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(0,0,0,0.2);
+        }
+        .asset-history-meta {
+            width: 100%;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #8b949e;
+            word-break: break-word;
+            text-align: center;
+        }
+        .asset-history-actions {
+            display: flex;
+            width: 100%;
+            gap: 8px;
+        }
+        .asset-history-actions .btn {
+            flex: 1;
+            min-width: 0;
+            padding: 6px 8px;
+            font-size: 11px;
+        }
+        .asset-history-empty {
+            grid-column: 1 / -1;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px dashed rgba(255,255,255,0.12);
+            color: #8b949e;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+        @media (max-width: 640px) {
+            .asset-history-list {
+                grid-template-columns: repeat(auto-fill, minmax(110px, 110px));
+                gap: 10px;
+            }
+            .asset-history-card {
+                padding: 8px;
+            }
+            .asset-history-image {
+                width: 56px;
+                height: 56px;
+            }
+            .asset-history-meta {
+                font-size: 10px;
+            }
+            .asset-history-actions .btn {
+                padding: 6px;
+                font-size: 10px;
+            }
+        }
         .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
         .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
@@ -2859,7 +2995,26 @@
                             <div class="form-group">
                                 <label>图标图片地址</label>
                                 <input type="text" id="appIconUrl" placeholder="https://example.com/icon.png">
-                                <div class="help-text">建议1024x1024像素PNG图片</div>
+                                <div class="asset-upload-actions">
+                                    <button type="button" class="btn btn-secondary" onclick="triggerAppIconUpload()">上传本地图标</button>
+                                    <span class="asset-upload-tip">支持 PNG / JPG / WebP，上传后自动回填地址</span>
+                                </div>
+                                <div class="help-text">建议1024x1024像素PNG图片；上传后仍需点击“保存当前档案”，历史记录最多保留 5 条。</div>
+                                <div class="asset-preview" id="appIconPreview" hidden>
+                                    <img id="appIconPreviewImage" class="asset-preview-image" alt="应用图标预览">
+                                    <div class="asset-preview-meta">
+                                        <div class="asset-preview-title">当前应用图标预览</div>
+                                        <div class="asset-preview-url" id="appIconPreviewUrl"></div>
+                                    </div>
+                                </div>
+                                <div class="asset-history">
+                                    <div class="asset-history-header">
+                                        <div class="asset-history-title">我的历史图标</div>
+                                        <div class="asset-upload-tip">当前登录用户独立保存，最多保留 5 条</div>
+                                    </div>
+                                    <div id="appIconHistoryList" class="asset-history-list"></div>
+                                </div>
+                                <input type="file" id="appIconUploadInput" accept="image/png,image/jpeg,image/webp" style="display:none;">
                             </div>
                         </div>
                         <div class="section">
@@ -3565,6 +3720,29 @@
             return response;
         }
 
+        async function uploadProfileAsset(profileName, kind, file) {
+            var token = getToken();
+            if (!token) return null;
+
+            var formData = new FormData();
+            formData.append('file', file);
+
+            var response = await fetch('/api/profiles/' + encodeURIComponent(profileName) + '/assets/' + encodeURIComponent(kind), {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                },
+                body: formData
+            });
+            if (response.status === 401) {
+                sessionStorage.removeItem(getBuildPollKey());
+                sessionStorage.removeItem(SESSION_KEY);
+                window.location.href = '/';
+                return null;
+            }
+            return response;
+        }
+
         function isAdminSession() {
             var session = getSession();
             return !!(session && session.permissions === 'admin');
@@ -3814,6 +3992,96 @@
             });
         }
 
+        function updateAppIconPreview(url) {
+            var preview = document.getElementById('appIconPreview');
+            var image = document.getElementById('appIconPreviewImage');
+            var urlEl = document.getElementById('appIconPreviewUrl');
+            var normalizedUrl = String(url || '').trim();
+
+            if (!preview || !image || !urlEl) return;
+
+            if (!normalizedUrl) {
+                preview.hidden = true;
+                image.removeAttribute('src');
+                urlEl.textContent = '';
+                return;
+            }
+
+            preview.hidden = false;
+            image.src = normalizedUrl;
+            urlEl.textContent = normalizedUrl;
+        }
+
+        function formatAppIconHistoryTime(value) {
+            if (!value) return '-';
+            var date = new Date(value);
+            if (isNaN(date.getTime())) return value;
+            return date.toLocaleString('zh-CN', { hour12: false });
+        }
+
+        function getAppIconHistoryRecordById(recordId) {
+            recordId = String(recordId || '');
+            for (var i = 0; i < appIconHistoryRecords.length; i++) {
+                if (String(appIconHistoryRecords[i].id) === recordId) {
+                    return appIconHistoryRecords[i];
+                }
+            }
+            return null;
+        }
+
+        function renderAppIconHistory() {
+            var container = document.getElementById('appIconHistoryList');
+            if (!container) return;
+
+            if (!Array.isArray(appIconHistoryRecords) || appIconHistoryRecords.length === 0) {
+                container.innerHTML = '<div class="asset-history-empty">暂无历史图标。上传一次后，这里会只显示当前登录用户自己的最近 5 条记录。</div>';
+                return;
+            }
+
+            var html = '';
+            appIconHistoryRecords.forEach(function(record) {
+                html += '<div class="asset-history-card">';
+                html += '<img class="asset-history-image" src="' + escapeHtml(record.asset_url || '') + '" alt="历史图标">';
+                html += '<div class="asset-history-meta">来源档案：' + escapeHtml(record.profile_name || '-') + '<br>上传时间：' + escapeHtml(formatAppIconHistoryTime(record.created_at)) + '</div>';
+                html += '<div class="asset-history-actions">';
+                html += '<button type="button" class="btn btn-secondary" data-record-id="' + escapeHtml(record.id) + '" onclick="applyAppIconHistory(this.dataset.recordId)">使用这个图标</button>';
+                html += '</div>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        async function loadAppIconHistory() {
+            try {
+                var response = await api('GET', '/profile-assets/history?kind=app-icon&limit=5');
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '加载图标历史失败');
+                }
+                appIconHistoryRecords = Array.isArray(data.records) ? data.records : [];
+                renderAppIconHistory();
+            } catch (e) {
+                appIconHistoryRecords = [];
+                var container = document.getElementById('appIconHistoryList');
+                if (container) {
+                    container.innerHTML = '<div class="asset-history-empty">加载历史图标失败：' + escapeHtml(e.message) + '</div>';
+                }
+            }
+        }
+
+        function applyAppIconHistory(recordId) {
+            var record = getAppIconHistoryRecordById(recordId);
+            if (!record) {
+                showAppAlert('未找到对应的历史图标记录。', '提示');
+                return;
+            }
+            document.getElementById('appIconUrl').value = record.asset_url || '';
+            updateAppIconPreview(record.asset_url || '');
+            formToYaml();
+            setStatus('已从历史记录回填应用图标，请记得保存当前档案。', 'success');
+        }
+
         function normalizeDownloadErrorMessage(text, statusCode) {
             var fallback = statusCode ? ('下载失败（HTTP ' + statusCode + '）') : '下载失败';
             var raw = String(text || '').trim();
@@ -3846,6 +4114,52 @@
                 return selectedProfile;
             }
             return document.getElementById('appTitle').value.trim();
+        }
+
+        function triggerAppIconUpload() {
+            var fileInput = document.getElementById('appIconUploadInput');
+            if (!fileInput) return;
+            fileInput.value = '';
+            fileInput.click();
+        }
+
+        async function handleAppIconUpload(event) {
+            var fileInput = event && event.target ? event.target : document.getElementById('appIconUploadInput');
+            var file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+            var profileName = String(document.getElementById('profileSelect').value || '').trim();
+
+            if (!file) {
+                return;
+            }
+            if (!profileName) {
+                showAppAlert('请先选择一个配置档案，再上传应用图标。', '提示');
+                setStatus('请先选择一个配置档案，再上传应用图标。', 'error');
+                fileInput.value = '';
+                return;
+            }
+
+            setStatus('正在上传应用图标...', 'info');
+            try {
+                var response = await uploadProfileAsset(profileName, 'app-icon', file);
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '上传失败');
+                }
+                var uploadedUrl = data.url || (data.record && data.record.asset_url) || '';
+                document.getElementById('appIconUrl').value = uploadedUrl;
+                updateAppIconPreview(uploadedUrl);
+                formToYaml();
+                await loadAppIconHistory();
+                setStatus('应用图标已上传并回填地址，请记得保存当前档案。', 'success');
+            } catch (e) {
+                showAppAlert('上传应用图标失败：' + e.message, '提示');
+                setStatus('上传应用图标失败：' + e.message, 'error');
+            } finally {
+                if (fileInput) {
+                    fileInput.value = '';
+                }
+            }
         }
 
         function syncProfileBoundAppTitle() {
@@ -4398,6 +4712,7 @@
         var REMOTE_CONFIG_PROVIDER_HELP_TEXT = '这里非常重要：这个值必须与基础设置里的“站点分组名称”完全一致，包括大小写。建议两个地方都直接填写品牌名；remote.config.json 会用它作为 panels 的键名，如果不一致，软件可能无法正确识别站点，甚至无法正常启动。';
         var onlineSupportItems = [];
         var profilesCache = [];
+        var appIconHistoryRecords = [];
         var buildHistoryData = {};
         var buildAssetCache = {};
         var myBuildRecordsCache = null;
@@ -4848,6 +5163,13 @@
                 el.addEventListener('input', formToYaml);
                 el.addEventListener('change', formToYaml);
             });
+            document.getElementById('appIconUrl').addEventListener('input', function() {
+                updateAppIconPreview(this.value);
+            });
+            document.getElementById('appIconUrl').addEventListener('change', function() {
+                updateAppIconPreview(this.value);
+            });
+            document.getElementById('appIconUploadInput').addEventListener('change', handleAppIconUpload);
             document.getElementById('profileSelect').addEventListener('change', function() {
                 syncProfileBoundAppTitle();
                 if (!isAdminSession()) {
@@ -4878,6 +5200,7 @@
 
             syncProfileBoundAppTitle();
             setMyBuildRecordsExpanded(false);
+            loadAppIconHistory();
             loadProfiles().then(function() { checkActiveBuild(); });
             loadBuildHistory();
             loadBranches();
@@ -7274,9 +7597,10 @@
             syncProfileBoundAppTitle();
             document.getElementById('logoType').value = getValue('type') || 'text';
             var logoMatch = yaml.match(/logo:[\s\S]*?image_url:[^\S\n]*(.*)/);
-            if (logoMatch) document.getElementById('logoImageUrl').value = logoMatch[1].trim().replace(/^["']|["']$/g, '');
+            document.getElementById('logoImageUrl').value = logoMatch ? logoMatch[1].trim().replace(/^["']|["']$/g, '') : '';
             var iconMatch = yaml.match(/app_icon:[\s\S]*?image_url:[^\S\n]*(.*)/);
-            if (iconMatch) document.getElementById('appIconUrl').value = iconMatch[1].trim().replace(/^["']|["']$/g, '');
+            document.getElementById('appIconUrl').value = iconMatch ? iconMatch[1].trim().replace(/^["']|["']$/g, '') : '';
+            updateAppIconPreview(document.getElementById('appIconUrl').value);
             document.getElementById('preferEncrypt').checked = getSubscriptionBool('prefer_encrypt');
             document.getElementById('preferEncryptLabel').textContent = getSubscriptionBool('prefer_encrypt') ? '开启' : '关闭';
             document.getElementById('subscriptionUserAgent').value = getSubscriptionValue('user_agent');
