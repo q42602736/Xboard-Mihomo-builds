@@ -3008,6 +3008,16 @@
                                 </div>
                                 <div class="help-text">仅 XBoard / V2Board 后端面板支持；关闭后将隐藏桌面端和移动端导航中的礼品卡入口按钮。</div>
                             </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示签到按钮</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="checkinShowButton"><span class="slider"></span></label>
+                                        <span id="checkinShowButtonLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">仅用于 main 分支对接 XBoard 面板。开启前请确认你的 XBoard 已安装并启用 <code>DailyCheckin</code> 这类签到插件，否则客户端只会显示按钮，实际无法签到。</div>
+                            </div>
                         </div>
                     </div>
                     <div class="page-footer">
@@ -4929,6 +4939,8 @@
                 '    online_support:',
                 '      auth_pages:',
                 '        show_button: false',
+                '    checkin:',
+                '      show_button: false',
                 '    gift_card:',
                 '      show_button: false'
             ].join('\n');
@@ -5090,6 +5102,7 @@
                 latency_reduction_value: normalizeLatencyReductionValue(document.getElementById('latencyReductionValue').value),
                 notice_auto_open_on_startup: document.getElementById('noticeAutoOpenOnStartup').checked,
                 show_custom_rule_entry: document.getElementById('showCustomRuleEntry').checked,
+                checkin_show_button: document.getElementById('checkinShowButton').checked,
                 auth_pages_support_show_button: document.getElementById('authPagesSupportShowButton').checked,
                 gift_card_show_button: document.getElementById('giftCardShowButton').checked,
                 sources: validSources,
@@ -5929,7 +5942,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'authPagesSupportShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'authPagesSupportShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -7325,6 +7338,12 @@
             var showCustomRuleEntry = showCustomRuleEntryMatch ? showCustomRuleEntryMatch[1] === 'true' : true;
             document.getElementById('showCustomRuleEntry').checked = showCustomRuleEntry;
             document.getElementById('showCustomRuleEntryLabel').textContent = showCustomRuleEntry ? '开启' : '关闭';
+            var checkinShowButtonMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}checkin:\s*\n(?:[\s\S]*?)^\s{6}show_button:\s*(true|false)/m) ||
+                yaml.match(/checkin:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);
+            var checkinShowButton = checkinShowButtonMatch ? checkinShowButtonMatch[1] === 'true' : false;
+            document.getElementById('checkinShowButton').checked = checkinShowButton;
+            document.getElementById('checkinShowButtonLabel').textContent = checkinShowButton ? '开启' : '关闭';
             var authPagesSupportShowButtonMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}online_support:\s*\n(?:[\s\S]*?)^\s{6}auth_pages:\s*\n(?:[\s\S]*?)^\s{8}show_button:\s*(true|false)/m) ||
                 yaml.match(/online_support:\s*\n(?:[\s\S]*?)auth_pages:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);

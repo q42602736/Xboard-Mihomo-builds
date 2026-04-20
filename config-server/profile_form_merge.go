@@ -31,6 +31,7 @@ type ProfileFormState struct {
 	LatencyReductionEnabled       bool                      `json:"latency_reduction_enabled"`
 	LatencyReductionValue         int                       `json:"latency_reduction_value"`
 	NoticeAutoOpenOnStartup       bool                      `json:"notice_auto_open_on_startup"`
+	CheckinShowButton             bool                      `json:"checkin_show_button"`
 	GiftCardShowButton            bool                      `json:"gift_card_show_button"`
 	ShowCustomRuleEntry           bool                      `json:"show_custom_rule_entry"`
 	AuthPagesSupportShowButton    bool                      `json:"auth_pages_support_show_button"`
@@ -79,6 +80,7 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	ui := ensureMapValueNode(xboard, "ui")
 	latencyReduction := ensureMapValueNode(ui, "latency_reduction")
 	notice := ensureMapValueNode(ui, "notice")
+	checkin := ensureMapValueNode(ui, "checkin")
 	giftCard := ensureMapValueNode(ui, "gift_card")
 	proxyGroups := ensureMapValueNode(ui, "proxy_groups")
 	uiOnlineSupport := ensureMapValueNode(ui, "online_support")
@@ -116,6 +118,7 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	setMapBoolValue(latencyReduction, "enabled", form.LatencyReductionEnabled)
 	setMapIntValue(latencyReduction, "value", normalizeLatencyReductionValue(form.LatencyReductionValue))
 	setMapBoolValue(notice, "auto_open_on_startup", form.NoticeAutoOpenOnStartup)
+	setMapBoolValue(checkin, "show_button", form.CheckinShowButton)
 	setMapBoolValue(giftCard, "show_button", form.GiftCardShowButton)
 	setMapBoolValue(proxyGroups, "show_custom_rule_entry", form.ShowCustomRuleEntry)
 	setMapBoolValue(authPages, "show_button", form.AuthPagesSupportShowButton)
