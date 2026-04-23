@@ -896,9 +896,10 @@ jobs:
 
             ENCODED_FILENAME=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$ASSET_NAME")
             echo "Uploading release asset: $ASSET_NAME"
-            curl -sS --fail -X POST \
+            curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/octet-stream" \
+              -H "Expect:" \
               "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}" \
               --data-binary @"$file" > /dev/null
           done
@@ -1262,9 +1263,10 @@ jobs:
 
             ENCODED_FILENAME=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$ASSET_NAME")
             echo "Uploading release asset: $ASSET_NAME"
-            curl -sS --fail -X POST \
+            curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/octet-stream" \
+              -H "Expect:" \
               "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}" \
               --data-binary @"$file" > /dev/null
           done
@@ -1382,9 +1384,10 @@ jobs:
           ENCODED_FILENAME=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$PACKAGE_NAME")
 
           echo "Uploading merged bundle: $PACKAGE_NAME ($FILESIZE)"
-          curl -sS --fail -X POST \
+          curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
             -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/zip" \
+            -H "Expect:" \
             "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}" \
             --data-binary @"$PACKAGE_NAME" > /dev/null
 
