@@ -3241,10 +3241,10 @@
                                 <input type="text" id="subscriptionUserAgent" placeholder="留空时默认使用 Clash Meta">
                                 <div class="help-text">仅在关闭“专用客户端模式”时生效；专用模式请填写下方“专用模式订阅 UA”。</div>
                             </div>
-                            <div class="form-group">
+                            <div class="form-group config-control-hidden" id="exclusiveSubscriptionUserAgentGroup">
                                 <label>专用模式订阅 UA</label>
                                 <input type="text" id="exclusiveSubscriptionUserAgent" placeholder="留空时默认使用 XBoardMihomo/1.0">
-                                <div class="help-text">开启“专用客户端模式”时生效。可完全自定义，但必须与你给后端补丁脚本输入的专用客户端 UA/标识保持一致。</div>
+                                <div class="help-text">仅在开启“专用客户端模式”后显示，选填。不填写时会回退到默认值 XBoardMihomo/1.0。可完全自定义，但必须与你给后端补丁脚本输入的专用客户端 UA/标识保持一致。</div>
                             </div>
                             <div class="form-group config-control-hidden">
                                 <label>订阅解密密钥</label>
@@ -6277,6 +6277,9 @@
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
                     label.textContent = this.checked ? '开启' : '关闭';
+                    if (id === 'useExclusiveMode') {
+                        syncExclusiveSubscriptionUserAgentVisibility(this.checked);
+                    }
                     formToYaml();
                     scheduleAutoSaveCurrentProfile('开关配置已自动保存');
                 });
@@ -6296,6 +6299,16 @@
                 this.value = normalizeLatencyReductionValue(this.value);
                 formToYaml();
             });
+        }
+
+        function syncExclusiveSubscriptionUserAgentVisibility(enabled) {
+            var group = document.getElementById('exclusiveSubscriptionUserAgentGroup');
+            if (!group) return;
+            if (enabled) {
+                group.classList.remove('config-control-hidden');
+            } else {
+                group.classList.add('config-control-hidden');
+            }
         }
 
         function normalizeLatencyReductionValue(value) {
@@ -7615,6 +7628,7 @@
             document.getElementById('subscriptionCustomQuerySuffix').value = getSubscriptionValue('custom_query_suffix');
             document.getElementById('useExclusiveMode').checked = getSubscriptionBool('use_exclusive_mode');
             document.getElementById('useExclusiveModeLabel').textContent = getSubscriptionBool('use_exclusive_mode') ? '开启' : '关闭';
+            syncExclusiveSubscriptionUserAgentVisibility(getSubscriptionBool('use_exclusive_mode'));
             document.getElementById('decryptKey').value = getSubscriptionValue('decrypt_key');
             var autoOfflineMatch = yaml.match(/auto_offline:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var autoOfflineEnabled = autoOfflineMatch ? autoOfflineMatch[1] === 'true' : false;
