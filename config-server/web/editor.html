@@ -2922,6 +2922,10 @@
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 5a2 2 0 012-2h8a2 2 0 012 2v1a1 1 0 11-2 0V5H6v2h8a2 2 0 012 2v1a1 1 0 11-2 0V9H6v2h8a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-1a1 1 0 112 0v1h8v-2H6a2 2 0 01-2-2v-2a2 2 0 012-2h8V5H6v1a1 1 0 11-2 0V5z" clip-rule="evenodd"/></svg>
                     UI 设置
                 </div>
+                <div class="nav-item" onclick="switchSection('customFeatures')">
+                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 01.894.553l1.382 2.764 3.049.443a1 1 0 01.554 1.706l-2.205 2.149.52 3.037a1 1 0 01-1.45 1.054L10 12.347l-2.724 1.432a1 1 0 01-1.45-1.054l.52-3.037L4.141 7.466a1 1 0 01.554-1.706l3.049-.443 1.382-2.764A1 1 0 0110 2zm0 3.236L9.236 6.76a1 1 0 01-.753.547l-1.681.244 1.217 1.187a1 1 0 01.288.885l-.287 1.673 1.504-.791a1 1 0 01.93 0l1.504.791-.287-1.673a1 1 0 01.288-.885l1.217-1.187-1.681-.244a1 1 0 01-.753-.547L10 5.236z" clip-rule="evenodd"/></svg>
+                    自定义功能
+                </div>
                 <div class="nav-item" onclick="switchSection('subscription')">
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
                     订阅设置
@@ -3177,6 +3181,173 @@
                     </div>
                     <div class="page-footer">
                         <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
+                    </div>
+                </div>
+
+                <!-- 自定义功能 -->
+                <div class="content-section" id="customFeaturesSection">
+                    <div class="page-header">
+                        <div class="page-header-content">
+                            <h2>自定义功能</h2>
+                            <p class="subtitle">输入对接码并验证后，显示对应的自定义功能配置</p>
+                        </div>
+                    </div>
+                    <div class="editor-container">
+                        <div class="section">
+                            <div id="customTrafficBarGateWrap" style="margin-top:16px;">
+                                <div class="help-text" id="customTrafficBarCodeHint">输入对接码并验证通过后，才会显示可用的自定义功能。</div>
+                                <div class="form-row" style="grid-template-columns:minmax(0,1fr) 220px; align-items:end; margin-top:12px;">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label id="customTrafficBarAccessLabel">对接码</label>
+                                        <input type="text" id="customTrafficBarIntegrationCode" placeholder="请输入后台设置的对接码">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <button type="button" class="btn btn-primary" id="customTrafficBarUnlockBtn" onclick="unlockCustomTrafficBarConfig()" style="width:100%;">验证对接码</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="customTrafficBarEditorPanel" style="display:none;">
+                                <div class="section-title">自定义功能配置</div>
+                                <div class="help-text">只会显示当前对接码已绑定的功能。保存后会直接写入当前档案对应的公共 YAML 配置。</div>
+                                <div class="switch-card" data-custom-feature-key="traffic_bar_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">流量条自定义</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="customTrafficBarEnabled"><span class="slider"></span></label>
+                                            <span id="customTrafficBarEnabledLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="switch-card-extra" id="customTrafficBarExtra">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="customTrafficBarColorPicker" value="#00897b" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="customTrafficBarColor" placeholder="#00897B">
+                                            </div>
+                                        </div>
+                                        <div class="help-text">推荐填写 <code>#RRGGBB</code>；如需透明度，也可以手动输入 <code>#AARRGGBB</code>。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="notice_dialog_icon_background_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">公告弹窗图标背景自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="noticeDialogIconBackgroundColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="noticeDialogIconBackgroundColor" placeholder="#00897B">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('noticeDialogIconBackgroundColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认背景颜色。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="subscription_website_icon_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">官网按钮图标自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="subscriptionWebsiteIconColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="subscriptionWebsiteIconColor" placeholder="#00897B">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('subscriptionWebsiteIconColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认图标颜色。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="subscription_refresh_icon_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">刷新按钮图标自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="subscriptionRefreshIconColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="subscriptionRefreshIconColor" placeholder="#00897B">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('subscriptionRefreshIconColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认图标颜色。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="subscription_notice_icon_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">公告按钮图标自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="subscriptionNoticeIconColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="subscriptionNoticeIconColor" placeholder="#00897B">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('subscriptionNoticeIconColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认图标颜色。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="login_button_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">登录按钮颜色自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="loginButtonColorPicker" value="#374151" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="loginButtonColor" placeholder="#374151">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('loginButtonColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认登录按钮颜色。</div>
+                                    </div>
+                                </div>
+                                <div class="page-footer" style="justify-content:flex-start; gap:10px;">
+                                    <button type="button" class="btn btn-primary" onclick="loadCustomTrafficBarConfig()">读取当前配置</button>
+                                    <button type="button" class="btn btn-success page-save-btn" onclick="saveCustomTrafficBarConfig()">保存到公共配置</button>
+                                </div>
+                            </div>
+                            <div id="customTrafficBarStatus" class="sidebar-status info" style="display:none; margin-top:12px;"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -4698,14 +4869,376 @@
                 var response = await api('GET', '/auth/me');
                 if (!response) return;
                 var data = await response.json();
+                currentUserInfo = data || null;
                 renderBuildUsageInfo(data);
+                updateCustomTrafficBarCodeHint();
+                syncCustomTrafficBarAccessView();
             } catch (e) {
+                currentUserInfo = null;
                 renderBuildUsageInfo({ can_build: false, build_status_text: '加载失败' });
+                updateCustomTrafficBarCodeHint();
+                syncCustomTrafficBarAccessView();
+            }
+        }
+
+        function setCustomTrafficBarStatus(message, type) {
+            var el = document.getElementById('customTrafficBarStatus');
+            if (!el) return;
+            if (!message) {
+                el.style.display = 'none';
+                el.textContent = '';
+                el.className = 'sidebar-status info';
+                return;
+            }
+            el.style.display = 'block';
+            el.textContent = message;
+            el.className = 'sidebar-status ' + (type || 'info');
+        }
+
+        function getSelectedCustomTrafficBarProfile() {
+            var select = document.getElementById('profileSelect');
+            return select ? String(select.value || '').trim() : '';
+        }
+
+        function syncCustomTrafficBarProfileName() {
+            var el = document.getElementById('customTrafficBarProfileName');
+            if (!el) return;
+            el.textContent = getSelectedCustomTrafficBarProfile() || '未选择';
+        }
+
+        function hasCustomTrafficBarFeatureConfigured() {
+            return !(currentUserInfo && currentUserInfo.integration_code_configured === false);
+        }
+
+        function isCustomTrafficBarAccessUnlocked() {
+            return isAdminSession() || customTrafficBarAccessVerified;
+        }
+
+        function getVisibleCustomUIColorFeatureKeys() {
+            return isAdminSession()
+                ? customUIColorFeatureKeys.slice()
+                : customUIColorAvailableFeatures.slice();
+        }
+
+        function syncCustomUIColorFeatureVisibility() {
+            var visibleFeatureKeys = getVisibleCustomUIColorFeatureKeys();
+            document.querySelectorAll('[data-custom-feature-key]').forEach(function(section) {
+                var featureKey = String(section.getAttribute('data-custom-feature-key') || '').trim();
+                section.style.display = visibleFeatureKeys.indexOf(featureKey) !== -1 ? 'block' : 'none';
+            });
+        }
+
+        function syncCustomTrafficBarAccessView() {
+            var gateWrap = document.getElementById('customTrafficBarGateWrap');
+            var editorPanel = document.getElementById('customTrafficBarEditorPanel');
+            var unlockBtn = document.getElementById('customTrafficBarUnlockBtn');
+            var accessLabel = document.getElementById('customTrafficBarAccessLabel');
+            var unlocked = isCustomTrafficBarAccessUnlocked();
+            var configured = hasCustomTrafficBarFeatureConfigured();
+
+            if (gateWrap) {
+                gateWrap.style.display = isAdminSession() ? 'none' : 'block';
+            }
+            if (editorPanel) {
+                editorPanel.style.display = unlocked ? 'block' : 'none';
+            }
+            if (unlockBtn) {
+                unlockBtn.disabled = !configured;
+                unlockBtn.textContent = customTrafficBarAccessVerified ? '重新验证对接码' : '验证对接码';
+            }
+            if (accessLabel) {
+                accessLabel.textContent = configured ? '对接码' : '对接码（后台未配置）';
+            }
+            syncCustomUIColorFeatureVisibility();
+        }
+
+        function applyCustomTrafficBarConfig(data) {
+            customUIColorAvailableFeatures = Array.isArray(data.feature_keys)
+                ? data.feature_keys.map(function(item) { return String(item || '').trim(); }).filter(Boolean)
+                : [];
+            document.getElementById('customTrafficBarEnabled').checked = !!data.traffic_bar_enabled;
+            document.getElementById('customTrafficBarColor').value = normalizeCustomTrafficBarColorInput(data.traffic_bar_color || '#00897B') || '#00897B';
+            syncCustomTrafficBarColorPickerFromText();
+            syncCustomTrafficBarEnableState();
+            applyCustomUIColorTextValue('noticeDialogIconBackgroundColor', data.notice_dialog_icon_background_color || '');
+            applyCustomUIColorTextValue('subscriptionWebsiteIconColor', data.subscription_website_icon_color || '');
+            applyCustomUIColorTextValue('subscriptionRefreshIconColor', data.subscription_refresh_icon_color || '');
+            applyCustomUIColorTextValue('subscriptionNoticeIconColor', data.subscription_notice_icon_color || '');
+            applyCustomUIColorTextValue('loginButtonColor', data.login_button_color || '');
+            syncCustomUIColorFeatureVisibility();
+        }
+
+        function updateCustomTrafficBarCodeHint() {
+            var hintEl = document.getElementById('customTrafficBarCodeHint');
+            if (!hintEl) return;
+            if (isAdminSession()) {
+                hintEl.textContent = '当前为管理员登录，可直接查看和保存；普通用户则需要先输入对接码并验证。';
+                return;
+            }
+            if (currentUserInfo && currentUserInfo.integration_code_configured === false) {
+                hintEl.textContent = '后台还没有为该自定义功能配置任何可用的自定义功能组，请先到管理后台系统设置中新增。';
+                return;
+            }
+            hintEl.textContent = '请输入后台设置的对接码，验证通过后才会显示对应功能。';
+        }
+
+        function normalizeCustomTrafficBarColorInput(value) {
+            value = String(value || '').trim().toUpperCase();
+            if (!value) return '';
+            if (value.charAt(0) !== '#') {
+                value = '#' + value;
+            }
+            return value;
+        }
+
+        function getCustomUIColorPickerId(inputId) {
+            return inputId + 'Picker';
+        }
+
+        function applyCustomUIColorTextValue(inputId, value) {
+            var input = document.getElementById(inputId);
+            var picker = document.getElementById(getCustomUIColorPickerId(inputId));
+            if (!input || !picker) return;
+            var normalized = normalizeCustomTrafficBarColorInput(value);
+            input.value = normalized;
+            if (/^#[0-9A-F]{6}$/.test(normalized)) {
+                picker.value = normalized;
+            } else if (picker.dataset.defaultColor) {
+                picker.value = picker.dataset.defaultColor;
+            }
+        }
+
+        function syncCustomUIColorTextFromPicker(inputId) {
+            var input = document.getElementById(inputId);
+            var picker = document.getElementById(getCustomUIColorPickerId(inputId));
+            if (!input || !picker) return;
+            input.value = String(picker.value || '').toUpperCase();
+        }
+
+        function syncCustomUIColorPickerFromText(inputId) {
+            var input = document.getElementById(inputId);
+            var picker = document.getElementById(getCustomUIColorPickerId(inputId));
+            if (!input || !picker) return;
+            var normalized = normalizeCustomTrafficBarColorInput(input.value);
+            if (/^#[0-9A-F]{6}$/.test(normalized)) {
+                picker.value = normalized;
+            }
+        }
+
+        function clearCustomUIColorField(inputId) {
+            var input = document.getElementById(inputId);
+            var picker = document.getElementById(getCustomUIColorPickerId(inputId));
+            if (input) {
+                input.value = '';
+            }
+            if (picker && picker.dataset.defaultColor) {
+                picker.value = picker.dataset.defaultColor;
+            }
+        }
+
+        function syncCustomTrafficBarEnableState() {
+            var checkbox = document.getElementById('customTrafficBarEnabled');
+            var label = document.getElementById('customTrafficBarEnabledLabel');
+            var extra = document.getElementById('customTrafficBarExtra');
+            if (!checkbox || !label || !extra) return;
+            label.textContent = checkbox.checked ? '开启' : '关闭';
+            extra.style.opacity = checkbox.checked ? '1' : '0.78';
+        }
+
+        function syncCustomTrafficBarColorTextFromPicker() {
+            var picker = document.getElementById('customTrafficBarColorPicker');
+            var input = document.getElementById('customTrafficBarColor');
+            if (!picker || !input) return;
+            input.value = String(picker.value || '#00897B').toUpperCase();
+        }
+
+        function syncCustomTrafficBarColorPickerFromText() {
+            var picker = document.getElementById('customTrafficBarColorPicker');
+            var input = document.getElementById('customTrafficBarColor');
+            if (!picker || !input) return;
+            var normalized = normalizeCustomTrafficBarColorInput(input.value);
+            if (/^#[0-9A-F]{6}$/.test(normalized)) {
+                picker.value = normalized;
+            }
+        }
+
+        async function unlockCustomTrafficBarConfig() {
+            var profileName = getSelectedCustomTrafficBarProfile();
+            var integrationCode = String(document.getElementById('customTrafficBarIntegrationCode').value || '').trim();
+            if (isAdminSession()) {
+                customTrafficBarAccessVerified = true;
+                syncCustomTrafficBarAccessView();
+                setCustomTrafficBarStatus('当前为管理员，功能已直接显示', 'success');
+                return;
+            }
+            if (!hasCustomTrafficBarFeatureConfigured()) {
+                customTrafficBarAccessVerified = false;
+                syncCustomTrafficBarAccessView();
+                setCustomTrafficBarStatus('后台还没有为该自定义功能配置任何可用的自定义功能组', 'error');
+                return;
+            }
+            if (!profileName) {
+                setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
+                return;
+            }
+            if (!integrationCode) {
+                setCustomTrafficBarStatus('请输入对接码后再展开自定义功能页', 'error');
+                return;
+            }
+
+            setCustomTrafficBarStatus('正在校验对接码并读取当前公共配置...', 'info');
+            try {
+                var response = await api('POST', '/custom-features/ui-colors/load', {
+                    profile: profileName,
+                    integration_code: integrationCode
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '校验失败');
+                }
+
+                customTrafficBarAccessVerified = true;
+                applyCustomTrafficBarConfig(data);
+                sessionStorage.setItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY, integrationCode);
+                syncCustomTrafficBarAccessView();
+                setCustomTrafficBarStatus('对接码验证通过，已显示当前绑定的自定义功能', 'success');
+            } catch (e) {
+                customTrafficBarAccessVerified = false;
+                customUIColorAvailableFeatures = [];
+                syncCustomTrafficBarAccessView();
+                setCustomTrafficBarStatus('验证失败: ' + e.message, 'error');
+            }
+        }
+
+        async function loadCustomTrafficBarConfig() {
+            var profileName = getSelectedCustomTrafficBarProfile();
+            var integrationCode = String(document.getElementById('customTrafficBarIntegrationCode').value || '').trim();
+            if (!profileName) {
+                setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
+                return;
+            }
+            if (!isAdminSession() && !customTrafficBarAccessVerified) {
+                await unlockCustomTrafficBarConfig();
+                return;
+            }
+            if (!isAdminSession() && !integrationCode) {
+                setCustomTrafficBarStatus('请输入对接码后再读取当前配置', 'error');
+                return;
+            }
+
+            setCustomTrafficBarStatus('正在读取当前公共配置...', 'info');
+            try {
+                var response = await api('POST', '/custom-features/ui-colors/load', {
+                    profile: profileName,
+                    integration_code: integrationCode
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '读取失败');
+                }
+
+                applyCustomTrafficBarConfig(data);
+                if (integrationCode) {
+                    sessionStorage.setItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY, integrationCode);
+                }
+                if (!isAdminSession()) {
+                    customTrafficBarAccessVerified = true;
+                    syncCustomTrafficBarAccessView();
+                }
+                setCustomTrafficBarStatus('已读取当前自定义功能配置', 'success');
+            } catch (e) {
+                if (!isAdminSession()) {
+                    customTrafficBarAccessVerified = false;
+                    customUIColorAvailableFeatures = [];
+                    syncCustomTrafficBarAccessView();
+                }
+                setCustomTrafficBarStatus('读取失败: ' + e.message, 'error');
+            }
+        }
+
+        async function saveCustomTrafficBarConfig() {
+            var profileName = getSelectedCustomTrafficBarProfile();
+            var integrationCode = String(document.getElementById('customTrafficBarIntegrationCode').value || '').trim();
+            var enabled = !!document.getElementById('customTrafficBarEnabled').checked;
+            var color = enabled
+                ? normalizeCustomTrafficBarColorInput(document.getElementById('customTrafficBarColor').value)
+                : '';
+            var noticeDialogIconBackgroundColor = normalizeCustomTrafficBarColorInput(document.getElementById('noticeDialogIconBackgroundColor').value);
+            var subscriptionWebsiteIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('subscriptionWebsiteIconColor').value);
+            var subscriptionRefreshIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('subscriptionRefreshIconColor').value);
+            var subscriptionNoticeIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('subscriptionNoticeIconColor').value);
+            var loginButtonColor = normalizeCustomTrafficBarColorInput(document.getElementById('loginButtonColor').value);
+
+            if (!profileName) {
+                setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
+                return;
+            }
+            if (!isAdminSession() && !customTrafficBarAccessVerified) {
+                setCustomTrafficBarStatus('请先验证对接码并展开自定义功能页，再保存公共配置', 'error');
+                return;
+            }
+            if (!isAdminSession() && !integrationCode) {
+                setCustomTrafficBarStatus('请输入对接码后再保存公共配置', 'error');
+                return;
+            }
+            if (enabled && getVisibleCustomUIColorFeatureKeys().indexOf('traffic_bar_color') !== -1 && !color) {
+                setCustomTrafficBarStatus('开启自定义颜色时必须填写颜色值', 'error');
+                return;
+            }
+
+            setCustomTrafficBarStatus('正在写入公共配置...', 'info');
+            try {
+                var response = await api('PUT', '/custom-features/ui-colors', {
+                    profile: profileName,
+                    integration_code: integrationCode,
+                    traffic_bar_enabled: enabled,
+                    traffic_bar_color: color,
+                    notice_dialog_icon_background_color: noticeDialogIconBackgroundColor,
+                    subscription_website_icon_color: subscriptionWebsiteIconColor,
+                    subscription_refresh_icon_color: subscriptionRefreshIconColor,
+                    subscription_notice_icon_color: subscriptionNoticeIconColor,
+                    login_button_color: loginButtonColor
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '保存失败');
+                }
+
+                applyCustomTrafficBarConfig(data);
+                if (integrationCode) {
+                    sessionStorage.setItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY, integrationCode);
+                }
+                if (profileName === getSelectedCustomTrafficBarProfile()) {
+                    await loadProfile();
+                }
+                setCustomTrafficBarStatus('自定义功能配置已保存', 'success');
+            } catch (e) {
+                if (!isAdminSession()) {
+                    customTrafficBarAccessVerified = false;
+                    customUIColorAvailableFeatures = [];
+                    syncCustomTrafficBarAccessView();
+                }
+                setCustomTrafficBarStatus('保存失败: ' + e.message, 'error');
             }
         }
 
 
         // ==================== 全局变量 ====================
+        var currentUserInfo = null;
+        var customTrafficBarAccessVerified = false;
+        var customUIColorAvailableFeatures = [];
+        var customUIColorFeatureKeys = [
+            'traffic_bar_color',
+            'notice_dialog_icon_background_color',
+            'subscription_website_icon_color',
+            'subscription_refresh_icon_color',
+            'subscription_notice_icon_color',
+            'login_button_color'
+        ];
+        var CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY = 'nexgen_custom_traffic_bar_code_v1';
         var sources = [];
         var remoteConfigEncryptedData = '';
         var remoteConfigEncryptionKey = '';
@@ -5122,6 +5655,15 @@
             document.getElementById(sectionName + 'Section').classList.add('active');
             if (sectionName === 'updates') {
                 loadClientUpdates(false);
+            } else if (sectionName === 'customFeatures') {
+                if (!isAdminSession()) {
+                    customTrafficBarAccessVerified = false;
+                    customUIColorAvailableFeatures = [];
+                }
+                syncCustomTrafficBarProfileName();
+                syncCustomTrafficBarEnableState();
+                updateCustomTrafficBarCodeHint();
+                syncCustomTrafficBarAccessView();
             }
         }
 
@@ -5149,6 +5691,25 @@
                 document.getElementById('saveProfileBtn').textContent = '保存';
             }
             await loadCurrentUserInfo();
+            document.getElementById('customTrafficBarIntegrationCode').value =
+                sessionStorage.getItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY) || '';
+            syncCustomTrafficBarProfileName();
+            syncCustomTrafficBarEnableState();
+            syncCustomTrafficBarColorTextFromPicker();
+            [
+                'noticeDialogIconBackgroundColorPicker',
+                'subscriptionWebsiteIconColorPicker',
+                'subscriptionRefreshIconColorPicker',
+                'subscriptionNoticeIconColorPicker',
+                'loginButtonColorPicker'
+            ].forEach(function(id) {
+                var picker = document.getElementById(id);
+                if (picker) {
+                    picker.dataset.defaultColor = String(picker.value || '').toUpperCase();
+                }
+            });
+            updateCustomTrafficBarCodeHint();
+            syncCustomTrafficBarAccessView();
 
             document.getElementById('addSourceBtn').addEventListener('click', addSource);
             document.getElementById('addSupportBtn').addEventListener('click', addSupportItem);
@@ -5177,11 +5738,52 @@
             document.getElementById('appIconUploadInput').addEventListener('change', handleAppIconUpload);
             document.getElementById('profileSelect').addEventListener('change', function() {
                 syncProfileBoundAppTitle();
+                syncCustomTrafficBarProfileName();
+                setCustomTrafficBarStatus('', 'info');
                 if (!isAdminSession()) {
+                    customTrafficBarAccessVerified = false;
+                    customUIColorAvailableFeatures = [];
+                    syncCustomTrafficBarAccessView();
                     var selected = document.getElementById('profileSelect').value;
                     if (selected) {
                         loadProfile();
                     }
+                }
+            });
+            document.getElementById('customTrafficBarEnabled').addEventListener('change', syncCustomTrafficBarEnableState);
+            document.getElementById('customTrafficBarIntegrationCode').addEventListener('input', function() {
+                if (!isAdminSession()) {
+                    customTrafficBarAccessVerified = false;
+                    customUIColorAvailableFeatures = [];
+                    syncCustomTrafficBarAccessView();
+                }
+            });
+            document.getElementById('customTrafficBarIntegrationCode').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    unlockCustomTrafficBarConfig();
+                }
+            });
+            document.getElementById('customTrafficBarColorPicker').addEventListener('input', syncCustomTrafficBarColorTextFromPicker);
+            document.getElementById('customTrafficBarColor').addEventListener('input', syncCustomTrafficBarColorPickerFromText);
+            [
+                'noticeDialogIconBackgroundColor',
+                'subscriptionWebsiteIconColor',
+                'subscriptionRefreshIconColor',
+                'subscriptionNoticeIconColor',
+                'loginButtonColor'
+            ].forEach(function(inputId) {
+                var picker = document.getElementById(getCustomUIColorPickerId(inputId));
+                var input = document.getElementById(inputId);
+                if (picker) {
+                    picker.addEventListener('input', function() {
+                        syncCustomUIColorTextFromPicker(inputId);
+                    });
+                }
+                if (input) {
+                    input.addEventListener('input', function() {
+                        syncCustomUIColorPickerFromText(inputId);
+                    });
                 }
             });
             document.getElementById('appTitle').addEventListener('change', displayBuildHistory);

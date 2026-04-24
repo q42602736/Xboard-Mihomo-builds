@@ -117,6 +117,8 @@ func main() {
 		r.Get("/api/auth/me", h.GetCurrentUserInfo)
 		r.Get("/api/profiles", h.ListProfiles)
 		r.Get("/api/profiles/{name}", h.GetProfile)
+		r.Post("/api/custom-features/ui-colors/load", h.GetPublicUIColorCustomConfig)
+		r.Put("/api/custom-features/ui-colors", h.SavePublicUIColorCustomConfig)
 		r.Put("/api/profiles/{name}", h.SaveProfile)
 		r.Post("/api/profiles/{name}/assets/{kind}", h.UploadProfileAsset)
 		r.Get("/api/profile-assets/history", h.ListProfileAssetHistory)

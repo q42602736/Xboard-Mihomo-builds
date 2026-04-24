@@ -310,15 +310,16 @@ func (h *Handlers) GetCurrentUserInfo(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	if claims.Permissions == "admin" {
 		jsonResponse(w, map[string]interface{}{
-			"name":              claims.CodeName,
-			"permissions":       claims.Permissions,
-			"max_uses":          -1,
-			"used_count":        0,
-			"remaining_uses":    -1,
-			"can_build":         true,
-			"build_status_text": "管理员不限",
-			"expires_at":        nil,
-			"is_active":         true,
+			"name":                        claims.CodeName,
+			"permissions":                 claims.Permissions,
+			"max_uses":                    -1,
+			"used_count":                  0,
+			"remaining_uses":              -1,
+			"can_build":                   true,
+			"build_status_text":           "管理员不限",
+			"expires_at":                  nil,
+			"is_active":                   true,
+			"integration_code_configured": hasAnyCustomFeatureBinding(uiColorFeatureKeys...),
 		})
 		return
 	}
@@ -326,30 +327,32 @@ func (h *Handlers) GetCurrentUserInfo(w http.ResponseWriter, r *http.Request) {
 	ac, err := getActivationCodeByID(claims.CodeID)
 	if err != nil {
 		jsonResponse(w, map[string]interface{}{
-			"name":              claims.CodeName,
-			"permissions":       "user",
-			"max_uses":          0,
-			"used_count":        0,
-			"remaining_uses":    0,
-			"can_build":         false,
-			"build_status_text": err.Error(),
-			"expires_at":        nil,
-			"is_active":         false,
+			"name":                        claims.CodeName,
+			"permissions":                 "user",
+			"max_uses":                    0,
+			"used_count":                  0,
+			"remaining_uses":              0,
+			"can_build":                   false,
+			"build_status_text":           err.Error(),
+			"expires_at":                  nil,
+			"is_active":                   false,
+			"integration_code_configured": hasAnyCustomFeatureBinding(uiColorFeatureKeys...),
 		})
 		return
 	}
 
 	canBuild, statusText := getBuildAvailability(ac)
 	jsonResponse(w, map[string]interface{}{
-		"name":              ac.Name,
-		"permissions":       "user",
-		"max_uses":          ac.MaxUses,
-		"used_count":        ac.UsedCount,
-		"remaining_uses":    getRemainingBuildUses(ac),
-		"can_build":         canBuild,
-		"build_status_text": statusText,
-		"expires_at":        ac.ExpiresAt,
-		"is_active":         ac.IsActive,
+		"name":                        ac.Name,
+		"permissions":                 "user",
+		"max_uses":                    ac.MaxUses,
+		"used_count":                  ac.UsedCount,
+		"remaining_uses":              getRemainingBuildUses(ac),
+		"can_build":                   canBuild,
+		"build_status_text":           statusText,
+		"expires_at":                  ac.ExpiresAt,
+		"is_active":                   ac.IsActive,
+		"integration_code_configured": hasAnyCustomFeatureBinding(uiColorFeatureKeys...),
 	})
 }
 
@@ -2818,14 +2821,16 @@ func (h *Handlers) GetAuditLogs(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) GetSystemSettings(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, map[string]interface{}{
-		"client_updates_limit": getClientUpdatesLimit(),
+		"client_updates_limit":  getClientUpdatesLimit(),
+		"custom_feature_groups": getCustomFeatureGroups(),
 	})
 }
 
 func (h *Handlers) SaveSystemSettings(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	var req struct {
-		ClientUpdatesLimit int `json:"client_updates_limit"`
+		ClientUpdatesLimit  int                  `json:"client_updates_limit"`
+		CustomFeatureGroups []CustomFeatureGroup `json:"custom_feature_groups"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
@@ -2837,10 +2842,15 @@ func (h *Handlers) SaveSystemSettings(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "保存系统设置失败", 500)
 		return
 	}
+	if err := setCustomFeatureGroups(req.CustomFeatureGroups); err != nil {
+		jsonError(w, "保存系统设置失败", 500)
+		return
+	}
 
-	logAudit(claims.CodeID, claims.CodeName, "update_settings", fmt.Sprintf("client_updates_limit=%d", limit), r.RemoteAddr)
+	logAudit(claims.CodeID, claims.CodeName, "update_settings", fmt.Sprintf("client_updates_limit=%d custom_feature_groups=%d", limit, len(normalizeCustomFeatureGroups(req.CustomFeatureGroups))), r.RemoteAddr)
 	jsonResponse(w, map[string]interface{}{
-		"message":              "设置已保存",
-		"client_updates_limit": limit,
+		"message":               "设置已保存",
+		"client_updates_limit":  limit,
+		"custom_feature_groups": normalizeCustomFeatureGroups(req.CustomFeatureGroups),
 	})
 }

@@ -140,6 +140,85 @@
         .empty { color: #555; text-align: center; padding: 30px; }
         .log-action { font-weight: 500; color: #00d4ff; }
         .log-time { color: #666; font-size: 12px; }
+        .custom-feature-group-item {
+            padding: 14px 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.03);
+            margin-top: 12px;
+        }
+        .custom-feature-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .custom-feature-group-title {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .custom-feature-group-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 10px;
+        }
+        .custom-feature-option {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.16);
+            cursor: pointer;
+            transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+        }
+        .custom-feature-option:hover {
+            border-color: rgba(0,212,255,0.22);
+            background: rgba(0,212,255,0.08);
+        }
+        .custom-feature-option .custom-feature-group-feature {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            width: 0;
+            height: 0;
+            margin: 0;
+            padding: 0;
+            border: 0;
+        }
+        .custom-feature-option-box {
+            width: 18px;
+            height: 18px;
+            border-radius: 5px;
+            border: 1px solid rgba(255,255,255,0.26);
+            background: rgba(255,255,255,0.04);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: transparent;
+            font-size: 12px;
+            font-weight: 700;
+            transition: all 0.18s ease;
+        }
+        .custom-feature-option-label {
+            color: #ddd;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .custom-feature-option .custom-feature-group-feature:checked + .custom-feature-option-box {
+            border-color: rgba(0,212,255,0.9);
+            background: linear-gradient(135deg, rgba(0,212,255,0.95), rgba(0,153,204,0.92));
+            color: #04101d;
+            box-shadow: 0 0 0 3px rgba(0,212,255,0.14);
+        }
+        .custom-feature-option .custom-feature-group-feature:checked ~ .custom-feature-option-label {
+            color: #f3fbff;
+        }
     
         .app-dialog-overlay {
             position: fixed;
@@ -455,6 +534,20 @@
                     </div>
                 </div>
                 <div style="font-size:12px;color:#666;margin-top:5px;">用户侧“更新记录”页面最多显示最近多少条 GitHub 提交，建议 10 或 20，最大 50。</div>
+                <div style="margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+                        <div>
+                            <div style="color:#00d4ff;font-size:14px;font-weight:600;">自定义功能绑定</div>
+                            <div style="font-size:12px;color:#666;margin-top:4px;">给“自定义功能1 / 2 / 3 ...”设置对接码，并勾选它能开启哪些具体功能。每个功能都可以单独勾选，后续继续新增也不影响现有对接码。</div>
+                        </div>
+                        <button class="btn btn-primary" type="button" onclick="addCustomFeatureGroup()" style="padding:8px 14px;font-size:12px;">新增功能组</button>
+                    </div>
+                    <div id="customFeatureGroupsContainer"></div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap;">
+                        <div style="font-size:12px;color:#8b95a7;">这里的修改和上方“系统设置”共用同一保存接口，编辑完成后点击这里或上方按钮都可以保存。</div>
+                        <button class="btn btn-primary" type="button" onclick="saveSettings()" style="padding:8px 16px;font-size:12px;">保存自定义功能设置</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -674,6 +767,149 @@
 
         var allProfiles = [];
         var codesCache = [];
+        var customFeatureGroupsCache = [];
+        var customFeatureOptionCatalog = [
+            { key: 'traffic_bar_color', label: '流量条自定义' },
+            { key: 'notice_dialog_icon_background_color', label: '公告弹窗图标背景自定义' },
+            { key: 'subscription_website_icon_color', label: '官网按钮图标自定义' },
+            { key: 'subscription_refresh_icon_color', label: '刷新按钮图标自定义' },
+            { key: 'subscription_notice_icon_color', label: '公告按钮图标自定义' },
+            { key: 'login_button_color', label: '登录按钮颜色自定义' }
+        ];
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function buildDefaultCustomFeatureGroupName(index) {
+            return '自定义功能' + index;
+        }
+
+        function normalizeCustomFeatureGroups(groups) {
+            if (!Array.isArray(groups)) return [];
+            var result = [];
+            groups.forEach(function(group, index) {
+                group = group || {};
+                var name = String(group.name || '').trim();
+                var integrationCode = String(group.integration_code || '').trim();
+                var featureKeys = Array.isArray(group.feature_keys)
+                    ? group.feature_keys.map(function(item) { return String(item || '').trim(); }).filter(Boolean)
+                    : [];
+                featureKeys = Array.from(new Set(featureKeys));
+                if (!name && !integrationCode && featureKeys.length === 0) {
+                    return;
+                }
+                result.push({
+                    name: name || buildDefaultCustomFeatureGroupName(result.length + 1),
+                    integration_code: integrationCode,
+                    feature_keys: featureKeys
+                });
+            });
+            return result;
+        }
+
+        function renderCustomFeatureGroups() {
+            var container = document.getElementById('customFeatureGroupsContainer');
+            if (!container) return;
+            var groups = normalizeCustomFeatureGroups(customFeatureGroupsCache);
+            customFeatureGroupsCache = groups;
+
+            if (!groups.length) {
+                container.innerHTML = '<div class="empty" style="padding:24px 12px;">暂未配置自定义功能组，点击“新增功能组”开始配置。</div>';
+                return;
+            }
+
+            container.innerHTML = groups.map(function(group, index) {
+                var featureOptionsHtml = customFeatureOptionCatalog.map(function(option) {
+                    var checkboxId = 'customFeatureGroup_' + index + '_' + option.key;
+                    var checked = group.feature_keys.indexOf(option.key) !== -1 ? ' checked' : '';
+                    return [
+                        '<label for="' + checkboxId + '" class="custom-feature-option">',
+                            '<input type="checkbox" id="' + checkboxId + '" class="custom-feature-group-feature" value="' + escapeHtml(option.key) + '"' + checked + '>',
+                            '<span class="custom-feature-option-box">✓</span>',
+                            '<span class="custom-feature-option-label">' + escapeHtml(option.label) + '</span>',
+                        '</label>'
+                    ].join('');
+                }).join('');
+
+                return [
+                    '<div class="custom-feature-group-item">',
+                        '<div class="custom-feature-group-header">',
+                            '<div class="custom-feature-group-title">' + escapeHtml(group.name || buildDefaultCustomFeatureGroupName(index + 1)) + '</div>',
+                            '<button class="btn btn-danger" type="button" style="padding:6px 10px;font-size:12px;" onclick="removeCustomFeatureGroup(' + index + ')">删除</button>',
+                        '</div>',
+                        '<div class="form-row" style="grid-template-columns:1fr 1fr; margin-bottom:12px;">',
+                            '<div class="form-group" style="margin-bottom:0;">',
+                                '<label>功能组名称</label>',
+                                '<input type="text" class="custom-feature-group-name" value="' + escapeHtml(group.name) + '" placeholder="' + escapeHtml(buildDefaultCustomFeatureGroupName(index + 1)) + '">',
+                            '</div>',
+                            '<div class="form-group" style="margin-bottom:0;">',
+                                '<label>对接码</label>',
+                                '<input type="text" class="custom-feature-group-code" value="' + escapeHtml(group.integration_code) + '" placeholder="请输入该功能组对接码">',
+                            '</div>',
+                        '</div>',
+                        '<div class="form-group" style="margin-bottom:0;">',
+                            '<label>绑定的具体功能（可多选）</label>',
+                            '<div class="custom-feature-group-features">' + featureOptionsHtml + '</div>',
+                        '</div>',
+                    '</div>'
+                ].join('');
+            }).join('');
+        }
+
+        function addCustomFeatureGroup() {
+            var currentGroups = normalizeCustomFeatureGroups(customFeatureGroupsCache);
+            currentGroups.push({
+                name: buildDefaultCustomFeatureGroupName(currentGroups.length + 1),
+                integration_code: '',
+                feature_keys: []
+            });
+            customFeatureGroupsCache = currentGroups;
+            renderCustomFeatureGroups();
+        }
+
+        function removeCustomFeatureGroup(index) {
+            var groups = normalizeCustomFeatureGroups(collectCustomFeatureGroups());
+            groups.splice(index, 1);
+            customFeatureGroupsCache = groups;
+            renderCustomFeatureGroups();
+        }
+
+        function collectCustomFeatureGroups() {
+            var items = document.querySelectorAll('#customFeatureGroupsContainer .custom-feature-group-item');
+            var groups = [];
+            items.forEach(function(item, index) {
+                var nameInput = item.querySelector('.custom-feature-group-name');
+                var codeInput = item.querySelector('.custom-feature-group-code');
+                var featureKeys = Array.from(item.querySelectorAll('.custom-feature-group-feature:checked')).map(function(checkbox) {
+                    return String(checkbox.value || '').trim();
+                }).filter(Boolean);
+                groups.push({
+                    name: String(nameInput ? nameInput.value : '').trim() || buildDefaultCustomFeatureGroupName(index + 1),
+                    integration_code: String(codeInput ? codeInput.value : '').trim(),
+                    feature_keys: Array.from(new Set(featureKeys))
+                });
+            });
+            return normalizeCustomFeatureGroups(groups);
+        }
+
+        function validateCustomFeatureGroups(groups) {
+            for (var i = 0; i < groups.length; i++) {
+                var group = groups[i];
+                if (!group.integration_code) {
+                    return '第 ' + (i + 1) + ' 个自定义功能组还没有填写对接码';
+                }
+                if (!group.feature_keys || group.feature_keys.length === 0) {
+                    return '第 ' + (i + 1) + ' 个自定义功能组至少要绑定一个具体功能';
+                }
+            }
+            return '';
+        }
 
         async function loadProfileList() {
             try {
@@ -1142,6 +1378,8 @@
                 if (!response) return;
                 var data = await response.json();
                 document.getElementById('clientUpdatesLimit').value = data.client_updates_limit || 10;
+                customFeatureGroupsCache = normalizeCustomFeatureGroups(data.custom_feature_groups || []);
+                renderCustomFeatureGroups();
                 statusEl.className = 'status-msg';
                 statusEl.textContent = '';
             } catch (e) {
@@ -1153,14 +1391,22 @@
         async function saveSettings() {
             var statusEl = document.getElementById('settingsStatus');
             var limit = parseInt(document.getElementById('clientUpdatesLimit').value, 10);
+            var customFeatureGroups = collectCustomFeatureGroups();
             if (!limit || limit < 1) {
                 statusEl.className = 'status-msg error';
                 statusEl.textContent = '显示条数必须大于 0';
                 return;
             }
+            var groupsValidationMessage = validateCustomFeatureGroups(customFeatureGroups);
+            if (groupsValidationMessage) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = groupsValidationMessage;
+                return;
+            }
             try {
                 var response = await api('PUT', '/admin/settings', {
-                    client_updates_limit: limit
+                    client_updates_limit: limit,
+                    custom_feature_groups: customFeatureGroups
                 });
                 if (!response) return;
                 var data = await response.json();
@@ -1170,6 +1416,8 @@
                     return;
                 }
                 document.getElementById('clientUpdatesLimit').value = data.client_updates_limit || limit;
+                customFeatureGroupsCache = normalizeCustomFeatureGroups(data.custom_feature_groups || customFeatureGroups);
+                renderCustomFeatureGroups();
                 statusEl.className = 'status-msg success';
                 statusEl.textContent = '系统设置已保存';
             } catch (e) {
@@ -1186,6 +1434,7 @@
                 loadSettings();
             } else {
                 showLogin();
+                renderCustomFeatureGroups();
             }
         };
     </script>

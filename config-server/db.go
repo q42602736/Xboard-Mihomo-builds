@@ -136,6 +136,12 @@ type ActivationCode struct {
 	IsActive        bool     `json:"is_active"`
 }
 
+type CustomFeatureGroup struct {
+	Name            string   `json:"name"`
+	IntegrationCode string   `json:"integration_code"`
+	FeatureKeys     []string `json:"feature_keys"`
+}
+
 type BuildRecord struct {
 	ID           int64  `json:"id"`
 	CodeID       int    `json:"code_id"`
@@ -939,8 +945,9 @@ func getAuditLogs(limit int) ([]map[string]interface{}, error) {
 }
 
 const (
-	defaultClientUpdatesLimit = 10
-	maxClientUpdatesLimit     = 50
+	defaultClientUpdatesLimit     = 10
+	maxClientUpdatesLimit         = 50
+	customFeatureGroupsSettingKey = "custom_feature_groups"
 )
 
 func normalizeClientUpdatesLimit(limit int) int {
@@ -985,4 +992,65 @@ func getClientUpdatesLimit() int {
 
 func setClientUpdatesLimit(limit int) error {
 	return setSystemSetting("client_updates_limit", strconv.Itoa(normalizeClientUpdatesLimit(limit)))
+}
+
+func normalizeCustomFeatureGroups(groups []CustomFeatureGroup) []CustomFeatureGroup {
+	if groups == nil {
+		return []CustomFeatureGroup{}
+	}
+	result := make([]CustomFeatureGroup, 0, len(groups))
+	for index, group := range groups {
+		name := strings.TrimSpace(group.Name)
+		code := strings.TrimSpace(group.IntegrationCode)
+		features := make([]string, 0, len(group.FeatureKeys))
+		seen := map[string]struct{}{}
+		for _, featureKey := range group.FeatureKeys {
+			featureKey = strings.TrimSpace(featureKey)
+			if featureKey == "" {
+				continue
+			}
+			if _, ok := seen[featureKey]; ok {
+				continue
+			}
+			seen[featureKey] = struct{}{}
+			features = append(features, featureKey)
+		}
+		if name == "" && code == "" && len(features) == 0 {
+			continue
+		}
+		if name == "" {
+			name = fmt.Sprintf("自定义功能%d", index+1)
+		}
+		result = append(result, CustomFeatureGroup{
+			Name:            name,
+			IntegrationCode: code,
+			FeatureKeys:     features,
+		})
+	}
+	return result
+}
+
+func getCustomFeatureGroups() []CustomFeatureGroup {
+	value, err := getSystemSetting(customFeatureGroupsSettingKey)
+	if err != nil {
+		return []CustomFeatureGroup{}
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return []CustomFeatureGroup{}
+	}
+	var groups []CustomFeatureGroup
+	if err := json.Unmarshal([]byte(value), &groups); err != nil {
+		return []CustomFeatureGroup{}
+	}
+	return normalizeCustomFeatureGroups(groups)
+}
+
+func setCustomFeatureGroups(groups []CustomFeatureGroup) error {
+	normalized := normalizeCustomFeatureGroups(groups)
+	payload, err := json.Marshal(normalized)
+	if err != nil {
+		return err
+	}
+	return setSystemSetting(customFeatureGroupsSettingKey, string(payload))
 }
