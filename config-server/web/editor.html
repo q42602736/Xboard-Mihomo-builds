@@ -3239,7 +3239,12 @@
                             <div class="form-group">
                                 <label>普通模式订阅 UA</label>
                                 <input type="text" id="subscriptionUserAgent" placeholder="留空时默认使用 Clash Meta">
-                                <div class="help-text">仅在关闭“专用客户端模式”时生效；专用模式仍固定使用 XBoardMihomo/1.0，不受这里影响。</div>
+                                <div class="help-text">仅在关闭“专用客户端模式”时生效；专用模式请填写下方“专用模式订阅 UA”。</div>
+                            </div>
+                            <div class="form-group">
+                                <label>专用模式订阅 UA</label>
+                                <input type="text" id="exclusiveSubscriptionUserAgent" placeholder="留空时默认使用 XBoardMihomo/1.0">
+                                <div class="help-text">开启“专用客户端模式”时生效。可完全自定义，但必须与你给后端补丁脚本输入的专用客户端 UA/标识保持一致。</div>
                             </div>
                             <div class="form-group config-control-hidden">
                                 <label>订阅解密密钥</label>
@@ -5235,6 +5240,7 @@
                 '  subscription:',
                 '    prefer_encrypt: false',
                 '    user_agent: Clash Meta',
+                '    exclusive_user_agent: XBoardMihomo/1.0',
                 '    use_exclusive_mode: false',
                 '    decrypt_key: ""',
                 '  auto_offline:',
@@ -5412,6 +5418,7 @@
                 auth_background_image_url: document.getElementById('authBackgroundImageUrl').value.trim(),
                 prefer_encrypt: document.getElementById('preferEncrypt').checked,
                 user_agent: document.getElementById('subscriptionUserAgent').value.trim(),
+                exclusive_user_agent: document.getElementById('exclusiveSubscriptionUserAgent').value.trim(),
                 custom_query_suffix: document.getElementById('subscriptionCustomQuerySuffix').value.trim(),
                 use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
@@ -7604,6 +7611,7 @@
             document.getElementById('preferEncrypt').checked = getSubscriptionBool('prefer_encrypt');
             document.getElementById('preferEncryptLabel').textContent = getSubscriptionBool('prefer_encrypt') ? '开启' : '关闭';
             document.getElementById('subscriptionUserAgent').value = getSubscriptionValue('user_agent');
+            document.getElementById('exclusiveSubscriptionUserAgent').value = getSubscriptionValue('exclusive_user_agent');
             document.getElementById('subscriptionCustomQuerySuffix').value = getSubscriptionValue('custom_query_suffix');
             document.getElementById('useExclusiveMode').checked = getSubscriptionBool('use_exclusive_mode');
             document.getElementById('useExclusiveModeLabel').textContent = getSubscriptionBool('use_exclusive_mode') ? '开启' : '关闭';

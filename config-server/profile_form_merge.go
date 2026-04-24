@@ -10,33 +10,34 @@ import (
 )
 
 type ProfileFormState struct {
-	Provider                      string                    `json:"provider"`
-	AppTitle                      string                    `json:"app_title"`
-	LogoType                      string                    `json:"logo_type"`
-	LogoImageURL                  string                    `json:"logo_image_url"`
-	AppIconURL                    string                    `json:"app_icon_url"`
-	AuthBackgroundEnabled         bool                      `json:"auth_background_enabled"`
-	AuthBackgroundImageURL        string                    `json:"auth_background_image_url"`
-	PreferEncrypt                 bool                      `json:"prefer_encrypt"`
-	SubscriptionUserAgent         string                    `json:"user_agent"`
-	SubscriptionCustomQuerySuffix string                    `json:"custom_query_suffix"`
-	UseExclusiveMode              bool                      `json:"use_exclusive_mode"`
-	DecryptKey                    string                    `json:"decrypt_key"`
-	AutoOfflineEnabled            bool                      `json:"auto_offline_enabled"`
-	SubscriptionCacheEnabled      bool                      `json:"subscription_cache_enabled"`
-	SubscriptionCacheTTL          int                       `json:"subscription_cache_ttl"`
-	HideTrafficDetails            bool                      `json:"hide_traffic_details"`
-	HideNodeStatus                bool                      `json:"hide_node_status"`
-	HomePanelDefaultLayout        string                    `json:"home_panel_default_layout"`
-	LatencyReductionEnabled       bool                      `json:"latency_reduction_enabled"`
-	LatencyReductionValue         int                       `json:"latency_reduction_value"`
-	NoticeAutoOpenOnStartup       bool                      `json:"notice_auto_open_on_startup"`
-	CheckinShowButton             bool                      `json:"checkin_show_button"`
-	GiftCardShowButton            bool                      `json:"gift_card_show_button"`
-	ShowCustomRuleEntry           bool                      `json:"show_custom_rule_entry"`
-	AuthPagesSupportShowButton    bool                      `json:"auth_pages_support_show_button"`
-	Sources                       []ProfileSourceFormState  `json:"sources"`
-	OnlineSupportItems            []ProfileSupportFormState `json:"online_support_items"`
+	Provider                       string                    `json:"provider"`
+	AppTitle                       string                    `json:"app_title"`
+	LogoType                       string                    `json:"logo_type"`
+	LogoImageURL                   string                    `json:"logo_image_url"`
+	AppIconURL                     string                    `json:"app_icon_url"`
+	AuthBackgroundEnabled          bool                      `json:"auth_background_enabled"`
+	AuthBackgroundImageURL         string                    `json:"auth_background_image_url"`
+	PreferEncrypt                  bool                      `json:"prefer_encrypt"`
+	SubscriptionUserAgent          string                    `json:"user_agent"`
+	SubscriptionExclusiveUserAgent string                    `json:"exclusive_user_agent"`
+	SubscriptionCustomQuerySuffix  string                    `json:"custom_query_suffix"`
+	UseExclusiveMode               bool                      `json:"use_exclusive_mode"`
+	DecryptKey                     string                    `json:"decrypt_key"`
+	AutoOfflineEnabled             bool                      `json:"auto_offline_enabled"`
+	SubscriptionCacheEnabled       bool                      `json:"subscription_cache_enabled"`
+	SubscriptionCacheTTL           int                       `json:"subscription_cache_ttl"`
+	HideTrafficDetails             bool                      `json:"hide_traffic_details"`
+	HideNodeStatus                 bool                      `json:"hide_node_status"`
+	HomePanelDefaultLayout         string                    `json:"home_panel_default_layout"`
+	LatencyReductionEnabled        bool                      `json:"latency_reduction_enabled"`
+	LatencyReductionValue          int                       `json:"latency_reduction_value"`
+	NoticeAutoOpenOnStartup        bool                      `json:"notice_auto_open_on_startup"`
+	CheckinShowButton              bool                      `json:"checkin_show_button"`
+	GiftCardShowButton             bool                      `json:"gift_card_show_button"`
+	ShowCustomRuleEntry            bool                      `json:"show_custom_rule_entry"`
+	AuthPagesSupportShowButton     bool                      `json:"auth_pages_support_show_button"`
+	Sources                        []ProfileSourceFormState  `json:"sources"`
+	OnlineSupportItems             []ProfileSupportFormState `json:"online_support_items"`
 }
 
 type ProfileSourceFormState struct {
@@ -98,6 +99,7 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	setMapStringValue(authBackground, "image_url", strings.TrimSpace(form.AuthBackgroundImageURL))
 	setMapBoolValue(subscription, "prefer_encrypt", form.PreferEncrypt)
 	setMapStringValue(subscription, "user_agent", strings.TrimSpace(form.SubscriptionUserAgent))
+	setMapStringValue(subscription, "exclusive_user_agent", strings.TrimSpace(form.SubscriptionExclusiveUserAgent))
 	if strings.TrimSpace(form.SubscriptionCustomQuerySuffix) == "" {
 		removeMapKeys(subscription, "custom_query_suffix")
 	} else {
