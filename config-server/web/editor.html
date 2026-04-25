@@ -1350,6 +1350,26 @@
             padding-top: 12px;
             border-top: 1px solid rgba(255,255,255,0.06);
         }
+        .custom-feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+            align-items: start;
+        }
+        .custom-feature-grid .switch-card {
+            margin-top: 0 !important;
+            margin-bottom: 0;
+            height: 100%;
+        }
+        .custom-feature-grid .switch-card-extra .form-row {
+            margin-top: 0;
+        }
+        @media (max-width: 920px) {
+            .custom-feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
         .exclusive-mode-notice {
             margin-top: 10px;
             padding: 14px 16px;
@@ -3209,16 +3229,13 @@
                             <div id="customTrafficBarEditorPanel" style="display:none;">
                                 <div class="section-title">自定义功能配置</div>
                                 <div class="help-text">只会显示当前对接码已绑定的功能。保存后会直接写入当前档案对应的公共 YAML 配置。</div>
+                                <div class="custom-feature-grid">
                                 <div class="switch-card" data-custom-feature-key="traffic_bar_color" style="margin-top:16px;">
                                     <div class="switch-card-header">
                                         <span class="switch-card-label">流量条自定义</span>
-                                        <div class="switch-group">
-                                            <label class="switch"><input type="checkbox" id="customTrafficBarEnabled"><span class="slider"></span></label>
-                                            <span id="customTrafficBarEnabledLabel">关闭</span>
-                                        </div>
                                     </div>
                                     <div class="switch-card-extra" id="customTrafficBarExtra">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
                                             <div class="form-group">
                                                 <label>颜色选择器</label>
                                                 <input type="color" id="customTrafficBarColorPicker" value="#00897b" style="height:44px;padding:6px 8px;">
@@ -3227,8 +3244,12 @@
                                                 <label>颜色值</label>
                                                 <input type="text" id="customTrafficBarColor" placeholder="#00897B">
                                             </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('customTrafficBarColor')" style="width:100%;">清空</button>
+                                            </div>
                                         </div>
-                                        <div class="help-text">推荐填写 <code>#RRGGBB</code>；如需透明度，也可以手动输入 <code>#AARRGGBB</code>。</div>
+                                        <div class="help-text">留空则继续使用默认流量条颜色；如需透明度，也可以手动输入 <code>#AARRGGBB</code>。</div>
                                     </div>
                                 </div>
                                 <div class="switch-card" data-custom-feature-key="notice_dialog_icon_background_color" style="margin-top:16px;">
@@ -3340,6 +3361,183 @@
                                         </div>
                                         <div class="help-text">留空则继续使用默认登录按钮颜色。</div>
                                     </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="plans_subscribe_button_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">套餐订阅按钮颜色自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="plansSubscribeButtonColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="plansSubscribeButtonColor" placeholder="#00897B">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('plansSubscribeButtonColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认套餐订阅按钮颜色。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="plans_filter_tab_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">套餐筛选按钮颜色自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="plansFilterTabColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="plansFilterTabColor" placeholder="#00897B">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('plansFilterTabColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认套餐筛选按钮颜色。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="invite_code_text_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">邀请码文本颜色自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="inviteCodeTextColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="inviteCodeTextColor" placeholder="#00897B">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('inviteCodeTextColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认邀请码文本颜色。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="invite_code_background_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">邀请码卡片背景颜色自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="inviteCodeBackgroundColorPicker" value="#4DB6AC" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="inviteCodeBackgroundColor" placeholder="#4DB6AC">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('inviteCodeBackgroundColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认邀请码卡片背景颜色。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="commission_balance_card_background_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">可用佣金卡片背景颜色自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="commissionBalanceCardBackgroundColorPicker" value="#4DB6AC" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="commissionBalanceCardBackgroundColor" placeholder="#4DB6AC">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('commissionBalanceCardBackgroundColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认可用佣金卡片背景颜色。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="invite_stats_total_invites_icon_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">邀请统计总邀请图标颜色自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="inviteStatsTotalInvitesIconColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="inviteStatsTotalInvitesIconColor" placeholder="#00897B">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('inviteStatsTotalInvitesIconColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认邀请统计总邀请图标颜色。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="invite_stats_commission_rate_icon_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">邀请统计返佣比例图标颜色自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="inviteStatsCommissionRateIconColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="inviteStatsCommissionRateIconColor" placeholder="#00897B">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('inviteStatsCommissionRateIconColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认邀请统计返佣比例图标颜色。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="invite_stats_total_commission_icon_color" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">邀请统计总佣金图标颜色自定义</span>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
+                                            <div class="form-group">
+                                                <label>颜色选择器</label>
+                                                <input type="color" id="inviteStatsTotalCommissionIconColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>颜色值</label>
+                                                <input type="text" id="inviteStatsTotalCommissionIconColor" placeholder="#00897B">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>&nbsp;</label>
+                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('inviteStatsTotalCommissionIconColor')" style="width:100%;">清空</button>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">留空则继续使用默认邀请统计总佣金图标颜色。</div>
+                                    </div>
+                                </div>
                                 </div>
                                 <div class="page-footer" style="justify-content:flex-start; gap:10px;">
                                     <button type="button" class="btn btn-primary" onclick="loadCustomTrafficBarConfig()">读取当前配置</button>
@@ -4956,15 +5154,23 @@
             customUIColorAvailableFeatures = Array.isArray(data.feature_keys)
                 ? data.feature_keys.map(function(item) { return String(item || '').trim(); }).filter(Boolean)
                 : [];
-            document.getElementById('customTrafficBarEnabled').checked = !!data.traffic_bar_enabled;
-            document.getElementById('customTrafficBarColor').value = normalizeCustomTrafficBarColorInput(data.traffic_bar_color || '#00897B') || '#00897B';
-            syncCustomTrafficBarColorPickerFromText();
-            syncCustomTrafficBarEnableState();
+            applyCustomUIColorTextValue(
+                'customTrafficBarColor',
+                data.traffic_bar_enabled ? (data.traffic_bar_color || '') : ''
+            );
             applyCustomUIColorTextValue('noticeDialogIconBackgroundColor', data.notice_dialog_icon_background_color || '');
             applyCustomUIColorTextValue('subscriptionWebsiteIconColor', data.subscription_website_icon_color || '');
             applyCustomUIColorTextValue('subscriptionRefreshIconColor', data.subscription_refresh_icon_color || '');
             applyCustomUIColorTextValue('subscriptionNoticeIconColor', data.subscription_notice_icon_color || '');
             applyCustomUIColorTextValue('loginButtonColor', data.login_button_color || '');
+            applyCustomUIColorTextValue('plansSubscribeButtonColor', data.plans_subscribe_button_color || '');
+            applyCustomUIColorTextValue('plansFilterTabColor', data.plans_filter_tab_color || '');
+            applyCustomUIColorTextValue('inviteCodeTextColor', data.invite_code_text_color || '');
+            applyCustomUIColorTextValue('inviteCodeBackgroundColor', data.invite_code_background_color || '');
+            applyCustomUIColorTextValue('commissionBalanceCardBackgroundColor', data.commission_balance_card_background_color || '');
+            applyCustomUIColorTextValue('inviteStatsTotalInvitesIconColor', data.invite_stats_total_invites_icon_color || '');
+            applyCustomUIColorTextValue('inviteStatsCommissionRateIconColor', data.invite_stats_commission_rate_icon_color || '');
+            applyCustomUIColorTextValue('inviteStatsTotalCommissionIconColor', data.invite_stats_total_commission_icon_color || '');
             syncCustomUIColorFeatureVisibility();
         }
 
@@ -5033,32 +5239,6 @@
             }
             if (picker && picker.dataset.defaultColor) {
                 picker.value = picker.dataset.defaultColor;
-            }
-        }
-
-        function syncCustomTrafficBarEnableState() {
-            var checkbox = document.getElementById('customTrafficBarEnabled');
-            var label = document.getElementById('customTrafficBarEnabledLabel');
-            var extra = document.getElementById('customTrafficBarExtra');
-            if (!checkbox || !label || !extra) return;
-            label.textContent = checkbox.checked ? '开启' : '关闭';
-            extra.style.opacity = checkbox.checked ? '1' : '0.78';
-        }
-
-        function syncCustomTrafficBarColorTextFromPicker() {
-            var picker = document.getElementById('customTrafficBarColorPicker');
-            var input = document.getElementById('customTrafficBarColor');
-            if (!picker || !input) return;
-            input.value = String(picker.value || '#00897B').toUpperCase();
-        }
-
-        function syncCustomTrafficBarColorPickerFromText() {
-            var picker = document.getElementById('customTrafficBarColorPicker');
-            var input = document.getElementById('customTrafficBarColor');
-            if (!picker || !input) return;
-            var normalized = normalizeCustomTrafficBarColorInput(input.value);
-            if (/^#[0-9A-F]{6}$/.test(normalized)) {
-                picker.value = normalized;
             }
         }
 
@@ -5161,15 +5341,21 @@
         async function saveCustomTrafficBarConfig() {
             var profileName = getSelectedCustomTrafficBarProfile();
             var integrationCode = String(document.getElementById('customTrafficBarIntegrationCode').value || '').trim();
-            var enabled = !!document.getElementById('customTrafficBarEnabled').checked;
-            var color = enabled
-                ? normalizeCustomTrafficBarColorInput(document.getElementById('customTrafficBarColor').value)
-                : '';
+            var color = normalizeCustomTrafficBarColorInput(document.getElementById('customTrafficBarColor').value);
+            var enabled = !!color;
             var noticeDialogIconBackgroundColor = normalizeCustomTrafficBarColorInput(document.getElementById('noticeDialogIconBackgroundColor').value);
             var subscriptionWebsiteIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('subscriptionWebsiteIconColor').value);
             var subscriptionRefreshIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('subscriptionRefreshIconColor').value);
             var subscriptionNoticeIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('subscriptionNoticeIconColor').value);
             var loginButtonColor = normalizeCustomTrafficBarColorInput(document.getElementById('loginButtonColor').value);
+            var plansSubscribeButtonColor = normalizeCustomTrafficBarColorInput(document.getElementById('plansSubscribeButtonColor').value);
+            var plansFilterTabColor = normalizeCustomTrafficBarColorInput(document.getElementById('plansFilterTabColor').value);
+            var inviteCodeTextColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteCodeTextColor').value);
+            var inviteCodeBackgroundColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteCodeBackgroundColor').value);
+            var commissionBalanceCardBackgroundColor = normalizeCustomTrafficBarColorInput(document.getElementById('commissionBalanceCardBackgroundColor').value);
+            var inviteStatsTotalInvitesIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteStatsTotalInvitesIconColor').value);
+            var inviteStatsCommissionRateIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteStatsCommissionRateIconColor').value);
+            var inviteStatsTotalCommissionIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteStatsTotalCommissionIconColor').value);
 
             if (!profileName) {
                 setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
@@ -5181,10 +5367,6 @@
             }
             if (!isAdminSession() && !integrationCode) {
                 setCustomTrafficBarStatus('请输入对接码后再保存公共配置', 'error');
-                return;
-            }
-            if (enabled && getVisibleCustomUIColorFeatureKeys().indexOf('traffic_bar_color') !== -1 && !color) {
-                setCustomTrafficBarStatus('开启自定义颜色时必须填写颜色值', 'error');
                 return;
             }
 
@@ -5199,7 +5381,15 @@
                     subscription_website_icon_color: subscriptionWebsiteIconColor,
                     subscription_refresh_icon_color: subscriptionRefreshIconColor,
                     subscription_notice_icon_color: subscriptionNoticeIconColor,
-                    login_button_color: loginButtonColor
+                    login_button_color: loginButtonColor,
+                    plans_subscribe_button_color: plansSubscribeButtonColor,
+                    plans_filter_tab_color: plansFilterTabColor,
+                    invite_code_text_color: inviteCodeTextColor,
+                    invite_code_background_color: inviteCodeBackgroundColor,
+                    commission_balance_card_background_color: commissionBalanceCardBackgroundColor,
+                    invite_stats_total_invites_icon_color: inviteStatsTotalInvitesIconColor,
+                    invite_stats_commission_rate_icon_color: inviteStatsCommissionRateIconColor,
+                    invite_stats_total_commission_icon_color: inviteStatsTotalCommissionIconColor
                 });
                 if (!response) return;
                 var data = await response.json();
@@ -5236,7 +5426,15 @@
             'subscription_website_icon_color',
             'subscription_refresh_icon_color',
             'subscription_notice_icon_color',
-            'login_button_color'
+            'login_button_color',
+            'plans_subscribe_button_color',
+            'plans_filter_tab_color',
+            'invite_code_text_color',
+            'invite_code_background_color',
+            'commission_balance_card_background_color',
+            'invite_stats_total_invites_icon_color',
+            'invite_stats_commission_rate_icon_color',
+            'invite_stats_total_commission_icon_color'
         ];
         var CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY = 'nexgen_custom_traffic_bar_code_v1';
         var sources = [];
@@ -5661,7 +5859,6 @@
                     customUIColorAvailableFeatures = [];
                 }
                 syncCustomTrafficBarProfileName();
-                syncCustomTrafficBarEnableState();
                 updateCustomTrafficBarCodeHint();
                 syncCustomTrafficBarAccessView();
             }
@@ -5694,14 +5891,21 @@
             document.getElementById('customTrafficBarIntegrationCode').value =
                 sessionStorage.getItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY) || '';
             syncCustomTrafficBarProfileName();
-            syncCustomTrafficBarEnableState();
-            syncCustomTrafficBarColorTextFromPicker();
             [
+                'customTrafficBarColorPicker',
                 'noticeDialogIconBackgroundColorPicker',
                 'subscriptionWebsiteIconColorPicker',
                 'subscriptionRefreshIconColorPicker',
                 'subscriptionNoticeIconColorPicker',
-                'loginButtonColorPicker'
+                'loginButtonColorPicker',
+                'plansSubscribeButtonColorPicker',
+                'plansFilterTabColorPicker',
+                'inviteCodeTextColorPicker',
+                'inviteCodeBackgroundColorPicker',
+                'commissionBalanceCardBackgroundColorPicker',
+                'inviteStatsTotalInvitesIconColorPicker',
+                'inviteStatsCommissionRateIconColorPicker',
+                'inviteStatsTotalCommissionIconColorPicker'
             ].forEach(function(id) {
                 var picker = document.getElementById(id);
                 if (picker) {
@@ -5750,7 +5954,6 @@
                     }
                 }
             });
-            document.getElementById('customTrafficBarEnabled').addEventListener('change', syncCustomTrafficBarEnableState);
             document.getElementById('customTrafficBarIntegrationCode').addEventListener('input', function() {
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
@@ -5764,14 +5967,21 @@
                     unlockCustomTrafficBarConfig();
                 }
             });
-            document.getElementById('customTrafficBarColorPicker').addEventListener('input', syncCustomTrafficBarColorTextFromPicker);
-            document.getElementById('customTrafficBarColor').addEventListener('input', syncCustomTrafficBarColorPickerFromText);
             [
+                'customTrafficBarColor',
                 'noticeDialogIconBackgroundColor',
                 'subscriptionWebsiteIconColor',
                 'subscriptionRefreshIconColor',
                 'subscriptionNoticeIconColor',
-                'loginButtonColor'
+                'loginButtonColor',
+                'plansSubscribeButtonColor',
+                'plansFilterTabColor',
+                'inviteCodeTextColor',
+                'inviteCodeBackgroundColor',
+                'commissionBalanceCardBackgroundColor',
+                'inviteStatsTotalInvitesIconColor',
+                'inviteStatsCommissionRateIconColor',
+                'inviteStatsTotalCommissionIconColor'
             ].forEach(function(inputId) {
                 var picker = document.getElementById(getCustomUIColorPickerId(inputId));
                 var input = document.getElementById(inputId);
@@ -5859,6 +6069,20 @@
                 '  ui:',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
+                '    custom_colors:',
+                '      notice_dialog_icon_background_color: ""',
+                '      subscription_website_icon_color: ""',
+                '      subscription_refresh_icon_color: ""',
+                '      subscription_notice_icon_color: ""',
+                '      login_button_color: ""',
+                '      plans_subscribe_button_color: ""',
+                '      plans_filter_tab_color: ""',
+                '      invite_code_text_color: ""',
+                '      invite_code_background_color: ""',
+                '      commission_balance_card_background_color: ""',
+                '      invite_stats_total_invites_icon_color: ""',
+                '      invite_stats_commission_rate_icon_color: ""',
+                '      invite_stats_total_commission_icon_color: ""',
                 '    home_panel_default_layout: default',
                 '    latency_reduction:',
                 '      enabled: false',

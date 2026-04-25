@@ -12,22 +12,38 @@ import (
 )
 
 type UIColorCustomConfig struct {
-	TrafficBarEnabled               bool   `json:"traffic_bar_enabled"`
-	TrafficBarColor                 string `json:"traffic_bar_color"`
-	NoticeDialogIconBackgroundColor string `json:"notice_dialog_icon_background_color"`
-	SubscriptionWebsiteIconColor    string `json:"subscription_website_icon_color"`
-	SubscriptionRefreshIconColor    string `json:"subscription_refresh_icon_color"`
-	SubscriptionNoticeIconColor     string `json:"subscription_notice_icon_color"`
-	LoginButtonColor                string `json:"login_button_color"`
+	TrafficBarEnabled                    bool   `json:"traffic_bar_enabled"`
+	TrafficBarColor                      string `json:"traffic_bar_color"`
+	NoticeDialogIconBackgroundColor      string `json:"notice_dialog_icon_background_color"`
+	SubscriptionWebsiteIconColor         string `json:"subscription_website_icon_color"`
+	SubscriptionRefreshIconColor         string `json:"subscription_refresh_icon_color"`
+	SubscriptionNoticeIconColor          string `json:"subscription_notice_icon_color"`
+	LoginButtonColor                     string `json:"login_button_color"`
+	PlansSubscribeButtonColor            string `json:"plans_subscribe_button_color"`
+	PlansFilterTabColor                  string `json:"plans_filter_tab_color"`
+	InviteCodeTextColor                  string `json:"invite_code_text_color"`
+	InviteCodeBackgroundColor            string `json:"invite_code_background_color"`
+	CommissionBalanceCardBackgroundColor string `json:"commission_balance_card_background_color"`
+	InviteStatsTotalInvitesIconColor     string `json:"invite_stats_total_invites_icon_color"`
+	InviteStatsCommissionRateIconColor   string `json:"invite_stats_commission_rate_icon_color"`
+	InviteStatsTotalCommissionIconColor  string `json:"invite_stats_total_commission_icon_color"`
 }
 
 const (
-	customFeatureTrafficBarColor              = "traffic_bar_color"
-	customFeatureNoticeDialogIconBackground   = "notice_dialog_icon_background_color"
-	customFeatureSubscriptionWebsiteIconColor = "subscription_website_icon_color"
-	customFeatureSubscriptionRefreshIconColor = "subscription_refresh_icon_color"
-	customFeatureSubscriptionNoticeIconColor  = "subscription_notice_icon_color"
-	customFeatureLoginButtonColor             = "login_button_color"
+	customFeatureTrafficBarColor                      = "traffic_bar_color"
+	customFeatureNoticeDialogIconBackground           = "notice_dialog_icon_background_color"
+	customFeatureSubscriptionWebsiteIconColor         = "subscription_website_icon_color"
+	customFeatureSubscriptionRefreshIconColor         = "subscription_refresh_icon_color"
+	customFeatureSubscriptionNoticeIconColor          = "subscription_notice_icon_color"
+	customFeatureLoginButtonColor                     = "login_button_color"
+	customFeaturePlansSubscribeButtonColor            = "plans_subscribe_button_color"
+	customFeaturePlansFilterTabColor                  = "plans_filter_tab_color"
+	customFeatureInviteCodeTextColor                  = "invite_code_text_color"
+	customFeatureInviteCodeBackgroundColor            = "invite_code_background_color"
+	customFeatureCommissionBalanceCardBackgroundColor = "commission_balance_card_background_color"
+	customFeatureInviteStatsTotalInvitesIconColor     = "invite_stats_total_invites_icon_color"
+	customFeatureInviteStatsCommissionRateIconColor   = "invite_stats_commission_rate_icon_color"
+	customFeatureInviteStatsTotalCommissionIconColor  = "invite_stats_total_commission_icon_color"
 )
 
 var (
@@ -39,6 +55,14 @@ var (
 		customFeatureSubscriptionRefreshIconColor,
 		customFeatureSubscriptionNoticeIconColor,
 		customFeatureLoginButtonColor,
+		customFeaturePlansSubscribeButtonColor,
+		customFeaturePlansFilterTabColor,
+		customFeatureInviteCodeTextColor,
+		customFeatureInviteCodeBackgroundColor,
+		customFeatureCommissionBalanceCardBackgroundColor,
+		customFeatureInviteStatsTotalInvitesIconColor,
+		customFeatureInviteStatsCommissionRateIconColor,
+		customFeatureInviteStatsTotalCommissionIconColor,
 	}
 )
 
@@ -213,6 +237,14 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 		result.SubscriptionRefreshIconColor = readMapStringValue(customColors, "subscription_refresh_icon_color", "subscriptionRefreshIconColor")
 		result.SubscriptionNoticeIconColor = readMapStringValue(customColors, "subscription_notice_icon_color", "subscriptionNoticeIconColor")
 		result.LoginButtonColor = readMapStringValue(customColors, "login_button_color", "loginButtonColor")
+		result.PlansSubscribeButtonColor = readMapStringValue(customColors, "plans_subscribe_button_color", "plansSubscribeButtonColor")
+		result.PlansFilterTabColor = readMapStringValue(customColors, "plans_filter_tab_color", "plansFilterTabColor")
+		result.InviteCodeTextColor = readMapStringValue(customColors, "invite_code_text_color", "inviteCodeTextColor")
+		result.InviteCodeBackgroundColor = readMapStringValue(customColors, "invite_code_background_color", "inviteCodeBackgroundColor")
+		result.CommissionBalanceCardBackgroundColor = readMapStringValue(customColors, "commission_balance_card_background_color", "commissionBalanceCardBackgroundColor")
+		result.InviteStatsTotalInvitesIconColor = readMapStringValue(customColors, "invite_stats_total_invites_icon_color", "inviteStatsTotalInvitesIconColor")
+		result.InviteStatsCommissionRateIconColor = readMapStringValue(customColors, "invite_stats_commission_rate_icon_color", "inviteStatsCommissionRateIconColor")
+		result.InviteStatsTotalCommissionIconColor = readMapStringValue(customColors, "invite_stats_total_commission_icon_color", "inviteStatsTotalCommissionIconColor")
 	}
 
 	return result, nil
@@ -247,6 +279,14 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	setOrRemoveMapStringValue(customColors, "subscription_refresh_icon_color", config.SubscriptionRefreshIconColor, "subscriptionRefreshIconColor")
 	setOrRemoveMapStringValue(customColors, "subscription_notice_icon_color", config.SubscriptionNoticeIconColor, "subscriptionNoticeIconColor")
 	setOrRemoveMapStringValue(customColors, "login_button_color", config.LoginButtonColor, "loginButtonColor")
+	setOrRemoveMapStringValue(customColors, "plans_subscribe_button_color", config.PlansSubscribeButtonColor, "plansSubscribeButtonColor")
+	setOrRemoveMapStringValue(customColors, "plans_filter_tab_color", config.PlansFilterTabColor, "plansFilterTabColor")
+	setOrRemoveMapStringValue(customColors, "invite_code_text_color", config.InviteCodeTextColor, "inviteCodeTextColor")
+	setOrRemoveMapStringValue(customColors, "invite_code_background_color", config.InviteCodeBackgroundColor, "inviteCodeBackgroundColor")
+	setOrRemoveMapStringValue(customColors, "commission_balance_card_background_color", config.CommissionBalanceCardBackgroundColor, "commissionBalanceCardBackgroundColor")
+	setOrRemoveMapStringValue(customColors, "invite_stats_total_invites_icon_color", config.InviteStatsTotalInvitesIconColor, "inviteStatsTotalInvitesIconColor")
+	setOrRemoveMapStringValue(customColors, "invite_stats_commission_rate_icon_color", config.InviteStatsCommissionRateIconColor, "inviteStatsCommissionRateIconColor")
+	setOrRemoveMapStringValue(customColors, "invite_stats_total_commission_icon_color", config.InviteStatsTotalCommissionIconColor, "inviteStatsTotalCommissionIconColor")
 
 	var buf bytes.Buffer
 	encoder := yaml.NewEncoder(&buf)
@@ -321,29 +361,45 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 	}
 
 	jsonResponse(w, map[string]interface{}{
-		"profile":                             profileName,
-		"feature_keys":                        allowedFeatureKeys,
-		"traffic_bar_enabled":                 config.TrafficBarEnabled,
-		"traffic_bar_color":                   config.TrafficBarColor,
-		"notice_dialog_icon_background_color": config.NoticeDialogIconBackgroundColor,
-		"subscription_website_icon_color":     config.SubscriptionWebsiteIconColor,
-		"subscription_refresh_icon_color":     config.SubscriptionRefreshIconColor,
-		"subscription_notice_icon_color":      config.SubscriptionNoticeIconColor,
-		"login_button_color":                  config.LoginButtonColor,
+		"profile":                                  profileName,
+		"feature_keys":                             allowedFeatureKeys,
+		"traffic_bar_enabled":                      config.TrafficBarEnabled,
+		"traffic_bar_color":                        config.TrafficBarColor,
+		"notice_dialog_icon_background_color":      config.NoticeDialogIconBackgroundColor,
+		"subscription_website_icon_color":          config.SubscriptionWebsiteIconColor,
+		"subscription_refresh_icon_color":          config.SubscriptionRefreshIconColor,
+		"subscription_notice_icon_color":           config.SubscriptionNoticeIconColor,
+		"login_button_color":                       config.LoginButtonColor,
+		"plans_subscribe_button_color":             config.PlansSubscribeButtonColor,
+		"plans_filter_tab_color":                   config.PlansFilterTabColor,
+		"invite_code_text_color":                   config.InviteCodeTextColor,
+		"invite_code_background_color":             config.InviteCodeBackgroundColor,
+		"commission_balance_card_background_color": config.CommissionBalanceCardBackgroundColor,
+		"invite_stats_total_invites_icon_color":    config.InviteStatsTotalInvitesIconColor,
+		"invite_stats_commission_rate_icon_color":  config.InviteStatsCommissionRateIconColor,
+		"invite_stats_total_commission_icon_color": config.InviteStatsTotalCommissionIconColor,
 	})
 }
 
 func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Profile                         string `json:"profile"`
-		IntegrationCode                 string `json:"integration_code"`
-		TrafficBarEnabled               bool   `json:"traffic_bar_enabled"`
-		TrafficBarColor                 string `json:"traffic_bar_color"`
-		NoticeDialogIconBackgroundColor string `json:"notice_dialog_icon_background_color"`
-		SubscriptionWebsiteIconColor    string `json:"subscription_website_icon_color"`
-		SubscriptionRefreshIconColor    string `json:"subscription_refresh_icon_color"`
-		SubscriptionNoticeIconColor     string `json:"subscription_notice_icon_color"`
-		LoginButtonColor                string `json:"login_button_color"`
+		Profile                              string `json:"profile"`
+		IntegrationCode                      string `json:"integration_code"`
+		TrafficBarEnabled                    bool   `json:"traffic_bar_enabled"`
+		TrafficBarColor                      string `json:"traffic_bar_color"`
+		NoticeDialogIconBackgroundColor      string `json:"notice_dialog_icon_background_color"`
+		SubscriptionWebsiteIconColor         string `json:"subscription_website_icon_color"`
+		SubscriptionRefreshIconColor         string `json:"subscription_refresh_icon_color"`
+		SubscriptionNoticeIconColor          string `json:"subscription_notice_icon_color"`
+		LoginButtonColor                     string `json:"login_button_color"`
+		PlansSubscribeButtonColor            string `json:"plans_subscribe_button_color"`
+		PlansFilterTabColor                  string `json:"plans_filter_tab_color"`
+		InviteCodeTextColor                  string `json:"invite_code_text_color"`
+		InviteCodeBackgroundColor            string `json:"invite_code_background_color"`
+		CommissionBalanceCardBackgroundColor string `json:"commission_balance_card_background_color"`
+		InviteStatsTotalInvitesIconColor     string `json:"invite_stats_total_invites_icon_color"`
+		InviteStatsCommissionRateIconColor   string `json:"invite_stats_commission_rate_icon_color"`
+		InviteStatsTotalCommissionIconColor  string `json:"invite_stats_total_commission_icon_color"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", http.StatusBadRequest)
@@ -388,6 +444,46 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		return
 	}
 	normalizedLoginButtonColor, err := normalizeUIColorValue(req.LoginButtonColor)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	normalizedPlansSubscribeButtonColor, err := normalizeUIColorValue(req.PlansSubscribeButtonColor)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	normalizedPlansFilterTabColor, err := normalizeUIColorValue(req.PlansFilterTabColor)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	normalizedInviteCodeTextColor, err := normalizeUIColorValue(req.InviteCodeTextColor)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	normalizedInviteCodeBackgroundColor, err := normalizeUIColorValue(req.InviteCodeBackgroundColor)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	normalizedCommissionBalanceCardBackgroundColor, err := normalizeUIColorValue(req.CommissionBalanceCardBackgroundColor)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	normalizedInviteStatsTotalInvitesIconColor, err := normalizeUIColorValue(req.InviteStatsTotalInvitesIconColor)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	normalizedInviteStatsCommissionRateIconColor, err := normalizeUIColorValue(req.InviteStatsCommissionRateIconColor)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	normalizedInviteStatsTotalCommissionIconColor, err := normalizeUIColorValue(req.InviteStatsTotalCommissionIconColor)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
@@ -439,6 +535,30 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureLoginButtonColor) {
 		targetConfig.LoginButtonColor = normalizedLoginButtonColor
 	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeaturePlansSubscribeButtonColor) {
+		targetConfig.PlansSubscribeButtonColor = normalizedPlansSubscribeButtonColor
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeaturePlansFilterTabColor) {
+		targetConfig.PlansFilterTabColor = normalizedPlansFilterTabColor
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureInviteCodeTextColor) {
+		targetConfig.InviteCodeTextColor = normalizedInviteCodeTextColor
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureInviteCodeBackgroundColor) {
+		targetConfig.InviteCodeBackgroundColor = normalizedInviteCodeBackgroundColor
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureCommissionBalanceCardBackgroundColor) {
+		targetConfig.CommissionBalanceCardBackgroundColor = normalizedCommissionBalanceCardBackgroundColor
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureInviteStatsTotalInvitesIconColor) {
+		targetConfig.InviteStatsTotalInvitesIconColor = normalizedInviteStatsTotalInvitesIconColor
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureInviteStatsCommissionRateIconColor) {
+		targetConfig.InviteStatsCommissionRateIconColor = normalizedInviteStatsCommissionRateIconColor
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureInviteStatsTotalCommissionIconColor) {
+		targetConfig.InviteStatsTotalCommissionIconColor = normalizedInviteStatsTotalCommissionIconColor
+	}
 
 	var updatedYaml string
 	var patchErr error
@@ -471,15 +591,23 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	logAudit(claims.CodeID, claims.CodeName, "save_public_ui_color_config", fmt.Sprintf("%s|features=%d", profileName, len(allowedFeatureKeys)), r.RemoteAddr)
 
 	jsonResponse(w, map[string]interface{}{
-		"message":                             "自定义颜色配置已保存",
-		"profile":                             profileName,
-		"feature_keys":                        allowedFeatureKeys,
-		"traffic_bar_enabled":                 targetConfig.TrafficBarEnabled,
-		"traffic_bar_color":                   targetConfig.TrafficBarColor,
-		"notice_dialog_icon_background_color": targetConfig.NoticeDialogIconBackgroundColor,
-		"subscription_website_icon_color":     targetConfig.SubscriptionWebsiteIconColor,
-		"subscription_refresh_icon_color":     targetConfig.SubscriptionRefreshIconColor,
-		"subscription_notice_icon_color":      targetConfig.SubscriptionNoticeIconColor,
-		"login_button_color":                  targetConfig.LoginButtonColor,
+		"message":                                  "自定义颜色配置已保存",
+		"profile":                                  profileName,
+		"feature_keys":                             allowedFeatureKeys,
+		"traffic_bar_enabled":                      targetConfig.TrafficBarEnabled,
+		"traffic_bar_color":                        targetConfig.TrafficBarColor,
+		"notice_dialog_icon_background_color":      targetConfig.NoticeDialogIconBackgroundColor,
+		"subscription_website_icon_color":          targetConfig.SubscriptionWebsiteIconColor,
+		"subscription_refresh_icon_color":          targetConfig.SubscriptionRefreshIconColor,
+		"subscription_notice_icon_color":           targetConfig.SubscriptionNoticeIconColor,
+		"login_button_color":                       targetConfig.LoginButtonColor,
+		"plans_subscribe_button_color":             targetConfig.PlansSubscribeButtonColor,
+		"plans_filter_tab_color":                   targetConfig.PlansFilterTabColor,
+		"invite_code_text_color":                   targetConfig.InviteCodeTextColor,
+		"invite_code_background_color":             targetConfig.InviteCodeBackgroundColor,
+		"commission_balance_card_background_color": targetConfig.CommissionBalanceCardBackgroundColor,
+		"invite_stats_total_invites_icon_color":    targetConfig.InviteStatsTotalInvitesIconColor,
+		"invite_stats_commission_rate_icon_color":  targetConfig.InviteStatsCommissionRateIconColor,
+		"invite_stats_total_commission_icon_color": targetConfig.InviteStatsTotalCommissionIconColor,
 	})
 }
