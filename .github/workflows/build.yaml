@@ -202,7 +202,7 @@ jobs:
       run:
         shell: bash
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - platform: windows
@@ -441,6 +441,27 @@ jobs:
           }
           cargo --version
 
+      - name: Diagnose Windows ARM64 Runner
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'windows' && matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          Write-Host "=== Runner Context ==="
+          Write-Host "RUNNER_OS=$env:RUNNER_OS"
+          Write-Host "RUNNER_ARCH=$env:RUNNER_ARCH"
+          Write-Host "ImageOS=$env:ImageOS"
+          Write-Host "ImageVersion=$env:ImageVersion"
+          Write-Host "PROCESSOR_ARCHITECTURE=$env:PROCESSOR_ARCHITECTURE"
+          Write-Host "PROCESSOR_IDENTIFIER=$env:PROCESSOR_IDENTIFIER"
+          Write-Host ""
+          Write-Host "=== PowerShell / Git / Bash ==="
+          $PSVersionTable.PSVersion
+          Get-Command git -ErrorAction SilentlyContinue | Format-List Source, Version
+          Get-Command bash -ErrorAction SilentlyContinue | Format-List Source, Version
+          Write-Host ""
+          Write-Host "=== System Architecture ==="
+          Get-CimInstance Win32_OperatingSystem | Select-Object Caption, OSArchitecture, Version
+          Get-CimInstance Win32_Processor | Select-Object Name, Architecture, AddressWidth
+
       - name: Setup Go
         if: steps.check.outputs.should_run == 'true'
         uses: actions/setup-go@v6
@@ -466,6 +487,21 @@ jobs:
           flutter-version: "${{ env.FLUTTER_VERSION }}"
           architecture: "arm64"
           cache: true
+
+      - name: Verify Flutter (Windows arm64)
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'windows' && matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          Write-Host "=== Flutter / Dart Command Path ==="
+          where.exe flutter
+          where.exe dart
+          Write-Host ""
+          Write-Host "=== Flutter / Dart Version ==="
+          flutter --version
+          dart --version
+          Write-Host ""
+          Write-Host "=== Flutter Doctor ==="
+          flutter doctor -v
 
       - name: Setup Flutter (Android)
         if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'android'
