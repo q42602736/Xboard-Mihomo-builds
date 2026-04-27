@@ -908,7 +908,7 @@ jobs:
             exit 1
           fi
 
-          ASSETS_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+          ASSETS_RESPONSE=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
 
           cd ./source/dist
@@ -932,13 +932,56 @@ jobs:
 
             ENCODED_FILENAME=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$ASSET_NAME")
             echo "Uploading release asset: $ASSET_NAME"
-            curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
+            UPLOAD_RESPONSE=$(curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/octet-stream" \
               -H "Expect:" \
               "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}" \
-              --data-binary @"$file" > /dev/null
+              --data-binary @"$file")
+
+            UPLOADED_ASSET_ID=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              process.stdout.write(data && data.id ? String(data.id) : '');
+            ")
+            UPLOADED_ASSET_NAME=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              process.stdout.write(data && data.name ? String(data.name) : '');
+            ")
+            UPLOADED_ASSET_STATE=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              process.stdout.write(data && data.state ? String(data.state) : '');
+            ")
+
+            if [ -z "$UPLOADED_ASSET_ID" ] || [ "$UPLOADED_ASSET_NAME" != "$ASSET_NAME" ] || [ "$UPLOADED_ASSET_STATE" != "uploaded" ]; then
+              echo "::error::Release asset upload verification failed: $ASSET_NAME"
+              echo "$UPLOAD_RESPONSE"
+              exit 1
+            fi
+
+            echo "Uploaded asset verified: id=$UPLOADED_ASSET_ID state=$UPLOADED_ASSET_STATE name=$UPLOADED_ASSET_NAME"
           done
+
+          echo "=== Release assets after upload ==="
+          FINAL_ASSET_COUNT=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              const assets = Array.isArray(data) ? data : [];
+              for (const asset of assets) {
+                console.log([asset.id, asset.name, asset.state, asset.size].join('\t'));
+              }
+              process.stderr.write(String(assets.length));
+            " 2>asset_count.txt)
+          cat asset_count.txt
+          if [ "$(tr -d '\n\r ' < asset_count.txt)" = "0" ]; then
+            echo "::error::Release asset list is empty after upload"
+            exit 1
+          fi
+          printf '%s\n' "$FINAL_ASSET_COUNT"
+          rm -f asset_count.txt
 
   build-linux:
     needs: prepare-release
@@ -1275,7 +1318,7 @@ jobs:
             exit 1
           fi
 
-          ASSETS_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+          ASSETS_RESPONSE=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
 
           cd ./source/dist
@@ -1299,13 +1342,56 @@ jobs:
 
             ENCODED_FILENAME=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$ASSET_NAME")
             echo "Uploading release asset: $ASSET_NAME"
-            curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
+            UPLOAD_RESPONSE=$(curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: application/octet-stream" \
               -H "Expect:" \
               "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}" \
-              --data-binary @"$file" > /dev/null
+              --data-binary @"$file")
+
+            UPLOADED_ASSET_ID=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              process.stdout.write(data && data.id ? String(data.id) : '');
+            ")
+            UPLOADED_ASSET_NAME=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              process.stdout.write(data && data.name ? String(data.name) : '');
+            ")
+            UPLOADED_ASSET_STATE=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              process.stdout.write(data && data.state ? String(data.state) : '');
+            ")
+
+            if [ -z "$UPLOADED_ASSET_ID" ] || [ "$UPLOADED_ASSET_NAME" != "$ASSET_NAME" ] || [ "$UPLOADED_ASSET_STATE" != "uploaded" ]; then
+              echo "::error::Release asset upload verification failed: $ASSET_NAME"
+              echo "$UPLOAD_RESPONSE"
+              exit 1
+            fi
+
+            echo "Uploaded asset verified: id=$UPLOADED_ASSET_ID state=$UPLOADED_ASSET_STATE name=$UPLOADED_ASSET_NAME"
           done
+
+          echo "=== Release assets after upload ==="
+          FINAL_ASSET_COUNT=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              const assets = Array.isArray(data) ? data : [];
+              for (const asset of assets) {
+                console.log([asset.id, asset.name, asset.state, asset.size].join('\t'));
+              }
+              process.stderr.write(String(assets.length));
+            " 2>asset_count.txt)
+          cat asset_count.txt
+          if [ "$(tr -d '\n\r ' < asset_count.txt)" = "0" ]; then
+            echo "::error::Release asset list is empty after upload"
+            exit 1
+          fi
+          printf '%s\n' "$FINAL_ASSET_COUNT"
+          rm -f asset_count.txt
 
   # 从 Draft Release 汇总所有平台产物并回传合集包
   merge-artifacts:
@@ -1320,7 +1406,7 @@ jobs:
         run: |
           mkdir -p ./dist
 
-          ASSETS_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+          ASSETS_RESPONSE=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
 
           printf '%s' "$ASSETS_RESPONSE" | node -e "
@@ -1420,12 +1506,47 @@ jobs:
           ENCODED_FILENAME=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$PACKAGE_NAME")
 
           echo "Uploading merged bundle: $PACKAGE_NAME ($FILESIZE)"
-          curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
+          UPLOAD_RESPONSE=$(curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
             -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/zip" \
             -H "Expect:" \
             "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}" \
-            --data-binary @"$PACKAGE_NAME" > /dev/null
+            --data-binary @"$PACKAGE_NAME")
+
+          UPLOADED_ASSET_ID=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(data && data.id ? String(data.id) : '');
+          ")
+          UPLOADED_ASSET_NAME=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(data && data.name ? String(data.name) : '');
+          ")
+          UPLOADED_ASSET_STATE=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(data && data.state ? String(data.state) : '');
+          ")
+
+          if [ -z "$UPLOADED_ASSET_ID" ] || [ "$UPLOADED_ASSET_NAME" != "$PACKAGE_NAME" ] || [ "$UPLOADED_ASSET_STATE" != "uploaded" ]; then
+            echo "::error::Merged bundle upload verification failed: $PACKAGE_NAME"
+            echo "$UPLOAD_RESPONSE"
+            exit 1
+          fi
+
+          echo "Uploaded merged bundle verified: id=$UPLOADED_ASSET_ID state=$UPLOADED_ASSET_STATE name=$UPLOADED_ASSET_NAME"
+
+          echo "=== Release assets after merged bundle upload ==="
+          curl -sS --fail -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              const assets = Array.isArray(data) ? data : [];
+              for (const asset of assets) {
+                console.log([asset.id, asset.name, asset.state, asset.size].join('\t'));
+              }
+            "
 
           echo "Draft release updated successfully!"
           echo "View at: https://github.com/${{ github.repository }}/releases"
