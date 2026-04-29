@@ -248,6 +248,47 @@ func (h *Handlers) ListProfileAssetHistory(w http.ResponseWriter, r *http.Reques
 	jsonResponse(w, map[string]interface{}{"records": records})
 }
 
+func (h *Handlers) DeleteProfileAssetHistory(w http.ResponseWriter, r *http.Request) {
+	recordID, err := strconv.ParseInt(strings.TrimSpace(chi.URLParam(r, "id")), 10, 64)
+	if err != nil || recordID <= 0 {
+		jsonError(w, "图标历史记录 ID 无效", http.StatusBadRequest)
+		return
+	}
+
+	claims := getClaims(r)
+	record, err := getProfileAssetHistoryRecord(recordID)
+	if err != nil {
+		jsonError(w, "未找到对应的图标历史记录", http.StatusNotFound)
+		return
+	}
+	if claims.Permissions != "admin" && record.CodeID != claims.CodeID {
+		jsonError(w, "无权删除该图标历史记录", http.StatusForbidden)
+		return
+	}
+
+	if strings.TrimSpace(record.AssetPath) != "" {
+		_, sha, err := h.profileGH.GetFile(record.AssetPath)
+		if err == nil && strings.TrimSpace(sha) != "" {
+			if err := h.profileGH.DeleteFile(record.AssetPath, sha, "删除"+profileAssetLabels[record.AssetKind]+": "+record.ProfileName); err != nil {
+				jsonError(w, "删除图标文件失败: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else if err != nil && !strings.Contains(err.Error(), "404") {
+			jsonError(w, "读取图标文件失败: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if err := deleteProfileAssetHistoryRecord(recordID); err != nil {
+		jsonError(w, "删除图标历史失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	logAudit(claims.CodeID, claims.CodeName, "delete_profile_asset", fmt.Sprintf("%d:%s:%s", record.ID, record.ProfileName, record.AssetKind), r.RemoteAddr)
+
+	jsonResponse(w, map[string]string{"message": "图标历史记录已删除"})
+}
+
 func (h *Handlers) GetProfileAsset(w http.ResponseWriter, r *http.Request) {
 	recordID, err := strconv.ParseInt(strings.TrimSpace(chi.URLParam(r, "id")), 10, 64)
 	if err != nil || recordID <= 0 {

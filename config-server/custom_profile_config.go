@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -27,6 +28,9 @@ type UIColorCustomConfig struct {
 	InviteStatsTotalInvitesIconColor     string `json:"invite_stats_total_invites_icon_color"`
 	InviteStatsCommissionRateIconColor   string `json:"invite_stats_commission_rate_icon_color"`
 	InviteStatsTotalCommissionIconColor  string `json:"invite_stats_total_commission_icon_color"`
+	SubscriptionStatusPopupEnabled       bool   `json:"subscription_status_popup_enabled"`
+	SubscriptionStatusOfficialURL        string `json:"subscription_status_official_url"`
+	ProxyGroupsMainPolicyNodesOnly       bool   `json:"proxy_groups_main_policy_nodes_only"`
 }
 
 const (
@@ -44,6 +48,8 @@ const (
 	customFeatureInviteStatsTotalInvitesIconColor     = "invite_stats_total_invites_icon_color"
 	customFeatureInviteStatsCommissionRateIconColor   = "invite_stats_commission_rate_icon_color"
 	customFeatureInviteStatsTotalCommissionIconColor  = "invite_stats_total_commission_icon_color"
+	customFeatureSubscriptionStatusPopup              = "subscription_status_popup"
+	customFeatureMainPolicyNodesOnly                  = "main_policy_nodes_only"
 )
 
 var (
@@ -63,6 +69,8 @@ var (
 		customFeatureInviteStatsTotalInvitesIconColor,
 		customFeatureInviteStatsCommissionRateIconColor,
 		customFeatureInviteStatsTotalCommissionIconColor,
+		customFeatureSubscriptionStatusPopup,
+		customFeatureMainPolicyNodesOnly,
 	}
 )
 
@@ -78,6 +86,25 @@ func normalizeUIColorValue(value string) (string, error) {
 		return "", fmt.Errorf("颜色格式错误，仅支持 #RRGGBB 或 #AARRGGBB")
 	}
 	return strings.ToUpper(value), nil
+}
+
+func normalizeOptionalHTTPURL(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	if strings.ContainsAny(value, " \t\r\n") {
+		return "", fmt.Errorf("官网跳转网址格式错误，仅支持 http:// 或 https://")
+	}
+	parsedURL, err := url.Parse(value)
+	if err != nil {
+		return "", fmt.Errorf("官网跳转网址格式错误，仅支持 http:// 或 https://")
+	}
+	scheme := strings.ToLower(strings.TrimSpace(parsedURL.Scheme))
+	if (scheme != "http" && scheme != "https") || strings.TrimSpace(parsedURL.Host) == "" {
+		return "", fmt.Errorf("官网跳转网址格式错误，仅支持 http:// 或 https://")
+	}
+	return value, nil
 }
 
 func hasCustomFeatureBinding(featureKey string) bool {
@@ -247,6 +274,29 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 		result.InviteStatsTotalCommissionIconColor = readMapStringValue(customColors, "invite_stats_total_commission_icon_color", "inviteStatsTotalCommissionIconColor")
 	}
 
+	subscriptionStatusPopup := getMapValueNode(ui, "subscription_status_popup")
+	if subscriptionStatusPopup == nil {
+		subscriptionStatusPopup = getMapValueNode(ui, "subscriptionStatusPopup")
+	}
+	if subscriptionStatusPopup != nil {
+		if enabledNode := getMapValueNode(subscriptionStatusPopup, "enabled"); enabledNode != nil {
+			result.SubscriptionStatusPopupEnabled = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
+		result.SubscriptionStatusOfficialURL = readMapStringValue(subscriptionStatusPopup, "official_url", "officialUrl")
+	}
+
+	proxyGroups := getMapValueNode(ui, "proxy_groups")
+	if proxyGroups == nil {
+		proxyGroups = getMapValueNode(ui, "proxyGroups")
+	}
+	if proxyGroups != nil {
+		if enabledNode := getMapValueNode(proxyGroups, "main_policy_nodes_only"); enabledNode != nil {
+			result.ProxyGroupsMainPolicyNodesOnly = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(proxyGroups, "mainPolicyNodesOnly"); enabledNode != nil {
+			result.ProxyGroupsMainPolicyNodesOnly = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
+	}
+
 	return result, nil
 }
 
@@ -265,6 +315,8 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	ui := ensureMapValueNode(xboard, "ui")
 	subscriptionUsage := ensureMapValueNode(ui, "subscription_usage")
 	customColors := ensureMapValueNode(ui, "custom_colors")
+	subscriptionStatusPopup := ensureMapValueNode(ui, "subscription_status_popup")
+	proxyGroups := ensureMapValueNode(ui, "proxy_groups")
 
 	setMapBoolValue(subscriptionUsage, "traffic_bar_color_enabled", config.TrafficBarEnabled)
 	removeMapKeys(subscriptionUsage, "trafficBarColorEnabled")
@@ -287,6 +339,12 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	setOrRemoveMapStringValue(customColors, "invite_stats_total_invites_icon_color", config.InviteStatsTotalInvitesIconColor, "inviteStatsTotalInvitesIconColor")
 	setOrRemoveMapStringValue(customColors, "invite_stats_commission_rate_icon_color", config.InviteStatsCommissionRateIconColor, "inviteStatsCommissionRateIconColor")
 	setOrRemoveMapStringValue(customColors, "invite_stats_total_commission_icon_color", config.InviteStatsTotalCommissionIconColor, "inviteStatsTotalCommissionIconColor")
+	setMapBoolValue(subscriptionStatusPopup, "enabled", config.SubscriptionStatusPopupEnabled)
+	setOrRemoveMapStringValue(subscriptionStatusPopup, "official_url", config.SubscriptionStatusOfficialURL, "officialUrl")
+	removeMapKeys(ui, "subscriptionStatusPopup")
+	setMapBoolValue(proxyGroups, "main_policy_nodes_only", config.ProxyGroupsMainPolicyNodesOnly)
+	removeMapKeys(proxyGroups, "mainPolicyNodesOnly")
+	removeMapKeys(ui, "proxyGroups")
 
 	var buf bytes.Buffer
 	encoder := yaml.NewEncoder(&buf)
@@ -378,6 +436,9 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"invite_stats_total_invites_icon_color":    config.InviteStatsTotalInvitesIconColor,
 		"invite_stats_commission_rate_icon_color":  config.InviteStatsCommissionRateIconColor,
 		"invite_stats_total_commission_icon_color": config.InviteStatsTotalCommissionIconColor,
+		"subscription_status_popup_enabled":        config.SubscriptionStatusPopupEnabled,
+		"subscription_status_official_url":         config.SubscriptionStatusOfficialURL,
+		"proxy_groups_main_policy_nodes_only":      config.ProxyGroupsMainPolicyNodesOnly,
 	})
 }
 
@@ -400,6 +461,9 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		InviteStatsTotalInvitesIconColor     string `json:"invite_stats_total_invites_icon_color"`
 		InviteStatsCommissionRateIconColor   string `json:"invite_stats_commission_rate_icon_color"`
 		InviteStatsTotalCommissionIconColor  string `json:"invite_stats_total_commission_icon_color"`
+		SubscriptionStatusPopupEnabled       bool   `json:"subscription_status_popup_enabled"`
+		SubscriptionStatusOfficialURL        string `json:"subscription_status_official_url"`
+		ProxyGroupsMainPolicyNodesOnly       bool   `json:"proxy_groups_main_policy_nodes_only"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", http.StatusBadRequest)
@@ -488,8 +552,17 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	normalizedSubscriptionStatusOfficialURL, err := normalizeOptionalHTTPURL(req.SubscriptionStatusOfficialURL)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureTrafficBarColor) && req.TrafficBarEnabled && normalizedTrafficBarColor == "" {
 		jsonError(w, "开启自定义颜色时必须填写颜色值", http.StatusBadRequest)
+		return
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureSubscriptionStatusPopup) && req.SubscriptionStatusPopupEnabled && normalizedSubscriptionStatusOfficialURL == "" {
+		jsonError(w, "开启登录窗口套餐状态拦截时必须填写官网跳转地址", http.StatusBadRequest)
 		return
 	}
 
@@ -559,6 +632,13 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureInviteStatsTotalCommissionIconColor) {
 		targetConfig.InviteStatsTotalCommissionIconColor = normalizedInviteStatsTotalCommissionIconColor
 	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureSubscriptionStatusPopup) {
+		targetConfig.SubscriptionStatusPopupEnabled = req.SubscriptionStatusPopupEnabled
+		targetConfig.SubscriptionStatusOfficialURL = normalizedSubscriptionStatusOfficialURL
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureMainPolicyNodesOnly) {
+		targetConfig.ProxyGroupsMainPolicyNodesOnly = req.ProxyGroupsMainPolicyNodesOnly
+	}
 
 	var updatedYaml string
 	var patchErr error
@@ -591,7 +671,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	logAudit(claims.CodeID, claims.CodeName, "save_public_ui_color_config", fmt.Sprintf("%s|features=%d", profileName, len(allowedFeatureKeys)), r.RemoteAddr)
 
 	jsonResponse(w, map[string]interface{}{
-		"message":                                  "自定义颜色配置已保存",
+		"message":                                  "自定义功能配置已保存",
 		"profile":                                  profileName,
 		"feature_keys":                             allowedFeatureKeys,
 		"traffic_bar_enabled":                      targetConfig.TrafficBarEnabled,
@@ -609,5 +689,8 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"invite_stats_total_invites_icon_color":    targetConfig.InviteStatsTotalInvitesIconColor,
 		"invite_stats_commission_rate_icon_color":  targetConfig.InviteStatsCommissionRateIconColor,
 		"invite_stats_total_commission_icon_color": targetConfig.InviteStatsTotalCommissionIconColor,
+		"subscription_status_popup_enabled":        targetConfig.SubscriptionStatusPopupEnabled,
+		"subscription_status_official_url":         targetConfig.SubscriptionStatusOfficialURL,
+		"proxy_groups_main_policy_nodes_only":      targetConfig.ProxyGroupsMainPolicyNodesOnly,
 	})
 }

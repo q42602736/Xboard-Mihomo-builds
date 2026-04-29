@@ -122,6 +122,7 @@ func main() {
 		r.Put("/api/profiles/{name}", h.SaveProfile)
 		r.Post("/api/profiles/{name}/assets/{kind}", h.UploadProfileAsset)
 		r.Get("/api/profile-assets/history", h.ListProfileAssetHistory)
+		r.Delete("/api/profile-assets/history/{id}", h.DeleteProfileAssetHistory)
 		r.Delete("/api/profiles/{name}", h.DeleteProfile)
 		r.Get("/api/branches", h.ListBranches)
 		r.Post("/api/build/trigger", h.TriggerBuild)

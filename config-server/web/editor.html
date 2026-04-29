@@ -3538,6 +3538,32 @@
                                         <div class="help-text">留空则继续使用默认邀请统计总佣金图标颜色。</div>
                                     </div>
                                 </div>
+                                <div class="switch-card" data-custom-feature-key="subscription_status_popup" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">登录窗口套餐状态拦截</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="subscriptionStatusPopupEnabled"><span class="slider"></span></label>
+                                            <span id="subscriptionStatusPopupEnabledLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-group" style="margin-bottom:0;">
+                                            <label>官网跳转地址</label>
+                                            <input type="url" id="subscriptionStatusOfficialUrl" placeholder="https://example.com">
+                                        </div>
+                                        <div class="help-text">开启后会在登录窗口校验套餐；无套餐、到期或流量用尽时提示用户前往官网处理。</div>
+                                    </div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="main_policy_nodes_only" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">节点弹窗仅显示主策略节点</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="proxyGroupsMainPolicyNodesOnly"><span class="slider"></span></label>
+                                            <span id="proxyGroupsMainPolicyNodesOnlyLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="help-text">开启后，选择节点弹窗直接显示主策略组节点，不再先显示其他分流组。</div>
+                                </div>
                                 </div>
                                 <div class="page-footer" style="justify-content:flex-start; gap:10px;">
                                     <button type="button" class="btn btn-primary" onclick="loadCustomTrafficBarConfig()">读取当前配置</button>
@@ -4117,6 +4143,25 @@
             return response;
         }
 
+        async function deleteProfileAssetHistory(recordId) {
+            var token = getToken();
+            if (!token) return null;
+
+            var response = await fetch('/api/profile-assets/history/' + encodeURIComponent(recordId), {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            });
+            if (response.status === 401) {
+                sessionStorage.removeItem(getBuildPollKey());
+                sessionStorage.removeItem(SESSION_KEY);
+                window.location.href = '/';
+                return null;
+            }
+            return response;
+        }
+
         function isAdminSession() {
             var session = getSession();
             return !!(session && session.permissions === 'admin');
@@ -4419,6 +4464,7 @@
                 html += '<div class="asset-history-meta">来源档案：' + escapeHtml(record.profile_name || '-') + '<br>上传时间：' + escapeHtml(formatAppIconHistoryTime(record.created_at)) + '</div>';
                 html += '<div class="asset-history-actions">';
                 html += '<button type="button" class="btn btn-secondary" data-record-id="' + escapeHtml(record.id) + '" onclick="applyAppIconHistory(this.dataset.recordId)">使用这个图标</button>';
+                html += '<button type="button" class="btn btn-warning" data-record-id="' + escapeHtml(record.id) + '" onclick="deleteAppIconHistory(this.dataset.recordId)">删除</button>';
                 html += '</div>';
                 html += '</div>';
             });
@@ -4454,6 +4500,43 @@
             updateAppIconPreview(record.asset_url || '');
             formToYaml();
             setStatus('已从历史记录回填应用图标，请记得保存当前档案。', 'success');
+        }
+
+        async function deleteAppIconHistory(recordId) {
+            var record = getAppIconHistoryRecordById(recordId);
+            if (!record) {
+                showAppAlert('未找到对应的历史图标记录。', '提示');
+                return;
+            }
+
+            if (!await showAppConfirm('删除后会同步删除 GitHub 上已上传的图标文件；如果其他档案还在使用这个地址，记得改掉后重新保存。确定继续吗？', '删除历史图标', '确认删除')) {
+                return;
+            }
+
+            try {
+                var response = await deleteProfileAssetHistory(recordId);
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '删除历史图标失败');
+                }
+
+                var appIconUrlInput = document.getElementById('appIconUrl');
+                if (appIconUrlInput && String(appIconUrlInput.value || '').trim() === String(record.asset_url || '').trim()) {
+                    appIconUrlInput.value = '';
+                    updateAppIconPreview('');
+                    formToYaml();
+                }
+
+                appIconHistoryRecords = appIconHistoryRecords.filter(function(item) {
+                    return String(item.id) !== String(recordId);
+                });
+                renderAppIconHistory();
+                setStatus('历史图标已删除；若当前档案曾使用该图标，请记得保存当前档案。', 'success');
+            } catch (e) {
+                showAppAlert('删除历史图标失败：' + e.message, '提示');
+                setStatus('删除历史图标失败：' + e.message, 'error');
+            }
         }
 
         function normalizeDownloadErrorMessage(text, statusCode) {
@@ -5118,6 +5201,10 @@
                 : customUIColorAvailableFeatures.slice();
         }
 
+        function isCustomUIColorFeatureVisible(featureKey) {
+            return getVisibleCustomUIColorFeatureKeys().indexOf(featureKey) !== -1;
+        }
+
         function syncCustomUIColorFeatureVisibility() {
             var visibleFeatureKeys = getVisibleCustomUIColorFeatureKeys();
             document.querySelectorAll('[data-custom-feature-key]').forEach(function(section) {
@@ -5171,6 +5258,12 @@
             applyCustomUIColorTextValue('inviteStatsTotalInvitesIconColor', data.invite_stats_total_invites_icon_color || '');
             applyCustomUIColorTextValue('inviteStatsCommissionRateIconColor', data.invite_stats_commission_rate_icon_color || '');
             applyCustomUIColorTextValue('inviteStatsTotalCommissionIconColor', data.invite_stats_total_commission_icon_color || '');
+            setCustomFeatureSwitchValue('subscriptionStatusPopupEnabled', !!data.subscription_status_popup_enabled);
+            setCustomFeatureSwitchValue('proxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
+            var subscriptionStatusOfficialUrl = document.getElementById('subscriptionStatusOfficialUrl');
+            if (subscriptionStatusOfficialUrl) {
+                subscriptionStatusOfficialUrl.value = data.subscription_status_official_url || '';
+            }
             syncCustomUIColorFeatureVisibility();
         }
 
@@ -5240,6 +5333,35 @@
             if (picker && picker.dataset.defaultColor) {
                 picker.value = picker.dataset.defaultColor;
             }
+        }
+
+        function syncCustomFeatureSwitchLabel(id) {
+            var input = document.getElementById(id);
+            var label = document.getElementById(id + 'Label');
+            if (!input || !label) return;
+            label.textContent = input.checked ? '开启' : '关闭';
+        }
+
+        function setCustomFeatureSwitchValue(id, checked) {
+            var input = document.getElementById(id);
+            if (input) {
+                input.checked = !!checked;
+            }
+            syncCustomFeatureSwitchLabel(id);
+        }
+
+        function initCustomFeatureSwitches() {
+            [
+                'subscriptionStatusPopupEnabled',
+                'proxyGroupsMainPolicyNodesOnly'
+            ].forEach(function(id) {
+                var input = document.getElementById(id);
+                if (!input) return;
+                input.addEventListener('change', function() {
+                    syncCustomFeatureSwitchLabel(id);
+                });
+                syncCustomFeatureSwitchLabel(id);
+            });
         }
 
         async function unlockCustomTrafficBarConfig() {
@@ -5356,6 +5478,9 @@
             var inviteStatsTotalInvitesIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteStatsTotalInvitesIconColor').value);
             var inviteStatsCommissionRateIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteStatsCommissionRateIconColor').value);
             var inviteStatsTotalCommissionIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteStatsTotalCommissionIconColor').value);
+            var subscriptionStatusPopupEnabled = !!document.getElementById('subscriptionStatusPopupEnabled').checked;
+            var subscriptionStatusOfficialUrl = String(document.getElementById('subscriptionStatusOfficialUrl').value || '').trim();
+            var proxyGroupsMainPolicyNodesOnly = !!document.getElementById('proxyGroupsMainPolicyNodesOnly').checked;
 
             if (!profileName) {
                 setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
@@ -5367,6 +5492,14 @@
             }
             if (!isAdminSession() && !integrationCode) {
                 setCustomTrafficBarStatus('请输入对接码后再保存公共配置', 'error');
+                return;
+            }
+            if (
+                isCustomUIColorFeatureVisible('subscription_status_popup') &&
+                subscriptionStatusPopupEnabled &&
+                !/^https?:\/\//i.test(subscriptionStatusOfficialUrl)
+            ) {
+                setCustomTrafficBarStatus('开启登录窗口套餐状态拦截时，请填写 http:// 或 https:// 开头的官网跳转地址', 'error');
                 return;
             }
 
@@ -5389,7 +5522,10 @@
                     commission_balance_card_background_color: commissionBalanceCardBackgroundColor,
                     invite_stats_total_invites_icon_color: inviteStatsTotalInvitesIconColor,
                     invite_stats_commission_rate_icon_color: inviteStatsCommissionRateIconColor,
-                    invite_stats_total_commission_icon_color: inviteStatsTotalCommissionIconColor
+                    invite_stats_total_commission_icon_color: inviteStatsTotalCommissionIconColor,
+                    subscription_status_popup_enabled: subscriptionStatusPopupEnabled,
+                    subscription_status_official_url: subscriptionStatusOfficialUrl,
+                    proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly
                 });
                 if (!response) return;
                 var data = await response.json();
@@ -5434,7 +5570,9 @@
             'commission_balance_card_background_color',
             'invite_stats_total_invites_icon_color',
             'invite_stats_commission_rate_icon_color',
-            'invite_stats_total_commission_icon_color'
+            'invite_stats_total_commission_icon_color',
+            'subscription_status_popup',
+            'main_policy_nodes_only'
         ];
         var CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY = 'nexgen_custom_traffic_bar_code_v1';
         var sources = [];
@@ -6005,6 +6143,7 @@
             document.getElementById('cancelSaveProfileBtn').addEventListener('click', hideSaveProfileInput);
 
             initSwitches();
+            initCustomFeatureSwitches();
             initPlatformCheckboxes();
             initCustomSelects(document);
             observeCustomSelectTree();
@@ -6089,8 +6228,12 @@
                 '      value: 0',
                 '    notice:',
                 '      auto_open_on_startup: false',
+                '    subscription_status_popup:',
+                '      enabled: false',
+                '      official_url: ""',
                 '    proxy_groups:',
                 '      show_custom_rule_entry: true',
+                '      main_policy_nodes_only: false',
                 '    online_support:',
                 '      auth_pages:',
                 '        show_button: false',

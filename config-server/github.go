@@ -61,37 +61,80 @@ func (g *GitHubClient) doRequest(method, url string, body interface{}) (*http.Re
 }
 
 type ghFileResponse struct {
-	Content string `json:"content"`
-	SHA     string `json:"sha"`
+	Content     string `json:"content"`
+	SHA         string `json:"sha"`
+	Encoding    string `json:"encoding"`
+	DownloadURL string `json:"download_url"`
 }
 
-// GetFile 从 GitHub 仓库读取文件，返回解码后的内容和 SHA
-func (g *GitHubClient) GetFile(path string) (content string, sha string, err error) {
-	url := g.apiURL("contents/" + escapeGitHubContentPath(path) + "?ref=" + url.QueryEscape(g.Branch))
-	resp, err := g.doRequest("GET", url, nil)
+func (g *GitHubClient) doRawGet(url string) ([]byte, error) {
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return "", "", err
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "token "+g.Token)
+	req.Header.Set("Accept", "application/vnd.github.raw")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return "", "", fmt.Errorf("GitHub API 错误 (%d): %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("GitHub API 错误 (%d): %s", resp.StatusCode, string(respBody))
+	}
+
+	return io.ReadAll(resp.Body)
+}
+
+func (g *GitHubClient) GetFileBytes(path string) (content []byte, sha string, err error) {
+	url := g.apiURL("contents/" + escapeGitHubContentPath(path) + "?ref=" + url.QueryEscape(g.Branch))
+	resp, err := g.doRequest("GET", url, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, "", fmt.Errorf("GitHub API 错误 (%d): %s", resp.StatusCode, string(respBody))
 	}
 
 	var fc ghFileResponse
 	if err := json.NewDecoder(resp.Body).Decode(&fc); err != nil {
-		return "", "", err
+		return nil, "", err
 	}
 
-	// GitHub 返回的 base64 可能包含换行符
+	// GitHub Contents API 对 1-100MB 文件在默认 JSON 响应里会返回空 content，
+	// 需要改用 raw 媒体类型重新获取真实字节内容。
+	if strings.TrimSpace(fc.Content) == "" || strings.EqualFold(strings.TrimSpace(fc.Encoding), "none") {
+		rawBytes, err := g.doRawGet(url)
+		if err != nil {
+			return nil, "", err
+		}
+		return rawBytes, fc.SHA, nil
+	}
+
 	cleaned := strings.ReplaceAll(fc.Content, "\n", "")
 	decoded, err := base64.StdEncoding.DecodeString(cleaned)
 	if err != nil {
-		return "", "", err
+		return nil, "", err
 	}
 
-	return string(decoded), fc.SHA, nil
+	return decoded, fc.SHA, nil
+}
+
+// GetFile 从 GitHub 仓库读取文件，返回解码后的内容和 SHA
+func (g *GitHubClient) GetFile(path string) (content string, sha string, err error) {
+	data, sha, err := g.GetFileBytes(path)
+	if err != nil {
+		return "", "", err
+	}
+	return string(data), sha, nil
 }
 
 // SaveFile 创建或更新 GitHub 仓库中的文件。sha 为空时创建新文件，非空时更新。
