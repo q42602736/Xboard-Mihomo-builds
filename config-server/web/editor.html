@@ -1379,9 +1379,69 @@
         .custom-feature-grid .switch-card-extra .form-row {
             margin-top: 0;
         }
+        .cloud-dispatch-extra {
+            display: grid;
+            gap: 16px;
+        }
+        .cloud-dispatch-fields {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+            gap: 15px;
+            align-items: start;
+        }
+        .cloud-dispatch-auto-section {
+            display: grid;
+            gap: 12px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .cloud-dispatch-auto-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .cloud-dispatch-auto-copy {
+            min-width: 0;
+        }
+        .cloud-dispatch-auto-title {
+            color: #ddd;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+        .cloud-dispatch-auto-hint {
+            color: #7f8b98;
+            font-size: 12px;
+            line-height: 1.6;
+            margin-top: 3px;
+        }
+        .cloud-dispatch-auto-control {
+            flex-shrink: 0;
+        }
+        .cloud-dispatch-auto-input {
+            max-width: 280px;
+        }
+        .cloud-dispatch-note {
+            margin-top: 2px !important;
+            max-width: 76ch;
+            line-height: 1.7;
+        }
         @media (max-width: 920px) {
             .custom-feature-grid {
                 grid-template-columns: 1fr;
+            }
+            .cloud-dispatch-fields {
+                grid-template-columns: 1fr;
+            }
+            .cloud-dispatch-auto-input {
+                max-width: none;
+            }
+        }
+        @media (max-width: 560px) {
+            .cloud-dispatch-auto-header {
+                align-items: flex-start;
+                flex-direction: column;
             }
         }
         .exclusive-mode-notice {
@@ -3586,11 +3646,11 @@
                                             <span id="cloudDispatchEnabledLabel">关闭</span>
                                         </div>
                                     </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row-2">
+                                    <div class="switch-card-extra cloud-dispatch-extra">
+                                        <div class="cloud-dispatch-fields">
                                             <div class="form-group">
                                                 <label>GTM 服务地址</label>
-                                                <input type="url" id="cloudDispatchQueryUrl" placeholder="http://138.2.42.196:8080">
+                                                <input type="url" id="cloudDispatchQueryUrl" placeholder="https://gtm.example.com">
                                                 <div class="help-text">只填协议、主机和端口即可；客户端固定请求 <code>/api/query/machines</code>。</div>
                                             </div>
                                             <div class="form-group">
@@ -3598,23 +3658,23 @@
                                                 <input type="text" id="cloudDispatchQuerySecret" placeholder="填写 GTM QUERY_SECRET">
                                             </div>
                                         </div>
-                                        <div class="form-row-2">
-                                            <div class="form-group">
-                                                <label>目标域名列表</label>
-                                                <textarea id="cloudDispatchTargetHost" placeholder="hk.edge.imttk.com&#10;sg.edge.imttk.com"></textarea>
-                                                <div class="help-text">每行一个域名，也支持逗号或空格分隔；配置中命中哪个域名，就替换成该域名对应的 GTM 最新公网 IPv4。</div>
+                                        <div class="cloud-dispatch-auto-section">
+                                            <div class="cloud-dispatch-auto-header">
+                                                <div class="cloud-dispatch-auto-copy">
+                                                    <div class="cloud-dispatch-auto-title">自动调度</div>
+                                                    <div class="cloud-dispatch-auto-hint">开启后客户端按间隔自动查询并替换入口 IP。</div>
+                                                </div>
+                                                <div class="switch-group cloud-dispatch-auto-control">
+                                                    <label class="switch"><input type="checkbox" id="cloudDispatchAutoEnabled"><span class="slider"></span></label>
+                                                    <span id="cloudDispatchAutoEnabledLabel">关闭</span>
+                                                </div>
                                             </div>
-                                            <div class="form-group">
+                                            <div class="form-group cloud-dispatch-auto-input">
                                                 <label>自动调度间隔（分钟）</label>
                                                 <input type="number" id="cloudDispatchAutoIntervalMinutes" min="1" max="1440" value="5">
                                             </div>
                                         </div>
-                                        <div class="switch-group" style="margin-top:8px;">
-                                            <label class="switch"><input type="checkbox" id="cloudDispatchAutoEnabled"><span class="slider"></span></label>
-                                            <span id="cloudDispatchAutoEnabledLabel">关闭</span>
-                                            <span class="help-text" style="margin-top:0;">开启后客户端按间隔自动查询并替换入口 IP。</span>
-                                        </div>
-                                        <div class="help-text">客户端只使用 GTM 服务地址和查询密钥，不需要上传密钥或后台 token。</div>
+                                        <div class="help-text cloud-dispatch-note">客户端只使用 GTM 服务地址和查询密钥，不需要上传密钥或后台 token；会自动用 GTM 返回域名匹配订阅节点，未知运营商命中 GTM 总入口时随机选择可用分类入口。</div>
                                     </div>
                                 </div>
                                 </div>
@@ -5327,12 +5387,6 @@
             if (cloudDispatchQuerySecret) {
                 cloudDispatchQuerySecret.value = data.cloud_dispatch_query_secret || '';
             }
-            var cloudDispatchTargetHost = document.getElementById('cloudDispatchTargetHost');
-            if (cloudDispatchTargetHost) {
-                cloudDispatchTargetHost.value = cloudDispatchTargetHostsToText(
-                    data.cloud_dispatch_target_hosts || data.cloud_dispatch_target_host || 'hk.edge.imttk.com'
-                );
-            }
             var cloudDispatchAutoIntervalMinutes = document.getElementById('cloudDispatchAutoIntervalMinutes');
             if (cloudDispatchAutoIntervalMinutes) {
                 cloudDispatchAutoIntervalMinutes.value = data.cloud_dispatch_auto_interval_minutes || 5;
@@ -5559,8 +5613,6 @@
             var cloudDispatchEnabled = !!document.getElementById('cloudDispatchEnabled').checked;
             var cloudDispatchQueryUrl = String(document.getElementById('cloudDispatchQueryUrl').value || '').trim();
             var cloudDispatchQuerySecret = String(document.getElementById('cloudDispatchQuerySecret').value || '').trim();
-            var cloudDispatchTargetHosts = normalizeCloudDispatchTargetHostsValue(document.getElementById('cloudDispatchTargetHost').value || '');
-            var cloudDispatchTargetHost = cloudDispatchTargetHosts[0] || 'hk.edge.imttk.com';
             var cloudDispatchAutoEnabled = !!document.getElementById('cloudDispatchAutoEnabled').checked;
             var cloudDispatchAutoIntervalMinutes = parseInt(document.getElementById('cloudDispatchAutoIntervalMinutes').value || '5', 10) || 5;
 
@@ -5591,10 +5643,6 @@
                 }
                 if (!cloudDispatchQuerySecret) {
                     setCustomTrafficBarStatus('开启云端调度时，请填写查询密钥', 'error');
-                    return;
-                }
-                if (!cloudDispatchTargetHosts.length) {
-                    setCustomTrafficBarStatus('开启云端调度时，请至少填写一个目标域名', 'error');
                     return;
                 }
                 if (cloudDispatchAutoIntervalMinutes < 1) {
@@ -5629,8 +5677,6 @@
                     cloud_dispatch_enabled: cloudDispatchEnabled,
                     cloud_dispatch_query_url: cloudDispatchQueryUrl,
                     cloud_dispatch_query_secret: cloudDispatchQuerySecret,
-                    cloud_dispatch_target_host: cloudDispatchTargetHost,
-                    cloud_dispatch_target_hosts: cloudDispatchTargetHosts,
                     cloud_dispatch_auto_enabled: cloudDispatchAutoEnabled,
                     cloud_dispatch_auto_interval_minutes: cloudDispatchAutoIntervalMinutes
                 });
@@ -6308,11 +6354,12 @@
                 '    enabled: false',
                 '    ttl_hours: 24',
                 '  cloud_dispatch:',
+                '    # GTM 服务地址只填基础地址，客户端固定请求 /api/query/machines',
                 '    enabled: false',
                 '    query_url: ""',
                 '    query_secret: ""',
-                '    target_hosts:',
-                '      - "hk.edge.imttk.com"',
+                '    # 客户端会自动用 GTM 返回域名匹配订阅节点，无需手动配置目标域名',
+                '    # 未识别来源运营商且命中 GTM 总入口时，随机选择一个可用分类入口',
                 '    auto:',
                 '      enabled: false',
                 '      interval_minutes: 5',
@@ -6512,8 +6559,6 @@
                 cloud_dispatch_enabled: document.getElementById('cloudDispatchEnabled') ? document.getElementById('cloudDispatchEnabled').checked : false,
                 cloud_dispatch_query_url: document.getElementById('cloudDispatchQueryUrl') ? document.getElementById('cloudDispatchQueryUrl').value.trim() : '',
                 cloud_dispatch_query_secret: document.getElementById('cloudDispatchQuerySecret') ? document.getElementById('cloudDispatchQuerySecret').value.trim() : '',
-                cloud_dispatch_target_host: document.getElementById('cloudDispatchTargetHost') ? normalizeCloudDispatchTargetHostsValue(document.getElementById('cloudDispatchTargetHost').value)[0] : 'hk.edge.imttk.com',
-                cloud_dispatch_target_hosts: document.getElementById('cloudDispatchTargetHost') ? normalizeCloudDispatchTargetHostsValue(document.getElementById('cloudDispatchTargetHost').value) : ['hk.edge.imttk.com'],
                 cloud_dispatch_auto_enabled: document.getElementById('cloudDispatchAutoEnabled') ? document.getElementById('cloudDispatchAutoEnabled').checked : false,
                 cloud_dispatch_auto_interval_minutes: document.getElementById('cloudDispatchAutoIntervalMinutes') ? (parseInt(document.getElementById('cloudDispatchAutoIntervalMinutes').value || '5', 10) || 5) : 5,
                 subscription_cache_enabled: document.getElementById('subscriptionCacheEnabled').checked,
@@ -8535,48 +8580,6 @@
             return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
         }
 
-        function normalizeCloudDispatchTargetHostsValue(value) {
-            var result = [];
-            String(value || '').split(/[\s,，]+/).forEach(function(item) {
-                item = String(item || '').trim().toLowerCase();
-                if (item && result.indexOf(item) === -1) {
-                    result.push(item);
-                }
-            });
-            return result.length ? result : ['hk.edge.imttk.com'];
-        }
-
-        function cloudDispatchTargetHostsToText(value) {
-            if (Array.isArray(value)) {
-                return normalizeCloudDispatchTargetHostsValue(value.join('\n')).join('\n');
-            }
-            return normalizeCloudDispatchTargetHostsValue(value || 'hk.edge.imttk.com').join('\n');
-        }
-
-        function extractCloudDispatchTargetHostsFromYaml(yaml) {
-            var listMatch =
-                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}target_hosts:\s*\n((?:^\s{6}-[^\n]*(?:\n|$))+)/m) ||
-                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)targetHosts:\s*\n((?:^\s*-?[^\n]*(?:\n|$))+)/m);
-            if (listMatch) {
-                var values = [];
-                listMatch[1].split(/\n/).forEach(function(line) {
-                    var itemMatch = line.match(/^\s*-\s*(.*)$/);
-                    if (itemMatch) {
-                        values.push(itemMatch[1].trim().replace(/^["']|["']$/g, ''));
-                    }
-                });
-                if (values.length) {
-                    return normalizeCloudDispatchTargetHostsValue(values.join('\n'));
-                }
-            }
-            var singleMatch =
-                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}target_host:[^\S\n]*(.*)/m) ||
-                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)targetHost:[^\S\n]*(.*)/);
-            return normalizeCloudDispatchTargetHostsValue(
-                singleMatch ? singleMatch[1].trim().replace(/^["']|["']$/g, '') : 'hk.edge.imttk.com'
-            );
-        }
-
         function createSupportItem(index, item) {
             item = normalizeSupportItem(item || { type: 'browser', url: '', description: '', website_id: '', widget_id: '', property_id: '', website_token: '', base_url: '', chatra_id: '', widget_code: '' });
             var div = document.createElement('div');
@@ -8785,9 +8788,6 @@
             }
             if (document.getElementById('cloudDispatchQuerySecret')) {
                 document.getElementById('cloudDispatchQuerySecret').value = cloudDispatchQuerySecretMatch ? cloudDispatchQuerySecretMatch[1].trim().replace(/^["']|["']$/g, '') : '';
-            }
-            if (document.getElementById('cloudDispatchTargetHost')) {
-                document.getElementById('cloudDispatchTargetHost').value = extractCloudDispatchTargetHostsFromYaml(yaml).join('\n');
             }
             var cloudDispatchAutoEnabledMatch =
                 yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}auto:\s*\n(?:[\s\S]*?)^\s{6}enabled:\s*(true|false)/m) ||

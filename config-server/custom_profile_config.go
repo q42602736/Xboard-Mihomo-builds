@@ -143,19 +143,11 @@ func normalizeCloudDispatchQueryURL(value string) (string, error) {
 }
 
 func normalizeCloudDispatchTargetHost(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return "hk.edge.imttk.com"
-	}
-	return strings.ToLower(value)
+	return strings.ToLower(strings.TrimSpace(value))
 }
 
 func normalizeCloudDispatchTargetHosts(values []string) []string {
-	result := normalizeCloudDispatchTargetHostsOptional(values)
-	if len(result) == 0 {
-		return []string{"hk.edge.imttk.com"}
-	}
-	return result
+	return normalizeCloudDispatchTargetHostsOptional(values)
 }
 
 func normalizeCloudDispatchTargetHostsOptional(values []string) []string {
@@ -182,7 +174,7 @@ func normalizeCloudDispatchTargetHostsOptional(values []string) []string {
 func firstCloudDispatchTargetHost(values []string) string {
 	normalized := normalizeCloudDispatchTargetHosts(values)
 	if len(normalized) == 0 {
-		return "hk.edge.imttk.com"
+		return ""
 	}
 	return normalized[0]
 }
@@ -496,16 +488,10 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	setMapBoolValue(cloudDispatch, "enabled", config.CloudDispatchEnabled)
 	setOrRemoveMapStringValue(cloudDispatch, "query_url", config.CloudDispatchQueryURL, "queryUrl")
 	setOrRemoveMapStringValue(cloudDispatch, "query_secret", config.CloudDispatchQuerySecret, "querySecret")
-	targetHosts := normalizeCloudDispatchTargetHostsOptional(config.CloudDispatchTargetHosts)
-	if len(targetHosts) == 0 {
-		targetHosts = normalizeCloudDispatchTargetHosts([]string{config.CloudDispatchTargetHost})
-	}
-	setMapNodeValue(cloudDispatch, "target_hosts", newStringSequenceYamlNode(targetHosts))
-	setMapStringValue(cloudDispatch, "target_host", firstCloudDispatchTargetHost(targetHosts))
 	setMapBoolValue(cloudDispatchAuto, "enabled", config.CloudDispatchAutoEnabled)
 	setMapIntValue(cloudDispatchAuto, "interval_minutes", normalizeCloudDispatchInterval(config.CloudDispatchAutoIntervalMinutes))
 	removeMapKeys(cloudDispatchAuto, "intervalMinutes")
-	removeMapKeys(cloudDispatch, "queryUrl", "querySecret", "targetHost", "targetHosts")
+	removeMapKeys(cloudDispatch, "target_host", "target_hosts", "queryUrl", "querySecret", "targetHost", "targetHosts")
 	removeMapKeys(xboard, "cloudDispatch")
 
 	var buf bytes.Buffer
@@ -738,11 +724,6 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	normalizedCloudDispatchTargetHosts := normalizeCloudDispatchTargetHostsOptional(req.CloudDispatchTargetHosts)
-	if len(normalizedCloudDispatchTargetHosts) == 0 {
-		normalizedCloudDispatchTargetHosts = normalizeCloudDispatchTargetHosts([]string{req.CloudDispatchTargetHost})
-	}
-	normalizedCloudDispatchTargetHost := firstCloudDispatchTargetHost(normalizedCloudDispatchTargetHosts)
 	normalizedCloudDispatchAutoIntervalMinutes := normalizeCloudDispatchInterval(req.CloudDispatchAutoIntervalMinutes)
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureTrafficBarColor) && req.TrafficBarEnabled && normalizedTrafficBarColor == "" {
 		jsonError(w, "开启自定义颜色时必须填写颜色值", http.StatusBadRequest)
@@ -840,8 +821,8 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		targetConfig.CloudDispatchEnabled = req.CloudDispatchEnabled
 		targetConfig.CloudDispatchQueryURL = normalizedCloudDispatchQueryURL
 		targetConfig.CloudDispatchQuerySecret = strings.TrimSpace(req.CloudDispatchQuerySecret)
-		targetConfig.CloudDispatchTargetHost = normalizedCloudDispatchTargetHost
-		targetConfig.CloudDispatchTargetHosts = normalizedCloudDispatchTargetHosts
+		targetConfig.CloudDispatchTargetHost = ""
+		targetConfig.CloudDispatchTargetHosts = []string{}
 		targetConfig.CloudDispatchAutoEnabled = req.CloudDispatchAutoEnabled
 		targetConfig.CloudDispatchAutoIntervalMinutes = normalizedCloudDispatchAutoIntervalMinutes
 	}

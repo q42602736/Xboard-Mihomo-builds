@@ -118,25 +118,23 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	setMapStringValue(subscription, "decrypt_key", form.DecryptKey)
 	setMapBoolValue(autoOffline, "enabled", form.AutoOfflineEnabled)
 	setMapBoolValue(cloudDispatch, "enabled", form.CloudDispatchEnabled)
-	if strings.TrimSpace(form.CloudDispatchQueryURL) == "" {
+	normalizedCloudDispatchQueryURL, err := normalizeCloudDispatchQueryURL(form.CloudDispatchQueryURL)
+	if err != nil {
+		return "", err
+	}
+	if normalizedCloudDispatchQueryURL == "" {
 		removeMapKeys(cloudDispatch, "query_url")
 	} else {
-		setMapStringValue(cloudDispatch, "query_url", strings.TrimSpace(form.CloudDispatchQueryURL))
+		setMapStringValue(cloudDispatch, "query_url", normalizedCloudDispatchQueryURL)
 	}
 	if strings.TrimSpace(form.CloudDispatchQuerySecret) == "" {
 		removeMapKeys(cloudDispatch, "query_secret")
 	} else {
 		setMapStringValue(cloudDispatch, "query_secret", strings.TrimSpace(form.CloudDispatchQuerySecret))
 	}
-	targetHosts := normalizeCloudDispatchTargetHostsOptional(form.CloudDispatchTargetHosts)
-	if len(targetHosts) == 0 {
-		targetHosts = normalizeCloudDispatchTargetHosts([]string{form.CloudDispatchTargetHost})
-	}
-	setMapNodeValue(cloudDispatch, "target_hosts", newStringSequenceYamlNode(targetHosts))
-	setMapStringValue(cloudDispatch, "target_host", firstCloudDispatchTargetHost(targetHosts))
 	setMapBoolValue(cloudDispatchAuto, "enabled", form.CloudDispatchAutoEnabled)
 	setMapIntValue(cloudDispatchAuto, "interval_minutes", normalizeCloudDispatchIntervalValue(form.CloudDispatchAutoInterval))
-	removeMapKeys(cloudDispatch, "queryUrl", "querySecret", "targetHost", "targetHosts")
+	removeMapKeys(cloudDispatch, "target_host", "target_hosts", "queryUrl", "querySecret", "targetHost", "targetHosts")
 	removeMapKeys(cloudDispatchAuto, "intervalMinutes")
 	removeMapKeys(xboard, "cloudDispatch")
 	setMapBoolValue(subscriptionCache, "enabled", form.SubscriptionCacheEnabled)
