@@ -366,7 +366,21 @@
             color: #fff;
             font-size: 14px;
         }
+        .form-group textarea {
+            width: 100%;
+            min-height: 86px;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
+            box-sizing: border-box;
+        }
         .form-group input:focus { outline: none; border-color: #00d4ff; }
+        .form-group textarea:focus { outline: none; border-color: #00d4ff; }
         .asset-upload-actions {
             display: flex;
             align-items: center;
@@ -3564,6 +3578,45 @@
                                     </div>
                                     <div class="help-text">开启后，选择节点弹窗直接显示主策略组节点，不再先显示其他分流组。</div>
                                 </div>
+                                <div class="switch-card" data-custom-feature-key="cloud_dispatch" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">云端调度</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="cloudDispatchEnabled"><span class="slider"></span></label>
+                                            <span id="cloudDispatchEnabledLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row-2">
+                                            <div class="form-group">
+                                                <label>GTM 服务地址</label>
+                                                <input type="url" id="cloudDispatchQueryUrl" placeholder="http://138.2.42.196:8080">
+                                                <div class="help-text">只填协议、主机和端口即可；客户端固定请求 <code>/api/query/machines</code>。</div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>查询密钥</label>
+                                                <input type="text" id="cloudDispatchQuerySecret" placeholder="填写 GTM QUERY_SECRET">
+                                            </div>
+                                        </div>
+                                        <div class="form-row-2">
+                                            <div class="form-group">
+                                                <label>目标域名列表</label>
+                                                <textarea id="cloudDispatchTargetHost" placeholder="hk.edge.imttk.com&#10;sg.edge.imttk.com"></textarea>
+                                                <div class="help-text">每行一个域名，也支持逗号或空格分隔；配置中命中哪个域名，就替换成该域名对应的 GTM 最新公网 IPv4。</div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>自动调度间隔（分钟）</label>
+                                                <input type="number" id="cloudDispatchAutoIntervalMinutes" min="1" max="1440" value="5">
+                                            </div>
+                                        </div>
+                                        <div class="switch-group" style="margin-top:8px;">
+                                            <label class="switch"><input type="checkbox" id="cloudDispatchAutoEnabled"><span class="slider"></span></label>
+                                            <span id="cloudDispatchAutoEnabledLabel">关闭</span>
+                                            <span class="help-text" style="margin-top:0;">开启后客户端按间隔自动查询并替换入口 IP。</span>
+                                        </div>
+                                        <div class="help-text">客户端只使用 GTM 服务地址和查询密钥，不需要上传密钥或后台 token。</div>
+                                    </div>
+                                </div>
                                 </div>
                                 <div class="page-footer" style="justify-content:flex-start; gap:10px;">
                                     <button type="button" class="btn btn-primary" onclick="loadCustomTrafficBarConfig()">读取当前配置</button>
@@ -5260,9 +5313,29 @@
             applyCustomUIColorTextValue('inviteStatsTotalCommissionIconColor', data.invite_stats_total_commission_icon_color || '');
             setCustomFeatureSwitchValue('subscriptionStatusPopupEnabled', !!data.subscription_status_popup_enabled);
             setCustomFeatureSwitchValue('proxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
+            setCustomFeatureSwitchValue('cloudDispatchEnabled', !!data.cloud_dispatch_enabled);
+            setCustomFeatureSwitchValue('cloudDispatchAutoEnabled', !!data.cloud_dispatch_auto_enabled);
             var subscriptionStatusOfficialUrl = document.getElementById('subscriptionStatusOfficialUrl');
             if (subscriptionStatusOfficialUrl) {
                 subscriptionStatusOfficialUrl.value = data.subscription_status_official_url || '';
+            }
+            var cloudDispatchQueryUrl = document.getElementById('cloudDispatchQueryUrl');
+            if (cloudDispatchQueryUrl) {
+                cloudDispatchQueryUrl.value = data.cloud_dispatch_query_url || '';
+            }
+            var cloudDispatchQuerySecret = document.getElementById('cloudDispatchQuerySecret');
+            if (cloudDispatchQuerySecret) {
+                cloudDispatchQuerySecret.value = data.cloud_dispatch_query_secret || '';
+            }
+            var cloudDispatchTargetHost = document.getElementById('cloudDispatchTargetHost');
+            if (cloudDispatchTargetHost) {
+                cloudDispatchTargetHost.value = cloudDispatchTargetHostsToText(
+                    data.cloud_dispatch_target_hosts || data.cloud_dispatch_target_host || 'hk.edge.imttk.com'
+                );
+            }
+            var cloudDispatchAutoIntervalMinutes = document.getElementById('cloudDispatchAutoIntervalMinutes');
+            if (cloudDispatchAutoIntervalMinutes) {
+                cloudDispatchAutoIntervalMinutes.value = data.cloud_dispatch_auto_interval_minutes || 5;
             }
             syncCustomUIColorFeatureVisibility();
         }
@@ -5353,7 +5426,9 @@
         function initCustomFeatureSwitches() {
             [
                 'subscriptionStatusPopupEnabled',
-                'proxyGroupsMainPolicyNodesOnly'
+                'proxyGroupsMainPolicyNodesOnly',
+                'cloudDispatchEnabled',
+                'cloudDispatchAutoEnabled'
             ].forEach(function(id) {
                 var input = document.getElementById(id);
                 if (!input) return;
@@ -5481,6 +5556,13 @@
             var subscriptionStatusPopupEnabled = !!document.getElementById('subscriptionStatusPopupEnabled').checked;
             var subscriptionStatusOfficialUrl = String(document.getElementById('subscriptionStatusOfficialUrl').value || '').trim();
             var proxyGroupsMainPolicyNodesOnly = !!document.getElementById('proxyGroupsMainPolicyNodesOnly').checked;
+            var cloudDispatchEnabled = !!document.getElementById('cloudDispatchEnabled').checked;
+            var cloudDispatchQueryUrl = String(document.getElementById('cloudDispatchQueryUrl').value || '').trim();
+            var cloudDispatchQuerySecret = String(document.getElementById('cloudDispatchQuerySecret').value || '').trim();
+            var cloudDispatchTargetHosts = normalizeCloudDispatchTargetHostsValue(document.getElementById('cloudDispatchTargetHost').value || '');
+            var cloudDispatchTargetHost = cloudDispatchTargetHosts[0] || 'hk.edge.imttk.com';
+            var cloudDispatchAutoEnabled = !!document.getElementById('cloudDispatchAutoEnabled').checked;
+            var cloudDispatchAutoIntervalMinutes = parseInt(document.getElementById('cloudDispatchAutoIntervalMinutes').value || '5', 10) || 5;
 
             if (!profileName) {
                 setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
@@ -5501,6 +5583,24 @@
             ) {
                 setCustomTrafficBarStatus('开启登录窗口套餐状态拦截时，请填写 http:// 或 https:// 开头的官网跳转地址', 'error');
                 return;
+            }
+            if (isCustomUIColorFeatureVisible('cloud_dispatch') && cloudDispatchEnabled) {
+                if (!/^https?:\/\//i.test(cloudDispatchQueryUrl)) {
+                    setCustomTrafficBarStatus('开启云端调度时，请填写 http:// 或 https:// 开头的 GTM 服务地址', 'error');
+                    return;
+                }
+                if (!cloudDispatchQuerySecret) {
+                    setCustomTrafficBarStatus('开启云端调度时，请填写查询密钥', 'error');
+                    return;
+                }
+                if (!cloudDispatchTargetHosts.length) {
+                    setCustomTrafficBarStatus('开启云端调度时，请至少填写一个目标域名', 'error');
+                    return;
+                }
+                if (cloudDispatchAutoIntervalMinutes < 1) {
+                    setCustomTrafficBarStatus('自动调度间隔不能小于 1 分钟', 'error');
+                    return;
+                }
             }
 
             setCustomTrafficBarStatus('正在写入公共配置...', 'info');
@@ -5525,7 +5625,14 @@
                     invite_stats_total_commission_icon_color: inviteStatsTotalCommissionIconColor,
                     subscription_status_popup_enabled: subscriptionStatusPopupEnabled,
                     subscription_status_official_url: subscriptionStatusOfficialUrl,
-                    proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly
+                    proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly,
+                    cloud_dispatch_enabled: cloudDispatchEnabled,
+                    cloud_dispatch_query_url: cloudDispatchQueryUrl,
+                    cloud_dispatch_query_secret: cloudDispatchQuerySecret,
+                    cloud_dispatch_target_host: cloudDispatchTargetHost,
+                    cloud_dispatch_target_hosts: cloudDispatchTargetHosts,
+                    cloud_dispatch_auto_enabled: cloudDispatchAutoEnabled,
+                    cloud_dispatch_auto_interval_minutes: cloudDispatchAutoIntervalMinutes
                 });
                 if (!response) return;
                 var data = await response.json();
@@ -5572,7 +5679,8 @@
             'invite_stats_commission_rate_icon_color',
             'invite_stats_total_commission_icon_color',
             'subscription_status_popup',
-            'main_policy_nodes_only'
+            'main_policy_nodes_only',
+            'cloud_dispatch'
         ];
         var CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY = 'nexgen_custom_traffic_bar_code_v1';
         var sources = [];
@@ -6199,6 +6307,15 @@
                 '  subscription_cache:',
                 '    enabled: false',
                 '    ttl_hours: 24',
+                '  cloud_dispatch:',
+                '    enabled: false',
+                '    query_url: ""',
+                '    query_secret: ""',
+                '    target_hosts:',
+                '      - "hk.edge.imttk.com"',
+                '    auto:',
+                '      enabled: false',
+                '      interval_minutes: 5',
                 '  remote_config:',
                 '    sources:',
                 '      - name: redirect',
@@ -6392,6 +6509,13 @@
                 use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
                 auto_offline_enabled: document.getElementById('autoOfflineEnabled').checked,
+                cloud_dispatch_enabled: document.getElementById('cloudDispatchEnabled') ? document.getElementById('cloudDispatchEnabled').checked : false,
+                cloud_dispatch_query_url: document.getElementById('cloudDispatchQueryUrl') ? document.getElementById('cloudDispatchQueryUrl').value.trim() : '',
+                cloud_dispatch_query_secret: document.getElementById('cloudDispatchQuerySecret') ? document.getElementById('cloudDispatchQuerySecret').value.trim() : '',
+                cloud_dispatch_target_host: document.getElementById('cloudDispatchTargetHost') ? normalizeCloudDispatchTargetHostsValue(document.getElementById('cloudDispatchTargetHost').value)[0] : 'hk.edge.imttk.com',
+                cloud_dispatch_target_hosts: document.getElementById('cloudDispatchTargetHost') ? normalizeCloudDispatchTargetHostsValue(document.getElementById('cloudDispatchTargetHost').value) : ['hk.edge.imttk.com'],
+                cloud_dispatch_auto_enabled: document.getElementById('cloudDispatchAutoEnabled') ? document.getElementById('cloudDispatchAutoEnabled').checked : false,
+                cloud_dispatch_auto_interval_minutes: document.getElementById('cloudDispatchAutoIntervalMinutes') ? (parseInt(document.getElementById('cloudDispatchAutoIntervalMinutes').value || '5', 10) || 5) : 5,
                 subscription_cache_enabled: document.getElementById('subscriptionCacheEnabled').checked,
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
@@ -8411,6 +8535,48 @@
             return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
         }
 
+        function normalizeCloudDispatchTargetHostsValue(value) {
+            var result = [];
+            String(value || '').split(/[\s,，]+/).forEach(function(item) {
+                item = String(item || '').trim().toLowerCase();
+                if (item && result.indexOf(item) === -1) {
+                    result.push(item);
+                }
+            });
+            return result.length ? result : ['hk.edge.imttk.com'];
+        }
+
+        function cloudDispatchTargetHostsToText(value) {
+            if (Array.isArray(value)) {
+                return normalizeCloudDispatchTargetHostsValue(value.join('\n')).join('\n');
+            }
+            return normalizeCloudDispatchTargetHostsValue(value || 'hk.edge.imttk.com').join('\n');
+        }
+
+        function extractCloudDispatchTargetHostsFromYaml(yaml) {
+            var listMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}target_hosts:\s*\n((?:^\s{6}-[^\n]*(?:\n|$))+)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)targetHosts:\s*\n((?:^\s*-?[^\n]*(?:\n|$))+)/m);
+            if (listMatch) {
+                var values = [];
+                listMatch[1].split(/\n/).forEach(function(line) {
+                    var itemMatch = line.match(/^\s*-\s*(.*)$/);
+                    if (itemMatch) {
+                        values.push(itemMatch[1].trim().replace(/^["']|["']$/g, ''));
+                    }
+                });
+                if (values.length) {
+                    return normalizeCloudDispatchTargetHostsValue(values.join('\n'));
+                }
+            }
+            var singleMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}target_host:[^\S\n]*(.*)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)targetHost:[^\S\n]*(.*)/);
+            return normalizeCloudDispatchTargetHostsValue(
+                singleMatch ? singleMatch[1].trim().replace(/^["']|["']$/g, '') : 'hk.edge.imttk.com'
+            );
+        }
+
         function createSupportItem(index, item) {
             item = normalizeSupportItem(item || { type: 'browser', url: '', description: '', website_id: '', widget_id: '', property_id: '', website_token: '', base_url: '', chatra_id: '', widget_code: '' });
             var div = document.createElement('div');
@@ -8603,6 +8769,36 @@
             var autoOfflineEnabled = autoOfflineMatch ? autoOfflineMatch[1] === 'true' : false;
             document.getElementById('autoOfflineEnabled').checked = autoOfflineEnabled;
             document.getElementById('autoOfflineEnabledLabel').textContent = autoOfflineEnabled ? '开启' : '关闭';
+            var cloudDispatchEnabledMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}enabled:\s*(true|false)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);
+            var cloudDispatchEnabled = cloudDispatchEnabledMatch ? cloudDispatchEnabledMatch[1] === 'true' : false;
+            setCustomFeatureSwitchValue('cloudDispatchEnabled', cloudDispatchEnabled);
+            var cloudDispatchQueryUrlMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}query_url:[^\S\n]*(.*)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)queryUrl:[^\S\n]*(.*)/);
+            var cloudDispatchQuerySecretMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}query_secret:[^\S\n]*(.*)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)querySecret:[^\S\n]*(.*)/);
+            if (document.getElementById('cloudDispatchQueryUrl')) {
+                document.getElementById('cloudDispatchQueryUrl').value = cloudDispatchQueryUrlMatch ? cloudDispatchQueryUrlMatch[1].trim().replace(/^["']|["']$/g, '') : '';
+            }
+            if (document.getElementById('cloudDispatchQuerySecret')) {
+                document.getElementById('cloudDispatchQuerySecret').value = cloudDispatchQuerySecretMatch ? cloudDispatchQuerySecretMatch[1].trim().replace(/^["']|["']$/g, '') : '';
+            }
+            if (document.getElementById('cloudDispatchTargetHost')) {
+                document.getElementById('cloudDispatchTargetHost').value = extractCloudDispatchTargetHostsFromYaml(yaml).join('\n');
+            }
+            var cloudDispatchAutoEnabledMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}auto:\s*\n(?:[\s\S]*?)^\s{6}enabled:\s*(true|false)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)auto:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);
+            var cloudDispatchAutoIntervalMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}auto:\s*\n(?:[\s\S]*?)^\s{6}interval_minutes:\s*(\d+)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)auto:\s*\n(?:[\s\S]*?)intervalMinutes:\s*(\d+)/);
+            setCustomFeatureSwitchValue('cloudDispatchAutoEnabled', cloudDispatchAutoEnabledMatch ? cloudDispatchAutoEnabledMatch[1] === 'true' : false);
+            if (document.getElementById('cloudDispatchAutoIntervalMinutes')) {
+                document.getElementById('cloudDispatchAutoIntervalMinutes').value = cloudDispatchAutoIntervalMatch ? parseInt(cloudDispatchAutoIntervalMatch[1], 10) : 5;
+            }
             var subCacheEnabledMatch = yaml.match(/subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var subCacheEnabled = subCacheEnabledMatch ? subCacheEnabledMatch[1] === 'true' : false;
             document.getElementById('subscriptionCacheEnabled').checked = subCacheEnabled;

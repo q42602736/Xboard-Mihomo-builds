@@ -24,6 +24,13 @@ type ProfileFormState struct {
 	UseExclusiveMode               bool                      `json:"use_exclusive_mode"`
 	DecryptKey                     string                    `json:"decrypt_key"`
 	AutoOfflineEnabled             bool                      `json:"auto_offline_enabled"`
+	CloudDispatchEnabled           bool                      `json:"cloud_dispatch_enabled"`
+	CloudDispatchQueryURL          string                    `json:"cloud_dispatch_query_url"`
+	CloudDispatchQuerySecret       string                    `json:"cloud_dispatch_query_secret"`
+	CloudDispatchTargetHost        string                    `json:"cloud_dispatch_target_host"`
+	CloudDispatchTargetHosts       []string                  `json:"cloud_dispatch_target_hosts"`
+	CloudDispatchAutoEnabled       bool                      `json:"cloud_dispatch_auto_enabled"`
+	CloudDispatchAutoInterval      int                       `json:"cloud_dispatch_auto_interval_minutes"`
 	SubscriptionCacheEnabled       bool                      `json:"subscription_cache_enabled"`
 	SubscriptionCacheTTL           int                       `json:"subscription_cache_ttl"`
 	HideTrafficDetails             bool                      `json:"hide_traffic_details"`
@@ -77,6 +84,8 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	authBackground := ensureMapValueNode(app, "auth_background")
 	subscription := ensureMapValueNode(xboard, "subscription")
 	autoOffline := ensureMapValueNode(xboard, "auto_offline")
+	cloudDispatch := ensureMapValueNode(xboard, "cloud_dispatch")
+	cloudDispatchAuto := ensureMapValueNode(cloudDispatch, "auto")
 	subscriptionCache := ensureMapValueNode(xboard, "subscription_cache")
 	ui := ensureMapValueNode(xboard, "ui")
 	latencyReduction := ensureMapValueNode(ui, "latency_reduction")
@@ -108,6 +117,28 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	setMapBoolValue(subscription, "use_exclusive_mode", form.UseExclusiveMode)
 	setMapStringValue(subscription, "decrypt_key", form.DecryptKey)
 	setMapBoolValue(autoOffline, "enabled", form.AutoOfflineEnabled)
+	setMapBoolValue(cloudDispatch, "enabled", form.CloudDispatchEnabled)
+	if strings.TrimSpace(form.CloudDispatchQueryURL) == "" {
+		removeMapKeys(cloudDispatch, "query_url")
+	} else {
+		setMapStringValue(cloudDispatch, "query_url", strings.TrimSpace(form.CloudDispatchQueryURL))
+	}
+	if strings.TrimSpace(form.CloudDispatchQuerySecret) == "" {
+		removeMapKeys(cloudDispatch, "query_secret")
+	} else {
+		setMapStringValue(cloudDispatch, "query_secret", strings.TrimSpace(form.CloudDispatchQuerySecret))
+	}
+	targetHosts := normalizeCloudDispatchTargetHostsOptional(form.CloudDispatchTargetHosts)
+	if len(targetHosts) == 0 {
+		targetHosts = normalizeCloudDispatchTargetHosts([]string{form.CloudDispatchTargetHost})
+	}
+	setMapNodeValue(cloudDispatch, "target_hosts", newStringSequenceYamlNode(targetHosts))
+	setMapStringValue(cloudDispatch, "target_host", firstCloudDispatchTargetHost(targetHosts))
+	setMapBoolValue(cloudDispatchAuto, "enabled", form.CloudDispatchAutoEnabled)
+	setMapIntValue(cloudDispatchAuto, "interval_minutes", normalizeCloudDispatchIntervalValue(form.CloudDispatchAutoInterval))
+	removeMapKeys(cloudDispatch, "queryUrl", "querySecret", "targetHost", "targetHosts")
+	removeMapKeys(cloudDispatchAuto, "intervalMinutes")
+	removeMapKeys(xboard, "cloudDispatch")
 	setMapBoolValue(subscriptionCache, "enabled", form.SubscriptionCacheEnabled)
 	setMapIntValue(subscriptionCache, "ttl_hours", form.SubscriptionCacheTTL)
 	setMapBoolValue(ui, "hide_traffic_details", form.HideTrafficDetails)
@@ -284,6 +315,16 @@ func normalizeLatencyReductionValue(value int) int {
 	}
 	if value > 90 {
 		return 90
+	}
+	return value
+}
+
+func normalizeCloudDispatchIntervalValue(value int) int {
+	if value < 1 {
+		return 1
+	}
+	if value > 1440 {
+		return 1440
 	}
 	return value
 }

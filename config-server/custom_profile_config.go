@@ -13,24 +13,31 @@ import (
 )
 
 type UIColorCustomConfig struct {
-	TrafficBarEnabled                    bool   `json:"traffic_bar_enabled"`
-	TrafficBarColor                      string `json:"traffic_bar_color"`
-	NoticeDialogIconBackgroundColor      string `json:"notice_dialog_icon_background_color"`
-	SubscriptionWebsiteIconColor         string `json:"subscription_website_icon_color"`
-	SubscriptionRefreshIconColor         string `json:"subscription_refresh_icon_color"`
-	SubscriptionNoticeIconColor          string `json:"subscription_notice_icon_color"`
-	LoginButtonColor                     string `json:"login_button_color"`
-	PlansSubscribeButtonColor            string `json:"plans_subscribe_button_color"`
-	PlansFilterTabColor                  string `json:"plans_filter_tab_color"`
-	InviteCodeTextColor                  string `json:"invite_code_text_color"`
-	InviteCodeBackgroundColor            string `json:"invite_code_background_color"`
-	CommissionBalanceCardBackgroundColor string `json:"commission_balance_card_background_color"`
-	InviteStatsTotalInvitesIconColor     string `json:"invite_stats_total_invites_icon_color"`
-	InviteStatsCommissionRateIconColor   string `json:"invite_stats_commission_rate_icon_color"`
-	InviteStatsTotalCommissionIconColor  string `json:"invite_stats_total_commission_icon_color"`
-	SubscriptionStatusPopupEnabled       bool   `json:"subscription_status_popup_enabled"`
-	SubscriptionStatusOfficialURL        string `json:"subscription_status_official_url"`
-	ProxyGroupsMainPolicyNodesOnly       bool   `json:"proxy_groups_main_policy_nodes_only"`
+	TrafficBarEnabled                    bool     `json:"traffic_bar_enabled"`
+	TrafficBarColor                      string   `json:"traffic_bar_color"`
+	NoticeDialogIconBackgroundColor      string   `json:"notice_dialog_icon_background_color"`
+	SubscriptionWebsiteIconColor         string   `json:"subscription_website_icon_color"`
+	SubscriptionRefreshIconColor         string   `json:"subscription_refresh_icon_color"`
+	SubscriptionNoticeIconColor          string   `json:"subscription_notice_icon_color"`
+	LoginButtonColor                     string   `json:"login_button_color"`
+	PlansSubscribeButtonColor            string   `json:"plans_subscribe_button_color"`
+	PlansFilterTabColor                  string   `json:"plans_filter_tab_color"`
+	InviteCodeTextColor                  string   `json:"invite_code_text_color"`
+	InviteCodeBackgroundColor            string   `json:"invite_code_background_color"`
+	CommissionBalanceCardBackgroundColor string   `json:"commission_balance_card_background_color"`
+	InviteStatsTotalInvitesIconColor     string   `json:"invite_stats_total_invites_icon_color"`
+	InviteStatsCommissionRateIconColor   string   `json:"invite_stats_commission_rate_icon_color"`
+	InviteStatsTotalCommissionIconColor  string   `json:"invite_stats_total_commission_icon_color"`
+	SubscriptionStatusPopupEnabled       bool     `json:"subscription_status_popup_enabled"`
+	SubscriptionStatusOfficialURL        string   `json:"subscription_status_official_url"`
+	ProxyGroupsMainPolicyNodesOnly       bool     `json:"proxy_groups_main_policy_nodes_only"`
+	CloudDispatchEnabled                 bool     `json:"cloud_dispatch_enabled"`
+	CloudDispatchQueryURL                string   `json:"cloud_dispatch_query_url"`
+	CloudDispatchQuerySecret             string   `json:"cloud_dispatch_query_secret"`
+	CloudDispatchTargetHost              string   `json:"cloud_dispatch_target_host"`
+	CloudDispatchTargetHosts             []string `json:"cloud_dispatch_target_hosts"`
+	CloudDispatchAutoEnabled             bool     `json:"cloud_dispatch_auto_enabled"`
+	CloudDispatchAutoIntervalMinutes     int      `json:"cloud_dispatch_auto_interval_minutes"`
 }
 
 const (
@@ -50,6 +57,7 @@ const (
 	customFeatureInviteStatsTotalCommissionIconColor  = "invite_stats_total_commission_icon_color"
 	customFeatureSubscriptionStatusPopup              = "subscription_status_popup"
 	customFeatureMainPolicyNodesOnly                  = "main_policy_nodes_only"
+	customFeatureCloudDispatch                        = "cloud_dispatch"
 )
 
 var (
@@ -71,6 +79,7 @@ var (
 		customFeatureInviteStatsTotalCommissionIconColor,
 		customFeatureSubscriptionStatusPopup,
 		customFeatureMainPolicyNodesOnly,
+		customFeatureCloudDispatch,
 	}
 )
 
@@ -105,6 +114,113 @@ func normalizeOptionalHTTPURL(value string) (string, error) {
 		return "", fmt.Errorf("官网跳转网址格式错误，仅支持 http:// 或 https://")
 	}
 	return value, nil
+}
+
+func normalizeCloudDispatchQueryURL(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	if strings.ContainsAny(value, " \t\r\n") {
+		return "", fmt.Errorf("GTM 服务地址格式错误，仅支持 http:// 或 https://")
+	}
+	parsedURL, err := url.Parse(value)
+	if err != nil {
+		return "", fmt.Errorf("GTM 服务地址格式错误，仅支持 http:// 或 https://")
+	}
+	scheme := strings.ToLower(strings.TrimSpace(parsedURL.Scheme))
+	if (scheme != "http" && scheme != "https") || strings.TrimSpace(parsedURL.Host) == "" {
+		return "", fmt.Errorf("GTM 服务地址格式错误，仅支持 http:// 或 https://")
+	}
+	normalized := url.URL{
+		Scheme:   scheme,
+		User:     parsedURL.User,
+		Host:     parsedURL.Host,
+		RawQuery: "",
+		Fragment: "",
+	}
+	return normalized.String(), nil
+}
+
+func normalizeCloudDispatchTargetHost(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "hk.edge.imttk.com"
+	}
+	return strings.ToLower(value)
+}
+
+func normalizeCloudDispatchTargetHosts(values []string) []string {
+	result := normalizeCloudDispatchTargetHostsOptional(values)
+	if len(result) == 0 {
+		return []string{"hk.edge.imttk.com"}
+	}
+	return result
+}
+
+func normalizeCloudDispatchTargetHostsOptional(values []string) []string {
+	result := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		for _, part := range strings.FieldsFunc(value, func(r rune) bool {
+			return r == ',' || r == '，' || r == '\n' || r == '\r' || r == '\t' || r == ' '
+		}) {
+			part = strings.ToLower(strings.TrimSpace(part))
+			if part == "" {
+				continue
+			}
+			if _, ok := seen[part]; ok {
+				continue
+			}
+			seen[part] = struct{}{}
+			result = append(result, part)
+		}
+	}
+	return result
+}
+
+func firstCloudDispatchTargetHost(values []string) string {
+	normalized := normalizeCloudDispatchTargetHosts(values)
+	if len(normalized) == 0 {
+		return "hk.edge.imttk.com"
+	}
+	return normalized[0]
+}
+
+func readMapStringListValue(mapNode *yaml.Node, keys ...string) []string {
+	for _, key := range keys {
+		node := getMapValueNode(mapNode, key)
+		if node == nil {
+			continue
+		}
+		if node.Kind == yaml.SequenceNode {
+			values := make([]string, 0, len(node.Content))
+			for _, item := range node.Content {
+				values = append(values, strings.TrimSpace(item.Value))
+			}
+			return normalizeCloudDispatchTargetHostsOptional(values)
+		}
+		return normalizeCloudDispatchTargetHostsOptional([]string{node.Value})
+	}
+	return []string{}
+}
+
+func newStringSequenceYamlNode(values []string) *yaml.Node {
+	seq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+	for _, value := range normalizeCloudDispatchTargetHosts(values) {
+		seq.Content = append(seq.Content, newStringYamlNode(value))
+	}
+	return seq
+}
+
+func normalizeCloudDispatchInterval(value int) int {
+	if value < 1 {
+		return 1
+	}
+	if value > 1440 {
+		return 1440
+	}
+	return value
 }
 
 func hasCustomFeatureBinding(featureKey string) bool {
@@ -297,6 +413,36 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 		}
 	}
 
+	cloudDispatch := getMapValueNode(xboard, "cloud_dispatch")
+	if cloudDispatch == nil {
+		cloudDispatch = getMapValueNode(xboard, "cloudDispatch")
+	}
+	if cloudDispatch != nil {
+		if enabledNode := getMapValueNode(cloudDispatch, "enabled"); enabledNode != nil {
+			result.CloudDispatchEnabled = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
+		result.CloudDispatchQueryURL = readMapStringValue(cloudDispatch, "query_url", "queryUrl")
+		result.CloudDispatchQuerySecret = readMapStringValue(cloudDispatch, "query_secret", "querySecret")
+		result.CloudDispatchTargetHosts = readMapStringListValue(cloudDispatch, "target_hosts", "targetHosts")
+		if len(result.CloudDispatchTargetHosts) == 0 {
+			result.CloudDispatchTargetHosts = readMapStringListValue(cloudDispatch, "target_host", "targetHost")
+		}
+		auto := getMapValueNode(cloudDispatch, "auto")
+		if auto != nil {
+			if enabledNode := getMapValueNode(auto, "enabled"); enabledNode != nil {
+				result.CloudDispatchAutoEnabled = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+			}
+			if intervalNode := getMapValueNode(auto, "interval_minutes"); intervalNode != nil {
+				fmt.Sscanf(strings.TrimSpace(intervalNode.Value), "%d", &result.CloudDispatchAutoIntervalMinutes)
+			} else if intervalNode := getMapValueNode(auto, "intervalMinutes"); intervalNode != nil {
+				fmt.Sscanf(strings.TrimSpace(intervalNode.Value), "%d", &result.CloudDispatchAutoIntervalMinutes)
+			}
+		}
+	}
+	result.CloudDispatchTargetHosts = normalizeCloudDispatchTargetHosts(result.CloudDispatchTargetHosts)
+	result.CloudDispatchTargetHost = firstCloudDispatchTargetHost(result.CloudDispatchTargetHosts)
+	result.CloudDispatchAutoIntervalMinutes = normalizeCloudDispatchInterval(result.CloudDispatchAutoIntervalMinutes)
+
 	return result, nil
 }
 
@@ -317,6 +463,8 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	customColors := ensureMapValueNode(ui, "custom_colors")
 	subscriptionStatusPopup := ensureMapValueNode(ui, "subscription_status_popup")
 	proxyGroups := ensureMapValueNode(ui, "proxy_groups")
+	cloudDispatch := ensureMapValueNode(xboard, "cloud_dispatch")
+	cloudDispatchAuto := ensureMapValueNode(cloudDispatch, "auto")
 
 	setMapBoolValue(subscriptionUsage, "traffic_bar_color_enabled", config.TrafficBarEnabled)
 	removeMapKeys(subscriptionUsage, "trafficBarColorEnabled")
@@ -345,6 +493,20 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	setMapBoolValue(proxyGroups, "main_policy_nodes_only", config.ProxyGroupsMainPolicyNodesOnly)
 	removeMapKeys(proxyGroups, "mainPolicyNodesOnly")
 	removeMapKeys(ui, "proxyGroups")
+	setMapBoolValue(cloudDispatch, "enabled", config.CloudDispatchEnabled)
+	setOrRemoveMapStringValue(cloudDispatch, "query_url", config.CloudDispatchQueryURL, "queryUrl")
+	setOrRemoveMapStringValue(cloudDispatch, "query_secret", config.CloudDispatchQuerySecret, "querySecret")
+	targetHosts := normalizeCloudDispatchTargetHostsOptional(config.CloudDispatchTargetHosts)
+	if len(targetHosts) == 0 {
+		targetHosts = normalizeCloudDispatchTargetHosts([]string{config.CloudDispatchTargetHost})
+	}
+	setMapNodeValue(cloudDispatch, "target_hosts", newStringSequenceYamlNode(targetHosts))
+	setMapStringValue(cloudDispatch, "target_host", firstCloudDispatchTargetHost(targetHosts))
+	setMapBoolValue(cloudDispatchAuto, "enabled", config.CloudDispatchAutoEnabled)
+	setMapIntValue(cloudDispatchAuto, "interval_minutes", normalizeCloudDispatchInterval(config.CloudDispatchAutoIntervalMinutes))
+	removeMapKeys(cloudDispatchAuto, "intervalMinutes")
+	removeMapKeys(cloudDispatch, "queryUrl", "querySecret", "targetHost", "targetHosts")
+	removeMapKeys(xboard, "cloudDispatch")
 
 	var buf bytes.Buffer
 	encoder := yaml.NewEncoder(&buf)
@@ -439,31 +601,45 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"subscription_status_popup_enabled":        config.SubscriptionStatusPopupEnabled,
 		"subscription_status_official_url":         config.SubscriptionStatusOfficialURL,
 		"proxy_groups_main_policy_nodes_only":      config.ProxyGroupsMainPolicyNodesOnly,
+		"cloud_dispatch_enabled":                   config.CloudDispatchEnabled,
+		"cloud_dispatch_query_url":                 config.CloudDispatchQueryURL,
+		"cloud_dispatch_query_secret":              config.CloudDispatchQuerySecret,
+		"cloud_dispatch_target_host":               config.CloudDispatchTargetHost,
+		"cloud_dispatch_target_hosts":              config.CloudDispatchTargetHosts,
+		"cloud_dispatch_auto_enabled":              config.CloudDispatchAutoEnabled,
+		"cloud_dispatch_auto_interval_minutes":     config.CloudDispatchAutoIntervalMinutes,
 	})
 }
 
 func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Profile                              string `json:"profile"`
-		IntegrationCode                      string `json:"integration_code"`
-		TrafficBarEnabled                    bool   `json:"traffic_bar_enabled"`
-		TrafficBarColor                      string `json:"traffic_bar_color"`
-		NoticeDialogIconBackgroundColor      string `json:"notice_dialog_icon_background_color"`
-		SubscriptionWebsiteIconColor         string `json:"subscription_website_icon_color"`
-		SubscriptionRefreshIconColor         string `json:"subscription_refresh_icon_color"`
-		SubscriptionNoticeIconColor          string `json:"subscription_notice_icon_color"`
-		LoginButtonColor                     string `json:"login_button_color"`
-		PlansSubscribeButtonColor            string `json:"plans_subscribe_button_color"`
-		PlansFilterTabColor                  string `json:"plans_filter_tab_color"`
-		InviteCodeTextColor                  string `json:"invite_code_text_color"`
-		InviteCodeBackgroundColor            string `json:"invite_code_background_color"`
-		CommissionBalanceCardBackgroundColor string `json:"commission_balance_card_background_color"`
-		InviteStatsTotalInvitesIconColor     string `json:"invite_stats_total_invites_icon_color"`
-		InviteStatsCommissionRateIconColor   string `json:"invite_stats_commission_rate_icon_color"`
-		InviteStatsTotalCommissionIconColor  string `json:"invite_stats_total_commission_icon_color"`
-		SubscriptionStatusPopupEnabled       bool   `json:"subscription_status_popup_enabled"`
-		SubscriptionStatusOfficialURL        string `json:"subscription_status_official_url"`
-		ProxyGroupsMainPolicyNodesOnly       bool   `json:"proxy_groups_main_policy_nodes_only"`
+		Profile                              string   `json:"profile"`
+		IntegrationCode                      string   `json:"integration_code"`
+		TrafficBarEnabled                    bool     `json:"traffic_bar_enabled"`
+		TrafficBarColor                      string   `json:"traffic_bar_color"`
+		NoticeDialogIconBackgroundColor      string   `json:"notice_dialog_icon_background_color"`
+		SubscriptionWebsiteIconColor         string   `json:"subscription_website_icon_color"`
+		SubscriptionRefreshIconColor         string   `json:"subscription_refresh_icon_color"`
+		SubscriptionNoticeIconColor          string   `json:"subscription_notice_icon_color"`
+		LoginButtonColor                     string   `json:"login_button_color"`
+		PlansSubscribeButtonColor            string   `json:"plans_subscribe_button_color"`
+		PlansFilterTabColor                  string   `json:"plans_filter_tab_color"`
+		InviteCodeTextColor                  string   `json:"invite_code_text_color"`
+		InviteCodeBackgroundColor            string   `json:"invite_code_background_color"`
+		CommissionBalanceCardBackgroundColor string   `json:"commission_balance_card_background_color"`
+		InviteStatsTotalInvitesIconColor     string   `json:"invite_stats_total_invites_icon_color"`
+		InviteStatsCommissionRateIconColor   string   `json:"invite_stats_commission_rate_icon_color"`
+		InviteStatsTotalCommissionIconColor  string   `json:"invite_stats_total_commission_icon_color"`
+		SubscriptionStatusPopupEnabled       bool     `json:"subscription_status_popup_enabled"`
+		SubscriptionStatusOfficialURL        string   `json:"subscription_status_official_url"`
+		ProxyGroupsMainPolicyNodesOnly       bool     `json:"proxy_groups_main_policy_nodes_only"`
+		CloudDispatchEnabled                 bool     `json:"cloud_dispatch_enabled"`
+		CloudDispatchQueryURL                string   `json:"cloud_dispatch_query_url"`
+		CloudDispatchQuerySecret             string   `json:"cloud_dispatch_query_secret"`
+		CloudDispatchTargetHost              string   `json:"cloud_dispatch_target_host"`
+		CloudDispatchTargetHosts             []string `json:"cloud_dispatch_target_hosts"`
+		CloudDispatchAutoEnabled             bool     `json:"cloud_dispatch_auto_enabled"`
+		CloudDispatchAutoIntervalMinutes     int      `json:"cloud_dispatch_auto_interval_minutes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", http.StatusBadRequest)
@@ -557,6 +733,17 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	normalizedCloudDispatchQueryURL, err := normalizeCloudDispatchQueryURL(req.CloudDispatchQueryURL)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	normalizedCloudDispatchTargetHosts := normalizeCloudDispatchTargetHostsOptional(req.CloudDispatchTargetHosts)
+	if len(normalizedCloudDispatchTargetHosts) == 0 {
+		normalizedCloudDispatchTargetHosts = normalizeCloudDispatchTargetHosts([]string{req.CloudDispatchTargetHost})
+	}
+	normalizedCloudDispatchTargetHost := firstCloudDispatchTargetHost(normalizedCloudDispatchTargetHosts)
+	normalizedCloudDispatchAutoIntervalMinutes := normalizeCloudDispatchInterval(req.CloudDispatchAutoIntervalMinutes)
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureTrafficBarColor) && req.TrafficBarEnabled && normalizedTrafficBarColor == "" {
 		jsonError(w, "开启自定义颜色时必须填写颜色值", http.StatusBadRequest)
 		return
@@ -564,6 +751,16 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureSubscriptionStatusPopup) && req.SubscriptionStatusPopupEnabled && normalizedSubscriptionStatusOfficialURL == "" {
 		jsonError(w, "开启登录窗口套餐状态拦截时必须填写官网跳转地址", http.StatusBadRequest)
 		return
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureCloudDispatch) && req.CloudDispatchEnabled {
+		if normalizedCloudDispatchQueryURL == "" {
+			jsonError(w, "开启云端调度时必须填写 GTM 服务地址", http.StatusBadRequest)
+			return
+		}
+		if strings.TrimSpace(req.CloudDispatchQuerySecret) == "" {
+			jsonError(w, "开启云端调度时必须填写查询密钥", http.StatusBadRequest)
+			return
+		}
 	}
 
 	yamlContent, _, _, exists, err := h.getStoredProfile(profileName)
@@ -639,6 +836,15 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureMainPolicyNodesOnly) {
 		targetConfig.ProxyGroupsMainPolicyNodesOnly = req.ProxyGroupsMainPolicyNodesOnly
 	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureCloudDispatch) {
+		targetConfig.CloudDispatchEnabled = req.CloudDispatchEnabled
+		targetConfig.CloudDispatchQueryURL = normalizedCloudDispatchQueryURL
+		targetConfig.CloudDispatchQuerySecret = strings.TrimSpace(req.CloudDispatchQuerySecret)
+		targetConfig.CloudDispatchTargetHost = normalizedCloudDispatchTargetHost
+		targetConfig.CloudDispatchTargetHosts = normalizedCloudDispatchTargetHosts
+		targetConfig.CloudDispatchAutoEnabled = req.CloudDispatchAutoEnabled
+		targetConfig.CloudDispatchAutoIntervalMinutes = normalizedCloudDispatchAutoIntervalMinutes
+	}
 
 	var updatedYaml string
 	var patchErr error
@@ -692,5 +898,12 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"subscription_status_popup_enabled":        targetConfig.SubscriptionStatusPopupEnabled,
 		"subscription_status_official_url":         targetConfig.SubscriptionStatusOfficialURL,
 		"proxy_groups_main_policy_nodes_only":      targetConfig.ProxyGroupsMainPolicyNodesOnly,
+		"cloud_dispatch_enabled":                   targetConfig.CloudDispatchEnabled,
+		"cloud_dispatch_query_url":                 targetConfig.CloudDispatchQueryURL,
+		"cloud_dispatch_query_secret":              targetConfig.CloudDispatchQuerySecret,
+		"cloud_dispatch_target_host":               targetConfig.CloudDispatchTargetHost,
+		"cloud_dispatch_target_hosts":              targetConfig.CloudDispatchTargetHosts,
+		"cloud_dispatch_auto_enabled":              targetConfig.CloudDispatchAutoEnabled,
+		"cloud_dispatch_auto_interval_minutes":     targetConfig.CloudDispatchAutoIntervalMinutes,
 	})
 }
