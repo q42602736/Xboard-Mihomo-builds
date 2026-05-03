@@ -31,6 +31,7 @@ type ProfileFormState struct {
 	CloudDispatchTargetHosts       []string                  `json:"cloud_dispatch_target_hosts"`
 	CloudDispatchAutoEnabled       bool                      `json:"cloud_dispatch_auto_enabled"`
 	CloudDispatchAutoInterval      int                       `json:"cloud_dispatch_auto_interval_minutes"`
+	CloudDispatchFallbackRetry     int                       `json:"cloud_dispatch_fallback_retry_minutes"`
 	SubscriptionCacheEnabled       bool                      `json:"subscription_cache_enabled"`
 	SubscriptionCacheTTL           int                       `json:"subscription_cache_ttl"`
 	HideTrafficDetails             bool                      `json:"hide_traffic_details"`
@@ -132,9 +133,10 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	} else {
 		setMapStringValue(cloudDispatch, "query_secret", strings.TrimSpace(form.CloudDispatchQuerySecret))
 	}
+	setMapIntValue(cloudDispatch, "fallback_retry_minutes", normalizeCloudDispatchIntervalValue(form.CloudDispatchFallbackRetry))
 	setMapBoolValue(cloudDispatchAuto, "enabled", form.CloudDispatchAutoEnabled)
 	setMapIntValue(cloudDispatchAuto, "interval_minutes", normalizeCloudDispatchIntervalValue(form.CloudDispatchAutoInterval))
-	removeMapKeys(cloudDispatch, "target_host", "target_hosts", "queryUrl", "querySecret", "targetHost", "targetHosts")
+	removeMapKeys(cloudDispatch, "target_host", "target_hosts", "queryUrl", "querySecret", "fallbackRetryMinutes", "targetHost", "targetHosts")
 	removeMapKeys(cloudDispatchAuto, "intervalMinutes")
 	removeMapKeys(xboard, "cloudDispatch")
 	setMapBoolValue(subscriptionCache, "enabled", form.SubscriptionCacheEnabled)

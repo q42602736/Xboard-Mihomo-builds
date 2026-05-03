@@ -38,6 +38,7 @@ type UIColorCustomConfig struct {
 	CloudDispatchTargetHosts             []string `json:"cloud_dispatch_target_hosts"`
 	CloudDispatchAutoEnabled             bool     `json:"cloud_dispatch_auto_enabled"`
 	CloudDispatchAutoIntervalMinutes     int      `json:"cloud_dispatch_auto_interval_minutes"`
+	CloudDispatchFallbackRetryMinutes    int      `json:"cloud_dispatch_fallback_retry_minutes"`
 }
 
 const (
@@ -208,6 +209,16 @@ func newStringSequenceYamlNode(values []string) *yaml.Node {
 func normalizeCloudDispatchInterval(value int) int {
 	if value < 1 {
 		return 1
+	}
+	if value > 1440 {
+		return 1440
+	}
+	return value
+}
+
+func normalizeCloudDispatchFallbackRetryMinutes(value int) int {
+	if value < 1 {
+		return 5
 	}
 	if value > 1440 {
 		return 1440
@@ -415,6 +426,11 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 		}
 		result.CloudDispatchQueryURL = readMapStringValue(cloudDispatch, "query_url", "queryUrl")
 		result.CloudDispatchQuerySecret = readMapStringValue(cloudDispatch, "query_secret", "querySecret")
+		if fallbackRetryNode := getMapValueNode(cloudDispatch, "fallback_retry_minutes"); fallbackRetryNode != nil {
+			fmt.Sscanf(strings.TrimSpace(fallbackRetryNode.Value), "%d", &result.CloudDispatchFallbackRetryMinutes)
+		} else if fallbackRetryNode := getMapValueNode(cloudDispatch, "fallbackRetryMinutes"); fallbackRetryNode != nil {
+			fmt.Sscanf(strings.TrimSpace(fallbackRetryNode.Value), "%d", &result.CloudDispatchFallbackRetryMinutes)
+		}
 		result.CloudDispatchTargetHosts = readMapStringListValue(cloudDispatch, "target_hosts", "targetHosts")
 		if len(result.CloudDispatchTargetHosts) == 0 {
 			result.CloudDispatchTargetHosts = readMapStringListValue(cloudDispatch, "target_host", "targetHost")
@@ -434,6 +450,7 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 	result.CloudDispatchTargetHosts = normalizeCloudDispatchTargetHosts(result.CloudDispatchTargetHosts)
 	result.CloudDispatchTargetHost = firstCloudDispatchTargetHost(result.CloudDispatchTargetHosts)
 	result.CloudDispatchAutoIntervalMinutes = normalizeCloudDispatchInterval(result.CloudDispatchAutoIntervalMinutes)
+	result.CloudDispatchFallbackRetryMinutes = normalizeCloudDispatchFallbackRetryMinutes(result.CloudDispatchFallbackRetryMinutes)
 
 	return result, nil
 }
@@ -488,10 +505,11 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	setMapBoolValue(cloudDispatch, "enabled", config.CloudDispatchEnabled)
 	setOrRemoveMapStringValue(cloudDispatch, "query_url", config.CloudDispatchQueryURL, "queryUrl")
 	setOrRemoveMapStringValue(cloudDispatch, "query_secret", config.CloudDispatchQuerySecret, "querySecret")
+	setMapIntValue(cloudDispatch, "fallback_retry_minutes", normalizeCloudDispatchFallbackRetryMinutes(config.CloudDispatchFallbackRetryMinutes))
 	setMapBoolValue(cloudDispatchAuto, "enabled", config.CloudDispatchAutoEnabled)
 	setMapIntValue(cloudDispatchAuto, "interval_minutes", normalizeCloudDispatchInterval(config.CloudDispatchAutoIntervalMinutes))
 	removeMapKeys(cloudDispatchAuto, "intervalMinutes")
-	removeMapKeys(cloudDispatch, "target_host", "target_hosts", "queryUrl", "querySecret", "targetHost", "targetHosts")
+	removeMapKeys(cloudDispatch, "target_host", "target_hosts", "queryUrl", "querySecret", "fallbackRetryMinutes", "targetHost", "targetHosts")
 	removeMapKeys(xboard, "cloudDispatch")
 
 	var buf bytes.Buffer
@@ -594,6 +612,7 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"cloud_dispatch_target_hosts":              config.CloudDispatchTargetHosts,
 		"cloud_dispatch_auto_enabled":              config.CloudDispatchAutoEnabled,
 		"cloud_dispatch_auto_interval_minutes":     config.CloudDispatchAutoIntervalMinutes,
+		"cloud_dispatch_fallback_retry_minutes":    config.CloudDispatchFallbackRetryMinutes,
 	})
 }
 
@@ -626,6 +645,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		CloudDispatchTargetHosts             []string `json:"cloud_dispatch_target_hosts"`
 		CloudDispatchAutoEnabled             bool     `json:"cloud_dispatch_auto_enabled"`
 		CloudDispatchAutoIntervalMinutes     int      `json:"cloud_dispatch_auto_interval_minutes"`
+		CloudDispatchFallbackRetryMinutes    int      `json:"cloud_dispatch_fallback_retry_minutes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", http.StatusBadRequest)
@@ -725,6 +745,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		return
 	}
 	normalizedCloudDispatchAutoIntervalMinutes := normalizeCloudDispatchInterval(req.CloudDispatchAutoIntervalMinutes)
+	normalizedCloudDispatchFallbackRetryMinutes := normalizeCloudDispatchFallbackRetryMinutes(req.CloudDispatchFallbackRetryMinutes)
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureTrafficBarColor) && req.TrafficBarEnabled && normalizedTrafficBarColor == "" {
 		jsonError(w, "开启自定义颜色时必须填写颜色值", http.StatusBadRequest)
 		return
@@ -825,6 +846,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		targetConfig.CloudDispatchTargetHosts = []string{}
 		targetConfig.CloudDispatchAutoEnabled = req.CloudDispatchAutoEnabled
 		targetConfig.CloudDispatchAutoIntervalMinutes = normalizedCloudDispatchAutoIntervalMinutes
+		targetConfig.CloudDispatchFallbackRetryMinutes = normalizedCloudDispatchFallbackRetryMinutes
 	}
 
 	var updatedYaml string
@@ -886,5 +908,6 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"cloud_dispatch_target_hosts":              targetConfig.CloudDispatchTargetHosts,
 		"cloud_dispatch_auto_enabled":              targetConfig.CloudDispatchAutoEnabled,
 		"cloud_dispatch_auto_interval_minutes":     targetConfig.CloudDispatchAutoIntervalMinutes,
+		"cloud_dispatch_fallback_retry_minutes":    targetConfig.CloudDispatchFallbackRetryMinutes,
 	})
 }

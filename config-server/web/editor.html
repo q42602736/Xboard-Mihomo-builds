@@ -3673,6 +3673,11 @@
                                                 <label>自动调度间隔（分钟）</label>
                                                 <input type="number" id="cloudDispatchAutoIntervalMinutes" min="1" max="1440" value="5">
                                             </div>
+                                            <div class="form-group cloud-dispatch-auto-input">
+                                                <label>离线兜底回查间隔（分钟）</label>
+                                                <input type="number" id="cloudDispatchFallbackRetryMinutes" min="1" max="1440" value="5">
+                                                <div class="help-text">目标入口离线后先切到其他可用入口；到达该间隔后再次允许回查原入口，恢复后切回原入口最新 IP。</div>
+                                            </div>
                                         </div>
                                         <div class="help-text cloud-dispatch-note">客户端只使用 GTM 服务地址和查询密钥，不需要上传密钥或后台 token；会自动用 GTM 返回域名匹配订阅节点，未知运营商命中 GTM 总入口时随机选择可用分类入口。</div>
                                     </div>
@@ -5391,6 +5396,10 @@
             if (cloudDispatchAutoIntervalMinutes) {
                 cloudDispatchAutoIntervalMinutes.value = data.cloud_dispatch_auto_interval_minutes || 5;
             }
+            var cloudDispatchFallbackRetryMinutes = document.getElementById('cloudDispatchFallbackRetryMinutes');
+            if (cloudDispatchFallbackRetryMinutes) {
+                cloudDispatchFallbackRetryMinutes.value = data.cloud_dispatch_fallback_retry_minutes || 5;
+            }
             syncCustomUIColorFeatureVisibility();
         }
 
@@ -5615,6 +5624,7 @@
             var cloudDispatchQuerySecret = String(document.getElementById('cloudDispatchQuerySecret').value || '').trim();
             var cloudDispatchAutoEnabled = !!document.getElementById('cloudDispatchAutoEnabled').checked;
             var cloudDispatchAutoIntervalMinutes = parseInt(document.getElementById('cloudDispatchAutoIntervalMinutes').value || '5', 10) || 5;
+            var cloudDispatchFallbackRetryMinutes = parseInt(document.getElementById('cloudDispatchFallbackRetryMinutes').value || '5', 10) || 5;
 
             if (!profileName) {
                 setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
@@ -5649,6 +5659,10 @@
                     setCustomTrafficBarStatus('自动调度间隔不能小于 1 分钟', 'error');
                     return;
                 }
+                if (cloudDispatchFallbackRetryMinutes < 1) {
+                    setCustomTrafficBarStatus('离线兜底回查间隔不能小于 1 分钟', 'error');
+                    return;
+                }
             }
 
             setCustomTrafficBarStatus('正在写入公共配置...', 'info');
@@ -5678,7 +5692,8 @@
                     cloud_dispatch_query_url: cloudDispatchQueryUrl,
                     cloud_dispatch_query_secret: cloudDispatchQuerySecret,
                     cloud_dispatch_auto_enabled: cloudDispatchAutoEnabled,
-                    cloud_dispatch_auto_interval_minutes: cloudDispatchAutoIntervalMinutes
+                    cloud_dispatch_auto_interval_minutes: cloudDispatchAutoIntervalMinutes,
+                    cloud_dispatch_fallback_retry_minutes: cloudDispatchFallbackRetryMinutes
                 });
                 if (!response) return;
                 var data = await response.json();
@@ -6360,6 +6375,7 @@
                 '    query_secret: ""',
                 '    # 客户端会自动用 GTM 返回域名匹配订阅节点，无需手动配置目标域名',
                 '    # 未识别来源运营商且命中 GTM 总入口时，随机选择一个可用分类入口',
+                '    fallback_retry_minutes: 5',
                 '    auto:',
                 '      enabled: false',
                 '      interval_minutes: 5',
@@ -6561,6 +6577,7 @@
                 cloud_dispatch_query_secret: document.getElementById('cloudDispatchQuerySecret') ? document.getElementById('cloudDispatchQuerySecret').value.trim() : '',
                 cloud_dispatch_auto_enabled: document.getElementById('cloudDispatchAutoEnabled') ? document.getElementById('cloudDispatchAutoEnabled').checked : false,
                 cloud_dispatch_auto_interval_minutes: document.getElementById('cloudDispatchAutoIntervalMinutes') ? (parseInt(document.getElementById('cloudDispatchAutoIntervalMinutes').value || '5', 10) || 5) : 5,
+                cloud_dispatch_fallback_retry_minutes: document.getElementById('cloudDispatchFallbackRetryMinutes') ? (parseInt(document.getElementById('cloudDispatchFallbackRetryMinutes').value || '5', 10) || 5) : 5,
                 subscription_cache_enabled: document.getElementById('subscriptionCacheEnabled').checked,
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
@@ -8795,9 +8812,15 @@
             var cloudDispatchAutoIntervalMatch =
                 yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}auto:\s*\n(?:[\s\S]*?)^\s{6}interval_minutes:\s*(\d+)/m) ||
                 yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)auto:\s*\n(?:[\s\S]*?)intervalMinutes:\s*(\d+)/);
+            var cloudDispatchFallbackRetryMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}fallback_retry_minutes:\s*(\d+)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)fallbackRetryMinutes:\s*(\d+)/);
             setCustomFeatureSwitchValue('cloudDispatchAutoEnabled', cloudDispatchAutoEnabledMatch ? cloudDispatchAutoEnabledMatch[1] === 'true' : false);
             if (document.getElementById('cloudDispatchAutoIntervalMinutes')) {
                 document.getElementById('cloudDispatchAutoIntervalMinutes').value = cloudDispatchAutoIntervalMatch ? parseInt(cloudDispatchAutoIntervalMatch[1], 10) : 5;
+            }
+            if (document.getElementById('cloudDispatchFallbackRetryMinutes')) {
+                document.getElementById('cloudDispatchFallbackRetryMinutes').value = cloudDispatchFallbackRetryMatch ? parseInt(cloudDispatchFallbackRetryMatch[1], 10) : 5;
             }
             var subCacheEnabledMatch = yaml.match(/subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var subCacheEnabled = subCacheEnabledMatch ? subCacheEnabledMatch[1] === 'true' : false;
