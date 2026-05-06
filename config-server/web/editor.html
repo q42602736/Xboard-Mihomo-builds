@@ -120,6 +120,12 @@
             border: 1px solid rgba(0,255,136,0.3);
         }
         .btn-sm.btn-save:hover { background: rgba(0,255,136,0.25); }
+        .btn-sm.btn-rename {
+            background: rgba(255,193,7,0.15);
+            color: #ffc107;
+            border: 1px solid rgba(255,193,7,0.3);
+        }
+        .btn-sm.btn-rename:hover { background: rgba(255,193,7,0.25); }
         .btn-sm.btn-del {
             background: rgba(255,68,68,0.15);
             color: #ff6b6b;
@@ -2990,6 +2996,7 @@
                 <div class="sidebar-profile-actions">
                     <button class="btn-sm btn-load" id="loadProfileBtn">加载</button>
                     <button class="btn-sm btn-save" id="saveProfileBtn">保存</button>
+                    <button class="btn-sm btn-rename" id="renameProfileBtn">重命名</button>
                     <button class="btn-sm btn-del" id="deleteProfileBtn">删除</button>
                 </div>
                 <div class="sidebar-new-profile" id="newProfileInput">
@@ -6191,6 +6198,7 @@
             if (session.permissions === 'admin') {
                 document.getElementById('adminLink').style.display = 'inline-block';
             } else {
+                document.getElementById('renameProfileBtn').style.display = 'none';
                 document.getElementById('deleteProfileBtn').style.display = 'none';
                 document.getElementById('saveProfileBtn').textContent = '保存';
             }
@@ -6307,6 +6315,7 @@
 
             document.getElementById('loadProfileBtn').addEventListener('click', loadProfile);
             document.getElementById('saveProfileBtn').addEventListener('click', showSaveProfileInput);
+            document.getElementById('renameProfileBtn').addEventListener('click', renameProfile);
             document.getElementById('deleteProfileBtn').addEventListener('click', deleteProfile);
             document.getElementById('confirmSaveProfileBtn').addEventListener('click', confirmSaveProfile);
             document.getElementById('cancelSaveProfileBtn').addEventListener('click', hideSaveProfileInput);
@@ -6683,6 +6692,60 @@
                 hideSaveInput: true,
                 emptyNameMessage: '请输入档案名称'
             });
+        }
+
+        async function renameProfile() {
+            if (!isAdminSession()) {
+                setStatus('只有管理员可以重命名档案', 'error');
+                return;
+            }
+
+            var oldName = String(document.getElementById('profileSelect').value || '').trim();
+            if (!oldName) {
+                setStatus('请先选择要重命名的档案', 'error');
+                return;
+            }
+
+            hideSaveProfileInput();
+            var newName = window.prompt('请输入新的档案名称', oldName);
+            if (newName === null) {
+                return;
+            }
+            newName = String(newName || '').trim();
+            if (!newName) {
+                setStatus('新档案名称不能为空', 'error');
+                return;
+            }
+            if (newName === oldName) {
+                setStatus('新档案名称不能与原名称相同', 'error');
+                return;
+            }
+            if (profilesCache.some(function(profile) { return profile && profile.name === newName; })) {
+                setStatus('新档案名称已存在', 'error');
+                return;
+            }
+            if (!await showAppConfirm('确定将档案 "' + oldName + '" 重命名为 "' + newName + '" 吗？绑定关系和历史记录会同步更新。', '重命名档案', '确认重命名')) {
+                return;
+            }
+
+            setStatus('正在重命名...', 'info');
+            try {
+                var response = await api('PUT', '/admin/profiles/' + encodeURIComponent(oldName) + '/rename', {
+                    new_name: newName
+                });
+                if (!response) return;
+                if (!response.ok) {
+                    var err = await response.json();
+                    throw new Error(err.error || '重命名失败');
+                }
+                await loadProfiles();
+                document.getElementById('profileSelect').value = newName;
+                syncAllCustomSelects(document.getElementById('profileSelect'));
+                await loadProfile();
+                setStatus('已重命名: ' + oldName + ' -> ' + newName, 'success');
+            } catch (e) {
+                setStatus('重命名失败: ' + e.message, 'error');
+            }
         }
 
         async function deleteProfile() {

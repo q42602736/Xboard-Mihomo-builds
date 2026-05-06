@@ -80,6 +80,12 @@
             font-weight: 500;
         }
         .btn-primary { background: linear-gradient(135deg, #00d4ff, #0099cc); color: #000; }
+        .btn-warn {
+            background: rgba(255,193,7,0.18);
+            color: #ffc107;
+            border: 1px solid rgba(255,193,7,0.34);
+        }
+        .btn-warn:hover { background: rgba(255,193,7,0.3); }
         .btn-danger {
             background: rgba(255,68,68,0.2);
             color: #ff4444;
@@ -391,6 +397,27 @@
         </div>
 
         <div id="codesTab" class="tab-page active">
+            <div class="panel">
+                <h3>配置档案管理</h3>
+                <div id="profileManageStatus" class="status-msg"></div>
+                <div class="form-row" style="grid-template-columns: 1fr 1fr 180px; align-items:end;">
+                    <div class="form-group">
+                        <label>当前档案</label>
+                        <select id="renameProfileSelect">
+                            <option value="">加载档案列表中...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>新档案名称</label>
+                        <input type="text" id="renameProfileName" placeholder="输入新的档案名称">
+                    </div>
+                    <div class="form-group">
+                        <button class="btn btn-warn" style="width:100%;" onclick="renameProfileFromAdmin()">重命名档案</button>
+                    </div>
+                </div>
+                <div style="font-size:12px;color:#666;margin-top:-8px;">重命名后会同步更新激活码绑定、打包记录和档案资源历史。</div>
+            </div>
+
             <div class="panel">
                 <h3>创建激活码</h3>
                 <div id="createStatus" class="status-msg"></div>
@@ -928,10 +955,38 @@
                 if (!response) return;
                 var data = await response.json();
                 allProfiles = (data.profiles || []).map(function(p) { return p.name; });
+                renderRenameProfileSelect();
                 renderProfileCheckboxes('profileCheckboxes', 'profile-cb', getSelectedProfiles('.profile-cb:checked', 'manualProfiles'));
                 renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', getSelectedProfiles('.edit-profile-cb:checked', 'editManualProfiles'));
             } catch (e) {
                 console.log('加载档案列表失败:', e);
+            }
+        }
+
+        function renderRenameProfileSelect() {
+            var select = document.getElementById('renameProfileSelect');
+            if (!select) return;
+            var currentValue = select.value;
+            select.innerHTML = '';
+            if (!allProfiles.length) {
+                var emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = '暂无已有档案';
+                select.appendChild(emptyOption);
+                return;
+            }
+            var placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '请选择要重命名的档案';
+            select.appendChild(placeholder);
+            allProfiles.forEach(function(name) {
+                var option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+            if (currentValue && allProfiles.indexOf(currentValue) !== -1) {
+                select.value = currentValue;
             }
         }
 
@@ -1153,6 +1208,60 @@
             renderProfileCheckboxes('profileCheckboxes', 'profile-cb', []);
         }
 
+        async function renameProfileFromAdmin() {
+            var oldName = String(document.getElementById('renameProfileSelect').value || '').trim();
+            var newName = String(document.getElementById('renameProfileName').value || '').trim();
+            var statusEl = document.getElementById('profileManageStatus');
+            statusEl.className = 'status-msg';
+            statusEl.textContent = '';
+
+            if (!oldName) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '请选择要重命名的档案';
+                return;
+            }
+            if (!newName) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '请输入新的档案名称';
+                return;
+            }
+            if (newName === oldName) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '新档案名称不能与原名称相同';
+                return;
+            }
+            if (allProfiles.indexOf(newName) !== -1) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '新档案名称已存在';
+                return;
+            }
+            if (!await showAppConfirm('确定将档案 "' + oldName + '" 重命名为 "' + newName + '" 吗？绑定关系和历史记录会同步更新。', '重命名档案', '确认重命名')) {
+                return;
+            }
+
+            statusEl.className = 'status-msg success';
+            statusEl.textContent = '正在重命名...';
+            try {
+                var response = await api('PUT', '/admin/profiles/' + encodeURIComponent(oldName) + '/rename', {
+                    new_name: newName
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '重命名失败');
+                }
+                document.getElementById('renameProfileName').value = '';
+                await loadProfileList();
+                document.getElementById('renameProfileSelect').value = newName;
+                await loadCodes();
+                statusEl.className = 'status-msg success';
+                statusEl.textContent = '已重命名: ' + oldName + ' -> ' + newName;
+            } catch (e) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '重命名失败: ' + e.message;
+            }
+        }
+
         function cancelEditCode() {
             document.getElementById('editCodePanel').style.display = 'none';
             document.getElementById('editStatus').className = 'status-msg';
@@ -1346,6 +1455,7 @@
             'load_profile': '加载档案',
             'save_profile': '保存档案',
             'delete_profile': '删除档案',
+            'rename_profile': '重命名档案',
             'trigger_build': '触发构建',
             'create_code': '创建激活码',
             'update_code': '编辑激活码',

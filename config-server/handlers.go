@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -27,6 +28,95 @@ const maxBuildRecordHistory = 5
 const buildAssetDownloadLinkTTL = 10 * time.Minute
 
 var buildRequestIDPattern = regexp.MustCompile(`BR-[0-9a-fA-F]{24}`)
+
+const (
+	profileListCacheTTL       = 90 * time.Second
+	buildQueueSnapshotTTL     = 15 * time.Second
+	buildStatusActiveCacheTTL = 8 * time.Second
+	buildStatusDoneCacheTTL   = 2 * time.Minute
+)
+
+var (
+	storedProfilesCache     singleTTLCache[map[string]string]
+	buildQueueSnapshotCache keyedTTLCache[BuildQueueSnapshot]
+	buildStatusCache        keyedTTLCache[map[string]interface{}]
+	buildCacheMu            sync.Mutex
+)
+
+func cloneStringMap(src map[string]string) map[string]string {
+	if src == nil {
+		return nil
+	}
+	dst := make(map[string]string, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+	return dst
+}
+
+func cloneInterfaceMap(src map[string]interface{}) map[string]interface{} {
+	if src == nil {
+		return nil
+	}
+	dst := make(map[string]interface{}, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+	return dst
+}
+
+func invalidateProfileCache() {
+	storedProfilesCache.clear()
+}
+
+func invalidateBuildCachesForRecord(record *BuildRecord) {
+	buildQueueSnapshotCache.clear()
+	if record == nil {
+		buildStatusCache.clear()
+		return
+	}
+	if record.RequestID != "" {
+		buildStatusCache.delete("request:" + strings.TrimSpace(record.RequestID))
+	}
+	if record.ID > 0 {
+		buildStatusCache.delete(fmt.Sprintf("record:%d", record.ID))
+	}
+	buildStatusCache.delete(buildStatusFallbackCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms))
+}
+
+func buildStatusFallbackCacheKey(codeID int, profile, requestID, tag, branch, platforms string) string {
+	if strings.TrimSpace(requestID) != "" {
+		return "request:" + strings.TrimSpace(requestID)
+	}
+	return fmt.Sprintf("fallback:%d|%s|%s|%s|%s", codeID, profile, tag, branch, platforms)
+}
+
+func buildStatusCacheKey(record *BuildRecord, codeID int, profile, requestID, tag, branch, platforms string) string {
+	if record != nil && record.ID > 0 {
+		return fmt.Sprintf("record:%d", record.ID)
+	}
+	if strings.TrimSpace(requestID) != "" {
+		return "request:" + strings.TrimSpace(requestID)
+	}
+	return buildStatusFallbackCacheKey(codeID, profile, requestID, tag, branch, platforms)
+}
+
+func buildStatusCacheTTL(result map[string]interface{}) time.Duration {
+	if status, _ := result["status"].(string); status == "completed" {
+		return buildStatusDoneCacheTTL
+	}
+	if found, _ := result["found"].(bool); !found {
+		return buildStatusActiveCacheTTL
+	}
+	return buildStatusActiveCacheTTL
+}
+
+func writeBuildStatusResponse(w http.ResponseWriter, cacheKey string, result map[string]interface{}) {
+	if cacheKey != "" {
+		buildStatusCache.set(cacheKey, cloneInterfaceMap(result), buildStatusCacheTTL(result))
+	}
+	jsonResponse(w, result)
+}
 
 type Handlers struct {
 	gh        *GitHubClient
@@ -461,6 +551,7 @@ func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 				_ = h.profileGH.SaveFileWithRetry(filePath, func(_ string) string {
 					return cleaned
 				}, "修复配置档案: "+name, 3)
+				invalidateProfileCache()
 			}
 		}
 	}
@@ -535,6 +626,7 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "保存失败: "+err.Error(), 500)
 		return
 	}
+	invalidateProfileCache()
 
 	logAudit(claims.CodeID, claims.CodeName, "save_profile", name, r.RemoteAddr)
 
@@ -566,6 +658,7 @@ func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "删除失败: "+err.Error(), 500)
 			return
 		}
+		invalidateProfileCache()
 	}
 
 	logAudit(claims.CodeID, claims.CodeName, "delete_profile", name, r.RemoteAddr)
@@ -579,6 +672,7 @@ const maxConcurrentBuildJobs = 20
 const maxConcurrentMacOSBuildJobs = 5
 
 const recentWorkflowRunsSearchLimit = 100
+const fastWorkflowRunsSearchLimit = 20
 
 type BuildJobDemand struct {
 	Total int
@@ -612,6 +706,7 @@ type PendingBuild struct {
 // 缓存构建请求对应的最近 run_id，避免每次轮询都搜索所有 runs
 var profileRunCache = make(map[string]int64)
 var pendingBuildCache = make(map[string]PendingBuild)
+var buildStateCacheMu sync.RWMutex
 
 func estimateBuildJobDemand(platforms string) BuildJobDemand {
 	allJobs := []string{
@@ -748,6 +843,20 @@ func (h *Handlers) getActiveBuildJobUsage() (BuildQueueSnapshot, error) {
 }
 
 func (h *Handlers) getBuildQueueSnapshot(platforms string) (BuildQueueSnapshot, error) {
+	cacheKey := strings.TrimSpace(platforms)
+	if cacheKey == "" {
+		cacheKey = "all"
+	}
+	if cached, ok := buildQueueSnapshotCache.get(cacheKey); ok {
+		return cached, nil
+	}
+
+	buildCacheMu.Lock()
+	defer buildCacheMu.Unlock()
+	if cached, ok := buildQueueSnapshotCache.get(cacheKey); ok {
+		return cached, nil
+	}
+
 	snapshot, err := h.getActiveBuildJobUsage()
 	if err != nil {
 		return snapshot, err
@@ -765,6 +874,7 @@ func (h *Handlers) getBuildQueueSnapshot(platforms string) (BuildQueueSnapshot, 
 		}
 	}
 
+	buildQueueSnapshotCache.set(cacheKey, snapshot, buildQueueSnapshotTTL)
 	return snapshot, nil
 }
 
@@ -781,18 +891,24 @@ func rememberPendingBuild(codeID int, profile, tag, branch, platforms string) Pe
 		Platforms:   platforms,
 		TriggeredAt: time.Now().UTC(),
 	}
+	buildStateCacheMu.Lock()
 	pendingBuildCache[buildPendingCacheKey(codeID, profile, tag, branch, platforms)] = pending
+	buildStateCacheMu.Unlock()
 	return pending
 }
 
 func getPendingBuild(codeID int, profile, tag, branch, platforms string) (PendingBuild, bool) {
+	buildStateCacheMu.RLock()
 	pending, ok := pendingBuildCache[buildPendingCacheKey(codeID, profile, tag, branch, platforms)]
+	buildStateCacheMu.RUnlock()
 	return pending, ok
 }
 
 func getLatestPendingBuildByProfile(codeID int, profile string) (PendingBuild, bool) {
 	var latest PendingBuild
 	found := false
+	buildStateCacheMu.RLock()
+	defer buildStateCacheMu.RUnlock()
 	for _, pending := range pendingBuildCache {
 		if codeID > 0 && pending.CodeID != codeID {
 			continue
@@ -809,7 +925,34 @@ func getLatestPendingBuildByProfile(codeID int, profile string) (PendingBuild, b
 }
 
 func clearPendingBuild(codeID int, profile, tag, branch, platforms string) {
+	buildStateCacheMu.Lock()
 	delete(pendingBuildCache, buildPendingCacheKey(codeID, profile, tag, branch, platforms))
+	buildStateCacheMu.Unlock()
+}
+
+func getCachedProfileRunID(cacheKey string) (int64, bool) {
+	buildStateCacheMu.RLock()
+	runID, ok := profileRunCache[cacheKey]
+	buildStateCacheMu.RUnlock()
+	return runID, ok
+}
+
+func setCachedProfileRunID(cacheKey string, runID int64) {
+	if cacheKey == "" || runID <= 0 {
+		return
+	}
+	buildStateCacheMu.Lock()
+	profileRunCache[cacheKey] = runID
+	buildStateCacheMu.Unlock()
+}
+
+func deleteCachedProfileRunID(cacheKey string) {
+	if cacheKey == "" {
+		return
+	}
+	buildStateCacheMu.Lock()
+	delete(profileRunCache, cacheKey)
+	buildStateCacheMu.Unlock()
 }
 
 func parseGitHubTimestamp(value string) (time.Time, bool) {
@@ -1064,22 +1207,32 @@ func (h *Handlers) findWorkflowRunByRequestID(requestID string, activeOnly bool)
 		return nil, nil, nil
 	}
 
-	runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", recentWorkflowRunsSearchLimit)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	for i := range runs {
-		run := &runs[i]
-		if activeOnly && !isActiveWorkflowStatus(run.Status) {
+	searchCounts := []int{fastWorkflowRunsSearchLimit, recentWorkflowRunsSearchLimit}
+	for index, count := range searchCounts {
+		if index > 0 && searchCounts[index-1] >= count {
 			continue
 		}
-		inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+		runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", count)
 		if err != nil {
-			continue
+			return nil, nil, err
 		}
-		if strings.TrimSpace(inputs["request_id"]) == requestID {
-			return run, inputs, nil
+
+		for i := range runs {
+			run := &runs[i]
+			if activeOnly && !isActiveWorkflowStatus(run.Status) {
+				continue
+			}
+			if extracted := extractBuildRequestIDFromText(run.Name); extracted == requestID {
+				inputs, _ := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+				return run, inputs, nil
+			}
+			inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+			if err != nil {
+				continue
+			}
+			if strings.TrimSpace(inputs["request_id"]) == requestID {
+				return run, inputs, nil
+			}
 		}
 	}
 
@@ -1199,10 +1352,11 @@ func (h *Handlers) applyWorkflowRunToBuildRecord(record *BuildRecord, run *Workf
 	}
 	if run.Status == "completed" {
 		clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Platforms)
-		delete(profileRunCache, buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms))
+		deleteCachedProfileRunID(buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms))
 	} else {
-		profileRunCache[buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms)] = run.ID
+		setCachedProfileRunID(buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms), run.ID)
 	}
+	invalidateBuildCachesForRecord(record)
 }
 
 func (h *Handlers) reconcileBuildRecords(records []BuildRecord, deep bool) []BuildRecord {
@@ -1456,8 +1610,9 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 
 	rememberPendingBuild(claims.CodeID, req.Profile, req.Tag, req.Branch, req.Platforms)
 
-	delete(profileRunCache, buildRunCacheKey(claims.CodeID, req.Profile, requestID, req.Tag, req.Branch, req.Platforms))
-	delete(profileRunCache, buildRunCacheKey(claims.CodeID, req.Profile, "", "", "", ""))
+	deleteCachedProfileRunID(buildRunCacheKey(claims.CodeID, req.Profile, requestID, req.Tag, req.Branch, req.Platforms))
+	deleteCachedProfileRunID(buildRunCacheKey(claims.CodeID, req.Profile, "", "", "", ""))
+	invalidateBuildCachesForRecord(record)
 
 	logAudit(claims.CodeID, claims.CodeName, "trigger_build",
 		fmt.Sprintf("record_id=%d profile=%s tag=%s platforms=%s branch=%s", record.ID, req.Profile, req.Tag, req.Platforms, req.Branch),
@@ -1540,10 +1695,11 @@ func (h *Handlers) persistBuildRecordEvent(record *BuildRecord, runID int64, sta
 	cacheKey := buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms)
 	if status == "completed" {
 		clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Platforms)
-		delete(profileRunCache, cacheKey)
+		deleteCachedProfileRunID(cacheKey)
 	} else if runID > 0 {
-		profileRunCache[cacheKey] = runID
+		setCachedProfileRunID(cacheKey, runID)
 	}
+	invalidateBuildCachesForRecord(record)
 
 	updatedRecord, err := getBuildRecord(record.ID)
 	if err != nil {
@@ -1864,6 +2020,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	statusCacheKey := ""
 	if record != nil {
 		if !canAccessBuildRecord(claims, record) {
 			jsonError(w, "无权访问该打包记录", 403)
@@ -1896,7 +2053,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			if requestID != "" {
 				result["request_id"] = requestID
 			}
-			jsonResponse(w, result)
+			writeBuildStatusResponse(w, buildStatusCacheKey(record, 0, profile, requestID, tag, branch, platforms), result)
 			return
 		}
 		if claims.Permissions != "admin" {
@@ -1943,6 +2100,11 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	cacheKey := buildRunCacheKey(pendingCodeID, profile, requestID, tag, branch, platforms)
+	statusCacheKey = buildStatusCacheKey(record, pendingCodeID, profile, requestID, tag, branch, platforms)
+	if cached, ok := buildStatusCache.get(statusCacheKey); ok {
+		jsonResponse(w, cloneInterfaceMap(cached))
+		return
+	}
 
 	var matchedRun *WorkflowRun
 	var matchedInputs map[string]string
@@ -1960,7 +2122,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				result := buildStatusResponseFromRecord(record)
 				result["sync_error"] = true
-				jsonResponse(w, result)
+				writeBuildStatusResponse(w, statusCacheKey, result)
 				return
 			}
 			if run != nil {
@@ -1973,7 +2135,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			if hasPendingBuild {
 				result["pending_detected"] = true
 			}
-			jsonResponse(w, result)
+			writeBuildStatusResponse(w, statusCacheKey, result)
 			return
 		}
 
@@ -2020,25 +2182,25 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			result["jobs"] = jobList
 		}
 
-		jsonResponse(w, result)
+		writeBuildStatusResponse(w, statusCacheKey, result)
 		return
 	}
 
-	if cachedRunID, ok := profileRunCache[cacheKey]; ok {
+	if cachedRunID, ok := getCachedProfileRunID(cacheKey); ok {
 		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, cachedRunID)
 		if err == nil {
 			if buildRequestMatches(inputs, profile, requestID, tag, branch, platforms) || (requestID == "" && hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)) {
 				matchedRun = run
 				matchedInputs = inputs
 				if matchedRun.Status == "completed" {
-					delete(profileRunCache, cacheKey)
+					deleteCachedProfileRunID(cacheKey)
 					clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
 				}
 			} else {
-				delete(profileRunCache, cacheKey)
+				deleteCachedProfileRunID(cacheKey)
 			}
 		} else {
-			delete(profileRunCache, cacheKey)
+			deleteCachedProfileRunID(cacheKey)
 		}
 	}
 
@@ -2055,7 +2217,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 				if matchedRun.Status == "completed" {
 					clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
 				} else {
-					profileRunCache[cacheKey] = run.ID
+					setCachedProfileRunID(cacheKey, run.ID)
 				}
 			}
 		} else {
@@ -2078,7 +2240,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 					if err == nil {
 						matchedInputs = inputs
 					}
-					profileRunCache[cacheKey] = run.ID
+					setCachedProfileRunID(cacheKey, run.ID)
 					break
 				}
 			}
@@ -2117,7 +2279,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		if hasPendingBuild {
 			result["pending_detected"] = true
 		}
-		jsonResponse(w, result)
+		writeBuildStatusResponse(w, statusCacheKey, result)
 		return
 	}
 
@@ -2179,7 +2341,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		result["jobs"] = jobList
 	}
 
-	jsonResponse(w, result)
+	writeBuildStatusResponse(w, statusCacheKey, result)
 }
 
 func (h *Handlers) CancelBuildRecord(w http.ResponseWriter, r *http.Request) {
@@ -2555,6 +2717,9 @@ func (h *Handlers) DeleteBuildRecord(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "删除 GitHub 打包产物失败", 500)
 		return
 	}
+	if releaseTag != "" {
+		githubReleaseCache.delete(githubReleaseCacheKey(cfg.BuildOwner, cfg.BuildRepo, releaseTag))
+	}
 	if record.RunID > 0 {
 		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, record.RunID)
 		if err == nil && run != nil && workflowRunMatchesRecord(record, run, inputs) {
@@ -2569,8 +2734,9 @@ func (h *Handlers) DeleteBuildRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	delete(profileRunCache, buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms))
+	deleteCachedProfileRunID(buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms))
 	clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Platforms)
+	invalidateBuildCachesForRecord(record)
 
 	logAudit(claims.CodeID, claims.CodeName, "delete_build_record",
 		fmt.Sprintf("record_id=%d release_tag=%s", record.ID, releaseTag),
@@ -2798,6 +2964,82 @@ func (h *Handlers) DeleteCode(w http.ResponseWriter, r *http.Request) {
 	logAudit(claims.CodeID, claims.CodeName, "delete_code", idStr, r.RemoteAddr)
 
 	jsonResponse(w, map[string]string{"message": "删除成功"})
+}
+
+func (h *Handlers) RenameProfile(w http.ResponseWriter, r *http.Request) {
+	oldName := strings.TrimSpace(chi.URLParam(r, "name"))
+	var req struct {
+		NewName string `json:"new_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "请求格式错误", 400)
+		return
+	}
+	newName := strings.TrimSpace(req.NewName)
+	if oldName == "" || newName == "" {
+		jsonError(w, "档案名称不能为空", 400)
+		return
+	}
+	if oldName == newName {
+		jsonError(w, "新档案名称不能与原名称相同", 400)
+		return
+	}
+
+	oldPath, err := profileFilePath(oldName)
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
+	newPath, err := profileFilePath(newName)
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
+
+	content, sha, _, exists, err := h.getStoredProfile(oldName)
+	if err != nil {
+		jsonError(w, "读取原档案失败: "+err.Error(), 500)
+		return
+	}
+	if !exists {
+		jsonError(w, "原档案不存在", 404)
+		return
+	}
+	_, _, _, newExists, err := h.getStoredProfile(newName)
+	if err != nil {
+		jsonError(w, "检查新档案名称失败: "+err.Error(), 500)
+		return
+	}
+	if newExists {
+		jsonError(w, "新档案名称已存在", 409)
+		return
+	}
+
+	if _, err := h.profileGH.SaveFile(newPath, content, "", "重命名配置档案: "+oldName+" -> "+newName); err != nil {
+		jsonError(w, "创建新档案失败: "+err.Error(), 500)
+		return
+	}
+	if err := h.profileGH.DeleteFile(oldPath, sha, "删除重命名前旧档案: "+oldName); err != nil {
+		jsonError(w, "删除旧档案失败，新档案已创建，请稍后手动清理旧档案: "+err.Error(), 500)
+		return
+	}
+	if err := renameProfileReferences(oldName, newName); err != nil {
+		jsonError(w, "同步档案引用失败: "+err.Error(), 500)
+		return
+	}
+
+	invalidateProfileCache()
+	buildStatusCache.clear()
+	buildQueueSnapshotCache.clear()
+
+	claims := getClaims(r)
+	logAudit(claims.CodeID, claims.CodeName, "rename_profile", fmt.Sprintf("%s -> %s", oldName, newName), r.RemoteAddr)
+
+	jsonResponse(w, map[string]string{
+		"message":  "重命名成功",
+		"old_name": oldName,
+		"new_name": newName,
+	})
 }
 
 func (h *Handlers) GetAuditLogs(w http.ResponseWriter, r *http.Request) {

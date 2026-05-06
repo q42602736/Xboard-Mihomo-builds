@@ -147,6 +147,7 @@ func main() {
 		r.Post("/api/admin/codes", h.CreateCode)
 		r.Put("/api/admin/codes/{id}", h.UpdateCode)
 		r.Delete("/api/admin/codes/{id}", h.DeleteCode)
+		r.Put("/api/admin/profiles/{name}/rename", h.RenameProfile)
 		r.Get("/api/admin/logs", h.GetAuditLogs)
 		r.Get("/api/admin/settings", h.GetSystemSettings)
 		r.Put("/api/admin/settings", h.SaveSystemSettings)

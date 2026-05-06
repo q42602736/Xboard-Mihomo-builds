@@ -19,6 +19,40 @@ type GitHubClient struct {
 	Branch string
 }
 
+const (
+	githubBranchesCacheTTL           = 10 * time.Minute
+	githubActiveWorkflowRunsCacheTTL = 12 * time.Second
+	githubRecentWorkflowRunsCacheTTL = 20 * time.Second
+	githubWorkflowRunCacheTTL        = 8 * time.Second
+	githubWorkflowJobsCacheTTL       = 12 * time.Second
+	githubReleaseCacheTTL            = 30 * time.Second
+	githubReleaseMissCacheTTL        = 8 * time.Second
+	githubCommitsCacheTTL            = 2 * time.Minute
+)
+
+var (
+	githubBranchesCache           keyedTTLCache[[]Branch]
+	githubActiveWorkflowRunsCache keyedTTLCache[[]WorkflowRun]
+	githubRecentWorkflowRunsCache keyedTTLCache[[]WorkflowRun]
+	githubWorkflowRunCache        keyedTTLCache[workflowRunCacheValue]
+	githubWorkflowJobsCache       keyedTTLCache[[]WorkflowJob]
+	githubReleaseCache            keyedTTLCache[releaseCacheValue]
+	githubCommitsCache            keyedTTLCache[[]CommitInfo]
+)
+
+type workflowRunCacheValue struct {
+	Run    *WorkflowRun
+	Inputs map[string]string
+}
+
+type releaseCacheValue struct {
+	Release *Release
+}
+
+func githubReleaseCacheKey(buildOwner, buildRepo, tag string) string {
+	return fmt.Sprintf("%s/%s|%s", buildOwner, buildRepo, tag)
+}
+
 func NewGitHubClient(token, owner, repo, branch string) *GitHubClient {
 	return &GitHubClient{Token: token, Owner: owner, Repo: repo, Branch: branch}
 }
@@ -302,6 +336,11 @@ type CommitInfo struct {
 
 // ListBranches 获取仓库的分支列表
 func (g *GitHubClient) ListBranches() ([]Branch, error) {
+	cacheKey := fmt.Sprintf("%s/%s", g.Owner, g.Repo)
+	if branches, ok := githubBranchesCache.get(cacheKey); ok {
+		return branches, nil
+	}
+
 	url := g.apiURL("branches")
 	resp, err := g.doRequest("GET", url, nil)
 	if err != nil {
@@ -315,6 +354,7 @@ func (g *GitHubClient) ListBranches() ([]Branch, error) {
 
 	var branches []Branch
 	json.NewDecoder(resp.Body).Decode(&branches)
+	githubBranchesCache.set(cacheKey, branches, githubBranchesCacheTTL)
 	return branches, nil
 }
 
@@ -399,6 +439,11 @@ type Release struct {
 
 // GetActiveWorkflowRuns 获取指定 workflow 当前仍处于活动状态的运行实例
 func (g *GitHubClient) GetActiveWorkflowRuns(buildOwner, buildRepo, workflow string) ([]WorkflowRun, error) {
+	cacheKey := fmt.Sprintf("%s/%s|%s", buildOwner, buildRepo, workflow)
+	if runs, ok := githubActiveWorkflowRunsCache.get(cacheKey); ok {
+		return runs, nil
+	}
+
 	activeStatuses := []string{"in_progress", "queued", "waiting", "pending", "requested"}
 	runMap := make(map[int64]WorkflowRun)
 
@@ -435,11 +480,17 @@ func (g *GitHubClient) GetActiveWorkflowRuns(buildOwner, buildRepo, workflow str
 	for _, run := range runMap {
 		runs = append(runs, run)
 	}
+	githubActiveWorkflowRunsCache.set(cacheKey, runs, githubActiveWorkflowRunsCacheTTL)
 	return runs, nil
 }
 
 // GetRecentWorkflowRuns 获取最近的工作流运行列表
 func (g *GitHubClient) GetRecentWorkflowRuns(buildOwner, buildRepo, workflow string, count int) ([]WorkflowRun, error) {
+	cacheKey := fmt.Sprintf("%s/%s|%s|%d", buildOwner, buildRepo, workflow, count)
+	if runs, ok := githubRecentWorkflowRunsCache.get(cacheKey); ok {
+		return runs, nil
+	}
+
 	url := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/actions/workflows/%s/runs?per_page=%d&event=workflow_dispatch",
 		buildOwner, buildRepo, workflow, count,
@@ -458,11 +509,19 @@ func (g *GitHubClient) GetRecentWorkflowRuns(buildOwner, buildRepo, workflow str
 		WorkflowRuns []WorkflowRun `json:"workflow_runs"`
 	}
 	json.NewDecoder(resp.Body).Decode(&result)
+	githubRecentWorkflowRunsCache.set(cacheKey, result.WorkflowRuns, githubRecentWorkflowRunsCacheTTL)
 	return result.WorkflowRuns, nil
 }
 
 // GetWorkflowRun 通过 run_id 直接获取单个 run 的状态
 func (g *GitHubClient) GetWorkflowRun(buildOwner, buildRepo string, runID int64) (*WorkflowRun, map[string]string, error) {
+	cacheKey := fmt.Sprintf("%s/%s|%d", buildOwner, buildRepo, runID)
+	if cached, ok := githubWorkflowRunCache.get(cacheKey); ok {
+		if cached.Run != nil {
+			return cached.Run, cached.Inputs, nil
+		}
+	}
+
 	url := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/actions/runs/%d",
 		buildOwner, buildRepo, runID,
@@ -489,11 +548,21 @@ func (g *GitHubClient) GetWorkflowRun(buildOwner, buildRepo string, runID int64)
 		json.Unmarshal(rawInputs, &inputs)
 	}
 
+	githubWorkflowRunCache.set(cacheKey, workflowRunCacheValue{
+		Run:    &run,
+		Inputs: inputs,
+	}, githubWorkflowRunCacheTTL)
+
 	return &run, inputs, nil
 }
 
 // GetWorkflowRunJobs 获取指定运行的 job 列表
 func (g *GitHubClient) GetWorkflowRunJobs(buildOwner, buildRepo string, runID int64) ([]WorkflowJob, error) {
+	cacheKey := fmt.Sprintf("%s/%s|%d", buildOwner, buildRepo, runID)
+	if jobs, ok := githubWorkflowJobsCache.get(cacheKey); ok {
+		return jobs, nil
+	}
+
 	url := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/actions/runs/%d/jobs",
 		buildOwner, buildRepo, runID,
@@ -512,6 +581,7 @@ func (g *GitHubClient) GetWorkflowRunJobs(buildOwner, buildRepo string, runID in
 		Jobs []WorkflowJob `json:"jobs"`
 	}
 	json.NewDecoder(resp.Body).Decode(&result)
+	githubWorkflowJobsCache.set(cacheKey, result.Jobs, githubWorkflowJobsCacheTTL)
 	return result.Jobs, nil
 }
 
@@ -577,6 +647,12 @@ func (g *GitHubClient) CancelWorkflowRun(buildOwner, buildRepo string, runID int
 
 // GetWorkflowRunInputs 获取单个 run 的 workflow_dispatch 输入参数
 func (g *GitHubClient) GetWorkflowRunInputs(buildOwner, buildRepo string, runID int64) (map[string]string, error) {
+	if cached, ok := githubWorkflowRunCache.get(fmt.Sprintf("%s/%s|%d", buildOwner, buildRepo, runID)); ok {
+		if cached.Inputs != nil {
+			return cached.Inputs, nil
+		}
+	}
+
 	url := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/actions/runs/%d",
 		buildOwner, buildRepo, runID,
@@ -599,6 +675,10 @@ func (g *GitHubClient) GetWorkflowRunInputs(buildOwner, buildRepo string, runID 
 	if rawInputs, ok := runDetail["inputs"]; ok {
 		json.Unmarshal(rawInputs, &inputs)
 	}
+	githubWorkflowRunCache.set(fmt.Sprintf("%s/%s|%d", buildOwner, buildRepo, runID), workflowRunCacheValue{
+		Run:    nil,
+		Inputs: inputs,
+	}, githubWorkflowRunCacheTTL)
 	return inputs, nil
 }
 
@@ -620,6 +700,11 @@ func (g *GitHubClient) SaveFileWithRetry(filePath string, contentFn func(existin
 }
 
 func (g *GitHubClient) GetReleaseByTag(buildOwner, buildRepo, tag string) (*Release, error) {
+	cacheKey := githubReleaseCacheKey(buildOwner, buildRepo, tag)
+	if cached, ok := githubReleaseCache.get(cacheKey); ok {
+		return cached.Release, nil
+	}
+
 	lookupURL := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/releases/tags/%s",
 		buildOwner, buildRepo, url.PathEscape(tag),
@@ -635,6 +720,7 @@ func (g *GitHubClient) GetReleaseByTag(buildOwner, buildRepo, tag string) (*Rele
 		if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
 			return nil, err
 		}
+		githubReleaseCache.set(cacheKey, releaseCacheValue{Release: &release}, githubReleaseCacheTTL)
 		return &release, nil
 	}
 
@@ -664,9 +750,11 @@ func (g *GitHubClient) GetReleaseByTag(buildOwner, buildRepo, tag string) (*Rele
 	}
 	for i := range releases {
 		if releases[i].TagName == tag {
+			githubReleaseCache.set(cacheKey, releaseCacheValue{Release: &releases[i]}, githubReleaseCacheTTL)
 			return &releases[i], nil
 		}
 	}
+	githubReleaseCache.set(cacheKey, releaseCacheValue{Release: nil}, githubReleaseMissCacheTTL)
 	return nil, nil
 }
 
@@ -695,9 +783,14 @@ func (g *GitHubClient) DeleteReleaseByTag(buildOwner, buildRepo, tag string) err
 		return err
 	}
 	if release == nil {
+		githubReleaseCache.delete(githubReleaseCacheKey(buildOwner, buildRepo, tag))
 		return nil
 	}
-	return g.DeleteRelease(buildOwner, buildRepo, release.ID)
+	if err := g.DeleteRelease(buildOwner, buildRepo, release.ID); err != nil {
+		return err
+	}
+	githubReleaseCache.delete(githubReleaseCacheKey(buildOwner, buildRepo, tag))
+	return nil
 }
 
 func (g *GitHubClient) DownloadReleaseAsset(buildOwner, buildRepo string, assetID int64) (*http.Response, error) {
@@ -738,6 +831,10 @@ func (g *GitHubClient) ListRecentCommits(branch string, count int) ([]CommitInfo
 	targetBranch := strings.TrimSpace(branch)
 	if targetBranch == "" {
 		targetBranch = g.Branch
+	}
+	cacheKey := fmt.Sprintf("%s/%s|%s|%d", g.Owner, g.Repo, targetBranch, count)
+	if commits, ok := githubCommitsCache.get(cacheKey); ok {
+		return commits, nil
 	}
 
 	perPage := count
@@ -841,5 +938,6 @@ func (g *GitHubClient) ListRecentCommits(branch string, count int) ([]CommitInfo
 		}
 	}
 
+	githubCommitsCache.set(cacheKey, commits, githubCommitsCacheTTL)
 	return commits, nil
 }

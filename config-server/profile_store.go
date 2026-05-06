@@ -19,6 +19,10 @@ func profileFilePath(name string) (string, error) {
 }
 
 func (h *Handlers) listStoredProfiles() (map[string]string, error) {
+	if cached, ok := storedProfilesCache.get(); ok {
+		return cloneStringMap(cached), nil
+	}
+
 	items, err := h.profileGH.ListDirectory(profilesDir)
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
@@ -40,6 +44,7 @@ func (h *Handlers) listStoredProfiles() (map[string]string, error) {
 		}
 		profiles[name] = lastUpdated
 	}
+	storedProfilesCache.set(cloneStringMap(profiles), profileListCacheTTL)
 	return profiles, nil
 }
 

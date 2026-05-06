@@ -871,6 +871,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		jsonError(w, "保存公共配置失败: 未生成有效配置内容", http.StatusInternalServerError)
 		return
 	}
+	invalidateProfileCache()
 	if err := validateYamlContent(updatedYaml); err != nil {
 		jsonError(w, "保存后的配置校验失败: "+err.Error(), http.StatusInternalServerError)
 		return

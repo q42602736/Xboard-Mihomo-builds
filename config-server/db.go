@@ -420,6 +420,88 @@ func deleteBuildRecord(recordID int64) error {
 	return nil
 }
 
+func renameProfileReferences(oldName, newName string) error {
+	oldName = strings.TrimSpace(oldName)
+	newName = strings.TrimSpace(newName)
+	if oldName == "" || newName == "" {
+		return fmt.Errorf("档案名称不能为空")
+	}
+	if oldName == newName {
+		return nil
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.Query(`SELECT id, allowed_profiles FROM activation_codes`)
+	if err != nil {
+		return err
+	}
+
+	type codeProfileUpdate struct {
+		id       int
+		profiles []string
+	}
+	updates := []codeProfileUpdate{}
+	for rows.Next() {
+		var id int
+		var allowedProfilesJSON string
+		if err := rows.Scan(&id, &allowedProfilesJSON); err != nil {
+			rows.Close()
+			return err
+		}
+
+		var profiles []string
+		_ = json.Unmarshal([]byte(allowedProfilesJSON), &profiles)
+		changed := false
+		seen := map[string]struct{}{}
+		renamedProfiles := make([]string, 0, len(profiles))
+		for _, profile := range profiles {
+			profile = strings.TrimSpace(profile)
+			if profile == "" {
+				continue
+			}
+			if profile == oldName {
+				profile = newName
+				changed = true
+			}
+			if _, ok := seen[profile]; ok {
+				changed = true
+				continue
+			}
+			seen[profile] = struct{}{}
+			renamedProfiles = append(renamedProfiles, profile)
+		}
+		if changed {
+			updates = append(updates, codeProfileUpdate{id: id, profiles: renamedProfiles})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+
+	for _, update := range updates {
+		profilesJSON, _ := json.Marshal(update.profiles)
+		if _, err := tx.Exec(`UPDATE activation_codes SET allowed_profiles = ? WHERE id = ?`, string(profilesJSON), update.id); err != nil {
+			return err
+		}
+	}
+
+	if _, err := tx.Exec(`UPDATE build_records SET profile = ? WHERE profile = ?`, newName, oldName); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE profile_asset_history SET profile_name = ? WHERE profile_name = ?`, newName, oldName); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func createProfileAssetHistoryRecord(codeID int, codeName, profileName, assetKind, assetPath, assetURL, contentType string) (*ProfileAssetHistoryRecord, error) {
 	result, err := db.Exec(
 		`INSERT INTO profile_asset_history (code_id, code_name, profile_name, asset_kind, asset_path, asset_url, content_type)
