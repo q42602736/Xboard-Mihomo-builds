@@ -13,7 +13,7 @@
             color: #e0e0e0;
             padding: 20px;
         }
-        .container { max-width: 1000px; margin: 0 auto; }
+        .container { max-width: 1280px; margin: 0 auto; }
         h1 { text-align: center; margin-bottom: 20px; color: #00d4ff; }
         .user-bar {
             display: flex;
@@ -118,8 +118,59 @@
             color: #00d4ff;
             font-size: 12px;
             cursor: pointer;
+            display: inline-block;
+            white-space: nowrap;
         }
         .code-text:hover { background: rgba(0,212,255,0.2); }
+        .table-scroll {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .codes-table {
+            min-width: 1180px;
+            table-layout: fixed;
+        }
+        .codes-table th,
+        .codes-table td {
+            vertical-align: middle;
+        }
+        .codes-table th {
+            white-space: nowrap;
+        }
+        .codes-table .col-code { width: 210px; }
+        .codes-table .col-name { width: 120px; }
+        .codes-table .col-profile { width: 150px; }
+        .codes-table .col-platforms { width: 170px; }
+        .codes-table .col-usage { width: 100px; }
+        .codes-table .col-expire { width: 105px; }
+        .codes-table .col-created { width: 165px; }
+        .codes-table .col-actions { width: 130px; }
+        .codes-table .cell-code,
+        .codes-table .cell-usage,
+        .codes-table .cell-expire,
+        .codes-table .cell-created,
+        .codes-table .cell-actions {
+            white-space: nowrap;
+        }
+        .codes-table .cell-name,
+        .codes-table .cell-profile,
+        .codes-table .cell-platforms {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .code-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: nowrap;
+        }
+        .code-actions .btn {
+            padding: 6px 12px !important;
+            font-size: 12px !important;
+            white-space: nowrap;
+        }
         .status-msg {
             padding: 10px;
             border-radius: 6px;
@@ -365,6 +416,32 @@
             font-size: 13px;
             padding: 8px 4px;
         }
+        .platform-permission-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .platform-permission-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.03);
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .platform-permission-option:hover {
+            background: rgba(0,212,255,0.08);
+        }
+        .platform-permission-option input {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -455,6 +532,11 @@
                         <div style="font-size:12px;color:#666;margin-top:5px;">可与下拉多选配合使用，适用于尚未创建的档案</div>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>允许打包平台（不选择表示全部平台可打包）</label>
+                    <div id="codeAllowedPlatforms" class="platform-permission-grid"></div>
+                    <div style="font-size:12px;color:#666;margin-top:5px;">平台选项与编辑器“软件打包”页面一致；老激活码为空时默认全平台可打包。</div>
+                </div>
                 <button class="btn btn-primary" onclick="createCode()">生成激活码</button>
             </div>
 
@@ -500,6 +582,11 @@
                         <div style="font-size:12px;color:#666;margin-top:5px;">可与下拉多选配合使用，适用于尚未创建的档案</div>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>允许打包平台（不选择表示全部平台可打包）</label>
+                    <div id="editCodeAllowedPlatforms" class="platform-permission-grid"></div>
+                    <div style="font-size:12px;color:#666;margin-top:5px;">保存为空时表示不限制，兼容旧激活码。</div>
+                </div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
                     <button class="btn btn-primary" onclick="saveCodeEdit()">保存修改</button>
                     <button class="btn" style="background:rgba(255,255,255,0.08);color:#ddd;" onclick="cancelEditCode()">取消</button>
@@ -508,22 +595,25 @@
 
             <div class="panel">
                 <h3>激活码列表</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>激活码</th>
-                            <th>备注</th>
-                            <th>绑定档案</th>
-                            <th>打包次数</th>
-                            <th>到期时间</th>
-                            <th>创建时间</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="codesTable">
-                        <tr><td colspan="7" class="empty">加载中...</td></tr>
-                    </tbody>
-                </table>
+                <div class="table-scroll">
+                    <table class="codes-table">
+                        <thead>
+                            <tr>
+                                <th class="col-code">激活码</th>
+                                <th class="col-name">备注</th>
+                                <th class="col-profile">绑定档案</th>
+                                <th class="col-platforms">允许平台</th>
+                                <th class="col-usage">打包次数</th>
+                                <th class="col-expire">到期时间</th>
+                                <th class="col-created">创建时间</th>
+                                <th class="col-actions">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="codesTable">
+                            <tr><td colspan="8" class="empty">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -746,6 +836,8 @@
             });
             bindProfilePicker('profileCheckboxes');
             bindProfilePicker('editProfileCheckboxes');
+            renderPlatformPermissionCheckboxes('codeAllowedPlatforms', 'platform-permission-cb', []);
+            renderPlatformPermissionCheckboxes('editCodeAllowedPlatforms', 'edit-platform-permission-cb', []);
             document.addEventListener('click', function(e) {
                 if (!e.target.closest('.profile-picker')) {
                     closeAllProfilePickers();
@@ -794,6 +886,16 @@
 
         var allProfiles = [];
         var codesCache = [];
+        var buildPlatformCatalog = [
+            { value: 'windows-arm64', label: 'Windows ARM64' },
+            { value: 'windows-amd64', label: 'Windows AMD64' },
+            { value: 'android', label: 'Android（手机）' },
+            { value: 'android-tv', label: 'Android TV' },
+            { value: 'linux-arm64', label: 'Linux ARM64' },
+            { value: 'linux-amd64', label: 'Linux AMD64' },
+            { value: 'macos-arm64', label: 'macOS ARM64' },
+            { value: 'macos-amd64', label: 'macOS AMD64' }
+        ];
         var customFeatureGroupsCache = [];
         var customFeatureOptionCatalog = [
             { key: 'traffic_bar_color', label: '流量条自定义' },
@@ -1200,12 +1302,96 @@
             return normalizeExpiresAtText(value);
         }
 
+        function formatTableDateTime(value) {
+            if (!value) return '';
+            var normalized = String(value).replace('T', ' ').replace(/Z$/, '').trim();
+            var parts = normalized.split(/\s+/);
+            if (parts.length < 2) return normalized;
+            return parts[0] + ' ' + parts[1].replace(/\.\d+$/, '');
+        }
+
+        function renderPlatformPermissionCheckboxes(containerId, checkboxClass, selectedPlatforms) {
+            var container = document.getElementById(containerId);
+            if (!container) return;
+
+            var selectedMap = {};
+            (selectedPlatforms || []).forEach(function(platform) {
+                platform = String(platform || '').trim();
+                if (platform) selectedMap[platform] = true;
+            });
+
+            container.innerHTML = '';
+            buildPlatformCatalog.forEach(function(platform) {
+                var label = document.createElement('label');
+                label.className = 'platform-permission-option';
+
+                var input = document.createElement('input');
+                input.type = 'checkbox';
+                input.className = checkboxClass;
+                input.value = platform.value;
+                input.checked = !!selectedMap[platform.value];
+
+                var text = document.createElement('span');
+                text.textContent = platform.label;
+
+                label.appendChild(input);
+                label.appendChild(text);
+                container.appendChild(label);
+            });
+        }
+
+        function getSelectedBuildPlatformPermissions(checkboxSelector) {
+            var result = [];
+            var seen = {};
+            document.querySelectorAll(checkboxSelector).forEach(function(cb) {
+                var value = String(cb.value || '').trim();
+                if (cb.checked && value && !seen[value]) {
+                    result.push(value);
+                    seen[value] = true;
+                }
+            });
+            return result;
+        }
+
+        function formatAllowedPlatformsDisplay(platforms) {
+            if (!platforms || platforms.length === 0) {
+                return '<span style="color:#555">全部平台</span>';
+            }
+            var labelMap = {};
+            buildPlatformCatalog.forEach(function(platform) {
+                labelMap[platform.value] = platform.label;
+            });
+            return platforms.map(function(platform) {
+                return escapeHtml(labelMap[platform] || platform);
+            }).join(', ');
+        }
+
+        function formatAllowedPlatformsShort(platforms) {
+            if (!platforms || platforms.length === 0) {
+                return '<span style="color:#555">全部平台</span>';
+            }
+            var shortLabelMap = {
+                'windows-arm64': 'Win ARM64',
+                'windows-amd64': 'Win AMD64',
+                'android': 'Android',
+                'android-tv': 'TV',
+                'linux-arm64': 'Linux ARM64',
+                'linux-amd64': 'Linux AMD64',
+                'macos-arm64': 'macOS ARM64',
+                'macos-amd64': 'macOS AMD64'
+            };
+            return platforms.map(function(platform) {
+                return escapeHtml(shortLabelMap[platform] || platform);
+            }).join(', ');
+        }
+
         function resetCreateForm() {
             document.getElementById('codeName').value = '';
             document.getElementById('codeMaxUses').value = '-1';
             document.getElementById('codeExpiresAt').value = '';
             document.getElementById('manualProfiles').value = '';
             renderProfileCheckboxes('profileCheckboxes', 'profile-cb', []);
+            renderPlatformPermissionCheckboxes('codeAllowedPlatforms', 'platform-permission-cb', []);
         }
 
         async function renameProfileFromAdmin() {
@@ -1273,6 +1459,7 @@
             document.getElementById('editCodeExpiresAt').value = '';
             document.getElementById('editManualProfiles').value = '';
             renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', []);
+            renderPlatformPermissionCheckboxes('editCodeAllowedPlatforms', 'edit-platform-permission-cb', []);
         }
 
         function openEditCode(id) {
@@ -1286,6 +1473,7 @@
             }
 
             var selectedProfiles = code.allowed_profiles || [];
+            var selectedPlatforms = code.allowed_platforms || [];
             var manualProfiles = selectedProfiles.filter(function(name) {
                 return allProfiles.indexOf(name) === -1;
             });
@@ -1299,6 +1487,7 @@
             document.getElementById('editStatus').className = 'status-msg';
             document.getElementById('editStatus').textContent = '';
             renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', selectedProfiles);
+            renderPlatformPermissionCheckboxes('editCodeAllowedPlatforms', 'edit-platform-permission-cb', selectedPlatforms);
             document.getElementById('editCodePanel').style.display = 'block';
             document.getElementById('editCodePanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
@@ -1312,7 +1501,7 @@
                 var tbody = document.getElementById('codesTable');
 
                 if (!codesCache.length) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无激活码</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty">暂无激活码</td></tr>';
                     return;
                 }
 
@@ -1320,21 +1509,36 @@
                 codesCache.forEach(function(c) {
                     var maxUsesText = c.max_uses === -1 ? '无限' : c.max_uses;
                     var profilesText = (c.allowed_profiles && c.allowed_profiles.length > 0)
-                        ? c.allowed_profiles.join(', ')
+                        ? escapeHtml(c.allowed_profiles.join(', '))
                         : '<span style="color:#555">未绑定</span>';
+                    var platformsText = formatAllowedPlatformsShort(c.allowed_platforms || []);
+                    var platformsTitle = (c.allowed_platforms && c.allowed_platforms.length > 0)
+                        ? formatAllowedPlatformsDisplay(c.allowed_platforms)
+                        : '全部平台';
+                    var createdAtText = formatTableDateTime(c.created_at);
+                    var expiresAtText = c.expires_at ? formatExpiresAtDisplay(c.expires_at) : '<span style="color:#555">不过期</span>';
 
                     var tr = document.createElement('tr');
                     tr.innerHTML =
-                        '<td><span class="code-text" onclick="copyCode(\'' + c.code + '\')" title="点击复制">' + c.code + '</span></td>' +
-                        '<td>' + (c.name || '-') + '</td>' +
-                        '<td style="font-size:12px;">' + profilesText + '</td>' +
-                        '<td>' + c.used_count + ' / ' + maxUsesText + '</td>' +
-                        '<td style="font-size:12px;color:#888;">' + formatExpiresAtDisplay(c.expires_at) + '</td>' +
-                        '<td style="font-size:12px;color:#888;">' + (c.created_at || '') + '</td>' +
-                        '<td>' +
-                            '<button class="btn btn-primary" style="padding:5px 12px;font-size:12px;" onclick="openEditCode(' + c.id + ')">编辑</button> ' +
-                            '<button class="btn btn-danger" onclick="deleteCode(' + c.id + ')">删除</button>' +
+                        '<td class="cell-code"><span class="code-text" data-code="' + escapeHtml(c.code) + '" title="点击复制">' + escapeHtml(c.code) + '</span></td>' +
+                        '<td class="cell-name" title="' + escapeHtml(c.name || '-') + '">' + escapeHtml(c.name || '-') + '</td>' +
+                        '<td class="cell-profile" title="' + escapeHtml((c.allowed_profiles && c.allowed_profiles.length > 0) ? c.allowed_profiles.join(', ') : '未绑定') + '" style="font-size:12px;">' + profilesText + '</td>' +
+                        '<td class="cell-platforms" title="' + escapeHtml(platformsTitle) + '" style="font-size:12px;">' + platformsText + '</td>' +
+                        '<td class="cell-usage">' + c.used_count + ' / ' + maxUsesText + '</td>' +
+                        '<td class="cell-expire" style="font-size:12px;color:#888;">' + expiresAtText + '</td>' +
+                        '<td class="cell-created" style="font-size:12px;color:#888;">' + escapeHtml(createdAtText) + '</td>' +
+                        '<td class="cell-actions">' +
+                            '<div class="code-actions">' +
+                                '<button class="btn btn-primary" onclick="openEditCode(' + c.id + ')">编辑</button>' +
+                                '<button class="btn btn-danger" onclick="deleteCode(' + c.id + ')">删除</button>' +
+                            '</div>' +
                         '</td>';
+                    var codeEl = tr.querySelector('.code-text');
+                    if (codeEl) {
+                        codeEl.addEventListener('click', function() {
+                            copyCode(this.getAttribute('data-code') || '');
+                        });
+                    }
                     tbody.appendChild(tr);
                 });
             } catch (e) {
@@ -1347,6 +1551,7 @@
             var maxUses = parseMaxUsesValue('codeMaxUses');
             var expiresAt = document.getElementById('codeExpiresAt').value.trim();
             var selectedProfiles = getSelectedProfiles('.profile-cb:checked', 'manualProfiles');
+            var selectedPlatforms = getSelectedBuildPlatformPermissions('.platform-permission-cb:checked');
             var statusEl = document.getElementById('createStatus');
 
             if (selectedProfiles.length === 0) {
@@ -1360,6 +1565,7 @@
                     name: name,
                     max_uses: maxUses,
                     allowed_profiles: selectedProfiles,
+                    allowed_platforms: selectedPlatforms,
                     expires_at: expiresAt
                 });
                 if (!response) return;
@@ -1372,7 +1578,7 @@
                 }
 
                 statusEl.className = 'status-msg success';
-                statusEl.textContent = '激活码已创建: ' + data.code + ' (绑定: ' + selectedProfiles.join(', ') + ')';
+                statusEl.textContent = '激活码已创建: ' + data.code + ' (绑定: ' + selectedProfiles.join(', ') + '，平台: ' + (selectedPlatforms.length ? selectedPlatforms.join(', ') : '全部平台') + ')';
                 resetCreateForm();
                 loadCodes();
             } catch (e) {
@@ -1388,6 +1594,7 @@
             var usedCount = parseUsedCountValue('editCodeUsedCount');
             var expiresAt = document.getElementById('editCodeExpiresAt').value.trim();
             var selectedProfiles = getSelectedProfiles('.edit-profile-cb:checked', 'editManualProfiles');
+            var selectedPlatforms = getSelectedBuildPlatformPermissions('.edit-platform-permission-cb:checked');
             var statusEl = document.getElementById('editStatus');
 
             if (!id) {
@@ -1412,6 +1619,7 @@
                     max_uses: maxUses,
                     used_count: usedCount,
                     allowed_profiles: selectedProfiles,
+                    allowed_platforms: selectedPlatforms,
                     expires_at: expiresAt
                 });
                 if (!response) return;
