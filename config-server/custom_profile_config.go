@@ -39,6 +39,7 @@ type UIColorCustomConfig struct {
 	CloudDispatchAutoEnabled             bool     `json:"cloud_dispatch_auto_enabled"`
 	CloudDispatchAutoIntervalMinutes     int      `json:"cloud_dispatch_auto_interval_minutes"`
 	CloudDispatchFallbackRetryMinutes    int      `json:"cloud_dispatch_fallback_retry_minutes"`
+	SSPanelNodePageParseEnabled          bool     `json:"sspanel_node_page_parse_enabled"`
 }
 
 const (
@@ -59,6 +60,7 @@ const (
 	customFeatureSubscriptionStatusPopup              = "subscription_status_popup"
 	customFeatureMainPolicyNodesOnly                  = "main_policy_nodes_only"
 	customFeatureCloudDispatch                        = "cloud_dispatch"
+	customFeatureSSPanelNodePageParse                 = "sspanel_node_page_parse"
 )
 
 var (
@@ -81,6 +83,7 @@ var (
 		customFeatureSubscriptionStatusPopup,
 		customFeatureMainPolicyNodesOnly,
 		customFeatureCloudDispatch,
+		customFeatureSSPanelNodePageParse,
 	}
 )
 
@@ -354,6 +357,14 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 
 	root := ensureDocumentMappingNode(doc)
 	xboard := getMapValueNode(root, "xboard")
+	subscription := getMapValueNode(xboard, "subscription")
+	if subscription != nil {
+		if enabledNode := getMapValueNode(subscription, "sspanel_node_page_parse_enabled"); enabledNode != nil {
+			result.SSPanelNodePageParseEnabled = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(subscription, "sspanelNodePageParseEnabled"); enabledNode != nil {
+			result.SSPanelNodePageParseEnabled = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
+	}
 	ui := getMapValueNode(xboard, "ui")
 	subscriptionUsage := getMapValueNode(ui, "subscription_usage")
 	if subscriptionUsage == nil {
@@ -467,6 +478,7 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 
 	root := ensureDocumentMappingNode(doc)
 	xboard := ensureMapValueNode(root, "xboard")
+	subscription := ensureMapValueNode(xboard, "subscription")
 	ui := ensureMapValueNode(xboard, "ui")
 	subscriptionUsage := ensureMapValueNode(ui, "subscription_usage")
 	customColors := ensureMapValueNode(ui, "custom_colors")
@@ -511,6 +523,8 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	removeMapKeys(cloudDispatchAuto, "intervalMinutes")
 	removeMapKeys(cloudDispatch, "target_host", "target_hosts", "queryUrl", "querySecret", "fallbackRetryMinutes", "targetHost", "targetHosts")
 	removeMapKeys(xboard, "cloudDispatch")
+	setMapBoolValue(subscription, "sspanel_node_page_parse_enabled", config.SSPanelNodePageParseEnabled)
+	removeMapKeys(subscription, "sspanelNodePageParseEnabled")
 
 	var buf bytes.Buffer
 	encoder := yaml.NewEncoder(&buf)
@@ -613,6 +627,7 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"cloud_dispatch_auto_enabled":              config.CloudDispatchAutoEnabled,
 		"cloud_dispatch_auto_interval_minutes":     config.CloudDispatchAutoIntervalMinutes,
 		"cloud_dispatch_fallback_retry_minutes":    config.CloudDispatchFallbackRetryMinutes,
+		"sspanel_node_page_parse_enabled":          config.SSPanelNodePageParseEnabled,
 	})
 }
 
@@ -646,6 +661,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		CloudDispatchAutoEnabled             bool     `json:"cloud_dispatch_auto_enabled"`
 		CloudDispatchAutoIntervalMinutes     int      `json:"cloud_dispatch_auto_interval_minutes"`
 		CloudDispatchFallbackRetryMinutes    int      `json:"cloud_dispatch_fallback_retry_minutes"`
+		SSPanelNodePageParseEnabled          bool     `json:"sspanel_node_page_parse_enabled"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", http.StatusBadRequest)
@@ -848,6 +864,9 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		targetConfig.CloudDispatchAutoIntervalMinutes = normalizedCloudDispatchAutoIntervalMinutes
 		targetConfig.CloudDispatchFallbackRetryMinutes = normalizedCloudDispatchFallbackRetryMinutes
 	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureSSPanelNodePageParse) {
+		targetConfig.SSPanelNodePageParseEnabled = req.SSPanelNodePageParseEnabled
+	}
 
 	var updatedYaml string
 	var patchErr error
@@ -910,5 +929,6 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"cloud_dispatch_auto_enabled":              targetConfig.CloudDispatchAutoEnabled,
 		"cloud_dispatch_auto_interval_minutes":     targetConfig.CloudDispatchAutoIntervalMinutes,
 		"cloud_dispatch_fallback_retry_minutes":    targetConfig.CloudDispatchFallbackRetryMinutes,
+		"sspanel_node_page_parse_enabled":          targetConfig.SSPanelNodePageParseEnabled,
 	})
 }

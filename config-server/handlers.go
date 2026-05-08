@@ -312,30 +312,53 @@ func normalizeSubscriptionConfig(yamlContent string) string {
 	subscription := ensureMapValueNode(xboard, "subscription")
 
 	var preferEncrypt, useExclusiveMode bool
+	var sspanelNodePageParseEnabled bool
 	var decryptKey, subscriptionUserAgent, subscriptionExclusiveUserAgent, subscriptionCustomQuerySuffix string
-	var hasLegacy bool
+	var hasLegacyPreferEncrypt bool
+	var hasLegacyUseExclusiveMode bool
+	var hasLegacySSPanelNodePageParse bool
+	var hasLegacyDecryptKey bool
+	var hasLegacySubscriptionUserAgent bool
+	var hasLegacySubscriptionExclusiveUserAgent bool
+	var hasLegacySubscriptionCustomQuerySuffix bool
 
-	preferEncrypt, hasLegacy = readLegacyBool(xboard, "prefer_encrypt", hasLegacy)
-	useExclusiveMode, hasLegacy = readLegacyBool(xboard, "use_exclusive_mode", hasLegacy)
-	decryptKey, hasLegacy = readLegacyString(xboard, "decrypt_key", hasLegacy)
-	subscriptionUserAgent, hasLegacy = readLegacyString(xboard, "user_agent", hasLegacy)
-	subscriptionExclusiveUserAgent, hasLegacy = readLegacyString(xboard, "exclusive_user_agent", hasLegacy)
-	subscriptionCustomQuerySuffix, hasLegacy = readLegacyString(xboard, "custom_query_suffix", hasLegacy)
+	preferEncrypt, hasLegacyPreferEncrypt = readLegacyBool(xboard, "prefer_encrypt", false)
+	useExclusiveMode, hasLegacyUseExclusiveMode = readLegacyBool(xboard, "use_exclusive_mode", false)
+	sspanelNodePageParseEnabled, hasLegacySSPanelNodePageParse = readLegacyBool(xboard, "sspanel_node_page_parse_enabled", false)
+	decryptKey, hasLegacyDecryptKey = readLegacyString(xboard, "decrypt_key", false)
+	subscriptionUserAgent, hasLegacySubscriptionUserAgent = readLegacyString(xboard, "user_agent", false)
+	subscriptionExclusiveUserAgent, hasLegacySubscriptionExclusiveUserAgent = readLegacyString(xboard, "exclusive_user_agent", false)
+	subscriptionCustomQuerySuffix, hasLegacySubscriptionCustomQuerySuffix = readLegacyString(xboard, "custom_query_suffix", false)
+
+	hasLegacy := hasLegacyPreferEncrypt ||
+		hasLegacyUseExclusiveMode ||
+		hasLegacySSPanelNodePageParse ||
+		hasLegacyDecryptKey ||
+		hasLegacySubscriptionUserAgent ||
+		hasLegacySubscriptionExclusiveUserAgent ||
+		hasLegacySubscriptionCustomQuerySuffix
 
 	if hasLegacy {
-		removeMapKeys(xboard, "prefer_encrypt", "use_exclusive_mode", "decrypt_key", "user_agent", "exclusive_user_agent", "custom_query_suffix")
-		setMapBoolValue(subscription, "prefer_encrypt", preferEncrypt)
-		setMapBoolValue(subscription, "use_exclusive_mode", useExclusiveMode)
-		if strings.TrimSpace(decryptKey) != "" {
+		removeMapKeys(xboard, "prefer_encrypt", "use_exclusive_mode", "sspanel_node_page_parse_enabled", "decrypt_key", "user_agent", "exclusive_user_agent", "custom_query_suffix")
+		if hasLegacyPreferEncrypt {
+			setMapBoolValue(subscription, "prefer_encrypt", preferEncrypt)
+		}
+		if hasLegacyUseExclusiveMode {
+			setMapBoolValue(subscription, "use_exclusive_mode", useExclusiveMode)
+		}
+		if hasLegacySSPanelNodePageParse {
+			setMapBoolValue(subscription, "sspanel_node_page_parse_enabled", sspanelNodePageParseEnabled)
+		}
+		if hasLegacyDecryptKey && strings.TrimSpace(decryptKey) != "" {
 			setMapStringValue(subscription, "decrypt_key", decryptKey)
 		}
-		if strings.TrimSpace(subscriptionUserAgent) != "" {
+		if hasLegacySubscriptionUserAgent && strings.TrimSpace(subscriptionUserAgent) != "" {
 			setMapStringValue(subscription, "user_agent", strings.TrimSpace(subscriptionUserAgent))
 		}
-		if strings.TrimSpace(subscriptionExclusiveUserAgent) != "" {
+		if hasLegacySubscriptionExclusiveUserAgent && strings.TrimSpace(subscriptionExclusiveUserAgent) != "" {
 			setMapStringValue(subscription, "exclusive_user_agent", strings.TrimSpace(subscriptionExclusiveUserAgent))
 		}
-		if strings.TrimSpace(subscriptionCustomQuerySuffix) != "" {
+		if hasLegacySubscriptionCustomQuerySuffix && strings.TrimSpace(subscriptionCustomQuerySuffix) != "" {
 			setMapStringValue(subscription, "custom_query_suffix", strings.TrimSpace(subscriptionCustomQuerySuffix))
 		}
 	}

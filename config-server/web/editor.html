@@ -3712,6 +3712,16 @@
                                     </div>
                                     <div class="help-text">开启后，选择节点弹窗直接显示主策略组节点，不再先显示其他分流组。</div>
                                 </div>
+                                <div class="switch-card" data-custom-feature-key="sspanel_node_page_parse" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">SSPanel 节点页面解析</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="sspanelNodePageParseEnabled"><span class="slider"></span></label>
+                                            <span id="sspanelNodePageParseEnabledLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="help-text">开启后客户端节点列表改从 SSPanel 的 /user/node 页面解析节点卡片；关闭时继续使用默认 API 接口。</div>
+                                </div>
                                 <div class="switch-card" data-custom-feature-key="cloud_dispatch" style="margin-top:16px;">
                                     <div class="switch-card-header">
                                         <span class="switch-card-label">云端调度</span>
@@ -5609,6 +5619,7 @@
             applyCustomUIColorTextValue('inviteStatsTotalCommissionIconColor', data.invite_stats_total_commission_icon_color || '');
             setCustomFeatureSwitchValue('subscriptionStatusPopupEnabled', !!data.subscription_status_popup_enabled);
             setCustomFeatureSwitchValue('proxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
+            setCustomFeatureSwitchValue('sspanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
             setCustomFeatureSwitchValue('cloudDispatchEnabled', !!data.cloud_dispatch_enabled);
             setCustomFeatureSwitchValue('cloudDispatchAutoEnabled', !!data.cloud_dispatch_auto_enabled);
             var subscriptionStatusOfficialUrl = document.getElementById('subscriptionStatusOfficialUrl');
@@ -5721,6 +5732,7 @@
             [
                 'subscriptionStatusPopupEnabled',
                 'proxyGroupsMainPolicyNodesOnly',
+                'sspanelNodePageParseEnabled',
                 'cloudDispatchEnabled',
                 'cloudDispatchAutoEnabled'
             ].forEach(function(id) {
@@ -5850,6 +5862,7 @@
             var subscriptionStatusPopupEnabled = !!document.getElementById('subscriptionStatusPopupEnabled').checked;
             var subscriptionStatusOfficialUrl = String(document.getElementById('subscriptionStatusOfficialUrl').value || '').trim();
             var proxyGroupsMainPolicyNodesOnly = !!document.getElementById('proxyGroupsMainPolicyNodesOnly').checked;
+            var sspanelNodePageParseEnabled = !!document.getElementById('sspanelNodePageParseEnabled').checked;
             var cloudDispatchEnabled = !!document.getElementById('cloudDispatchEnabled').checked;
             var cloudDispatchQueryUrl = String(document.getElementById('cloudDispatchQueryUrl').value || '').trim();
             var cloudDispatchQuerySecret = String(document.getElementById('cloudDispatchQuerySecret').value || '').trim();
@@ -5919,6 +5932,7 @@
                     subscription_status_popup_enabled: subscriptionStatusPopupEnabled,
                     subscription_status_official_url: subscriptionStatusOfficialUrl,
                     proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly,
+                    sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
                     cloud_dispatch_enabled: cloudDispatchEnabled,
                     cloud_dispatch_query_url: cloudDispatchQueryUrl,
                     cloud_dispatch_query_secret: cloudDispatchQuerySecret,
@@ -5972,6 +5986,7 @@
             'invite_stats_total_commission_icon_color',
             'subscription_status_popup',
             'main_policy_nodes_only',
+            'sspanel_node_page_parse',
             'cloud_dispatch'
         ];
         var CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY = 'nexgen_custom_traffic_bar_code_v1';
@@ -6599,6 +6614,7 @@
                 '    user_agent: Clash Meta',
                 '    exclusive_user_agent: XBoardMihomo/1.0',
                 '    use_exclusive_mode: false',
+                '    sspanel_node_page_parse_enabled: false',
                 '    decrypt_key: ""',
                 '  auto_offline:',
                 '    enabled: false',
