@@ -81,24 +81,24 @@ func invalidateBuildCachesForRecord(record *BuildRecord) {
 	if record.ID > 0 {
 		buildStatusCache.delete(fmt.Sprintf("record:%d", record.ID))
 	}
-	buildStatusCache.delete(buildStatusFallbackCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms))
+	buildStatusCache.delete(buildStatusFallbackCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms))
 }
 
-func buildStatusFallbackCacheKey(codeID int, profile, requestID, tag, branch, platforms string) string {
+func buildStatusFallbackCacheKey(codeID int, profile, requestID, tag, branch, core, platforms string) string {
 	if strings.TrimSpace(requestID) != "" {
 		return "request:" + strings.TrimSpace(requestID)
 	}
-	return fmt.Sprintf("fallback:%d|%s|%s|%s|%s", codeID, profile, tag, branch, platforms)
+	return fmt.Sprintf("fallback:%d|%s|%s|%s|%s|%s", codeID, profile, tag, branch, normalizeBuildCore(core), platforms)
 }
 
-func buildStatusCacheKey(record *BuildRecord, codeID int, profile, requestID, tag, branch, platforms string) string {
+func buildStatusCacheKey(record *BuildRecord, codeID int, profile, requestID, tag, branch, core, platforms string) string {
 	if record != nil && record.ID > 0 {
 		return fmt.Sprintf("record:%d", record.ID)
 	}
 	if strings.TrimSpace(requestID) != "" {
 		return "request:" + strings.TrimSpace(requestID)
 	}
-	return buildStatusFallbackCacheKey(codeID, profile, requestID, tag, branch, platforms)
+	return buildStatusFallbackCacheKey(codeID, profile, requestID, tag, branch, core, platforms)
 }
 
 func buildStatusCacheTTL(result map[string]interface{}) time.Duration {
@@ -409,6 +409,7 @@ func (h *Handlers) GetCurrentUserInfo(w http.ResponseWriter, r *http.Request) {
 			"build_status_text":           "管理员不限",
 			"expires_at":                  nil,
 			"is_active":                   true,
+			"allowed_platforms":           []string{},
 			"integration_code_configured": hasAnyCustomFeatureBinding(uiColorFeatureKeys...),
 		})
 		return
@@ -426,6 +427,7 @@ func (h *Handlers) GetCurrentUserInfo(w http.ResponseWriter, r *http.Request) {
 			"build_status_text":           err.Error(),
 			"expires_at":                  nil,
 			"is_active":                   false,
+			"allowed_platforms":           []string{},
 			"integration_code_configured": hasAnyCustomFeatureBinding(uiColorFeatureKeys...),
 		})
 		return
@@ -442,6 +444,7 @@ func (h *Handlers) GetCurrentUserInfo(w http.ResponseWriter, r *http.Request) {
 		"build_status_text":           statusText,
 		"expires_at":                  ac.ExpiresAt,
 		"is_active":                   ac.IsActive,
+		"allowed_platforms":           ac.AllowedPlatforms,
 		"integration_code_configured": hasAnyCustomFeatureBinding(uiColorFeatureKeys...),
 	})
 }
@@ -674,6 +677,70 @@ const maxConcurrentMacOSBuildJobs = 5
 const recentWorkflowRunsSearchLimit = 100
 const fastWorkflowRunsSearchLimit = 20
 
+var buildPlatformCatalog = []string{
+	"windows-amd64",
+	"windows-arm64",
+	"android",
+	"android-tv",
+	"linux-amd64",
+	"linux-arm64",
+	"macos-amd64",
+	"macos-arm64",
+}
+
+var buildCorePlatformCatalog = map[string][]string{
+	"mihomo": buildPlatformCatalog,
+	"xray": {
+		"windows-amd64",
+		"windows-arm64",
+		"android",
+		"macos-amd64",
+		"macos-arm64",
+	},
+}
+
+func normalizeBuildCore(core string) string {
+	core = strings.TrimSpace(strings.ToLower(core))
+	if core == "" {
+		return "mihomo"
+	}
+	return core
+}
+
+func validateBuildCore(core string) (string, error) {
+	core = normalizeBuildCore(core)
+	if _, ok := buildCorePlatformCatalog[core]; !ok {
+		return "", fmt.Errorf("无效的打包内核：%s", core)
+	}
+	return core, nil
+}
+
+func buildPlatformCatalogForCore(core string) []string {
+	core = normalizeBuildCore(core)
+	if platforms, ok := buildCorePlatformCatalog[core]; ok {
+		return platforms
+	}
+	return buildPlatformCatalog
+}
+
+func buildCoreLabel(core string) string {
+	switch normalizeBuildCore(core) {
+	case "xray":
+		return "Xray"
+	default:
+		return "Mihomo"
+	}
+}
+
+func isPlatformInCatalog(platform string, catalog []string) bool {
+	for _, item := range catalog {
+		if platform == item {
+			return true
+		}
+	}
+	return false
+}
+
 type BuildJobDemand struct {
 	Total int
 	MacOS int
@@ -699,6 +766,7 @@ type PendingBuild struct {
 	Profile     string
 	Tag         string
 	Branch      string
+	Core        string
 	Platforms   string
 	TriggeredAt time.Time
 }
@@ -708,18 +776,21 @@ var profileRunCache = make(map[string]int64)
 var pendingBuildCache = make(map[string]PendingBuild)
 var buildStateCacheMu sync.RWMutex
 
-func estimateBuildJobDemand(platforms string) BuildJobDemand {
-	allJobs := []string{
-		"windows-amd64",
-		"windows-arm64",
-		"android",
-		"android-tv",
-		"linux-amd64",
-		"linux-arm64",
-		"macos-amd64",
-		"macos-arm64",
+func estimateBuildJobDemand(core, platforms string) BuildJobDemand {
+	selectedJobs := expandRequestedBuildPlatformSet(core, platforms)
+
+	demand := BuildJobDemand{Total: len(selectedJobs)}
+	for job := range selectedJobs {
+		if strings.HasPrefix(job, "macos-") {
+			demand.MacOS++
+		}
 	}
+	return demand
+}
+
+func expandRequestedBuildPlatformSet(core, platforms string) map[string]struct{} {
 	selectedJobs := make(map[string]struct{})
+	catalog := buildPlatformCatalogForCore(core)
 	normalized := strings.TrimSpace(strings.ToLower(platforms))
 	if normalized == "" {
 		normalized = "all"
@@ -734,23 +805,34 @@ func estimateBuildJobDemand(platforms string) BuildJobDemand {
 	addJobsByPlatform := func(token string) {
 		switch token {
 		case "all":
-			for _, job := range allJobs {
+			for _, job := range catalog {
 				addJob(job)
 			}
 		case "windows":
-			addJob("windows-amd64")
-			addJob("windows-arm64")
+			for _, job := range []string{"windows-amd64", "windows-arm64"} {
+				if isPlatformInCatalog(job, catalog) {
+					addJob(job)
+				}
+			}
 		case "linux":
-			addJob("linux-amd64")
-			addJob("linux-arm64")
+			for _, job := range []string{"linux-amd64", "linux-arm64"} {
+				if isPlatformInCatalog(job, catalog) {
+					addJob(job)
+				}
+			}
 		case "macos":
-			addJob("macos-amd64")
-			addJob("macos-arm64")
+			for _, job := range []string{"macos-amd64", "macos-arm64"} {
+				if isPlatformInCatalog(job, catalog) {
+					addJob(job)
+				}
+			}
 		case "windows-amd64", "windows-arm64",
 			"android", "android-tv",
 			"linux-amd64", "linux-arm64",
 			"macos-amd64", "macos-arm64":
-			addJob(token)
+			if isPlatformInCatalog(token, catalog) {
+				addJob(token)
+			}
 		}
 	}
 
@@ -766,13 +848,128 @@ func estimateBuildJobDemand(platforms string) BuildJobDemand {
 		addJobsByPlatform(token)
 	}
 
-	demand := BuildJobDemand{Total: len(selectedJobs)}
-	for job := range selectedJobs {
-		if strings.HasPrefix(job, "macos-") {
-			demand.MacOS++
+	return selectedJobs
+}
+
+func normalizeBuildPlatformList(platforms []string) ([]string, error) {
+	return normalizeBuildPlatformListForCore("mihomo", platforms)
+}
+
+func normalizeBuildPlatformListForCore(core string, platforms []string) ([]string, error) {
+	catalog := buildPlatformCatalogForCore(core)
+	result := []string{}
+	seen := map[string]struct{}{}
+	addExpandedGroup := func(token string, items []string) error {
+		added := false
+		for _, item := range items {
+			if !isPlatformInCatalog(item, catalog) {
+				continue
+			}
+			added = true
+			if _, ok := seen[item]; !ok {
+				seen[item] = struct{}{}
+				result = append(result, item)
+			}
+		}
+		if !added {
+			return fmt.Errorf("%s 内核不支持打包平台：%s", buildCoreLabel(core), token)
+		}
+		return nil
+	}
+	for _, platform := range platforms {
+		for _, token := range strings.Split(strings.ToLower(strings.TrimSpace(platform)), ",") {
+			token = strings.TrimSpace(token)
+			if token == "" {
+				continue
+			}
+			if token == "all" {
+				for _, item := range catalog {
+					if _, ok := seen[item]; !ok {
+						seen[item] = struct{}{}
+						result = append(result, item)
+					}
+				}
+				continue
+			}
+			switch token {
+			case "windows":
+				if err := addExpandedGroup(token, []string{"windows-amd64", "windows-arm64"}); err != nil {
+					return nil, err
+				}
+			case "linux":
+				if err := addExpandedGroup(token, []string{"linux-amd64", "linux-arm64"}); err != nil {
+					return nil, err
+				}
+			case "macos":
+				if err := addExpandedGroup(token, []string{"macos-amd64", "macos-arm64"}); err != nil {
+					return nil, err
+				}
+			default:
+				matched := false
+				for _, item := range catalog {
+					if token == item {
+						matched = true
+						if _, ok := seen[item]; !ok {
+							seen[item] = struct{}{}
+							result = append(result, item)
+						}
+						break
+					}
+				}
+				if !matched {
+					return nil, fmt.Errorf("%s 内核不支持打包平台：%s", buildCoreLabel(core), token)
+				}
+			}
 		}
 	}
-	return demand
+	return result, nil
+}
+
+func expandRequestedBuildPlatforms(core, platforms string) ([]string, error) {
+	return normalizeBuildPlatformListForCore(core, []string{platforms})
+}
+
+func validateAllowedBuildPlatforms(allowedPlatforms []string) ([]string, error) {
+	if len(allowedPlatforms) == 0 {
+		return []string{}, nil
+	}
+	normalized, err := normalizeBuildPlatformList(allowedPlatforms)
+	if err != nil {
+		return nil, err
+	}
+	if len(normalized) == 0 {
+		return nil, fmt.Errorf("允许打包平台配置无效")
+	}
+	return normalized, nil
+}
+
+func canUseBuildPlatforms(allowedPlatforms []string, core, requestedPlatforms string) (bool, string) {
+	allowed, err := validateAllowedBuildPlatforms(allowedPlatforms)
+	if err != nil {
+		return false, err.Error()
+	}
+	if len(allowed) == 0 {
+		return true, ""
+	}
+
+	requested, err := expandRequestedBuildPlatforms(core, requestedPlatforms)
+	if err != nil {
+		return false, err.Error()
+	}
+	if len(requested) == 0 {
+		return false, "无效的打包平台选择"
+	}
+
+	allowedSet := map[string]struct{}{}
+	for _, platform := range allowed {
+		allowedSet[platform] = struct{}{}
+	}
+	for _, platform := range requested {
+		if _, ok := allowedSet[platform]; !ok {
+			return false, "当前激活码不允许打包平台：" + platform
+		}
+	}
+	return true, ""
 }
 
 func isMacOSWorkflowJob(job WorkflowJob) bool {
@@ -820,7 +1017,7 @@ func (h *Handlers) getActiveBuildJobUsage() (BuildQueueSnapshot, error) {
 		inputs, inputsErr := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
 		demand := BuildJobDemand{Total: 1}
 		if inputsErr == nil {
-			if estimated := estimateBuildJobDemand(inputs["platforms"]); estimated.Total > 0 {
+			if estimated := estimateBuildJobDemand(inputs["core"], inputs["platforms"]); estimated.Total > 0 {
 				demand = estimated
 			}
 		}
@@ -842,10 +1039,11 @@ func (h *Handlers) getActiveBuildJobUsage() (BuildQueueSnapshot, error) {
 	return snapshot, nil
 }
 
-func (h *Handlers) getBuildQueueSnapshot(platforms string) (BuildQueueSnapshot, error) {
-	cacheKey := strings.TrimSpace(platforms)
+func (h *Handlers) getBuildQueueSnapshot(core, platforms string) (BuildQueueSnapshot, error) {
+	core = normalizeBuildCore(core)
+	cacheKey := core + "|" + strings.TrimSpace(platforms)
 	if cacheKey == "" {
-		cacheKey = "all"
+		cacheKey = core + "|all"
 	}
 	if cached, ok := buildQueueSnapshotCache.get(cacheKey); ok {
 		return cached, nil
@@ -862,7 +1060,7 @@ func (h *Handlers) getBuildQueueSnapshot(platforms string) (BuildQueueSnapshot, 
 		return snapshot, err
 	}
 
-	demand := estimateBuildJobDemand(platforms)
+	demand := estimateBuildJobDemand(core, platforms)
 	if demand.Total > 0 {
 		snapshot.RequestedPlatforms = platforms
 		snapshot.RequestedJobs = demand.Total
@@ -878,28 +1076,29 @@ func (h *Handlers) getBuildQueueSnapshot(platforms string) (BuildQueueSnapshot, 
 	return snapshot, nil
 }
 
-func buildPendingCacheKey(codeID int, profile, tag, branch, platforms string) string {
-	return fmt.Sprintf("code:%d|profile:%s|tag:%s|branch:%s|platforms:%s", codeID, profile, tag, branch, platforms)
+func buildPendingCacheKey(codeID int, profile, tag, branch, core, platforms string) string {
+	return fmt.Sprintf("code:%d|profile:%s|tag:%s|branch:%s|core:%s|platforms:%s", codeID, profile, tag, branch, normalizeBuildCore(core), platforms)
 }
 
-func rememberPendingBuild(codeID int, profile, tag, branch, platforms string) PendingBuild {
+func rememberPendingBuild(codeID int, profile, tag, branch, core, platforms string) PendingBuild {
 	pending := PendingBuild{
 		CodeID:      codeID,
 		Profile:     profile,
 		Tag:         tag,
 		Branch:      branch,
+		Core:        normalizeBuildCore(core),
 		Platforms:   platforms,
 		TriggeredAt: time.Now().UTC(),
 	}
 	buildStateCacheMu.Lock()
-	pendingBuildCache[buildPendingCacheKey(codeID, profile, tag, branch, platforms)] = pending
+	pendingBuildCache[buildPendingCacheKey(codeID, profile, tag, branch, core, platforms)] = pending
 	buildStateCacheMu.Unlock()
 	return pending
 }
 
-func getPendingBuild(codeID int, profile, tag, branch, platforms string) (PendingBuild, bool) {
+func getPendingBuild(codeID int, profile, tag, branch, core, platforms string) (PendingBuild, bool) {
 	buildStateCacheMu.RLock()
-	pending, ok := pendingBuildCache[buildPendingCacheKey(codeID, profile, tag, branch, platforms)]
+	pending, ok := pendingBuildCache[buildPendingCacheKey(codeID, profile, tag, branch, core, platforms)]
 	buildStateCacheMu.RUnlock()
 	return pending, ok
 }
@@ -924,9 +1123,9 @@ func getLatestPendingBuildByProfile(codeID int, profile string) (PendingBuild, b
 	return latest, found
 }
 
-func clearPendingBuild(codeID int, profile, tag, branch, platforms string) {
+func clearPendingBuild(codeID int, profile, tag, branch, core, platforms string) {
 	buildStateCacheMu.Lock()
-	delete(pendingBuildCache, buildPendingCacheKey(codeID, profile, tag, branch, platforms))
+	delete(pendingBuildCache, buildPendingCacheKey(codeID, profile, tag, branch, core, platforms))
 	buildStateCacheMu.Unlock()
 }
 
@@ -996,14 +1195,14 @@ func matchRunByPendingBuild(run *WorkflowRun, pending PendingBuild) bool {
 	return true
 }
 
-func buildRunCacheKey(codeID int, profile, requestID, tag, branch, platforms string) string {
+func buildRunCacheKey(codeID int, profile, requestID, tag, branch, core, platforms string) string {
 	if requestID != "" {
 		return "request:" + requestID
 	}
-	return fmt.Sprintf("code:%d|profile:%s|tag:%s|branch:%s|platforms:%s", codeID, profile, tag, branch, platforms)
+	return fmt.Sprintf("code:%d|profile:%s|tag:%s|branch:%s|core:%s|platforms:%s", codeID, profile, tag, branch, normalizeBuildCore(core), platforms)
 }
 
-func buildRequestMatches(inputs map[string]string, profile, requestID, tag, branch, platforms string) bool {
+func buildRequestMatches(inputs map[string]string, profile, requestID, tag, branch, core, platforms string) bool {
 	if len(inputs) == 0 {
 		return false
 	}
@@ -1017,6 +1216,13 @@ func buildRequestMatches(inputs map[string]string, profile, requestID, tag, bran
 		return false
 	}
 	if branch != "" && inputs["branch"] != branch {
+		return false
+	}
+	inputCore := normalizeBuildCore(inputs["core"])
+	if inputs["core"] == "" {
+		inputCore = "mihomo"
+	}
+	if normalizeBuildCore(core) != inputCore {
 		return false
 	}
 	if platforms != "" && inputs["platforms"] != platforms {
@@ -1047,6 +1253,13 @@ func buildWorkflowRunURL(runID int64) string {
 		return ""
 	}
 	return fmt.Sprintf("https://github.com/%s/%s/actions/runs/%d", cfg.BuildOwner, cfg.BuildRepo, runID)
+}
+
+func resolveBuildSourceRepo(core string) (string, string) {
+	if normalizeBuildCore(core) == "xray" {
+		return cfg.XrayBuildOwner, cfg.XrayBuildRepo
+	}
+	return cfg.GithubOwner, cfg.GithubRepo
 }
 
 func extractBuildRequestIDFromText(value string) string {
@@ -1087,6 +1300,7 @@ func buildRecordResponse(record BuildRecord) map[string]interface{} {
 		"profile":        record.Profile,
 		"tag":            record.Tag,
 		"branch":         record.Branch,
+		"core":           normalizeBuildCore(record.Core),
 		"platforms":      record.Platforms,
 		"run_id":         record.RunID,
 		"run_url":        record.RunURL,
@@ -1111,6 +1325,7 @@ func buildRecordInputs(record *BuildRecord) map[string]string {
 		"profile":    record.Profile,
 		"tag":        record.Tag,
 		"branch":     record.Branch,
+		"core":       normalizeBuildCore(record.Core),
 		"platforms":  record.Platforms,
 		"request_id": buildRecordRequestID(record),
 	}
@@ -1166,7 +1381,7 @@ func derivePendingBuildForRecord(record *BuildRecord) (PendingBuild, bool) {
 	if record == nil {
 		return PendingBuild{}, false
 	}
-	if pendingBuild, ok := getPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Platforms); ok {
+	if pendingBuild, ok := getPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Core, record.Platforms); ok {
 		if buildPendingMatchesRecordTime(record, pendingBuild) {
 			return pendingBuild, true
 		}
@@ -1177,6 +1392,7 @@ func derivePendingBuildForRecord(record *BuildRecord) (PendingBuild, bool) {
 			Profile:     record.Profile,
 			Tag:         record.Tag,
 			Branch:      record.Branch,
+			Core:        normalizeBuildCore(record.Core),
 			Platforms:   record.Platforms,
 			TriggeredAt: createdAt,
 		}, true
@@ -1188,7 +1404,7 @@ func workflowRunMatchesRecord(record *BuildRecord, run *WorkflowRun, inputs map[
 	if record == nil {
 		return false
 	}
-	if len(inputs) > 0 && buildRequestMatches(inputs, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms) {
+	if len(inputs) > 0 && buildRequestMatches(inputs, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms) {
 		return true
 	}
 	// 绑定回调已经把 run_id 明确写进数据库后，后续查询不再强依赖 GitHub run 详情里必须带 inputs。
@@ -1351,10 +1567,10 @@ func (h *Handlers) applyWorkflowRunToBuildRecord(record *BuildRecord, run *Workf
 		record.UpdatedAt = run.UpdatedAt
 	}
 	if run.Status == "completed" {
-		clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Platforms)
-		deleteCachedProfileRunID(buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms))
+		clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Core, record.Platforms)
+		deleteCachedProfileRunID(buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms))
 	} else {
-		setCachedProfileRunID(buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms), run.ID)
+		setCachedProfileRunID(buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms), run.ID)
 	}
 	invalidateBuildCachesForRecord(record)
 }
@@ -1419,7 +1635,7 @@ func (h *Handlers) reconcileBuildRecords(records []BuildRecord, deep bool) []Bui
 				continue
 			}
 			record := &records[item.index]
-			matchesByInputs := err == nil && buildRequestMatches(inputs, record.Profile, item.requestID, record.Tag, record.Branch, record.Platforms)
+			matchesByInputs := err == nil && buildRequestMatches(inputs, record.Profile, item.requestID, record.Tag, record.Branch, record.Core, record.Platforms)
 			matchesByPending := item.requestID == "" && run.Status != "completed" && item.hasPending && matchRunByPendingBuild(run, item.pending)
 			if !matchesByInputs && !matchesByPending {
 				continue
@@ -1524,6 +1740,7 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Profile   string `json:"profile"`
 		Tag       string `json:"tag"`
+		Core      string `json:"core"`
 		Platforms string `json:"platforms"`
 		Branch    string `json:"branch"`
 	}
@@ -1546,17 +1763,39 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 	if req.Platforms == "" {
 		req.Platforms = "all"
 	}
+	core, err := validateBuildCore(req.Core)
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
+	req.Core = core
 	if req.Branch == "" {
 		req.Branch = "main"
 	}
 
-	demand := estimateBuildJobDemand(req.Platforms)
+	if _, err := expandRequestedBuildPlatforms(req.Core, req.Platforms); err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
+	demand := estimateBuildJobDemand(req.Core, req.Platforms)
 	if demand.Total <= 0 {
 		jsonError(w, "无效的打包平台选择", 400)
 		return
 	}
 
-	queueSnapshot, err := h.getBuildQueueSnapshot(req.Platforms)
+	if claims.Permissions != "admin" {
+		ac, err := getActivationCodeByID(claims.CodeID)
+		if err != nil {
+			jsonError(w, err.Error(), 403)
+			return
+		}
+		if ok, message := canUseBuildPlatforms(ac.AllowedPlatforms, req.Core, req.Platforms); !ok {
+			jsonError(w, message, 403)
+			return
+		}
+	}
+
+	queueSnapshot, err := h.getBuildQueueSnapshot(req.Core, req.Platforms)
 	if err == nil && !queueSnapshot.Available {
 		jsonError(w, queueSnapshot.Message, 429)
 		return
@@ -1579,7 +1818,7 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	record, err := createBuildRecord(claims.CodeID, claims.CodeName, req.Profile, req.Tag, req.Branch, req.Platforms)
+	record, err := createBuildRecord(claims.CodeID, claims.CodeName, req.Profile, req.Tag, req.Branch, req.Core, req.Platforms)
 	if err != nil {
 		if usageConsumed {
 			_ = rollbackBuildUsage(claims.CodeID)
@@ -1595,6 +1834,7 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		"tag":            req.Tag,
 		"platforms":      req.Platforms,
 		"branch":         req.Branch,
+		"core":           req.Core,
 		"request_id":     requestID,
 	}
 
@@ -1608,14 +1848,14 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rememberPendingBuild(claims.CodeID, req.Profile, req.Tag, req.Branch, req.Platforms)
+	rememberPendingBuild(claims.CodeID, req.Profile, req.Tag, req.Branch, req.Core, req.Platforms)
 
-	deleteCachedProfileRunID(buildRunCacheKey(claims.CodeID, req.Profile, requestID, req.Tag, req.Branch, req.Platforms))
-	deleteCachedProfileRunID(buildRunCacheKey(claims.CodeID, req.Profile, "", "", "", ""))
+	deleteCachedProfileRunID(buildRunCacheKey(claims.CodeID, req.Profile, requestID, req.Tag, req.Branch, req.Core, req.Platforms))
+	deleteCachedProfileRunID(buildRunCacheKey(claims.CodeID, req.Profile, "", "", "", req.Core, ""))
 	invalidateBuildCachesForRecord(record)
 
 	logAudit(claims.CodeID, claims.CodeName, "trigger_build",
-		fmt.Sprintf("record_id=%d profile=%s tag=%s platforms=%s branch=%s", record.ID, req.Profile, req.Tag, req.Platforms, req.Branch),
+		fmt.Sprintf("record_id=%d profile=%s tag=%s core=%s platforms=%s branch=%s", record.ID, req.Profile, req.Tag, req.Core, req.Platforms, req.Branch),
 		r.RemoteAddr)
 
 	go h.cleanupOverflowBuildRecords(record.CodeID)
@@ -1692,9 +1932,9 @@ func (h *Handlers) persistBuildRecordEvent(record *BuildRecord, runID int64, sta
 		return nil, err
 	}
 
-	cacheKey := buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms)
+	cacheKey := buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms)
 	if status == "completed" {
-		clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Platforms)
+		clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Core, record.Platforms)
 		deleteCachedProfileRunID(cacheKey)
 	} else if runID > 0 {
 		setCachedProfileRunID(cacheKey, runID)
@@ -1961,6 +2201,7 @@ func (h *Handlers) GetBuildHistory(w http.ResponseWriter, r *http.Request) {
 		}
 		history[record.Profile] = map[string]interface{}{
 			"version":   record.Tag,
+			"core":      normalizeBuildCore(record.Core),
 			"platforms": record.Platforms,
 			"time":      record.CreatedAt,
 		}
@@ -1990,7 +2231,13 @@ func (h *Handlers) GetClientUpdates(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) ListBranches(w http.ResponseWriter, r *http.Request) {
-	branches, err := h.gh.ListBranches()
+	core, err := validateBuildCore(r.URL.Query().Get("core"))
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
+	owner, repo := resolveBuildSourceRepo(core)
+	branches, err := h.gh.ListBranchesForRepo(owner, repo)
 	if err != nil {
 		jsonError(w, "获取分支列表失败", 500)
 		return
@@ -2004,6 +2251,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	requestID := strings.TrimSpace(r.URL.Query().Get("request_id"))
 	tag := strings.TrimSpace(r.URL.Query().Get("tag"))
 	branch := strings.TrimSpace(r.URL.Query().Get("branch"))
+	core := strings.TrimSpace(r.URL.Query().Get("core"))
 	platforms := strings.TrimSpace(r.URL.Query().Get("platforms"))
 
 	recordID, _ := strconv.ParseInt(r.URL.Query().Get("record_id"), 10, 64)
@@ -2037,9 +2285,20 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		if branch == "" {
 			branch = record.Branch
 		}
+		if core == "" {
+			core = record.Core
+		}
 		if platforms == "" {
 			platforms = record.Platforms
 		}
+	}
+	if core == "" {
+		core = "mihomo"
+	}
+	core, err := validateBuildCore(core)
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
 	}
 
 	if record == nil {
@@ -2053,7 +2312,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			if requestID != "" {
 				result["request_id"] = requestID
 			}
-			writeBuildStatusResponse(w, buildStatusCacheKey(record, 0, profile, requestID, tag, branch, platforms), result)
+			writeBuildStatusResponse(w, buildStatusCacheKey(record, 0, profile, requestID, tag, branch, core, platforms), result)
 			return
 		}
 		if claims.Permissions != "admin" {
@@ -2082,7 +2341,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	if record != nil {
 		pendingBuild, hasPendingBuild = derivePendingBuildForRecord(record)
 	} else {
-		pendingBuild, hasPendingBuild = getPendingBuild(pendingCodeID, profile, tag, branch, platforms)
+		pendingBuild, hasPendingBuild = getPendingBuild(pendingCodeID, profile, tag, branch, core, platforms)
 	}
 	if !hasPendingBuild && profile != "" && claims.Permissions == "admin" {
 		if inferredPending, ok := getLatestPendingBuildByProfile(pendingCodeID, profile); ok {
@@ -2094,13 +2353,16 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			if branch == "" {
 				branch = inferredPending.Branch
 			}
+			if core == "" {
+				core = inferredPending.Core
+			}
 			if platforms == "" {
 				platforms = inferredPending.Platforms
 			}
 		}
 	}
-	cacheKey := buildRunCacheKey(pendingCodeID, profile, requestID, tag, branch, platforms)
-	statusCacheKey = buildStatusCacheKey(record, pendingCodeID, profile, requestID, tag, branch, platforms)
+	cacheKey := buildRunCacheKey(pendingCodeID, profile, requestID, tag, branch, core, platforms)
+	statusCacheKey = buildStatusCacheKey(record, pendingCodeID, profile, requestID, tag, branch, core, platforms)
 	if cached, ok := buildStatusCache.get(statusCacheKey); ok {
 		jsonResponse(w, cloneInterfaceMap(cached))
 		return
@@ -2146,6 +2408,9 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			if strings.TrimSpace(matchedInputs["request_id"]) != "" {
 				result["request_id"] = strings.TrimSpace(matchedInputs["request_id"])
 			}
+			if strings.TrimSpace(matchedInputs["core"]) == "" {
+				matchedInputs["core"] = core
+			}
 		}
 		if hasPendingBuild {
 			result["pending_detected"] = true
@@ -2189,12 +2454,12 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	if cachedRunID, ok := getCachedProfileRunID(cacheKey); ok {
 		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, cachedRunID)
 		if err == nil {
-			if buildRequestMatches(inputs, profile, requestID, tag, branch, platforms) || (requestID == "" && hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)) {
+			if buildRequestMatches(inputs, profile, requestID, tag, branch, core, platforms) || (requestID == "" && hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)) {
 				matchedRun = run
 				matchedInputs = inputs
 				if matchedRun.Status == "completed" {
 					deleteCachedProfileRunID(cacheKey)
-					clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
+					clearPendingBuild(pendingCodeID, profile, tag, branch, core, platforms)
 				}
 			} else {
 				deleteCachedProfileRunID(cacheKey)
@@ -2215,7 +2480,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 				matchedRun = run
 				matchedInputs = inputs
 				if matchedRun.Status == "completed" {
-					clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
+					clearPendingBuild(pendingCodeID, profile, tag, branch, core, platforms)
 				} else {
 					setCachedProfileRunID(cacheKey, run.ID)
 				}
@@ -2233,7 +2498,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
-				matchesByInputs := err == nil && buildRequestMatches(inputs, profile, requestID, tag, branch, platforms)
+				matchesByInputs := err == nil && buildRequestMatches(inputs, profile, requestID, tag, branch, core, platforms)
 				matchesByPending := hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)
 				if matchesByInputs || matchesByPending {
 					matchedRun = run
@@ -2252,13 +2517,13 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 						continue
 					}
 					inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
-					matchesByInputs := err == nil && buildRequestMatches(inputs, profile, requestID, tag, branch, platforms)
+					matchesByInputs := err == nil && buildRequestMatches(inputs, profile, requestID, tag, branch, core, platforms)
 					if matchesByInputs {
 						matchedRun = run
 						if err == nil {
 							matchedInputs = inputs
 						}
-						clearPendingBuild(pendingCodeID, profile, tag, branch, platforms)
+						clearPendingBuild(pendingCodeID, profile, tag, branch, core, platforms)
 						break
 					}
 				}
@@ -2296,12 +2561,23 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		"conclusion": conclusion,
 		"created_at": matchedRun.CreatedAt,
 		"updated_at": matchedRun.UpdatedAt,
+		"inputs": map[string]string{
+			"profile":    profile,
+			"tag":        tag,
+			"branch":     branch,
+			"core":       core,
+			"platforms":  platforms,
+			"request_id": requestID,
+		},
 	}
 
 	if matchedInputs != nil && len(matchedInputs) > 0 {
 		result["inputs"] = matchedInputs
 		if strings.TrimSpace(matchedInputs["request_id"]) != "" {
 			result["request_id"] = strings.TrimSpace(matchedInputs["request_id"])
+		}
+		if strings.TrimSpace(matchedInputs["core"]) == "" {
+			matchedInputs["core"] = core
 		}
 	}
 	if requestID != "" {
@@ -2500,8 +2776,17 @@ func (h *Handlers) CancelBuildRecord(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) GetBuildQueue(w http.ResponseWriter, r *http.Request) {
+	core, err := validateBuildCore(r.URL.Query().Get("core"))
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
 	platforms := strings.TrimSpace(r.URL.Query().Get("platforms"))
-	queueSnapshot, err := h.getBuildQueueSnapshot(platforms)
+	if _, err := expandRequestedBuildPlatforms(core, platforms); err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
+	queueSnapshot, err := h.getBuildQueueSnapshot(core, platforms)
 	if err != nil {
 		jsonResponse(w, BuildQueueSnapshot{
 			MaxJobs:      maxConcurrentBuildJobs,
@@ -2734,8 +3019,8 @@ func (h *Handlers) DeleteBuildRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deleteCachedProfileRunID(buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Platforms))
-	clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Platforms)
+	deleteCachedProfileRunID(buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms))
+	clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Core, record.Platforms)
 	invalidateBuildCachesForRecord(record)
 
 	logAudit(claims.CodeID, claims.CodeName, "delete_build_record",
@@ -2872,10 +3157,11 @@ func (h *Handlers) ListCodes(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) CreateCode(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name            string   `json:"name"`
-		MaxUses         int      `json:"max_uses"`
-		AllowedProfiles []string `json:"allowed_profiles"`
-		ExpiresAt       string   `json:"expires_at"`
+		Name             string   `json:"name"`
+		MaxUses          int      `json:"max_uses"`
+		AllowedProfiles  []string `json:"allowed_profiles"`
+		AllowedPlatforms []string `json:"allowed_platforms"`
+		ExpiresAt        string   `json:"expires_at"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
@@ -2885,8 +3171,13 @@ func (h *Handlers) CreateCode(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "可打包次数不能小于 -1", 400)
 		return
 	}
+	allowedPlatforms, err := validateAllowedBuildPlatforms(req.AllowedPlatforms)
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
 
-	ac, err := createCode(req.Name, req.MaxUses, req.AllowedProfiles, req.ExpiresAt)
+	ac, err := createCode(req.Name, req.MaxUses, req.AllowedProfiles, allowedPlatforms, req.ExpiresAt)
 	if err != nil {
 		statusCode := 500
 		if strings.Contains(err.Error(), "到期时间格式错误") {
@@ -2911,11 +3202,12 @@ func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name            string   `json:"name"`
-		MaxUses         int      `json:"max_uses"`
-		UsedCount       int      `json:"used_count"`
-		AllowedProfiles []string `json:"allowed_profiles"`
-		ExpiresAt       string   `json:"expires_at"`
+		Name             string   `json:"name"`
+		MaxUses          int      `json:"max_uses"`
+		UsedCount        int      `json:"used_count"`
+		AllowedProfiles  []string `json:"allowed_profiles"`
+		AllowedPlatforms []string `json:"allowed_platforms"`
+		ExpiresAt        string   `json:"expires_at"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
@@ -2929,8 +3221,13 @@ func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "已打包次数不能小于 0", 400)
 		return
 	}
+	allowedPlatforms, err := validateAllowedBuildPlatforms(req.AllowedPlatforms)
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
 
-	if err := updateCode(id, req.Name, req.MaxUses, req.UsedCount, req.AllowedProfiles, req.ExpiresAt); err != nil {
+	if err := updateCode(id, req.Name, req.MaxUses, req.UsedCount, req.AllowedProfiles, allowedPlatforms, req.ExpiresAt); err != nil {
 		statusCode := 500
 		if strings.Contains(err.Error(), "到期时间格式错误") {
 			statusCode = 400

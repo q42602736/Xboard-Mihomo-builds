@@ -1084,12 +1084,79 @@
             background: rgba(0,255,136,0.14);
             color: #89ffd0;
         }
-        .custom-select-option:disabled {
-            opacity: 0.45;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .platform-checkboxes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+	        .custom-select-option:disabled {
+	            opacity: 0.45;
+	            cursor: not-allowed;
+	            transform: none;
+	        }
+	        .build-core-options {
+	            display: grid;
+	            grid-template-columns: repeat(2, minmax(0, 1fr));
+	            gap: 12px;
+	            margin-top: 10px;
+	        }
+	        .build-core-option {
+	            position: relative;
+	            display: flex;
+	            gap: 12px;
+	            align-items: flex-start;
+	            padding: 14px 16px;
+	            border: 1px solid rgba(255,255,255,0.08);
+	            border-radius: 14px;
+	            background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.012));
+	            cursor: pointer;
+	            transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+	        }
+	        .build-core-option:hover {
+	            border-color: rgba(0,212,255,0.3);
+	            background: rgba(0,212,255,0.08);
+	            transform: translateY(-1px);
+	        }
+	        .build-core-option input {
+	            appearance: none;
+	            -webkit-appearance: none;
+	            flex-shrink: 0;
+	            width: 18px;
+	            height: 18px;
+	            margin: 2px 0 0;
+	            border: 1px solid rgba(0,255,136,0.42);
+	            border-radius: 999px;
+	            background: rgba(7,12,22,0.96);
+	            cursor: pointer;
+	        }
+	        .build-core-option input:checked {
+	            border: 5px solid #00ff88;
+	            box-shadow: 0 0 0 3px rgba(0,255,136,0.12);
+	        }
+	        .build-core-option:has(input:checked) {
+	            border-color: rgba(0,255,136,0.34);
+	            background: linear-gradient(135deg, rgba(0,255,136,0.12), rgba(0,212,255,0.08));
+	            box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+	        }
+	        .build-core-title {
+	            display: flex;
+	            align-items: center;
+	            gap: 8px;
+	            color: #fff;
+	            font-size: 14px;
+	            font-weight: 700;
+	            line-height: 1.2;
+	        }
+	        .build-core-badge {
+	            padding: 2px 7px;
+	            border-radius: 999px;
+	            background: rgba(0,212,255,0.12);
+	            color: #76e7ff;
+	            font-size: 11px;
+	            font-weight: 700;
+	        }
+	        .build-core-desc {
+	            margin-top: 7px;
+	            color: #9ba8b8;
+	            font-size: 12px;
+	            line-height: 1.55;
+	        }
+	        .platform-checkboxes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
         .form-group .platform-checkbox {
             display: inline-flex;
             flex-direction: row;
@@ -4077,11 +4144,30 @@
                     </div>
 
                     <div class="build-panel">
-                        <h3>打包配置</h3>
-                        <div class="build-usage-info" id="buildUsageInfo" style="margin-top:12px; margin-bottom:12px;">软件打包状态加载中...</div>
-                        <div class="form-row" style="grid-template-columns: 1fr 1fr;">
-                            <div class="form-group">
-                                <label>源码分支</label>
+	                        <h3>打包配置</h3>
+	                        <div class="build-usage-info" id="buildUsageInfo" style="margin-top:12px; margin-bottom:12px;">软件打包状态加载中...</div>
+	                        <div class="form-group">
+	                            <label>选择打包内核</label>
+	                            <div class="build-core-options">
+	                                <label class="build-core-option">
+	                                    <input type="radio" name="buildCore" value="mihomo" checked>
+	                                    <span>
+	                                        <span class="build-core-title">Mihomo 内核 <span class="build-core-badge">当前默认</span></span>
+	                                        <span class="build-core-desc">使用 Xboard-Mihomo 源码，全平台打包：Windows、Android、Android TV、Linux、macOS。</span>
+	                                    </span>
+	                                </label>
+	                                <label class="build-core-option">
+	                                    <input type="radio" name="buildCore" value="xray">
+	                                    <span>
+	                                        <span class="build-core-title">Xray 内核</span>
+	                                        <span class="build-core-desc">使用 NexGen-client-xray 源码，目前仅支持 Windows、Android（手机）和 macOS。</span>
+	                                    </span>
+	                                </label>
+	                            </div>
+	                        </div>
+	                        <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+	                            <div class="form-group">
+	                                <label>源码分支</label>
                                 <select id="buildBranch">
                                     <option value="main">main</option>
                                 </select>
@@ -4094,20 +4180,20 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>选择打包平台</label>
-                            <div class="platform-checkboxes">
-                                <label class="platform-checkbox"><input type="checkbox" value="all" id="platformAll" checked><span class="platform-checkbox-label">全部平台</span></label>
-                                <label class="platform-checkbox"><input type="checkbox" value="windows-arm64" class="platformItem"><span class="platform-checkbox-label">Windows ARM64</span></label>
-                                <label class="platform-checkbox"><input type="checkbox" value="windows-amd64" class="platformItem"><span class="platform-checkbox-label">Windows AMD64</span></label>
-                                <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem"><span class="platform-checkbox-label">Android（手机）</span></label>
-                                <label class="platform-checkbox"><input type="checkbox" value="android-tv" class="platformItem"><span class="platform-checkbox-label">Android TV</span></label>
-                                <label class="platform-checkbox"><input type="checkbox" value="linux-arm64" class="platformItem"><span class="platform-checkbox-label">Linux ARM64</span></label>
-                                <label class="platform-checkbox"><input type="checkbox" value="linux-amd64" class="platformItem"><span class="platform-checkbox-label">Linux AMD64</span></label>
-                                <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem"><span class="platform-checkbox-label">macOS ARM64</span></label>
-                                <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem"><span class="platform-checkbox-label">macOS AMD64</span></label>
-                            </div>
-                            <div class="help-text">Windows、Linux 和 macOS 都只保留 ARM64 / AMD64 两个架构选项。Android TV 使用独立入口和 TV 界面，也包含在“全部平台”中；如需全平台请直接选择“全部平台”。</div>
-                        </div>
+	                                <label>选择打包平台</label>
+	                            <div class="platform-checkboxes">
+	                                <label class="platform-checkbox"><input type="checkbox" value="all" id="platformAll" checked><span class="platform-checkbox-label" id="platformAllLabel">全部平台</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="windows-arm64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">Windows ARM64</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="windows-amd64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">Windows AMD64</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">Android（手机）</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="android-tv" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Android TV</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="linux-arm64" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Linux ARM64</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="linux-amd64" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Linux AMD64</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">macOS ARM64</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">macOS AMD64</span></label>
+	                            </div>
+	                            <div class="help-text" id="buildPlatformHelpText">Windows、Linux 和 macOS 都只保留 ARM64 / AMD64 两个架构选项。Android TV 使用独立入口和 TV 界面，也包含在“全部平台”中；如需全平台请直接选择“全部平台”。</div>
+	                        </div>
                         <div id="buildQueue" style="margin-top: 15px; padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
                             <span style="color: #aaa; font-size: 13px;">打包队列：</span>
                             <span id="buildQueueInfo" style="font-size: 13px; color: #00d4ff;">加载中...</span>
@@ -4774,6 +4860,136 @@
             return parts[0] + ' ' + parts[1];
         }
 
+        function getBuildPlatformLabelMap() {
+            return {
+                'windows-arm64': 'Windows ARM64',
+                'windows-amd64': 'Windows AMD64',
+                'android': 'Android（手机）',
+                'android-tv': 'Android TV',
+                'linux-arm64': 'Linux ARM64',
+                'linux-amd64': 'Linux AMD64',
+                'macos-arm64': 'macOS ARM64',
+                'macos-amd64': 'macOS AMD64'
+            };
+        }
+
+	        function getBuildPlatformCatalogValues() {
+	            return Object.keys(getBuildPlatformLabelMap());
+	        }
+
+	        function getBuildCoreLabelMap() {
+	            return {
+	                mihomo: 'Mihomo',
+	                xray: 'Xray'
+	            };
+	        }
+
+	        function getSelectedBuildCore() {
+	            var checked = document.querySelector('input[name="buildCore"]:checked');
+	            return checked ? checked.value : 'mihomo';
+	        }
+
+	        function formatBuildCoreLabel(core) {
+	            var labelMap = getBuildCoreLabelMap();
+	            return labelMap[core] || core || 'Mihomo';
+	        }
+
+	        function getBuildPlatformCatalogValuesForCore(core) {
+	            core = core || getSelectedBuildCore();
+	            return getBuildPlatformCatalogValues().filter(function(platform) {
+	                var cb = document.querySelector('.platformItem[value="' + platform + '"]');
+	                if (!cb) return true;
+	                var cores = String(cb.getAttribute('data-cores') || 'mihomo').split(',');
+	                return cores.indexOf(core) !== -1;
+	            });
+	        }
+
+	        function formatAllowedBuildPlatforms(platforms) {
+	            if (!platforms || platforms.length === 0) {
+                return '全部平台';
+            }
+            var labelMap = getBuildPlatformLabelMap();
+            return platforms.map(function(platform) {
+                return escapeHtml(labelMap[platform] || platform);
+            }).join('、');
+        }
+
+	        function isBuildPlatformAllowed(platform) {
+	            if (getBuildPlatformCatalogValuesForCore().indexOf(platform) === -1) {
+	                return false;
+	            }
+	            if (!currentUserInfo || currentUserInfo.permissions === 'admin') {
+	                return true;
+	            }
+            var allowedPlatforms = Array.isArray(currentUserInfo.allowed_platforms) ? currentUserInfo.allowed_platforms : [];
+            if (allowedPlatforms.length === 0) {
+                return true;
+            }
+            return allowedPlatforms.indexOf(platform) !== -1;
+        }
+
+        function syncBuildPlatformPermissions() {
+	            var allCheckbox = document.getElementById('platformAll');
+	            var itemCheckboxes = Array.from(document.querySelectorAll('.platformItem'));
+	            if (!allCheckbox || itemCheckboxes.length === 0) return;
+
+	            var allLabel = allCheckbox.closest('.platform-checkbox');
+	            var currentCore = getSelectedBuildCore();
+	            var currentCatalog = getBuildPlatformCatalogValuesForCore(currentCore);
+	            var hasRestriction = currentUserInfo && currentUserInfo.permissions !== 'admin' && Array.isArray(currentUserInfo.allowed_platforms) && currentUserInfo.allowed_platforms.length > 0;
+	            var allowedPlatforms = hasRestriction ? currentUserInfo.allowed_platforms : currentCatalog;
+	            var allAllowed = currentCatalog.length > 0 && currentCatalog.every(function(platform) {
+	                return allowedPlatforms.indexOf(platform) !== -1;
+	            });
+
+	            allCheckbox.disabled = hasRestriction && !allAllowed;
+	            if (allLabel) {
+	                allLabel.style.display = allCheckbox.disabled ? 'none' : '';
+	            }
+	            var allLabelText = document.getElementById('platformAllLabel');
+	            if (allLabelText) {
+	                allLabelText.textContent = currentCore === 'xray' ? '全部 Xray 支持平台' : '全部平台';
+	            }
+	            if (allCheckbox.disabled && allCheckbox.checked) {
+	                allCheckbox.checked = false;
+	            }
+
+	            itemCheckboxes.forEach(function(cb) {
+	                var allowed = isBuildPlatformAllowed(cb.value);
+	                var supportedByCore = currentCatalog.indexOf(cb.value) !== -1;
+	                var label = cb.closest('.platform-checkbox');
+	                cb.disabled = !allowed;
+	                if (label) {
+	                    label.style.display = supportedByCore ? '' : 'none';
+	                    label.title = supportedByCore ? '' : (formatBuildCoreLabel(currentCore) + ' 内核暂不支持该平台');
+	                }
+	                if (!allowed && cb.checked) {
+	                    cb.checked = false;
+                }
+            });
+
+            var anyChecked = itemCheckboxes.some(function(cb) { return cb.checked && !cb.disabled; });
+            if (!anyChecked && !allCheckbox.checked) {
+                var firstAllowed = itemCheckboxes.find(function(cb) { return !cb.disabled; });
+                if (allCheckbox.disabled && firstAllowed) {
+                    firstAllowed.checked = true;
+                } else if (!allCheckbox.disabled) {
+                    allCheckbox.checked = true;
+	                }
+	            }
+	            updateBuildPlatformHelpText();
+	        }
+
+	        function updateBuildPlatformHelpText() {
+	            var help = document.getElementById('buildPlatformHelpText');
+	            if (!help) return;
+	            if (getSelectedBuildCore() === 'xray') {
+	                help.textContent = 'Xray 内核当前只支持 Windows ARM64/AMD64、Android（手机）和 macOS ARM64/AMD64；Linux 与 Android TV 已自动隐藏。';
+	            } else {
+	                help.textContent = 'Windows、Linux 和 macOS 都只保留 ARM64 / AMD64 两个架构选项。Android TV 使用独立入口和 TV 界面，也包含在“全部平台”中；如需全平台请直接选择“全部平台”。';
+	            }
+	        }
+
         function getBuildDisableReason() {
             if (!buildPermissionAvailable) {
                 return buildPermissionStatusMessage || '当前不可打包';
@@ -4786,32 +5002,36 @@
 
         function getSelectedBuildPlatformsValue() {
             var allCheckbox = document.getElementById('platformAll');
-            if (!allCheckbox || allCheckbox.checked) {
+            if (!allCheckbox || (allCheckbox.checked && !allCheckbox.disabled)) {
                 return 'all';
             }
             var selected = [];
             document.querySelectorAll('.platformItem:checked').forEach(function(cb) {
-                selected.push(cb.value);
+                if (!cb.disabled) {
+                    selected.push(cb.value);
+                }
             });
             return selected.length > 0 ? selected.join(',') : 'all';
         }
 
-        function estimateRequestedBuildJobs(platforms) {
-            var normalized = String(platforms || 'all').trim().toLowerCase();
-            if (!normalized) normalized = 'all';
-            var selected = {};
+	        function estimateRequestedBuildJobs(platforms, core) {
+	            core = core || getSelectedBuildCore();
+	            var normalized = String(platforms || 'all').trim().toLowerCase();
+	            if (!normalized) normalized = 'all';
+	            var selected = {};
+	            var catalog = getBuildPlatformCatalogValuesForCore(core);
 
-            function addJob(job) {
-                if (job) selected[job] = true;
-            }
+	            function addJob(job) {
+	                if (job && catalog.indexOf(job) !== -1) selected[job] = true;
+	            }
 
-            function addJobsByToken(token) {
-                switch (token) {
-                    case 'all':
-                        ['windows-amd64', 'windows-arm64', 'android', 'android-tv', 'linux-amd64', 'linux-arm64', 'macos-amd64', 'macos-arm64'].forEach(addJob);
-                        break;
-                    case 'windows':
-                        addJob('windows-amd64');
+	            function addJobsByToken(token) {
+	                switch (token) {
+		                    case 'all':
+		                        catalog.forEach(addJob);
+	                        break;
+	                    case 'windows':
+	                        addJob('windows-amd64');
                         addJob('windows-arm64');
                         break;
                     case 'linux':
@@ -4822,18 +5042,20 @@
                         addJob('macos-amd64');
                         addJob('macos-arm64');
                         break;
-                    case 'windows-amd64':
-                    case 'windows-arm64':
-                    case 'android':
+	                    case 'windows-amd64':
+	                    case 'windows-arm64':
+	                    case 'android':
                     case 'android-tv':
                     case 'linux-amd64':
-                    case 'linux-arm64':
-                    case 'macos-amd64':
-                    case 'macos-arm64':
-                        addJob(token);
-                        break;
-                }
-            }
+	                    case 'linux-arm64':
+	                    case 'macos-amd64':
+		                    case 'macos-arm64':
+		                        if (catalog.indexOf(token) !== -1) {
+		                            addJob(token);
+		                        }
+	                        break;
+	                }
+	            }
 
             normalized.split(',').forEach(function(token) {
                 token = token.trim();
@@ -4866,7 +5088,7 @@
             var maxJobs = typeof snapshot.max_jobs === 'number' ? snapshot.max_jobs : (snapshot.max || 0);
             var activeMacOSJobs = typeof snapshot.active_macos_jobs === 'number' ? snapshot.active_macos_jobs : 0;
             var maxMacOSJobs = typeof snapshot.max_macos_jobs === 'number' ? snapshot.max_macos_jobs : 0;
-            var demand = estimateRequestedBuildJobs(requestedPlatforms || snapshot.requested_platforms || getSelectedBuildPlatformsValue());
+	            var demand = estimateRequestedBuildJobs(requestedPlatforms || snapshot.requested_platforms || getSelectedBuildPlatformsValue(), getSelectedBuildCore());
             var available = activeJobs + demand.total <= maxJobs && activeMacOSJobs + demand.macos <= maxMacOSJobs;
 
             var summary = '<span style="color:' + (available ? '#00ff88' : '#ff6b6b') + ';">活跃 ' + activeJobs + '/' + maxJobs + ' jobs</span>';
@@ -5264,9 +5486,11 @@
                 if (data.expires_at) {
                     html += '<div>到期日期：' + formatUsageExpiresAt(data.expires_at) + '</div>';
                 }
+                html += '<div>允许平台：' + formatAllowedBuildPlatforms(data.allowed_platforms || []) + '</div>';
             }
             el.className = 'build-usage-info ' + (data.can_build ? 'ok' : 'warn');
             el.innerHTML = html;
+            syncBuildPlatformPermissions();
             updateBuildActionState();
         }
 
@@ -5769,6 +5993,7 @@
         var myBuildRecordsExpanded = false;
         var clientUpdatesLoaded = false;
         var clientUpdatesLoadedBranch = '';
+        var HIDDEN_CLIENT_UPDATES_BRANCHES = ['profiles'];
         var buildQueuePollTimer = null;
         var buildQueuePollInFlight = false;
         var buildQueuePendingPlatforms = '';
@@ -6235,6 +6460,9 @@
             document.getElementById('buildBtn').addEventListener('click', triggerBuild);
             document.getElementById('buildTag').addEventListener('input', updateBuildTagValidationState);
             document.getElementById('buildTag').addEventListener('change', updateBuildTagValidationState);
+            document.querySelectorAll('input[name="buildCore"]').forEach(function(input) {
+                input.addEventListener('change', handleBuildCoreChange);
+            });
             document.getElementById('provider').addEventListener('change', formToYaml);
             document.getElementById('provider').addEventListener('input', function() {
                 updateProviderConsistencyState({ source: 'basic' });
@@ -6777,9 +7005,26 @@
 
         async function loadBranches() {
             try {
-                var response = await api('GET', '/branches');
-                if (!response) return;
-                var branches = await response.json();
+                var core = getSelectedBuildCore();
+	                var buildResponse = await api('GET', '/branches?core=' + encodeURIComponent(core));
+	                if (!buildResponse) return;
+	                if (!buildResponse.ok) {
+	                    throw new Error('构建分支列表获取失败');
+	                }
+	                var buildBranches = await buildResponse.json();
+	                if (!Array.isArray(buildBranches)) {
+	                    buildBranches = [];
+	                }
+	                var updateBranches = buildBranches;
+                if (core !== 'mihomo') {
+                    var updateResponse = await api('GET', '/branches?core=mihomo');
+	                    if (updateResponse && updateResponse.ok) {
+	                        updateBranches = await updateResponse.json();
+	                    }
+	                }
+	                if (!Array.isArray(updateBranches)) {
+	                    updateBranches = [];
+	                }
 
                 var fillBranchSelect = function(select, options, fallbackValue, keepEmptyDefault) {
                     if (!select) return;
@@ -6809,8 +7054,10 @@
                     syncAllCustomSelects(select, true);
                 };
 
-                fillBranchSelect(document.getElementById('buildBranch'), branches, 'main', false);
-                fillBranchSelect(document.getElementById('updatesBranch'), branches, '', true);
+                fillBranchSelect(document.getElementById('buildBranch'), buildBranches, 'main', false);
+                fillBranchSelect(document.getElementById('updatesBranch'), updateBranches.filter(function(branch) {
+                    return branch && !isHiddenClientUpdatesBranch(branch.name);
+                }), '', true);
             } catch (e) {
                 console.log('加载分支列表失败:', e.message);
             }
@@ -6842,6 +7089,7 @@
             if (build) {
                 content.innerHTML = '<span style="color:#ffaa00;">' + (profileName || appName) + '</span> | ' +
                     '<span style="color:#00ff88;">版本: ' + build.version + '</span> | ' +
+                    '<span style="color:#8fb4ff;">内核: ' + escapeHtml(formatBuildCoreLabel(build.core || 'mihomo')) + '</span> | ' +
                     '<span style="color:#00d4ff;">平台: ' + build.platforms + '</span> | ' +
                     '<span style="color:#aaa;">时间: ' + build.time + '</span>';
                 info.style.display = 'block';
@@ -6865,6 +7113,11 @@
             var date = new Date(value);
             if (isNaN(date.getTime())) return value;
             return date.toLocaleString('zh-CN', { hour12: false });
+        }
+
+        function isHiddenClientUpdatesBranch(branchName) {
+            branchName = String(branchName || '').trim();
+            return HIDDEN_CLIENT_UPDATES_BRANCHES.indexOf(branchName) !== -1;
         }
 
         function renderClientUpdates(data) {
@@ -6906,6 +7159,11 @@
         async function loadClientUpdates(force) {
             var branchSelect = document.getElementById('updatesBranch');
             var selectedBranch = branchSelect ? branchSelect.value.trim() : '';
+            if (isHiddenClientUpdatesBranch(selectedBranch)) {
+                selectedBranch = '';
+                branchSelect.value = '';
+                syncAllCustomSelects(branchSelect, true);
+            }
             if (clientUpdatesLoaded && !force && clientUpdatesLoadedBranch === selectedBranch) {
                 return;
             }
@@ -7084,6 +7342,7 @@
                         inputs: {
                             tag: buildPollContext.tag,
                             branch: buildPollContext.branch,
+                            core: buildPollContext.core,
                             platforms: buildPollContext.platforms
                         },
                         created_at: new Date().toISOString()
@@ -7170,7 +7429,7 @@
                 html += '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">';
                 html += '<div style="display:flex; flex-direction:column; gap:6px; min-width:0;">';
                 html += '<div style="color:#fff; font-size:13px;">' + record.profile + ' · ' + record.tag + '</div>';
-                html += '<div style="color:#aaa; font-size:12px;">分支: ' + record.branch + ' · 平台: ' + record.platforms + '</div>';
+                html += '<div style="color:#aaa; font-size:12px;">内核: ' + escapeHtml(formatBuildCoreLabel(record.core || 'mihomo')) + ' · 分支: ' + record.branch + ' · 平台: ' + record.platforms + '</div>';
                 html += '<div style="color:#888; font-size:12px;">创建时间: ' + record.created_at + '</div>';
                 html += '</div>';
                 var actionButtonsHtml = '';
@@ -7222,6 +7481,7 @@
                 profile: record.profile,
                 tag: record.tag || '',
                 branch: record.branch || 'main',
+                core: record.core || 'mihomo',
                 platforms: record.platforms || 'all',
                 requestId: record.request_id || String(record.id),
                 buildRecordId: record.id,
@@ -7260,6 +7520,7 @@
                 inputs: {
                     tag: record.tag || '',
                     branch: record.branch || 'main',
+                    core: record.core || 'mihomo',
                     platforms: record.platforms || 'all'
                 }
             };
@@ -7276,6 +7537,7 @@
             buildPollContext.conclusion = matchedRecord.conclusion || '';
             buildPollContext.tag = matchedRecord.tag || buildPollContext.tag;
             buildPollContext.branch = matchedRecord.branch || buildPollContext.branch;
+            buildPollContext.core = matchedRecord.core || buildPollContext.core || 'mihomo';
             buildPollContext.platforms = matchedRecord.platforms || buildPollContext.platforms;
             saveBuildingProfile(buildPollContext);
 
@@ -7367,9 +7629,10 @@
             var el = document.getElementById('buildQueueInfo');
             if (!el) return;
             var selectedPlatforms = options.platforms || getSelectedBuildPlatformsValue();
+            var selectedCore = options.core || getSelectedBuildCore();
             if (buildQueuePollInFlight) {
                 if (!options.isAutoPoll) {
-                    buildQueuePendingPlatforms = selectedPlatforms;
+                    buildQueuePendingPlatforms = selectedCore + '|' + selectedPlatforms;
                     if (buildQueueLastSnapshot) {
                         renderBuildQueueSummary(buildQueueLastSnapshot, selectedPlatforms, true);
                     } else {
@@ -7380,7 +7643,10 @@
             }
             buildQueuePollInFlight = true;
             try {
-                var query = selectedPlatforms ? ('?platforms=' + encodeURIComponent(selectedPlatforms)) : '';
+                var query = '?core=' + encodeURIComponent(selectedCore);
+                if (selectedPlatforms) {
+                    query += '&platforms=' + encodeURIComponent(selectedPlatforms);
+                }
                 var response = await api('GET', '/build/queue' + query);
                 if (!response) return;
                 var data = await response.json();
@@ -7393,9 +7659,13 @@
             } finally {
                 buildQueuePollInFlight = false;
                 if (buildQueuePendingPlatforms) {
-                    var pendingPlatforms = buildQueuePendingPlatforms;
+                    var pendingValue = buildQueuePendingPlatforms;
                     buildQueuePendingPlatforms = '';
-                    loadBuildQueue({ platforms: pendingPlatforms });
+                    var pendingParts = pendingValue.split('|');
+                    loadBuildQueue({
+                        core: pendingParts[0] || getSelectedBuildCore(),
+                        platforms: pendingParts.slice(1).join('|') || getSelectedBuildPlatformsValue()
+                    });
                     return;
                 }
                 scheduleBuildQueuePolling();
@@ -7418,6 +7688,7 @@
             var profileName = document.getElementById('profileSelect').value;
             var buildBranch = document.getElementById('buildBranch').value.trim() || 'main';
             var buildTag = document.getElementById('buildTag').value.trim();
+            var buildCore = getSelectedBuildCore();
 
             if (!profileName) {
                 setBuildStatus('请先选择配置档案', 'error');
@@ -7440,6 +7711,7 @@
                 var response = await api('POST', '/build/trigger', {
                     profile: profileName,
                     tag: buildTag,
+                    core: buildCore,
                     platforms: platforms,
                     branch: buildBranch
                 });
@@ -7454,7 +7726,7 @@
                 if (!response.ok) {
                     throw new Error(result.error || '触发失败');
                 }
-                setBuildStatus('软件打包已提交！档案: ' + profileName + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
+                setBuildStatus('软件打包已提交！档案: ' + profileName + ', 内核: ' + formatBuildCoreLabel(buildCore) + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
                 await loadBuildHistory();
                 loadBuildQueue();
                 refreshMyBuildRecordsIfNeeded(false);
@@ -7463,6 +7735,7 @@
                     profile: profileName,
                     tag: buildTag,
                     branch: buildBranch,
+                    core: buildCore,
                     platforms: platforms,
                     requestId: result.request_id || '',
                     buildRecordId: result.record_id || 0,
@@ -7540,25 +7813,48 @@
             var allCheckbox = document.getElementById('platformAll');
             var itemCheckboxes = document.querySelectorAll('.platformItem');
             allCheckbox.addEventListener('change', function() {
+                if (this.disabled) {
+                    this.checked = false;
+                    return;
+                }
                 if (this.checked) {
-                    itemCheckboxes.forEach(function(cb) { cb.checked = false; });
+                    itemCheckboxes.forEach(function(cb) { if (!cb.disabled) cb.checked = false; });
                 }
                 loadBuildQueue();
                 updateBuildActionState();
             });
             itemCheckboxes.forEach(function(cb) {
                 cb.addEventListener('change', function() {
+                    if (this.disabled) {
+                        this.checked = false;
+                        return;
+                    }
                     if (this.checked) {
                         allCheckbox.checked = false;
                     }
-                    var anyChecked = Array.from(itemCheckboxes).some(function(c) { return c.checked; });
+                    var anyChecked = Array.from(itemCheckboxes).some(function(c) { return c.checked && !c.disabled; });
                     if (!anyChecked) {
-                        allCheckbox.checked = true;
+                        if (allCheckbox.disabled) {
+                            var firstAllowed = Array.from(itemCheckboxes).find(function(c) { return !c.disabled; });
+                            if (firstAllowed) firstAllowed.checked = true;
+                        } else {
+                            allCheckbox.checked = true;
+                        }
                     }
                     loadBuildQueue();
                     updateBuildActionState();
                 });
             });
+            syncBuildPlatformPermissions();
+        }
+
+        function handleBuildCoreChange() {
+            syncBuildPlatformPermissions();
+            buildQueueLastSnapshot = null;
+            buildQueuePendingPlatforms = '';
+            loadBranches();
+            loadBuildQueue();
+            updateBuildActionState();
         }
 
         // ==================== 配置源管理 ====================
@@ -9121,6 +9417,7 @@
                     profile: context,
                     tag: '',
                     branch: 'main',
+                    core: 'mihomo',
                     platforms: 'all',
                     requestId: '',
                     buildRecordId: 0,
@@ -9133,6 +9430,7 @@
                 profile: context.profile,
                 tag: context.tag || '',
                 branch: context.branch || 'main',
+                core: context.core || 'mihomo',
                 platforms: context.platforms || 'all',
                 requestId: context.requestId || context.request_id || '',
                 buildRecordId: context.buildRecordId || context.build_record_id || 0,
@@ -9167,6 +9465,7 @@
             if (!params && buildPollContext) {
                 params = {
                     tag: buildPollContext.tag,
+                    core: buildPollContext.core,
                     platforms: buildPollContext.platforms,
                     branch: buildPollContext.branch
                 };
@@ -9180,6 +9479,9 @@
             var paramsHtml = '';
             if (params.tag) {
                 paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">版本</span><span class="param-value">' + params.tag + '</span></span>';
+            }
+            if (params.core) {
+                paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">内核</span><span class="param-value">' + formatBuildCoreLabel(params.core) + '</span></span>';
             }
             if (params.platforms) {
                 paramsHtml += '<span class="build-progress-param-tag"><span class="param-label">平台</span><span class="param-value">' + params.platforms + '</span></span>';
@@ -9292,6 +9594,9 @@
                 if (buildPollContext.branch) {
                     query += '&branch=' + encodeURIComponent(buildPollContext.branch);
                 }
+                if (buildPollContext.core) {
+                    query += '&core=' + encodeURIComponent(buildPollContext.core);
+                }
                 if (buildPollContext.platforms) {
                     query += '&platforms=' + encodeURIComponent(buildPollContext.platforms);
                 }
@@ -9315,6 +9620,7 @@
                 if (data.inputs) {
                     buildPollContext.tag = data.inputs.tag || buildPollContext.tag;
                     buildPollContext.branch = data.inputs.branch || buildPollContext.branch;
+                    buildPollContext.core = data.inputs.core || buildPollContext.core || 'mihomo';
                     buildPollContext.platforms = data.inputs.platforms || buildPollContext.platforms;
                     saveBuildingProfile(buildPollContext);
                 }

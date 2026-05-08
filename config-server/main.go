@@ -25,6 +25,8 @@ type Config struct {
 	GithubProfileBranch string
 	BuildOwner          string
 	BuildRepo           string
+	XrayBuildOwner      string
+	XrayBuildRepo       string
 	BuildEventToken     string
 	GitHubWebhookSecret string
 	JWTSecret           string
@@ -46,6 +48,8 @@ func loadConfig() {
 		GithubProfileBranch: getEnv("GITHUB_PROFILE_BRANCH", ""),
 		BuildOwner:          getEnv("BUILD_OWNER", ""),
 		BuildRepo:           getEnv("BUILD_REPO", ""),
+		XrayBuildOwner:      getEnv("XRAY_BUILD_OWNER", "q42602736"),
+		XrayBuildRepo:       getEnv("XRAY_BUILD_REPO", "NexGen-client-xray"),
 		BuildEventToken:     getEnv("BUILD_EVENT_TOKEN", ""),
 		GitHubWebhookSecret: getEnv("GITHUB_WEBHOOK_SECRET", ""),
 		JWTSecret:           mustEnv("JWT_SECRET"),
@@ -58,6 +62,9 @@ func loadConfig() {
 	}
 	if cfg.BuildRepo == "" {
 		cfg.BuildRepo = "Xboard-Mihomo-builds"
+	}
+	if cfg.XrayBuildOwner == "" {
+		cfg.XrayBuildOwner = cfg.BuildOwner
 	}
 	if cfg.GithubProfileBranch == "" {
 		cfg.GithubProfileBranch = cfg.GithubBranch

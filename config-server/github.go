@@ -336,12 +336,23 @@ type CommitInfo struct {
 
 // ListBranches 获取仓库的分支列表
 func (g *GitHubClient) ListBranches() ([]Branch, error) {
-	cacheKey := fmt.Sprintf("%s/%s", g.Owner, g.Repo)
+	return g.ListBranchesForRepo(g.Owner, g.Repo)
+}
+
+// ListBranchesForRepo 获取指定仓库的分支列表
+func (g *GitHubClient) ListBranchesForRepo(owner, repo string) ([]Branch, error) {
+	owner = strings.TrimSpace(owner)
+	repo = strings.TrimSpace(repo)
+	if owner == "" || repo == "" {
+		return nil, fmt.Errorf("仓库信息不能为空")
+	}
+
+	cacheKey := fmt.Sprintf("%s/%s", owner, repo)
 	if branches, ok := githubBranchesCache.get(cacheKey); ok {
 		return branches, nil
 	}
 
-	url := g.apiURL("branches")
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/branches", owner, repo)
 	resp, err := g.doRequest("GET", url, nil)
 	if err != nil {
 		return nil, err

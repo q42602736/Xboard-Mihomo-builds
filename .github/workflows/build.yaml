@@ -21,6 +21,14 @@ on:
         required: false
         type: string
         default: 'main'
+      core:
+        description: '打包内核（mihomo 或 xray）'
+        required: false
+        type: choice
+        default: 'mihomo'
+        options:
+          - mihomo
+          - xray
       platforms:
         description: '选择要编译的平台（多选用逗号分隔，如: windows,android 或 linux-amd64）'
         required: true
@@ -34,7 +42,7 @@ on:
         required: false
         type: string
 
-run-name: build-${{ github.event.inputs.request_id || github.run_id }}-${{ github.event.inputs.profile }}-${{ github.event.inputs.tag }}
+run-name: build-${{ github.event.inputs.request_id || github.run_id }}-${{ github.event.inputs.core || 'mihomo' }}-${{ github.event.inputs.profile }}-${{ github.event.inputs.tag }}
 
 concurrency:
   group: build-${{ github.event.inputs.profile }}
@@ -42,7 +50,9 @@ concurrency:
 
 env:
   IS_STABLE: ${{ !contains(github.event.inputs.tag, '-') }}
-  PRIVATE_REPO: q42602736/Xboard-Mihomo_sub
+  PROFILE_REPO: q42602736/Xboard-Mihomo_sub
+  MIHOMO_SOURCE_REPO: q42602736/Xboard-Mihomo_sub
+  XRAY_SOURCE_REPO: q42602736/NexGen-client-xray
   FLUTTER_VERSION: "3.41.4"
 
 jobs:
@@ -86,7 +96,7 @@ jobs:
           ENCODED_PROFILE_PATH=$(node -e "console.log(process.argv[1].split('/').map(encodeURIComponent).join('/'))" "$PROFILE_PATH")
 
           API_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ env.PRIVATE_REPO }}/contents/${ENCODED_PROFILE_PATH}?ref=${PROFILE_BRANCH}")
+            "https://api.github.com/repos/${{ env.PROFILE_REPO }}/contents/${ENCODED_PROFILE_PATH}?ref=${PROFILE_BRANCH}")
 
           if echo "$API_RESPONSE" | grep -q '"content"'; then
             PROFILE_YAML=$(echo "$API_RESPONSE" | node -e "
@@ -243,16 +253,18 @@ jobs:
         id: check
         run: |
           SELECTED="${{ github.event.inputs.platforms }}"
+          CORE="${{ github.event.inputs.core || 'mihomo' }}"
           CURRENT="${{ matrix.platform }}"
           BUILD_PLATFORM="${{ matrix.build_platform }}"
           ARCH="${{ matrix.arch }}"
           INCLUDE_IN_ALL="${{ matrix.include_in_all }}"
-          
+
           echo "Selected platforms: $SELECTED"
+          echo "Selected core: $CORE"
           echo "Current matrix: platform=$CURRENT, build_platform=$BUILD_PLATFORM, arch=$ARCH"
-          
+
           SHOULD_RUN="false"
-          
+
           # 检查是否选择了 all
           if [[ "$SELECTED" == "all" ]] && [ "$INCLUDE_IN_ALL" = "true" ]; then
             SHOULD_RUN="true"
@@ -275,9 +287,13 @@ jobs:
           elif [[ ",$SELECTED," == *",linux-amd64,"* ]] && [ "$CURRENT" = "linux" ] && [ "$ARCH" = "amd64" ]; then
             SHOULD_RUN="true"
           fi
-          
+
+          if [ "$CORE" = "xray" ] && { [ "$CURRENT" = "android-tv" ] || [ "$CURRENT" = "linux" ]; }; then
+            SHOULD_RUN="false"
+          fi
+
           echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
-          
+
           if [ "$SHOULD_RUN" = "false" ]; then
             echo "⏭️ Skipping $CURRENT ($ARCH) - not selected"
           else
@@ -323,7 +339,14 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan github.com >> ~/.ssh/known_hosts
-          git clone git@github.com:${{ env.PRIVATE_REPO }}.git source
+          CORE="${{ github.event.inputs.core || 'mihomo' }}"
+          SOURCE_REPO="${{ env.MIHOMO_SOURCE_REPO }}"
+          if [ "$CORE" = "xray" ]; then
+            SOURCE_REPO="${{ env.XRAY_SOURCE_REPO }}"
+          fi
+          echo "Selected core: $CORE"
+          echo "Source repo: $SOURCE_REPO"
+          git clone "git@github.com:${SOURCE_REPO}.git" source
           cd source
           REQUESTED_REF="${{ github.event.inputs.branch }}"
           SOURCE_REF="$REQUESTED_REF"
@@ -339,20 +362,31 @@ jobs:
       - name: Apply profile config
         id: config
         if: steps.check.outputs.should_run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
         run: |
           cd source
           PROFILE_NAME="${{ github.event.inputs.profile }}"
           PROFILE_BRANCH="${{ github.event.inputs.profile_branch }}"
           echo "=== Applying profile: $PROFILE_NAME ==="
-          
-          # 从配置分支读取 YAML 配置档案，源码分支与配置分支解耦
+
+          # 从配置仓库读取 YAML 配置档案，源码仓库与配置分支解耦
           PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
-          echo "Reading $PROFILE_PATH from profile branch origin/$PROFILE_BRANCH..."
-          if ! git show "origin/$PROFILE_BRANCH:$PROFILE_PATH" > assets/config/xboard.config.yaml; then
-            echo "Error: Failed to read $PROFILE_PATH from profile branch $PROFILE_BRANCH"
+          ENCODED_PROFILE_PATH=$(node -e "console.log(process.argv[1].split('/').map(encodeURIComponent).join('/'))" "$PROFILE_PATH")
+          echo "Reading $PROFILE_PATH from ${{ env.PROFILE_REPO }}@$PROFILE_BRANCH..."
+          API_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ env.PROFILE_REPO }}/contents/${ENCODED_PROFILE_PATH}?ref=${PROFILE_BRANCH}")
+          if ! echo "$API_RESPONSE" | grep -q '"content"'; then
+            echo "Error: Failed to read $PROFILE_PATH from profile repo branch $PROFILE_BRANCH"
+            echo "$API_RESPONSE"
             exit 1
           fi
-          
+          printf '%s' "$API_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(Buffer.from(String(data.content || '').replace(/\\n/g, ''), 'base64').toString());
+          " > assets/config/xboard.config.yaml
+
           # 使用 node 提取应用名称（清理换行，避免污染 GITHUB_OUTPUT）
           APP_NAME=$(node -e "
             const fs = require('fs');
@@ -364,10 +398,10 @@ jobs:
             const appName = String(rawName || '').replace(/[\\r\\n]+/g, ' ').trim();
             console.log(appName);
           ")
-          
+
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
           echo "Successfully applied profile: $PROFILE_NAME, App Name: $APP_NAME"
-          
+
           echo ""
           echo "=== Config file content (first 30 lines) ==="
           head -30 assets/config/xboard.config.yaml
@@ -555,7 +589,7 @@ jobs:
           echo ""
           echo "=== Generated Executable Names ==="
           cat lib/generated/executable_names.dart
-          
+
           # 从生成的文件中提取拼音应用名称
           PINYIN_NAME=$(grep "const String executableAppName = '" lib/generated/executable_names.dart | sed "s/.*const String executableAppName = '\([^']*\)'.*/\1/")
           echo "profile_name_safe=$PINYIN_NAME" >> $GITHUB_OUTPUT
@@ -628,15 +662,15 @@ jobs:
         if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'macos'
         run: |
           echo "Preparing macOS build environment..."
-          
+
           # 安装 flutter_distributor
           dart pub global activate flutter_distributor
           echo "✓ flutter_distributor installed"
-          
+
           # 安装 appdmg (用于生成 DMG)
           npm install -g appdmg
           echo "✓ appdmg installed"
-          
+
           # 运行 pod install
           cd source/macos
           pod install --repo-update
@@ -805,11 +839,11 @@ jobs:
               echo "libclash/macos/amd64 contents:"
               ls -la ./libclash/macos/amd64/ 2>/dev/null || echo "libclash/macos/amd64 not found"
               echo ""
-              
+
               echo "=== Xcode Build Logs ==="
               find ./build/macos -name "*.log" -exec echo "File: {}" \; -exec tail -100 {} \; 2>/dev/null || echo "No Xcode logs found"
               echo ""
-              
+
               echo "=== Flutter Assemble Script Content ==="
               SCRIPT_PATH="./build/macos/Build/Intermediates.noindex/Runner.build/Release/Flutter Assemble.build/Script-33CC111E2044C6BF0003C045.sh"
               if [ -f "$SCRIPT_PATH" ]; then
@@ -819,22 +853,22 @@ jobs:
                 find ./build/macos -name "*.sh" 2>/dev/null | head -10
               fi
               echo ""
-              
+
               echo "=== DerivedData Logs ==="
               find ~/Library/Developer/Xcode/DerivedData -name "*.log" -mmin -10 2>/dev/null | while read f; do
                 echo "=== $f ==="
                 tail -50 "$f"
               done || echo "No recent DerivedData logs"
               echo ""
-              
+
               echo "=== Xcode Build Output (xcactivitylog) ==="
               find ./build/macos -name "*.xcactivitylog" 2>/dev/null | head -5 || echo "No xcactivitylog found"
               echo ""
-              
+
               echo "=== CocoaPods Status ==="
               cat ./macos/Podfile.lock 2>/dev/null | head -50 || echo "No Podfile.lock"
               echo ""
-              
+
               echo "=== Flutter Assemble Script Location ==="
               ls -la ./build/macos/Build/Intermediates.noindex/Runner.build/Release/ 2>/dev/null || echo "Build intermediates not found"
               echo ""
@@ -985,6 +1019,7 @@ jobs:
 
   build-linux:
     needs: prepare-release
+    if: ${{ github.event.inputs.core != 'xray' }}
     runs-on: ${{ matrix.os }}
     container:
       image: debian:trixie
@@ -1015,11 +1050,13 @@ jobs:
         id: check
         run: |
           SELECTED="${{ github.event.inputs.platforms }}"
+          CORE="${{ github.event.inputs.core || 'mihomo' }}"
           CURRENT="${{ matrix.platform }}"
           ARCH="${{ matrix.arch }}"
           SHOULD_RUN="false"
 
           echo "Selected platforms: $SELECTED"
+          echo "Selected core: $CORE"
           echo "Current matrix: platform=$CURRENT, arch=$ARCH"
 
           if [[ "$SELECTED" == "all" ]]; then
@@ -1030,6 +1067,10 @@ jobs:
             SHOULD_RUN="true"
           elif [[ ",$SELECTED," == *",linux-amd64,"* ]] && [ "$ARCH" = "amd64" ]; then
             SHOULD_RUN="true"
+          fi
+
+          if [ "$CORE" = "xray" ]; then
+            SHOULD_RUN="false"
           fi
 
           echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
@@ -1062,7 +1103,14 @@ jobs:
         run: |
           git config --global url."https://x-access-token:${{ secrets.WORKFLOW_TOKEN }}@github.com/".insteadOf "git@github.com:"
           git config --global url."https://x-access-token:${{ secrets.WORKFLOW_TOKEN }}@github.com/".insteadOf "ssh://git@github.com/"
-          git clone https://x-access-token:${{ secrets.WORKFLOW_TOKEN }}@github.com/${{ env.PRIVATE_REPO }}.git source
+          CORE="${{ github.event.inputs.core || 'mihomo' }}"
+          SOURCE_REPO="${{ env.MIHOMO_SOURCE_REPO }}"
+          if [ "$CORE" = "xray" ]; then
+            SOURCE_REPO="${{ env.XRAY_SOURCE_REPO }}"
+          fi
+          echo "Selected core: $CORE"
+          echo "Source repo: $SOURCE_REPO"
+          git clone "https://x-access-token:${{ secrets.WORKFLOW_TOKEN }}@github.com/${SOURCE_REPO}.git" source
           cd source
           REQUESTED_REF="${{ github.event.inputs.branch }}"
           SOURCE_REF="$REQUESTED_REF"
@@ -1079,6 +1127,8 @@ jobs:
       - name: Apply profile config
         id: config
         if: steps.check.outputs.should_run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
         run: |
           cd source
           PROFILE_NAME="${{ github.event.inputs.profile }}"
@@ -1086,11 +1136,20 @@ jobs:
           echo "=== Applying profile: $PROFILE_NAME ==="
 
           PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
-          echo "Reading $PROFILE_PATH from profile branch origin/$PROFILE_BRANCH..."
-          if ! git show "origin/$PROFILE_BRANCH:$PROFILE_PATH" > assets/config/xboard.config.yaml; then
-            echo "Error: Failed to read $PROFILE_PATH from profile branch $PROFILE_BRANCH"
+          ENCODED_PROFILE_PATH=$(node -e "console.log(process.argv[1].split('/').map(encodeURIComponent).join('/'))" "$PROFILE_PATH")
+          echo "Reading $PROFILE_PATH from ${{ env.PROFILE_REPO }}@$PROFILE_BRANCH..."
+          API_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ env.PROFILE_REPO }}/contents/${ENCODED_PROFILE_PATH}?ref=${PROFILE_BRANCH}")
+          if ! echo "$API_RESPONSE" | grep -q '"content"'; then
+            echo "Error: Failed to read $PROFILE_PATH from profile repo branch $PROFILE_BRANCH"
+            echo "$API_RESPONSE"
             exit 1
           fi
+          printf '%s' "$API_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(Buffer.from(String(data.content || '').replace(/\\n/g, ''), 'base64').toString());
+          " > assets/config/xboard.config.yaml
 
           APP_NAME=$(node -e "
             const fs = require('fs');
@@ -1397,7 +1456,7 @@ jobs:
   merge-artifacts:
     runs-on: ubuntu-latest
     needs: [ prepare-release, build, build-linux ]
-    if: ${{ !cancelled() && needs.build.result == 'success' && needs.build-linux.result == 'success' }}
+    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.build-linux.result == 'success' || needs.build-linux.result == 'skipped') }}
     steps:
       - name: Download release assets
         env:
@@ -1434,7 +1493,7 @@ jobs:
             echo "has_artifacts=true" >> $GITHUB_OUTPUT
             echo "Found artifacts:"
             ls -la ./dist/
-            
+
             # 从构建产物文件名中提取拼音应用名称
             # 例如：Qieyun-1.0.0-android-arm64-v8a.apk -> Qieyun
             FIRST_FILE=$(find ./dist -type f \( -iname "*.apk" -o -iname "*.dmg" -o -iname "*.exe" -o -iname "*.deb" -o -iname "*.appimage" -o -iname "*.rpm" \) | head -1)
