@@ -332,9 +332,7 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         uses: webfactory/ssh-agent@v0.10.0
         with:
-          ssh-private-key: |
-            ${{ secrets.SSH_PRIVATE_KEY }}
-            ${{ secrets.SSH_PRIVATE_KEY_XRAY }}
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Clone private repo
         if: steps.check.outputs.should_run == 'true'
