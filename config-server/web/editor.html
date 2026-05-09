@@ -6009,6 +6009,7 @@
         var clientUpdatesLoaded = false;
         var clientUpdatesLoadedBranch = '';
         var HIDDEN_CLIENT_UPDATES_BRANCHES = ['profiles'];
+        var HIDDEN_BUILD_SOURCE_BRANCHES = ['profiles'];
         var buildQueuePollTimer = null;
         var buildQueuePollInFlight = false;
         var buildQueuePendingPlatforms = '';
@@ -7070,7 +7071,9 @@
                     syncAllCustomSelects(select, true);
                 };
 
-                fillBranchSelect(document.getElementById('buildBranch'), buildBranches, 'main', false);
+                fillBranchSelect(document.getElementById('buildBranch'), buildBranches.filter(function(branch) {
+                    return branch && !isHiddenBuildSourceBranch(branch.name);
+                }), 'main', false);
                 fillBranchSelect(document.getElementById('updatesBranch'), updateBranches.filter(function(branch) {
                     return branch && !isHiddenClientUpdatesBranch(branch.name);
                 }), '', true);
@@ -7134,6 +7137,11 @@
         function isHiddenClientUpdatesBranch(branchName) {
             branchName = String(branchName || '').trim();
             return HIDDEN_CLIENT_UPDATES_BRANCHES.indexOf(branchName) !== -1;
+        }
+
+        function isHiddenBuildSourceBranch(branchName) {
+            branchName = String(branchName || '').trim();
+            return HIDDEN_BUILD_SOURCE_BRANCHES.indexOf(branchName) !== -1;
         }
 
         function renderClientUpdates(data) {

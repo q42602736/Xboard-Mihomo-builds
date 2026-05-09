@@ -1795,6 +1795,10 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 	if req.Branch == "" {
 		req.Branch = "main"
 	}
+	if strings.EqualFold(strings.TrimSpace(req.Branch), strings.TrimSpace(cfg.GithubProfileBranch)) {
+		jsonError(w, "配置档案分支不可作为打包源码分支", 400)
+		return
+	}
 
 	if _, err := expandRequestedBuildPlatforms(req.Core, req.Platforms); err != nil {
 		jsonError(w, err.Error(), 400)
