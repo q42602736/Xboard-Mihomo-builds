@@ -971,7 +971,7 @@ jobs:
               -H "Content-Type: application/octet-stream" \
               -H "Expect:" \
               "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}" \
-              --data-binary @"$file")
+              --upload-file "$file")
 
             UPLOADED_ASSET_ID=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
               const fs = require('fs');
@@ -1406,7 +1406,7 @@ jobs:
               -H "Content-Type: application/octet-stream" \
               -H "Expect:" \
               "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}" \
-              --data-binary @"$file")
+              --upload-file "$file")
 
             UPLOADED_ASSET_ID=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
               const fs = require('fs');
@@ -1570,7 +1570,7 @@ jobs:
             -H "Content-Type: application/zip" \
             -H "Expect:" \
             "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}" \
-            --data-binary @"$PACKAGE_NAME")
+            --upload-file "$PACKAGE_NAME")
 
           UPLOADED_ASSET_ID=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
             const fs = require('fs');
