@@ -143,6 +143,7 @@ func main() {
 		r.Get("/api/build/queue", h.GetBuildQueue)
 		r.Get("/api/build/status", h.GetBuildStatus)
 		r.Get("/api/client-updates", h.GetClientUpdates)
+		r.Post("/api/secure-logs/decrypt", h.DecryptSecureLog)
 	})
 
 	// 管理员 API

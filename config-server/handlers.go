@@ -2238,19 +2238,26 @@ func (h *Handlers) GetBuildHistory(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) GetClientUpdates(w http.ResponseWriter, r *http.Request) {
 	limit := getClientUpdatesLimit()
+	core, err := validateBuildCore(r.URL.Query().Get("core"))
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
 	branch := strings.TrimSpace(r.URL.Query().Get("branch"))
-	if branch == "" {
+	if branch == "" && core == "mihomo" {
 		branch = cfg.GithubBranch
 	}
 
-	commits, err := h.gh.ListRecentCommits(branch, limit)
+	owner, repo := resolveBuildSourceRepo(core)
+	commits, err := h.gh.ListRecentCommitsForRepo(owner, repo, branch, limit)
 	if err != nil {
 		jsonError(w, "获取更新记录失败: "+err.Error(), 500)
 		return
 	}
 
 	jsonResponse(w, map[string]interface{}{
-		"repo":    cfg.GithubRepo,
+		"core":    core,
+		"repo":    repo,
 		"branch":  branch,
 		"limit":   limit,
 		"commits": commits,

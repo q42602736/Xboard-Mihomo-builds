@@ -832,6 +832,20 @@ func (g *GitHubClient) DownloadReleaseAsset(buildOwner, buildRepo string, assetI
 }
 
 func (g *GitHubClient) ListRecentCommits(branch string, count int) ([]CommitInfo, error) {
+	targetBranch := strings.TrimSpace(branch)
+	if targetBranch == "" {
+		targetBranch = g.Branch
+	}
+	return g.ListRecentCommitsForRepo(g.Owner, g.Repo, targetBranch, count)
+}
+
+func (g *GitHubClient) ListRecentCommitsForRepo(owner, repo, branch string, count int) ([]CommitInfo, error) {
+	owner = strings.TrimSpace(owner)
+	repo = strings.TrimSpace(repo)
+	if owner == "" || repo == "" {
+		return nil, fmt.Errorf("仓库信息不能为空")
+	}
+
 	if count <= 0 {
 		count = defaultClientUpdatesLimit
 	}
@@ -840,10 +854,11 @@ func (g *GitHubClient) ListRecentCommits(branch string, count int) ([]CommitInfo
 	}
 
 	targetBranch := strings.TrimSpace(branch)
-	if targetBranch == "" {
-		targetBranch = g.Branch
+	cacheBranch := targetBranch
+	if cacheBranch == "" {
+		cacheBranch = "<default>"
 	}
-	cacheKey := fmt.Sprintf("%s/%s|%s|%d", g.Owner, g.Repo, targetBranch, count)
+	cacheKey := fmt.Sprintf("%s/%s|%s|%d", owner, repo, cacheBranch, count)
 	if commits, ok := githubCommitsCache.get(cacheKey); ok {
 		return commits, nil
 	}
@@ -866,13 +881,15 @@ func (g *GitHubClient) ListRecentCommits(branch string, count int) ([]CommitInfo
 	commits := make([]CommitInfo, 0, count)
 	for page := 1; len(commits) < count; page++ {
 		apiURL := fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/commits?sha=%s&per_page=%d&page=%d",
-			g.Owner,
-			g.Repo,
-			url.QueryEscape(targetBranch),
+			"https://api.github.com/repos/%s/%s/commits?per_page=%d&page=%d",
+			owner,
+			repo,
 			perPage,
 			page,
 		)
+		if targetBranch != "" {
+			apiURL += "&sha=" + url.QueryEscape(targetBranch)
+		}
 		resp, err := g.doRequest("GET", apiURL, nil)
 		if err != nil {
 			return nil, err

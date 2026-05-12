@@ -1225,6 +1225,46 @@
         .support-index { color: #00d4ff; font-weight: bold; margin-bottom: 10px; }
         .support-fields { display: none; margin-top: 10px; }
         .support-fields.active { display: block; }
+        .secure-log-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 12px 0;
+        }
+        .secure-log-note,
+        .secure-log-path-help {
+            color: #dce8f6;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+        .secure-log-note {
+            margin-top: 6px;
+        }
+        .secure-log-path-help {
+            margin: 10px 0 14px;
+        }
+        .secure-log-path-help code {
+            color: #ffffff;
+            background: rgba(0,212,255,0.12);
+            border: 1px solid rgba(0,212,255,0.2);
+            border-radius: 4px;
+            padding: 1px 5px;
+        }
+        .secure-log-output {
+            width: 100%;
+            min-height: 420px;
+            resize: vertical;
+            padding: 14px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            background: rgba(0,0,0,0.32);
+            color: #e6edf7;
+            font-family: Monaco, Menlo, Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            white-space: pre;
+        }
 
         .build-progress-panel {
             background: rgba(255,255,255,0.04);
@@ -3110,6 +3150,10 @@
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm3 4a1 1 0 000 2h6a1 1 0 100-2H7zm0 3a1 1 0 100 2h6a1 1 0 100-2H7zm0 3a1 1 0 100 2h4a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
                     更新记录
                 </div>
+                <div class="nav-item" onclick="switchSection('secureLogs')">
+                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L6.382 6H3a1 1 0 000 2h1.382l-1.276 2.553A1 1 0 004 12h1.382l-1.276 2.553A1 1 0 005 16h10a1 1 0 00.894-1.447L14.618 12H16a1 1 0 00.894-1.447L15.618 8H17a1 1 0 100-2h-3.382l-1.724-3.447A1 1 0 0011 2H9zm.618 4L10 5.236 10.382 6h-.764zM8.618 8h2.764l1 2H7.618l1-2zm-2 4h6.764l1 2H5.618l1-2z" clip-rule="evenodd"/></svg>
+                    日志解密
+                </div>
                 <div class="nav-divider"></div>
                 <div class="nav-item" onclick="switchSection('build')">
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/></svg>
@@ -4144,6 +4188,41 @@
                     </div>
                 </div>
 
+                <div class="content-section" id="secureLogsSection">
+                    <div class="page-header">
+                        <div class="page-header-content">
+                            <h2>日志解密</h2>
+                            <p class="subtitle">上传客户端 .xblog 加密日志，解密后可复制或下载为 .log</p>
+                        </div>
+                    </div>
+                    <div class="editor-container">
+                        <div class="section">
+                            <div class="section-title">加密日志文件</div>
+                            <div id="secureLogStatus" class="sidebar-status info" style="margin-bottom:12px;">请选择 .xblog 日志文件</div>
+                            <div class="form-group">
+                                <label>选择客户端 .xblog 日志文件</label>
+                                <input type="file" id="secureLogFile" accept=".xblog">
+                                <div class="secure-log-note">仅支持 .xblog 文件，单文件最大 20MB。</div>
+                            </div>
+                            <div class="secure-log-path-help">
+                                日志文件名形如 <code>console-20260512-213000.xblog</code>，默认保存在应用数据目录的 <code>logs</code> 文件夹，不在软件安装目录。<br>
+                                当前页面选择的应用名称：<code id="secureLogCurrentAppName">未选择</code>。不同配置档案打包后的应用名称会变化，下面的 <code>&lt;应用名称&gt;</code> 请替换成实际名称。<br>
+                                macOS：<code>~/Library/Application Support/com.nexgen.client/logs</code><br>
+                                Windows：<code>%APPDATA%\com.nexgen\&lt;应用名称&gt;\logs</code><br>
+                                Linux：<code>~/.local/share/com.follow.&lt;英文或拼音应用名&gt;/logs</code>；如果设置了 <code>XDG_DATA_HOME</code>，就是 <code>$XDG_DATA_HOME/com.follow.&lt;英文或拼音应用名&gt;/logs</code><br>
+                                Android 手机：<code>/data/user/0/com.nexgen.client/files/logs</code> 或 <code>/data/data/com.nexgen.client/files/logs</code><br>
+                                Android TV/debug：包名可能是 <code>com.nexgen.client.tv</code>、<code>com.nexgen.client.debug</code> 或 <code>com.nexgen.client.tv.debug</code>，目录同样在对应包名的 <code>files/logs</code> 下。
+                            </div>
+                            <div class="secure-log-actions">
+                                <button type="button" class="btn btn-primary" onclick="decryptSecureLog()">解密日志</button>
+                                <button type="button" class="btn" style="background:rgba(255,255,255,0.08);color:#ddd;" onclick="copySecureLogOutput()">复制结果</button>
+                                <button type="button" class="btn" style="background:rgba(255,255,255,0.08);color:#ddd;" onclick="downloadSecureLogOutput()">下载 .log</button>
+                            </div>
+                            <textarea id="secureLogOutput" class="secure-log-output" readonly placeholder="解密后的日志会显示在这里"></textarea>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 软件打包 -->
                 <div class="content-section" id="buildSection">
                     <div class="page-header">
@@ -4349,6 +4428,29 @@
             formData.append('file', file);
 
             var response = await fetch('/api/profiles/' + encodeURIComponent(profileName) + '/assets/' + encodeURIComponent(kind), {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                },
+                body: formData
+            });
+            if (response.status === 401) {
+                sessionStorage.removeItem(getBuildPollKey());
+                sessionStorage.removeItem(SESSION_KEY);
+                window.location.href = '/';
+                return null;
+            }
+            return response;
+        }
+
+        async function uploadSecureLogFile(file) {
+            var token = getToken();
+            if (!token) return null;
+
+            var formData = new FormData();
+            formData.append('file', file);
+
+            var response = await fetch('/api/secure-logs/decrypt', {
                 method: 'POST',
                 headers: {
                     'Authorization': 'Bearer ' + token
@@ -6416,6 +6518,8 @@
                 syncCustomTrafficBarProfileName();
                 updateCustomTrafficBarCodeHint();
                 syncCustomTrafficBarAccessView();
+            } else if (sectionName === 'secureLogs') {
+                updateSecureLogPathHint();
             }
         }
 
@@ -6502,6 +6606,7 @@
             document.getElementById('profileSelect').addEventListener('change', function() {
                 syncProfileBoundAppTitle();
                 syncCustomTrafficBarProfileName();
+                updateSecureLogPathHint();
                 setCustomTrafficBarStatus('', 'info');
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
@@ -6555,7 +6660,11 @@
                     });
                 }
             });
-            document.getElementById('appTitle').addEventListener('change', displayBuildHistory);
+            document.getElementById('appTitle').addEventListener('input', updateSecureLogPathHint);
+            document.getElementById('appTitle').addEventListener('change', function() {
+                displayBuildHistory();
+                updateSecureLogPathHint();
+            });
 
             document.getElementById('loadProfileBtn').addEventListener('click', loadProfile);
             document.getElementById('saveProfileBtn').addEventListener('click', showSaveProfileInput);
@@ -6577,6 +6686,7 @@
             renderHomePanelPreview();
 
             syncProfileBoundAppTitle();
+            updateSecureLogPathHint();
             setMyBuildRecordsExpanded(false);
             loadAppIconHistory();
             loadProfiles().then(function() { checkActiveBuild(); });
@@ -7043,23 +7153,47 @@
 	                    updateBranches = [];
 	                }
 
-                var fillBranchSelect = function(select, options, fallbackValue, keepEmptyDefault) {
+                var fillBranchSelect = function(select, options, fallbackValue, keepEmptyDefault, extraOptions) {
                     if (!select) return;
                     var currentValue = select.value;
+                    var currentCore = '';
+                    if (select.selectedOptions && select.selectedOptions.length > 0) {
+                        currentCore = select.selectedOptions[0].getAttribute('data-core') || '';
+                    }
                     select.innerHTML = '';
                     if (keepEmptyDefault) {
                         var defaultOption = document.createElement('option');
                         defaultOption.value = '';
                         defaultOption.textContent = '默认分支';
+                        defaultOption.setAttribute('data-core', 'mihomo');
+                        defaultOption.setAttribute('data-branch', '');
                         select.appendChild(defaultOption);
                     }
                     options.forEach(function(branch) {
                         var option = document.createElement('option');
                         option.value = branch.name;
                         option.textContent = branch.name;
+                        option.setAttribute('data-core', branch.core || 'mihomo');
+                        option.setAttribute('data-branch', branch.name);
                         select.appendChild(option);
                     });
-                    if (currentValue && Array.from(select.options).some(function(opt) { return opt.value === currentValue; })) {
+                    (extraOptions || []).forEach(function(item) {
+                        var option = document.createElement('option');
+                        option.value = item.value || '';
+                        option.textContent = item.label || item.value || '';
+                        option.setAttribute('data-core', item.core || 'mihomo');
+                        option.setAttribute('data-branch', item.branch || '');
+                        select.appendChild(option);
+                    });
+                    var findMatchingOption = function(value, core) {
+                        return Array.from(select.options).find(function(opt) {
+                            return opt.value === value && (!core || (opt.getAttribute('data-core') || '') === core);
+                        });
+                    };
+                    var currentOption = findMatchingOption(currentValue, currentCore);
+                    if (currentOption && (currentValue || currentCore)) {
+                        currentOption.selected = true;
+                    } else if (currentValue && Array.from(select.options).some(function(opt) { return opt.value === currentValue; })) {
                         select.value = currentValue;
                     } else if (fallbackValue && Array.from(select.options).some(function(opt) { return opt.value === fallbackValue; })) {
                         select.value = fallbackValue;
@@ -7076,7 +7210,9 @@
                 }), 'main', false);
                 fillBranchSelect(document.getElementById('updatesBranch'), updateBranches.filter(function(branch) {
                     return branch && !isHiddenClientUpdatesBranch(branch.name);
-                }), '', true);
+                }), '', true, [
+                    { value: '__xray_default__', label: 'xray', core: 'xray', branch: '' }
+                ]);
             } catch (e) {
                 console.log('加载分支列表失败:', e.message);
             }
@@ -7096,6 +7232,12 @@
         function getAppName() {
             var appTitle = getBoundAppTitleValue();
             return appTitle || document.getElementById('profileSelect').value || '未命名应用';
+        }
+
+        function updateSecureLogPathHint() {
+            var appNameEl = document.getElementById('secureLogCurrentAppName');
+            if (!appNameEl) return;
+            appNameEl.textContent = getAppName();
         }
 
         function displayBuildHistory() {
@@ -7150,9 +7292,10 @@
             if (!summaryEl || !listEl) return;
 
             var commits = data && Array.isArray(data.commits) ? data.commits : [];
-            var branch = data && data.branch ? data.branch : 'main';
+            var core = data && data.core ? data.core : 'mihomo';
+            var branch = data && data.branch ? data.branch : '默认分支';
             var limit = data && data.limit ? data.limit : commits.length;
-            summaryEl.textContent = '当前展示 ' + commits.length + ' 条更新记录，来源分支：' + branch + '，管理员当前设置最多显示 ' + limit + ' 条。';
+            summaryEl.textContent = '当前展示 ' + commits.length + ' 条更新记录，来源内核：' + formatBuildCoreLabel(core) + '，来源分支：' + branch + '，管理员当前设置最多显示 ' + limit + ' 条。';
 
             if (!commits.length) {
                 listEl.innerHTML = '<div style="color:#8b949e;font-size:13px;">暂无可展示的更新记录</div>';
@@ -7182,13 +7325,24 @@
 
         async function loadClientUpdates(force) {
             var branchSelect = document.getElementById('updatesBranch');
-            var selectedBranch = branchSelect ? branchSelect.value.trim() : '';
+            var selectedOption = branchSelect && branchSelect.selectedOptions && branchSelect.selectedOptions.length > 0 ? branchSelect.selectedOptions[0] : null;
+            var selectedBranch = '';
+            if (selectedOption) {
+                selectedBranch = selectedOption.hasAttribute('data-branch') ? selectedOption.getAttribute('data-branch') : selectedOption.value;
+                selectedBranch = String(selectedBranch || '').trim();
+            }
+            var selectedCore = 'mihomo';
+            if (selectedOption) {
+                selectedCore = selectedOption.getAttribute('data-core') || 'mihomo';
+            }
             if (isHiddenClientUpdatesBranch(selectedBranch)) {
                 selectedBranch = '';
                 branchSelect.value = '';
+                selectedCore = 'mihomo';
                 syncAllCustomSelects(branchSelect, true);
             }
-            if (clientUpdatesLoaded && !force && clientUpdatesLoadedBranch === selectedBranch) {
+            var selectedUpdatesKey = selectedCore + ':' + selectedBranch;
+            if (clientUpdatesLoaded && !force && clientUpdatesLoadedBranch === selectedUpdatesKey) {
                 return;
             }
             var summaryEl = document.getElementById('updatesSummary');
@@ -7200,9 +7354,17 @@
                 listEl.innerHTML = '<div style="color:#8b949e;font-size:13px;">正在从服务端读取提交记录...</div>';
             }
             try {
-                var path = '/client-updates';
+                var params = new URLSearchParams();
+                if (selectedCore && selectedCore !== 'mihomo') {
+                    params.set('core', selectedCore);
+                }
                 if (selectedBranch) {
-                    path += '?branch=' + encodeURIComponent(selectedBranch);
+                    params.set('branch', selectedBranch);
+                }
+                var path = '/client-updates';
+                var query = params.toString();
+                if (query) {
+                    path += '?' + query;
                 }
                 var response = await api('GET', path);
                 if (!response) return;
@@ -7211,7 +7373,7 @@
                     throw new Error(data.error || '加载失败');
                 }
                 clientUpdatesLoaded = true;
-                clientUpdatesLoadedBranch = selectedBranch;
+                clientUpdatesLoadedBranch = selectedUpdatesKey;
                 renderClientUpdates(data);
             } catch (e) {
                 if (summaryEl) {
@@ -7784,6 +7946,80 @@
             var status = document.getElementById('buildStatus');
             status.textContent = message;
             status.className = 'status ' + type;
+        }
+
+        function setSecureLogStatus(message, type) {
+            var status = document.getElementById('secureLogStatus');
+            if (!status) return;
+            status.textContent = message || '';
+            status.className = 'sidebar-status ' + (type || 'info');
+        }
+
+        async function decryptSecureLog() {
+            var fileInput = document.getElementById('secureLogFile');
+            var outputEl = document.getElementById('secureLogOutput');
+            var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+            if (!file) {
+                setSecureLogStatus('请选择 .xblog 日志文件', 'error');
+                return;
+            }
+            if (!file.name.toLowerCase().endsWith('.xblog')) {
+                setSecureLogStatus('只支持 .xblog 日志文件', 'error');
+                return;
+            }
+            if (file.size > 20 * 1024 * 1024) {
+                setSecureLogStatus('日志文件过大，最大支持 20MB', 'error');
+                return;
+            }
+
+            outputEl.value = '';
+            setSecureLogStatus('正在解密...', 'info');
+
+            try {
+                var response = await uploadSecureLogFile(file);
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '解密失败');
+                }
+                outputEl.value = data.content || '';
+                setSecureLogStatus('解密完成：' + (data.filename || file.name), 'success');
+            } catch (e) {
+                setSecureLogStatus('解密失败：' + e.message, 'error');
+            }
+        }
+
+        function copySecureLogOutput() {
+            var value = document.getElementById('secureLogOutput').value;
+            if (!value) {
+                showAppAlert('没有可复制的解密结果。', '复制失败');
+                return;
+            }
+            navigator.clipboard.writeText(value).then(function() {
+                showAppAlert('解密结果已复制。', '复制成功');
+            }).catch(function() {
+                showAppAlert('复制失败，请手动选择文本复制。', '复制失败');
+            });
+        }
+
+        function downloadSecureLogOutput() {
+            var value = document.getElementById('secureLogOutput').value;
+            if (!value) {
+                showAppAlert('没有可下载的解密结果。', '下载失败');
+                return;
+            }
+            var fileInput = document.getElementById('secureLogFile');
+            var sourceName = fileInput.files && fileInput.files[0]
+                ? fileInput.files[0].name.replace(/\.xblog$/i, '')
+                : 'secure-log';
+            var blob = new Blob([value], { type: 'text/plain;charset=utf-8' });
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = sourceName + '.log';
+            document.body.appendChild(link);
+            link.click();
+            URL.revokeObjectURL(link.href);
+            link.remove();
         }
 
         function initSwitches() {
