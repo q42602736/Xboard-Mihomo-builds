@@ -3322,6 +3322,16 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">显示加速后 IP 信息</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="showIpInfo" checked><span class="slider"></span></label>
+                                        <span id="showIpInfoLabel">开启</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">开启后，首页加速按钮下方会显示当前公网 IP；关闭后隐藏检测中、超时和 IP 文本。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">延迟显示调整</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="latencyReductionEnabled"><span class="slider"></span></label>
@@ -6752,6 +6762,7 @@
                 '  ui:',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
+                '    show_ip_info: true',
                 '    custom_colors:',
                 '      notice_dialog_icon_background_color: ""',
                 '      subscription_website_icon_color: ""',
@@ -6946,6 +6957,7 @@
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
+                show_ip_info: document.getElementById('showIpInfo').checked,
                 home_panel_default_layout: document.getElementById('homePanelDefaultLayout').value,
                 latency_reduction_enabled: document.getElementById('latencyReductionEnabled').checked,
                 latency_reduction_value: normalizeLatencyReductionValue(document.getElementById('latencyReductionValue').value),
@@ -8023,7 +8035,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'authPagesSupportShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'showIpInfo', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'authPagesSupportShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -9456,6 +9468,12 @@
             var hideNodeStatus = hideNodeStatusMatch ? hideNodeStatusMatch[1] === 'true' : false;
             document.getElementById('hideNodeStatus').checked = hideNodeStatus;
             document.getElementById('hideNodeStatusLabel').textContent = hideNodeStatus ? '开启' : '关闭';
+            var showIpInfoMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)show_ip_info:\s*(true|false)/) ||
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)showIpInfo:\s*(true|false)/);
+            var showIpInfo = showIpInfoMatch ? showIpInfoMatch[1] === 'true' : true;
+            document.getElementById('showIpInfo').checked = showIpInfo;
+            document.getElementById('showIpInfoLabel').textContent = showIpInfo ? '开启' : '关闭';
             var homePanelDefaultLayoutMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)home_panel_default_layout:\s*([^\s#]+)/);
             var homePanelDefaultLayout = homePanelDefaultLayoutMatch ? homePanelDefaultLayoutMatch[1].trim().replace(/^["']|["']$/g, '') : 'default';
             document.getElementById('homePanelDefaultLayout').value = homePanelDefaultLayout || 'default';

@@ -36,6 +36,7 @@ type ProfileFormState struct {
 	SubscriptionCacheTTL           int                       `json:"subscription_cache_ttl"`
 	HideTrafficDetails             bool                      `json:"hide_traffic_details"`
 	HideNodeStatus                 bool                      `json:"hide_node_status"`
+	ShowIPInfo                     *bool                     `json:"show_ip_info"`
 	HomePanelDefaultLayout         string                    `json:"home_panel_default_layout"`
 	LatencyReductionEnabled        bool                      `json:"latency_reduction_enabled"`
 	LatencyReductionValue          int                       `json:"latency_reduction_value"`
@@ -143,6 +144,11 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	setMapIntValue(subscriptionCache, "ttl_hours", form.SubscriptionCacheTTL)
 	setMapBoolValue(ui, "hide_traffic_details", form.HideTrafficDetails)
 	setMapBoolValue(ui, "hide_node_status", form.HideNodeStatus)
+	showIPInfo := true
+	if form.ShowIPInfo != nil {
+		showIPInfo = *form.ShowIPInfo
+	}
+	setMapBoolValue(ui, "show_ip_info", showIPInfo)
 	homePanelDefaultLayout := strings.TrimSpace(form.HomePanelDefaultLayout)
 	if homePanelDefaultLayout == "" {
 		homePanelDefaultLayout = "default"
