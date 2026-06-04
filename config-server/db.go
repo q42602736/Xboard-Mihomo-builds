@@ -512,6 +512,34 @@ func renameProfileReferences(oldName, newName string) error {
 	return tx.Commit()
 }
 
+func appendAllowedProfileToCode(codeID int, profileName string) error {
+	profileName = strings.TrimSpace(profileName)
+	if codeID <= 0 || profileName == "" {
+		return nil
+	}
+
+	var allowedProfilesJSON string
+	if err := db.QueryRow(`SELECT allowed_profiles FROM activation_codes WHERE id = ?`, codeID).Scan(&allowedProfilesJSON); err != nil {
+		return err
+	}
+
+	var profiles []string
+	_ = json.Unmarshal([]byte(allowedProfilesJSON), &profiles)
+	if len(profiles) == 0 {
+		return nil
+	}
+	for _, profile := range profiles {
+		if strings.TrimSpace(profile) == profileName {
+			return nil
+		}
+	}
+
+	profiles = append(profiles, profileName)
+	nextJSON, _ := json.Marshal(profiles)
+	_, err := db.Exec(`UPDATE activation_codes SET allowed_profiles = ? WHERE id = ?`, string(nextJSON), codeID)
+	return err
+}
+
 func createProfileAssetHistoryRecord(codeID int, codeName, profileName, assetKind, assetPath, assetURL, contentType string) (*ProfileAssetHistoryRecord, error) {
 	result, err := db.Exec(
 		`INSERT INTO profile_asset_history (code_id, code_name, profile_name, asset_kind, asset_path, asset_url, content_type)

@@ -4898,13 +4898,13 @@
             }, 60000);
         }
 
-        function getBoundAppTitleValue() {
-            var selectedProfile = document.getElementById('profileSelect').value.trim();
-            if (!isAdminSession() && selectedProfile) {
-                return selectedProfile;
-            }
-            return document.getElementById('appTitle').value.trim();
-        }
+	        function getBoundAppTitleValue() {
+	            var selectedProfile = getSelectedProfileKey();
+	            if (!isAdminSession() && selectedProfile) {
+	                return getSelectedProfileDisplayName();
+	            }
+	            return document.getElementById('appTitle').value.trim();
+	        }
 
         function triggerAppIconUpload() {
             var fileInput = document.getElementById('appIconUploadInput');
@@ -4916,7 +4916,7 @@
         async function handleAppIconUpload(event) {
             var fileInput = event && event.target ? event.target : document.getElementById('appIconUploadInput');
             var file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-            var profileName = String(document.getElementById('profileSelect').value || '').trim();
+	            var profileName = getSelectedProfileKey();
 
             if (!file) {
                 return;
@@ -4964,12 +4964,12 @@
                 return;
             }
 
-            var selectedProfile = document.getElementById('profileSelect').value.trim();
-            if (appTitleGroup) appTitleGroup.style.display = 'none';
-            appTitleInput.readOnly = true;
-            appTitleInput.title = selectedProfile ? '普通用户的应用名称固定为配置档案名称' : '请先选择配置档案';
-            appTitleInput.value = selectedProfile || '';
-        }
+	            var selectedProfile = getSelectedProfileKey();
+	            if (appTitleGroup) appTitleGroup.style.display = 'none';
+	            appTitleInput.readOnly = true;
+	            appTitleInput.title = selectedProfile ? '普通用户的应用名称固定为配置档案名称' : '请先选择配置档案';
+	            appTitleInput.value = selectedProfile ? getSelectedProfileDisplayName() : '';
+	        }
 
         function formatUsageExpiresAt(value) {
             if (!value) return '';
@@ -5647,16 +5647,16 @@
             el.className = 'sidebar-status ' + (type || 'info');
         }
 
-        function getSelectedCustomTrafficBarProfile() {
-            var select = document.getElementById('profileSelect');
-            return select ? String(select.value || '').trim() : '';
-        }
+	        function getSelectedCustomTrafficBarProfile() {
+	            var select = document.getElementById('profileSelect');
+	            return select ? String(select.value || '').trim() : '';
+	        }
 
-        function syncCustomTrafficBarProfileName() {
-            var el = document.getElementById('customTrafficBarProfileName');
-            if (!el) return;
-            el.textContent = getSelectedCustomTrafficBarProfile() || '未选择';
-        }
+	        function syncCustomTrafficBarProfileName() {
+	            var el = document.getElementById('customTrafficBarProfileName');
+	            if (!el) return;
+	            el.textContent = getSelectedCustomTrafficBarProfile() ? getSelectedProfileDisplayName() : '未选择';
+	        }
 
         function hasCustomTrafficBarFeatureConfigured() {
             return !(currentUserInfo && currentUserInfo.integration_code_configured === false);
@@ -6133,6 +6133,43 @@
         var BUILD_QUEUE_POLL_VISIBLE_INTERVAL = 15000;
         var BUILD_QUEUE_POLL_HIDDEN_INTERVAL = 60000;
         var homePanelPreviewTarget = '';
+
+        function getProfileKey(profile) {
+            return String((profile && (profile.key || profile.name)) || '').trim();
+        }
+
+        function getProfileDisplayName(profile) {
+            return String((profile && (profile.display_name || profile.name || profile.key)) || '').trim();
+        }
+
+        function formatProfileOptionLabel(profile) {
+            var key = getProfileKey(profile);
+            var displayName = getProfileDisplayName(profile) || key;
+            if (isAdminSession() && key && displayName && key !== displayName) {
+                return displayName + ' [' + key + ']';
+            }
+            return displayName || key;
+        }
+
+        function findProfileByKey(key) {
+            key = String(key || '').trim();
+            for (var i = 0; i < profilesCache.length; i++) {
+                if (getProfileKey(profilesCache[i]) === key) {
+                    return profilesCache[i];
+                }
+            }
+            return null;
+        }
+
+        function getSelectedProfileKey() {
+            return String(document.getElementById('profileSelect').value || '').trim();
+        }
+
+        function getSelectedProfileDisplayName() {
+            var key = getSelectedProfileKey();
+            var profile = findProfileByKey(key);
+            return getProfileDisplayName(profile) || key;
+        }
 
         function openHomePanelPreview(target) {
             if (!target) {
@@ -6622,7 +6659,7 @@
                     customTrafficBarAccessVerified = false;
                     customUIColorAvailableFeatures = [];
                     syncCustomTrafficBarAccessView();
-                    var selected = document.getElementById('profileSelect').value;
+	                    var selected = getSelectedProfileKey();
                     if (selected) {
                         loadProfile();
                     }
@@ -6808,12 +6845,12 @@
                 var data = await response.json();
                 profilesCache = data.profiles || [];
                 renderProfileSelect();
-                syncProfileBoundAppTitle();
-                if (profilesCache.length >= 1 && !isAdminSession()) {
-                    document.getElementById('profileSelect').value = profilesCache[0].name;
-                    syncAllCustomSelects(document.getElementById('profileSelect'));
-                    loadProfile();
-                }
+	                syncProfileBoundAppTitle();
+	                if (profilesCache.length >= 1 && !isAdminSession()) {
+	                    document.getElementById('profileSelect').value = getProfileKey(profilesCache[0]);
+	                    syncAllCustomSelects(document.getElementById('profileSelect'));
+	                    loadProfile();
+	                }
             } catch (e) {
                 console.log('加载档案列表失败:', e.message);
             }
@@ -6823,12 +6860,13 @@
             var select = document.getElementById('profileSelect');
             var currentValue = select.value;
             select.innerHTML = '<option value="">-- 请选择档案 --</option>';
-            profilesCache.forEach(function(p) {
-                var option = document.createElement('option');
-                option.value = p.name;
-                option.textContent = p.name + (p.last_updated ? ' (' + p.last_updated + ')' : ' (未创建)');
-                select.appendChild(option);
-            });
+	            profilesCache.forEach(function(p) {
+	                var key = getProfileKey(p);
+	                var option = document.createElement('option');
+	                option.value = key;
+	                option.textContent = formatProfileOptionLabel(p) + (p.last_updated ? ' (' + p.last_updated + ')' : ' (未创建)');
+	                select.appendChild(option);
+	            });
             if (currentValue) {
                 select.value = currentValue;
             }
@@ -6836,9 +6874,9 @@
         }
 
         async function loadProfile() {
-            var name = document.getElementById('profileSelect').value;
-            if (!name) {
-                setStatus('请先选择一个配置档案', 'error');
+	            var name = getSelectedProfileKey();
+	            if (!name) {
+	                setStatus('请先选择一个配置档案', 'error');
                 return;
             }
 
@@ -6856,32 +6894,38 @@
                     document.getElementById('editor').value = currentProfileBaseYaml;
                     yamlToForm();
                     syncProfileBoundAppTitle();
-                    setStatus('档案 "' + name + '" 尚未创建，请配置后保存', 'info');
-                } else {
+	                    setStatus('档案 "' + getSelectedProfileDisplayName() + '" 尚未创建，请配置后保存', 'info');
+	                } else {
                     currentProfileBaseYaml = data.yaml_content;
                     document.getElementById('editor').value = currentProfileBaseYaml;
                     yamlToForm();
                     syncProfileBoundAppTitle();
-                    setStatus('已加载: ' + name, 'success');
-                }
+	                    setStatus('已加载: ' + getSelectedProfileDisplayName(), 'success');
+	                }
                 displayBuildHistory();
             } catch (e) {
                 setStatus('加载失败: ' + e.message, 'error');
             }
         }
 
-        function showSaveProfileInput() {
-            var session = getSession();
-            var selectedProfile = document.getElementById('profileSelect').value;
-            if (session && session.permissions !== 'admin' && selectedProfile) {
-                document.getElementById('newProfileName').value = selectedProfile;
-                confirmSaveProfile();
-                return;
-            }
-            var appTitle = document.getElementById('appTitle').value.trim();
-            document.getElementById('newProfileName').value = appTitle || selectedProfile || '';
-            document.getElementById('newProfileInput').classList.add('active');
-        }
+	        function showSaveProfileInput() {
+	            var session = getSession();
+	            var selectedProfile = getSelectedProfileKey();
+	            if (session && session.permissions !== 'admin' && selectedProfile) {
+	                saveProfileByName(selectedProfile, {
+	                    loadingMessage: '正在保存当前档案...',
+	                    successMessage: '已保存: ' + getSelectedProfileDisplayName(),
+	                    refreshProfiles: true,
+	                    hideSaveInput: true,
+	                    displayName: getSelectedProfileDisplayName(),
+	                    createNew: false
+	                });
+	                return;
+	            }
+	            var appTitle = document.getElementById('appTitle').value.trim();
+	            document.getElementById('newProfileName').value = appTitle || getSelectedProfileDisplayName() || '';
+	            document.getElementById('newProfileInput').classList.add('active');
+	        }
 
         function hideSaveProfileInput() {
             document.getElementById('newProfileInput').classList.remove('active');
@@ -6971,9 +7015,9 @@
             };
         }
 
-        async function saveProfileByName(profileName, options) {
-            options = options || {};
-            profileName = String(profileName || '').trim();
+	        async function saveProfileByName(profileName, options) {
+	            options = options || {};
+	            profileName = String(profileName || '').trim();
             if (!profileName) {
                 setStatus(options.emptyNameMessage || '请输入档案名称', 'error');
                 return false;
@@ -6988,12 +7032,15 @@
             baseYamlContent = baseYamlContent.replace(/config_cache:/g, 'subscription_cache:');
             setStatus(options.loadingMessage || '正在保存...', 'info');
 
-            try {
-                var response = await api('PUT', '/profiles/' + encodeURIComponent(profileName), {
-                    yaml_content: baseYamlContent,
-                    base_yaml_content: baseYamlContent,
-                    form_state: buildCurrentProfileFormState()
-                });
+	            try {
+	                var displayName = options.displayName || getProfileDisplayName(findProfileByKey(profileName)) || profileName;
+	                var response = await api('PUT', '/profiles/' + encodeURIComponent(profileName), {
+	                    yaml_content: baseYamlContent,
+	                    base_yaml_content: baseYamlContent,
+	                    form_state: buildCurrentProfileFormState(),
+	                    display_name: displayName,
+	                    create_new: !!options.createNew
+	                });
                 if (!response) return false;
                 var respBody = await response.json();
                 if (!response.ok) {
@@ -7008,13 +7055,16 @@
                 if (options.hideSaveInput !== false) {
                     hideSaveProfileInput();
                 }
-                if (options.refreshProfiles !== false) {
-                    await loadProfiles();
-                }
-                document.getElementById('profileSelect').value = profileName;
-                syncAllCustomSelects(document.getElementById('profileSelect'));
-                setStatus(options.successMessage || ('已保存: ' + profileName), 'success');
-                return true;
+	                if (options.refreshProfiles !== false) {
+	                    await loadProfiles();
+	                }
+	                var savedProfileKey = (respBody && respBody.profile) ? getProfileKey(respBody.profile) : profileName;
+	                var savedProfileName = (respBody && respBody.profile) ? getProfileDisplayName(respBody.profile) : (options.displayName || profileName);
+	                document.getElementById('profileSelect').value = savedProfileKey;
+	                syncAllCustomSelects(document.getElementById('profileSelect'));
+	                syncProfileBoundAppTitle();
+	                setStatus(options.successMessage || ('已保存: ' + savedProfileName), 'success');
+	                return true;
             } catch (e) {
                 setStatus((options.errorPrefix || '保存失败: ') + e.message, 'error');
                 return false;
@@ -7032,7 +7082,7 @@
         }
 
         async function autoSaveCurrentProfile(successMessage) {
-            var profileName = String(document.getElementById('profileSelect').value || '').trim();
+	            var profileName = getSelectedProfileKey();
             if (!profileName) {
                 setStatus('请先选择一个配置档案，再使用自动保存开关。', 'error');
                 return false;
@@ -7046,20 +7096,24 @@
             });
         }
 
-        async function confirmSaveProfile() {
-            var profileName = document.getElementById('newProfileName').value.trim();
-            if (!profileName) {
-                setStatus('请输入档案名称', 'error');
-                return;
-            }
-            await saveProfileByName(profileName, {
-                loadingMessage: '正在保存...',
-                successMessage: '已保存: ' + profileName,
-                refreshProfiles: true,
-                hideSaveInput: true,
-                emptyNameMessage: '请输入档案名称'
-            });
-        }
+	        async function confirmSaveProfile() {
+	            var profileName = document.getElementById('newProfileName').value.trim();
+	            if (!profileName) {
+	                setStatus('请输入档案名称', 'error');
+	                return;
+	            }
+	            var selectedKey = getSelectedProfileKey();
+	            var createNew = !selectedKey;
+	            await saveProfileByName(selectedKey || profileName, {
+	                loadingMessage: '正在保存...',
+	                successMessage: '已保存: ' + profileName,
+	                refreshProfiles: true,
+	                hideSaveInput: true,
+	                emptyNameMessage: '请输入档案名称',
+	                displayName: profileName,
+	                createNew: createNew
+	            });
+	        }
 
         async function renameProfile() {
             if (!isAdminSession()) {
@@ -7067,14 +7121,15 @@
                 return;
             }
 
-            var oldName = String(document.getElementById('profileSelect').value || '').trim();
-            if (!oldName) {
-                setStatus('请先选择要重命名的档案', 'error');
-                return;
-            }
+	            var oldName = getSelectedProfileKey();
+	            var oldDisplayName = getSelectedProfileDisplayName();
+	            if (!oldName) {
+	                setStatus('请先选择要重命名的档案', 'error');
+	                return;
+	            }
 
-            hideSaveProfileInput();
-            var newName = window.prompt('请输入新的档案名称', oldName);
+	            hideSaveProfileInput();
+	            var newName = window.prompt('请输入新的档案名称', oldName);
             if (newName === null) {
                 return;
             }
@@ -7083,17 +7138,17 @@
                 setStatus('新档案名称不能为空', 'error');
                 return;
             }
-            if (newName === oldName) {
-                setStatus('新档案名称不能与原名称相同', 'error');
-                return;
-            }
-            if (profilesCache.some(function(profile) { return profile && profile.name === newName; })) {
-                setStatus('新档案名称已存在', 'error');
-                return;
-            }
-            if (!await showAppConfirm('确定将档案 "' + oldName + '" 重命名为 "' + newName + '" 吗？绑定关系和历史记录会同步更新。', '重命名档案', '确认重命名')) {
-                return;
-            }
+	            if (newName === oldName) {
+	                setStatus('新档案名称不能与原名称相同', 'error');
+	                return;
+	            }
+	            if (profilesCache.some(function(profile) { return profile && getProfileKey(profile) === newName; })) {
+	                setStatus('新档案名称已存在', 'error');
+	                return;
+	            }
+	            if (!await showAppConfirm('确定将档案 "' + oldDisplayName + '" 重命名为 "' + newName + '" 吗？绑定关系和历史记录会同步更新。', '重命名档案', '确认重命名')) {
+	                return;
+	            }
 
             setStatus('正在重命名...', 'info');
             try {
@@ -7104,26 +7159,27 @@
                 if (!response.ok) {
                     var err = await response.json();
                     throw new Error(err.error || '重命名失败');
-                }
-                await loadProfiles();
-                document.getElementById('profileSelect').value = newName;
-                syncAllCustomSelects(document.getElementById('profileSelect'));
-                await loadProfile();
-                setStatus('已重命名: ' + oldName + ' -> ' + newName, 'success');
-            } catch (e) {
+	                }
+	                await loadProfiles();
+	                document.getElementById('profileSelect').value = newName;
+	                syncAllCustomSelects(document.getElementById('profileSelect'));
+	                await loadProfile();
+	                setStatus('已重命名: ' + oldDisplayName + ' -> ' + newName, 'success');
+	            } catch (e) {
                 setStatus('重命名失败: ' + e.message, 'error');
             }
         }
 
         async function deleteProfile() {
-            var name = document.getElementById('profileSelect').value;
-            if (!name) {
-                setStatus('请先选择要删除的档案', 'error');
-                return;
-            }
-            if (!await showAppConfirm('确定要删除档案 "' + name + '" 吗？此操作不可恢复。', '删除档案', '确认删除')) {
-                return;
-            }
+	            var name = getSelectedProfileKey();
+	            if (!name) {
+	                setStatus('请先选择要删除的档案', 'error');
+	                return;
+	            }
+	            var displayName = getSelectedProfileDisplayName();
+	            if (!await showAppConfirm('确定要删除档案 "' + displayName + '" 吗？此操作不可恢复。', '删除档案', '确认删除')) {
+	                return;
+	            }
 
             setStatus('正在删除...', 'info');
             try {
@@ -7132,9 +7188,9 @@
                 if (!response.ok) {
                     var err = await response.json();
                     throw new Error(err.error || '删除失败');
-                }
-                await loadProfiles();
-                setStatus('已删除: ' + name, 'success');
+	                }
+	                await loadProfiles();
+	                setStatus('已删除: ' + displayName, 'success');
             } catch (e) {
                 setStatus('删除失败: ' + e.message, 'error');
             }
@@ -7241,10 +7297,10 @@
             }
         }
 
-        function getAppName() {
-            var appTitle = getBoundAppTitleValue();
-            return appTitle || document.getElementById('profileSelect').value || '未命名应用';
-        }
+	        function getAppName() {
+	            var appTitle = getBoundAppTitleValue();
+	            return appTitle || getSelectedProfileDisplayName() || '未命名应用';
+	        }
 
         function updateSecureLogPathHint() {
             var appNameEl = document.getElementById('secureLogCurrentAppName');
@@ -7253,14 +7309,15 @@
         }
 
         function displayBuildHistory() {
-            var profileName = document.getElementById('profileSelect').value;
-            var appName = getAppName();
+	            var profileName = getSelectedProfileKey();
+	            var profileDisplayName = getSelectedProfileDisplayName();
+	            var appName = getAppName();
             var info = document.getElementById('lastBuildInfo');
             var content = document.getElementById('lastBuildContent');
 
             var build = buildHistoryData[profileName] || buildHistoryData[appName];
             if (build) {
-                content.innerHTML = '<span style="color:#ffaa00;">' + (profileName || appName) + '</span> | ' +
+	                content.innerHTML = '<span style="color:#ffaa00;">' + escapeHtml(profileDisplayName || appName) + '</span> | ' +
                     '<span style="color:#00ff88;">版本: ' + build.version + '</span> | ' +
                     '<span style="color:#8fb4ff;">内核: ' + escapeHtml(formatBuildCoreLabel(build.core || 'mihomo')) + '</span> | ' +
                     '<span style="color:#00d4ff;">平台: ' + build.platforms + '</span> | ' +
@@ -7883,7 +7940,8 @@
                 return;
             }
 
-            var profileName = document.getElementById('profileSelect').value;
+	            var profileName = getSelectedProfileKey();
+	            var profileDisplayName = getSelectedProfileDisplayName();
             var buildBranch = document.getElementById('buildBranch').value.trim() || 'main';
             var buildTag = document.getElementById('buildTag').value.trim();
             var buildCore = getSelectedBuildCore();
@@ -7924,7 +7982,7 @@
                 if (!response.ok) {
                     throw new Error(result.error || '触发失败');
                 }
-                setBuildStatus('软件打包已提交！档案: ' + profileName + ', 内核: ' + formatBuildCoreLabel(buildCore) + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
+	                setBuildStatus('软件打包已提交！档案: ' + profileDisplayName + ', 内核: ' + formatBuildCoreLabel(buildCore) + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
                 await loadBuildHistory();
                 loadBuildQueue();
                 refreshMyBuildRecordsIfNeeded(false);
@@ -9093,7 +9151,7 @@
             if (!validateRemoteConfigBeforeSave(true)) {
                 return;
             }
-            var selectedProfile = String(document.getElementById('profileSelect').value || '').trim();
+	            var selectedProfile = getSelectedProfileDisplayName();
             var appTitle = String(document.getElementById('appTitle').value || '').trim();
             var providerKey = String(document.getElementById('remoteConfigProviderKey').value || '').trim();
             saveRemoteConfigHistoryRecord(selectedProfile || appTitle || providerKey || '远程配置');
@@ -10144,7 +10202,7 @@
                 }
                 saveBuildingProfile(null);
             }
-            var profile = document.getElementById('profileSelect').value;
+	            var profile = getSelectedProfileKey();
             var activeRecord = findLatestActiveBuildRecord(records || [], profile);
             if (!activeRecord) {
                 return;

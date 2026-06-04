@@ -799,6 +799,12 @@
             });
         }
 
+        async function loadAdminData() {
+            await loadProfileList();
+            loadCodes();
+            loadSettings();
+        }
+
         async function adminLogin() {
             var password = document.getElementById('adminPassword').value.trim();
             if (!password) return;
@@ -821,9 +827,7 @@
                     permissions: data.permissions
                 }));
                 showMain();
-                loadCodes();
-                loadProfileList();
-                loadSettings();
+                loadAdminData();
             } catch (e) {
                 errorEl.className = 'status-msg error';
                 errorEl.textContent = e.message;
@@ -885,7 +889,9 @@
         }
 
         var allProfiles = [];
+        var allProfileItems = [];
         var codesCache = [];
+        var editUnknownProfileKeys = [];
         var buildPlatformCatalog = [
             { value: 'windows-arm64', label: 'Windows ARM64' },
             { value: 'windows-amd64', label: 'Windows AMD64' },
@@ -896,6 +902,30 @@
             { value: 'macos-arm64', label: 'macOS ARM64' },
             { value: 'macos-amd64', label: 'macOS AMD64' }
         ];
+
+        function getProfileKey(profile) {
+            return String((profile && (profile.key || profile.name)) || '').trim();
+        }
+
+        function getProfileDisplayName(profile) {
+            return String((profile && (profile.display_name || profile.name || profile.key)) || '').trim();
+        }
+
+        function findProfileItemByKey(key) {
+            key = String(key || '').trim();
+            for (var i = 0; i < allProfileItems.length; i++) {
+                if (getProfileKey(allProfileItems[i]) === key) {
+                    return allProfileItems[i];
+                }
+            }
+            return null;
+        }
+
+        function formatProfileLabel(key) {
+            var item = findProfileItemByKey(key);
+            var displayName = getProfileDisplayName(item) || key;
+            return displayName && key && displayName !== key ? displayName + ' [' + key + ']' : displayName;
+        }
         var customFeatureGroupsCache = [];
         var customFeatureOptionCatalog = [
             { key: 'traffic_bar_color', label: '流量条自定义' },
@@ -1054,11 +1084,12 @@
 
         async function loadProfileList() {
             try {
-                var response = await api('GET', '/profiles');
-                if (!response) return;
-                var data = await response.json();
-                allProfiles = (data.profiles || []).map(function(p) { return p.name; });
-                renderRenameProfileSelect();
+	                var response = await api('GET', '/profiles');
+	                if (!response) return;
+	                var data = await response.json();
+	                allProfileItems = data.profiles || [];
+	                allProfiles = allProfileItems.map(function(p) { return getProfileKey(p); }).filter(Boolean);
+	                renderRenameProfileSelect();
                 renderProfileCheckboxes('profileCheckboxes', 'profile-cb', getSelectedProfiles('.profile-cb:checked', 'manualProfiles'));
                 renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', getSelectedProfiles('.edit-profile-cb:checked', 'editManualProfiles'));
             } catch (e) {
@@ -1082,12 +1113,12 @@
             placeholder.value = '';
             placeholder.textContent = '请选择要重命名的档案';
             select.appendChild(placeholder);
-            allProfiles.forEach(function(name) {
-                var option = document.createElement('option');
-                option.value = name;
-                option.textContent = name;
-                select.appendChild(option);
-            });
+	            allProfiles.forEach(function(name) {
+	                var option = document.createElement('option');
+	                option.value = name;
+	                option.textContent = formatProfileLabel(name);
+	                select.appendChild(option);
+	            });
             if (currentValue && allProfiles.indexOf(currentValue) !== -1) {
                 select.value = currentValue;
             }
@@ -1127,6 +1158,34 @@
             return result;
         }
 
+        function getCheckedProfiles(checkboxSelector) {
+            var result = [];
+            var seen = {};
+            document.querySelectorAll(checkboxSelector).forEach(function(cb) {
+                var v = cb.value.trim();
+                if (v && !seen[v]) {
+                    result.push(v);
+                    seen[v] = true;
+                }
+            });
+            return result;
+        }
+
+        function mergeProfileValues() {
+            var result = [];
+            var seen = {};
+            for (var i = 0; i < arguments.length; i++) {
+                (arguments[i] || []).forEach(function(v) {
+                    v = String(v || '').trim();
+                    if (v && !seen[v]) {
+                        result.push(v);
+                        seen[v] = true;
+                    }
+                });
+            }
+            return result;
+        }
+
         function getProfilePickerByContainer(containerId) {
             var container = document.getElementById(containerId);
             return container ? container.closest('.profile-picker') : null;
@@ -1147,7 +1206,7 @@
                 return;
             }
             if (selected.length <= 3) {
-                summaryEl.textContent = selected.join('、');
+                summaryEl.textContent = selected.map(formatProfileLabel).join('、');
                 return;
             }
             summaryEl.textContent = '已选择 ' + selected.length + ' 个档案' + (manualCount ? '（含 ' + manualCount + ' 个手动输入）' : '');
@@ -1235,10 +1294,10 @@
                 return;
             }
 
-            allProfiles.forEach(function(name) {
-                var label = document.createElement('label');
-                label.className = 'profile-picker-option';
-                label.setAttribute('data-profile-name', name.toLowerCase());
+	            allProfiles.forEach(function(name) {
+	                var label = document.createElement('label');
+	                label.className = 'profile-picker-option';
+	                label.setAttribute('data-profile-name', (name + ' ' + formatProfileLabel(name)).toLowerCase());
 
                 var input = document.createElement('input');
                 input.type = 'checkbox';
@@ -1249,9 +1308,9 @@
                     updateProfilePickerSummary(containerId);
                 });
 
-                var text = document.createElement('span');
-                text.textContent = name;
-                text.style.whiteSpace = 'nowrap';
+	                var text = document.createElement('span');
+	                text.textContent = formatProfileLabel(name);
+	                text.style.whiteSpace = 'nowrap';
 
                 label.appendChild(input);
                 label.appendChild(text);
@@ -1396,8 +1455,9 @@
         }
 
         async function renameProfileFromAdmin() {
-            var oldName = String(document.getElementById('renameProfileSelect').value || '').trim();
-            var newName = String(document.getElementById('renameProfileName').value || '').trim();
+	            var oldName = String(document.getElementById('renameProfileSelect').value || '').trim();
+	            var newName = String(document.getElementById('renameProfileName').value || '').trim();
+	            var oldLabel = formatProfileLabel(oldName) || oldName;
             var statusEl = document.getElementById('profileManageStatus');
             statusEl.className = 'status-msg';
             statusEl.textContent = '';
@@ -1422,7 +1482,7 @@
                 statusEl.textContent = '新档案名称已存在';
                 return;
             }
-            if (!await showAppConfirm('确定将档案 "' + oldName + '" 重命名为 "' + newName + '" 吗？绑定关系和历史记录会同步更新。', '重命名档案', '确认重命名')) {
+	            if (!await showAppConfirm('确定将档案 "' + oldLabel + '" 重命名为 "' + newName + '" 吗？绑定关系和历史记录会同步更新。', '重命名档案', '确认重命名')) {
                 return;
             }
 
@@ -1442,7 +1502,7 @@
                 document.getElementById('renameProfileSelect').value = newName;
                 await loadCodes();
                 statusEl.className = 'status-msg success';
-                statusEl.textContent = '已重命名: ' + oldName + ' -> ' + newName;
+	                statusEl.textContent = '已重命名: ' + oldLabel + ' -> ' + newName;
             } catch (e) {
                 statusEl.className = 'status-msg error';
                 statusEl.textContent = '重命名失败: ' + e.message;
@@ -1451,6 +1511,7 @@
 
         function cancelEditCode() {
             document.getElementById('editCodePanel').style.display = 'none';
+            editUnknownProfileKeys = [];
             document.getElementById('editStatus').className = 'status-msg';
             document.getElementById('editStatus').textContent = '';
             document.getElementById('editCodeId').value = '';
@@ -1478,13 +1539,14 @@
             var manualProfiles = selectedProfiles.filter(function(name) {
                 return allProfiles.indexOf(name) === -1;
             });
+            editUnknownProfileKeys = manualProfiles.slice();
 
             document.getElementById('editCodeId').value = String(code.id);
             document.getElementById('editCodeName').value = code.name || '';
             document.getElementById('editCodeMaxUses').value = String(code.max_uses);
             document.getElementById('editCodeUsedCount').value = String(code.used_count || 0);
             document.getElementById('editCodeExpiresAt').value = normalizeExpiresAtText(code.expires_at);
-            document.getElementById('editManualProfiles').value = manualProfiles.join(', ');
+            document.getElementById('editManualProfiles').value = '';
             document.getElementById('editStatus').className = 'status-msg';
             document.getElementById('editStatus').textContent = '';
             renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', selectedProfiles);
@@ -1509,9 +1571,10 @@
                 tbody.innerHTML = '';
                 codesCache.forEach(function(c) {
                     var maxUsesText = c.max_uses === -1 ? '无限' : c.max_uses;
-                    var profilesText = (c.allowed_profiles && c.allowed_profiles.length > 0)
-                        ? escapeHtml(c.allowed_profiles.join(', '))
-                        : '<span style="color:#555">未绑定</span>';
+	                    var profileLabels = (c.allowed_profiles || []).map(formatProfileLabel);
+	                    var profilesText = profileLabels.length > 0
+	                        ? escapeHtml(profileLabels.join(', '))
+	                        : '<span style="color:#555">未绑定</span>';
                     var platformsText = formatAllowedPlatformsShort(c.allowed_platforms || []);
                     var platformsTitle = (c.allowed_platforms && c.allowed_platforms.length > 0)
                         ? formatAllowedPlatformsDisplay(c.allowed_platforms)
@@ -1523,7 +1586,7 @@
                     tr.innerHTML =
                         '<td class="cell-code"><span class="code-text" data-code="' + escapeHtml(c.code) + '" title="点击复制">' + escapeHtml(c.code) + '</span></td>' +
                         '<td class="cell-name" title="' + escapeHtml(c.name || '-') + '">' + escapeHtml(c.name || '-') + '</td>' +
-                        '<td class="cell-profile" title="' + escapeHtml((c.allowed_profiles && c.allowed_profiles.length > 0) ? c.allowed_profiles.join(', ') : '未绑定') + '" style="font-size:12px;">' + profilesText + '</td>' +
+	                        '<td class="cell-profile" title="' + escapeHtml(profileLabels.length > 0 ? profileLabels.join(', ') : '未绑定') + '" style="font-size:12px;">' + profilesText + '</td>' +
                         '<td class="cell-platforms" title="' + escapeHtml(platformsTitle) + '" style="font-size:12px;">' + platformsText + '</td>' +
                         '<td class="cell-usage">' + c.used_count + ' / ' + maxUsesText + '</td>' +
                         '<td class="cell-expire" style="font-size:12px;color:#888;">' + expiresAtText + '</td>' +
@@ -1551,11 +1614,13 @@
             var name = document.getElementById('codeName').value.trim();
             var maxUses = parseMaxUsesValue('codeMaxUses');
             var expiresAt = document.getElementById('codeExpiresAt').value.trim();
-            var selectedProfiles = getSelectedProfiles('.profile-cb:checked', 'manualProfiles');
+            var selectedProfiles = getCheckedProfiles('.profile-cb:checked');
+            var manualProfiles = getManualProfiles('manualProfiles');
+            var profileLabels = selectedProfiles.concat(manualProfiles);
             var selectedPlatforms = getSelectedBuildPlatformPermissions('.platform-permission-cb:checked');
             var statusEl = document.getElementById('createStatus');
 
-            if (selectedProfiles.length === 0) {
+            if (profileLabels.length === 0) {
                 statusEl.className = 'status-msg error';
                 statusEl.textContent = '请至少绑定一个档案（下拉多选或手动输入）';
                 return;
@@ -1566,6 +1631,7 @@
                     name: name,
                     max_uses: maxUses,
                     allowed_profiles: selectedProfiles,
+                    manual_profiles: manualProfiles,
                     allowed_platforms: selectedPlatforms,
                     expires_at: expiresAt
                 });
@@ -1579,8 +1645,9 @@
                 }
 
                 statusEl.className = 'status-msg success';
-                statusEl.textContent = '激活码已创建: ' + data.code + ' (绑定: ' + selectedProfiles.join(', ') + '，平台: ' + (selectedPlatforms.length ? selectedPlatforms.join(', ') : '全部平台') + ')';
+                statusEl.textContent = '激活码已创建: ' + data.code + ' (绑定: ' + profileLabels.join(', ') + '，平台: ' + (selectedPlatforms.length ? selectedPlatforms.join(', ') : '全部平台') + ')';
                 resetCreateForm();
+                await loadProfileList();
                 loadCodes();
             } catch (e) {
                 statusEl.className = 'status-msg error';
@@ -1594,7 +1661,9 @@
             var maxUses = parseMaxUsesValue('editCodeMaxUses');
             var usedCount = parseUsedCountValue('editCodeUsedCount');
             var expiresAt = document.getElementById('editCodeExpiresAt').value.trim();
-            var selectedProfiles = getSelectedProfiles('.edit-profile-cb:checked', 'editManualProfiles');
+            var selectedProfiles = mergeProfileValues(getCheckedProfiles('.edit-profile-cb:checked'), editUnknownProfileKeys);
+            var manualProfiles = getManualProfiles('editManualProfiles');
+            var profileLabels = selectedProfiles.concat(manualProfiles);
             var selectedPlatforms = getSelectedBuildPlatformPermissions('.edit-platform-permission-cb:checked');
             var statusEl = document.getElementById('editStatus');
 
@@ -1603,7 +1672,7 @@
                 statusEl.textContent = '缺少激活码 ID';
                 return;
             }
-            if (selectedProfiles.length === 0) {
+            if (profileLabels.length === 0) {
                 statusEl.className = 'status-msg error';
                 statusEl.textContent = '请至少绑定一个档案（下拉多选或手动输入）';
                 return;
@@ -1620,6 +1689,7 @@
                     max_uses: maxUses,
                     used_count: usedCount,
                     allowed_profiles: selectedProfiles,
+                    manual_profiles: manualProfiles,
                     allowed_platforms: selectedPlatforms,
                     expires_at: expiresAt
                 });
@@ -1633,6 +1703,7 @@
                 }
 
                 cancelEditCode();
+                await loadProfileList();
                 loadCodes();
             } catch (e) {
                 statusEl.className = 'status-msg error';
@@ -1759,9 +1830,7 @@
         window.onload = function() {
             if (getToken()) {
                 showMain();
-                loadCodes();
-                loadProfileList();
-                loadSettings();
+                loadAdminData();
             } else {
                 showLogin();
                 renderCustomFeatureGroups();

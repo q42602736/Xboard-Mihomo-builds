@@ -37,22 +37,11 @@ const (
 )
 
 var (
-	storedProfilesCache     singleTTLCache[map[string]string]
+	storedProfilesCache     singleTTLCache[map[string]StoredProfile]
 	buildQueueSnapshotCache keyedTTLCache[BuildQueueSnapshot]
 	buildStatusCache        keyedTTLCache[map[string]interface{}]
 	buildCacheMu            sync.Mutex
 )
-
-func cloneStringMap(src map[string]string) map[string]string {
-	if src == nil {
-		return nil
-	}
-	dst := make(map[string]string, len(src))
-	for key, value := range src {
-		dst[key] = value
-	}
-	return dst
-}
 
 func cloneInterfaceMap(src map[string]interface{}) map[string]interface{} {
 	if src == nil {
@@ -242,59 +231,25 @@ func bindProfileTitle(yamlContent, profileName string) string {
 		return yamlContent
 	}
 
-	titleValue, err := json.Marshal(profileName)
+	doc, err := parseProfileYamlDocument(yamlContent)
 	if err != nil {
 		return yamlContent
 	}
-	titleLine := "  title: " + string(titleValue)
-	lines := strings.Split(yamlContent, "\n")
 
-	xboardIndex := -1
-	providerIndex := -1
-	titleIndex := -1
-	for i, line := range lines {
-		if strings.TrimSpace(line) == "xboard:" {
-			xboardIndex = i
-			continue
-		}
-		if xboardIndex == -1 {
-			continue
-		}
+	root := ensureDocumentMappingNode(doc)
+	xboard := ensureMapValueNode(root, "xboard")
+	app := ensureMapValueNode(xboard, "app")
+	setMapStringValue(xboard, "title", strings.TrimSpace(profileName))
+	setMapStringValue(app, "title", strings.TrimSpace(profileName))
 
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if !strings.HasPrefix(line, "  ") {
-			break
-		}
-		if strings.HasPrefix(line, "    ") {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "provider:") {
-			providerIndex = i
-			continue
-		}
-		if strings.HasPrefix(trimmed, "title:") {
-			titleIndex = i
-			break
-		}
-	}
-
-	if titleIndex >= 0 {
-		lines[titleIndex] = titleLine
-		return strings.Join(lines, "\n")
-	}
-	if xboardIndex == -1 {
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(doc); err != nil {
 		return yamlContent
 	}
-
-	insertIndex := xboardIndex + 1
-	if providerIndex >= 0 {
-		insertIndex = providerIndex + 1
-	}
-	lines = append(lines[:insertIndex], append([]string{titleLine}, lines[insertIndex:]...)...)
-	return strings.Join(lines, "\n")
+	_ = encoder.Close()
+	return strings.TrimRight(buf.String(), "\n")
 }
 
 func normalizeSubscriptionConfig(yamlContent string) string {
@@ -372,6 +327,57 @@ func normalizeSubscriptionConfig(yamlContent string) string {
 	_ = encoder.Close()
 
 	return strings.TrimRight(buf.String(), "\n")
+}
+
+func mergeProfileKeys(existing []string, additions ...string) []string {
+	result := []string{}
+	seen := map[string]struct{}{}
+	for _, profile := range existing {
+		profile = strings.TrimSpace(profile)
+		if profile == "" {
+			continue
+		}
+		if _, ok := seen[profile]; ok {
+			continue
+		}
+		seen[profile] = struct{}{}
+		result = append(result, profile)
+	}
+	for _, profile := range additions {
+		profile = strings.TrimSpace(profile)
+		if profile == "" {
+			continue
+		}
+		if _, ok := seen[profile]; ok {
+			continue
+		}
+		seen[profile] = struct{}{}
+		result = append(result, profile)
+	}
+	return result
+}
+
+func (h *Handlers) resolveAllowedProfiles(allowedProfiles, manualProfiles []string) ([]string, []StoredProfile, error) {
+	resolved := mergeProfileKeys(allowedProfiles)
+	created := []StoredProfile{}
+	seenManual := map[string]struct{}{}
+	for _, displayName := range manualProfiles {
+		displayName = strings.TrimSpace(displayName)
+		if displayName == "" {
+			continue
+		}
+		if _, ok := seenManual[displayName]; ok {
+			continue
+		}
+		seenManual[displayName] = struct{}{}
+		profile, err := h.createManualProfile(displayName)
+		if err != nil {
+			return nil, nil, err
+		}
+		resolved = mergeProfileKeys(resolved, profile.Key)
+		created = append(created, profile)
+	}
+	return resolved, created, nil
 }
 
 func validateYamlContent(yamlContent string) error {
@@ -511,7 +517,7 @@ func (h *Handlers) ListProfiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claims := getClaims(r)
-	list := []map[string]string{}
+	list := []StoredProfile{}
 
 	if claims.Permissions == "admin" || len(claims.AllowedProfiles) == 0 {
 		names := make([]string, 0, len(profiles))
@@ -521,22 +527,22 @@ func (h *Handlers) ListProfiles(w http.ResponseWriter, r *http.Request) {
 		sort.Strings(names)
 
 		for _, name := range names {
-			item := map[string]string{"name": name}
-			if lu := profiles[name]; lu != "" {
-				item["last_updated"] = lu
-			}
-			list = append(list, item)
+			list = append(list, profiles[name])
 		}
 	} else {
 		names := append([]string(nil), claims.AllowedProfiles...)
 		sort.Strings(names)
 
 		for _, name := range names {
-			item := map[string]string{"name": name}
-			if lu, exists := profiles[name]; exists && lu != "" {
-				item["last_updated"] = lu
+			if profile, exists := profiles[name]; exists {
+				list = append(list, profile)
+				continue
 			}
-			list = append(list, item)
+			list = append(list, StoredProfile{
+				Name:        name,
+				Key:         name,
+				DisplayName: name,
+			})
 		}
 	}
 
@@ -566,7 +572,8 @@ func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 	payload := struct {
 		YamlContent string `json:"yaml_content"`
 		LastUpdated string `json:"last_updated,omitempty"`
-	}{YamlContent: content, LastUpdated: lastUpdated}
+		DisplayName string `json:"display_name,omitempty"`
+	}{YamlContent: content, LastUpdated: lastUpdated, DisplayName: profileDisplayNameFromYaml(content, name)}
 
 	if payload.YamlContent != "" {
 		cleaned := normalizeSubscriptionConfig(payload.YamlContent)
@@ -596,18 +603,19 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(chi.URLParam(r, "name"))
 	claims := getClaims(r)
 
-	if !claims.canAccessProfile(name) {
-		jsonError(w, "无权操作该档案", 403)
-		return
-	}
-
 	var req struct {
 		YamlContent     string            `json:"yaml_content"`
 		BaseYamlContent string            `json:"base_yaml_content"`
 		FormState       *ProfileFormState `json:"form_state"`
+		DisplayName     string            `json:"display_name"`
+		CreateNew       bool              `json:"create_new"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
+		return
+	}
+	if !claims.canAccessProfile(name) {
+		jsonError(w, "无权操作该档案", 403)
 		return
 	}
 	if req.FormState != nil {
@@ -622,9 +630,6 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		req.YamlContent = mergedYamlContent
 	}
-	if claims.Permissions != "admin" {
-		req.YamlContent = bindProfileTitle(req.YamlContent, name)
-	}
 	req.YamlContent = normalizeSubscriptionConfig(req.YamlContent)
 	if err := validateYamlContent(req.YamlContent); err != nil {
 		jsonError(w, "配置格式错误: "+err.Error(), 400)
@@ -638,8 +643,12 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, sha, err := h.profileGH.GetFile(filePath)
+	isNewProfile := false
+	pathMissing := false
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
+			isNewProfile = true
+			pathMissing = true
 			sha = ""
 		} else {
 			jsonError(w, "加载档案失败: "+err.Error(), 500)
@@ -647,16 +656,60 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	displayName := strings.TrimSpace(req.DisplayName)
+	if displayName == "" {
+		displayName = profileDisplayNameFromYaml(req.YamlContent, name)
+	}
+	if displayName == "" {
+		displayName = name
+	}
+
+	if req.CreateNew {
+		isNewProfile = true
+		sha = ""
+		uniqueName, err := h.createUniqueProfileKey(displayName)
+		if err != nil {
+			jsonError(w, err.Error(), 400)
+			return
+		}
+		name = uniqueName
+		filePath, err = profileFilePath(name)
+		if err != nil {
+			jsonError(w, err.Error(), 400)
+			return
+		}
+	} else if pathMissing {
+		sha = ""
+	}
+
+	if claims.Permissions != "admin" || isNewProfile {
+		req.YamlContent = bindProfileTitle(req.YamlContent, displayName)
+	}
+
 	_, err = h.profileGH.SaveFile(filePath, req.YamlContent, sha, "保存配置档案: "+name)
 	if err != nil {
 		jsonError(w, "保存失败: "+err.Error(), 500)
 		return
 	}
+	if isNewProfile && claims.Permissions != "admin" {
+		if err := appendAllowedProfileToCode(claims.CodeID, name); err != nil {
+			jsonError(w, "保存成功，但同步档案权限失败: "+err.Error(), 500)
+			return
+		}
+	}
 	invalidateProfileCache()
 
 	logAudit(claims.CodeID, claims.CodeName, "save_profile", name, r.RemoteAddr)
 
-	jsonResponse(w, map[string]string{"message": "保存成功", "yaml_content": req.YamlContent})
+	jsonResponse(w, map[string]interface{}{
+		"message":      "保存成功",
+		"yaml_content": req.YamlContent,
+		"profile": StoredProfile{
+			Name:        name,
+			Key:         name,
+			DisplayName: displayName,
+		},
+	})
 }
 
 func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
@@ -3194,6 +3247,7 @@ func (h *Handlers) CreateCode(w http.ResponseWriter, r *http.Request) {
 		Name             string   `json:"name"`
 		MaxUses          int      `json:"max_uses"`
 		AllowedProfiles  []string `json:"allowed_profiles"`
+		ManualProfiles   []string `json:"manual_profiles"`
 		AllowedPlatforms []string `json:"allowed_platforms"`
 		ExpiresAt        string   `json:"expires_at"`
 	}
@@ -3210,8 +3264,17 @@ func (h *Handlers) CreateCode(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, err.Error(), 400)
 		return
 	}
+	if _, err := normalizeExpiresAt(req.ExpiresAt); err != nil {
+		jsonError(w, "创建激活码失败: "+err.Error(), 400)
+		return
+	}
+	allowedProfiles, createdProfiles, err := h.resolveAllowedProfiles(req.AllowedProfiles, req.ManualProfiles)
+	if err != nil {
+		jsonError(w, "创建手动档案失败: "+err.Error(), 400)
+		return
+	}
 
-	ac, err := createCode(req.Name, req.MaxUses, req.AllowedProfiles, allowedPlatforms, req.ExpiresAt)
+	ac, err := createCode(req.Name, req.MaxUses, allowedProfiles, allowedPlatforms, req.ExpiresAt)
 	if err != nil {
 		statusCode := 500
 		if strings.Contains(err.Error(), "到期时间格式错误") {
@@ -3224,7 +3287,20 @@ func (h *Handlers) CreateCode(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	logAudit(claims.CodeID, claims.CodeName, "create_code", ac.Name, r.RemoteAddr)
 
-	jsonResponse(w, ac)
+	jsonResponse(w, map[string]interface{}{
+		"id":                ac.ID,
+		"code":              ac.Code,
+		"name":              ac.Name,
+		"permissions":       ac.Permissions,
+		"max_uses":          ac.MaxUses,
+		"used_count":        ac.UsedCount,
+		"allowed_profiles":  ac.AllowedProfiles,
+		"allowed_platforms": ac.AllowedPlatforms,
+		"expires_at":        ac.ExpiresAt,
+		"created_at":        ac.CreatedAt,
+		"is_active":         ac.IsActive,
+		"created_profiles":  createdProfiles,
+	})
 }
 
 func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
@@ -3240,6 +3316,7 @@ func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
 		MaxUses          int      `json:"max_uses"`
 		UsedCount        int      `json:"used_count"`
 		AllowedProfiles  []string `json:"allowed_profiles"`
+		ManualProfiles   []string `json:"manual_profiles"`
 		AllowedPlatforms []string `json:"allowed_platforms"`
 		ExpiresAt        string   `json:"expires_at"`
 	}
@@ -3260,8 +3337,21 @@ func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, err.Error(), 400)
 		return
 	}
+	if _, err := normalizeExpiresAt(req.ExpiresAt); err != nil {
+		jsonError(w, "更新失败: "+err.Error(), 400)
+		return
+	}
+	if _, err := getActivationCodeByID(id); err != nil {
+		jsonError(w, "更新失败: 激活码不存在", 404)
+		return
+	}
+	allowedProfiles, createdProfiles, err := h.resolveAllowedProfiles(req.AllowedProfiles, req.ManualProfiles)
+	if err != nil {
+		jsonError(w, "创建手动档案失败: "+err.Error(), 400)
+		return
+	}
 
-	if err := updateCode(id, req.Name, req.MaxUses, req.UsedCount, req.AllowedProfiles, allowedPlatforms, req.ExpiresAt); err != nil {
+	if err := updateCode(id, req.Name, req.MaxUses, req.UsedCount, allowedProfiles, allowedPlatforms, req.ExpiresAt); err != nil {
 		statusCode := 500
 		if strings.Contains(err.Error(), "到期时间格式错误") {
 			statusCode = 400
@@ -3275,7 +3365,11 @@ func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
 	logAudit(claims.CodeID, claims.CodeName, "update_code", fmt.Sprintf("id=%d name=%s used_count=%d", id, req.Name, req.UsedCount), r.RemoteAddr)
 
-	jsonResponse(w, map[string]string{"message": "更新成功"})
+	jsonResponse(w, map[string]interface{}{
+		"message":          "更新成功",
+		"allowed_profiles": allowedProfiles,
+		"created_profiles": createdProfiles,
+	})
 }
 
 func (h *Handlers) DeleteCode(w http.ResponseWriter, r *http.Request) {
@@ -3346,7 +3440,8 @@ func (h *Handlers) RenameProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := h.profileGH.SaveFile(newPath, content, "", "重命名配置档案: "+oldName+" -> "+newName); err != nil {
+	renamedContent := bindProfileTitle(content, newName)
+	if _, err := h.profileGH.SaveFile(newPath, renamedContent, "", "重命名配置档案: "+oldName+" -> "+newName); err != nil {
 		jsonError(w, "创建新档案失败: "+err.Error(), 500)
 		return
 	}
