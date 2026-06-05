@@ -37,7 +37,7 @@ const (
 )
 
 var (
-	storedProfilesCache     singleTTLCache[map[string]StoredProfile]
+	storedProfilesCache     keyedTTLCache[map[string]StoredProfile]
 	buildQueueSnapshotCache keyedTTLCache[BuildQueueSnapshot]
 	buildStatusCache        keyedTTLCache[map[string]interface{}]
 	buildCacheMu            sync.Mutex
@@ -58,6 +58,10 @@ func invalidateProfileCache() {
 	storedProfilesCache.clear()
 }
 
+func invalidateProfileCacheForClient(client string) {
+	storedProfilesCache.delete(normalizeBuildClient(client))
+}
+
 func invalidateBuildCachesForRecord(record *BuildRecord) {
 	buildQueueSnapshotCache.clear()
 	if record == nil {
@@ -70,24 +74,25 @@ func invalidateBuildCachesForRecord(record *BuildRecord) {
 	if record.ID > 0 {
 		buildStatusCache.delete(fmt.Sprintf("record:%d", record.ID))
 	}
-	buildStatusCache.delete(buildStatusFallbackCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms))
+	buildStatusCache.delete(buildStatusFallbackCacheKey(record.CodeID, record.Client, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms))
 }
 
-func buildStatusFallbackCacheKey(codeID int, profile, requestID, tag, branch, core, platforms string) string {
+func buildStatusFallbackCacheKey(codeID int, client, profile, requestID, tag, branch, core, platforms string) string {
 	if strings.TrimSpace(requestID) != "" {
 		return "request:" + strings.TrimSpace(requestID)
 	}
-	return fmt.Sprintf("fallback:%d|%s|%s|%s|%s|%s", codeID, profile, tag, branch, normalizeBuildCore(core), platforms)
+	client = normalizeBuildClient(client)
+	return fmt.Sprintf("fallback:%d|client:%s|%s|%s|%s|%s|%s", codeID, client, profile, tag, branch, normalizeBuildCore(core), platforms)
 }
 
-func buildStatusCacheKey(record *BuildRecord, codeID int, profile, requestID, tag, branch, core, platforms string) string {
+func buildStatusCacheKey(record *BuildRecord, codeID int, client, profile, requestID, tag, branch, core, platforms string) string {
 	if record != nil && record.ID > 0 {
 		return fmt.Sprintf("record:%d", record.ID)
 	}
 	if strings.TrimSpace(requestID) != "" {
 		return "request:" + strings.TrimSpace(requestID)
 	}
-	return buildStatusFallbackCacheKey(codeID, profile, requestID, tag, branch, core, platforms)
+	return buildStatusFallbackCacheKey(codeID, client, profile, requestID, tag, branch, core, platforms)
 }
 
 func buildStatusCacheTTL(result map[string]interface{}) time.Duration {
@@ -108,14 +113,16 @@ func writeBuildStatusResponse(w http.ResponseWriter, cacheKey string, result map
 }
 
 type Handlers struct {
-	gh        *GitHubClient
-	profileGH *GitHubClient
+	gh              *GitHubClient
+	profileGH       *GitHubClient
+	nexGenProfileGH *GitHubClient
 }
 
-func NewHandlers(gh *GitHubClient, profileGH *GitHubClient) *Handlers {
+func NewHandlers(gh *GitHubClient, profileGH *GitHubClient, nexGenProfileGH *GitHubClient) *Handlers {
 	return &Handlers{
-		gh:        gh,
-		profileGH: profileGH,
+		gh:              gh,
+		profileGH:       profileGH,
+		nexGenProfileGH: nexGenProfileGH,
 	}
 }
 
@@ -329,6 +336,42 @@ func normalizeSubscriptionConfig(yamlContent string) string {
 	return strings.TrimRight(buf.String(), "\n")
 }
 
+func stripNexGenProfileUnsupportedConfig(yamlContent string) string {
+	if strings.TrimSpace(yamlContent) == "" {
+		return yamlContent
+	}
+	doc, err := parseProfileYamlDocument(yamlContent)
+	if err != nil {
+		return yamlContent
+	}
+	root := ensureDocumentMappingNode(doc)
+	xboard := getMapValueNode(root, "xboard")
+	if xboard == nil {
+		return yamlContent
+	}
+	removeMapKeys(xboard, "online_support", "cloud_dispatch", "cloudDispatch")
+	app := getMapValueNode(xboard, "app")
+	if app != nil {
+		logo := getMapValueNode(app, "logo")
+		if logo != nil {
+			setMapStringValue(logo, "type", "text")
+			removeMapKeys(logo, "image_url", "imageUrl")
+		}
+	}
+	ui := getMapValueNode(xboard, "ui")
+	if ui != nil {
+		removeMapKeys(ui, "online_support", "home_panel_default_layout", "custom_colors", "customColors", "subscription_status_popup", "subscriptionStatusPopup", "show_ip_info", "showIpInfo")
+	}
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(doc); err != nil {
+		return yamlContent
+	}
+	_ = encoder.Close()
+	return strings.TrimRight(buf.String(), "\n")
+}
+
 func mergeProfileKeys(existing []string, additions ...string) []string {
 	result := []string{}
 	seen := map[string]struct{}{}
@@ -357,10 +400,18 @@ func mergeProfileKeys(existing []string, additions ...string) []string {
 	return result
 }
 
-func (h *Handlers) resolveAllowedProfiles(allowedProfiles, manualProfiles []string) ([]string, []StoredProfile, error) {
+func manualProfileClientForAllowedClients(allowedClients []string) string {
+	if len(allowedClients) == 1 && normalizeBuildClient(allowedClients[0]) == buildClientNexGenReact {
+		return buildClientNexGenReact
+	}
+	return buildClientLegacy
+}
+
+func (h *Handlers) resolveAllowedProfiles(allowedProfiles, manualProfiles, allowedClients []string) ([]string, []StoredProfile, error) {
 	resolved := mergeProfileKeys(allowedProfiles)
 	created := []StoredProfile{}
 	seenManual := map[string]struct{}{}
+	manualClient := manualProfileClientForAllowedClients(allowedClients)
 	for _, displayName := range manualProfiles {
 		displayName = strings.TrimSpace(displayName)
 		if displayName == "" {
@@ -370,7 +421,7 @@ func (h *Handlers) resolveAllowedProfiles(allowedProfiles, manualProfiles []stri
 			continue
 		}
 		seenManual[displayName] = struct{}{}
-		profile, err := h.createManualProfile(displayName)
+		profile, err := h.createManualProfileForClient(manualClient, displayName)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -410,7 +461,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := generateJWT(ac.ID, ac.Name, "user", ac.AllowedProfiles)
+	token, err := generateJWT(ac.ID, ac.Name, "user", ac.AllowedProfiles, ac.AllowedClients)
 	if err != nil {
 		jsonError(w, "生成 Token 失败", 500)
 		return
@@ -419,9 +470,10 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	logAudit(ac.ID, ac.Name, "login", "", r.RemoteAddr)
 
 	jsonResponse(w, map[string]interface{}{
-		"token":       token,
-		"name":        ac.Name,
-		"permissions": "user",
+		"token":           token,
+		"name":            ac.Name,
+		"permissions":     "user",
+		"allowed_clients": ac.AllowedClients,
 	})
 }
 
@@ -439,6 +491,7 @@ func (h *Handlers) GetCurrentUserInfo(w http.ResponseWriter, r *http.Request) {
 			"expires_at":                  nil,
 			"is_active":                   true,
 			"allowed_platforms":           []string{},
+			"allowed_clients":             []string{},
 			"integration_code_configured": hasAnyCustomFeatureBinding(uiColorFeatureKeys...),
 		})
 		return
@@ -457,6 +510,7 @@ func (h *Handlers) GetCurrentUserInfo(w http.ResponseWriter, r *http.Request) {
 			"expires_at":                  nil,
 			"is_active":                   false,
 			"allowed_platforms":           []string{},
+			"allowed_clients":             claims.AllowedClients,
 			"integration_code_configured": hasAnyCustomFeatureBinding(uiColorFeatureKeys...),
 		})
 		return
@@ -474,6 +528,7 @@ func (h *Handlers) GetCurrentUserInfo(w http.ResponseWriter, r *http.Request) {
 		"expires_at":                  ac.ExpiresAt,
 		"is_active":                   ac.IsActive,
 		"allowed_platforms":           ac.AllowedPlatforms,
+		"allowed_clients":             ac.AllowedClients,
 		"integration_code_configured": hasAnyCustomFeatureBinding(uiColorFeatureKeys...),
 	})
 }
@@ -492,7 +547,7 @@ func (h *Handlers) AdminLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := generateJWT(0, "管理员", "admin", nil)
+	token, err := generateJWT(0, "管理员", "admin", nil, nil)
 	if err != nil {
 		jsonError(w, "生成 Token 失败", 500)
 		return
@@ -510,13 +565,18 @@ func (h *Handlers) AdminLogin(w http.ResponseWriter, r *http.Request) {
 // ==================== 配置档案 ====================
 
 func (h *Handlers) ListProfiles(w http.ResponseWriter, r *http.Request) {
-	profiles, err := h.listStoredProfiles()
+	claims := getClaims(r)
+	client := normalizeBuildClient(r.URL.Query().Get("client"))
+	if ok, message := canAccessClientForClaims(claims, client); !ok {
+		jsonError(w, message, 403)
+		return
+	}
+	profiles, err := h.listStoredProfilesForClient(client)
 	if err != nil {
 		jsonError(w, "加载档案列表失败: "+err.Error(), 500)
 		return
 	}
 
-	claims := getClaims(r)
 	list := []StoredProfile{}
 
 	if claims.Permissions == "admin" || len(claims.AllowedProfiles) == 0 {
@@ -552,13 +612,18 @@ func (h *Handlers) ListProfiles(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(chi.URLParam(r, "name"))
 	claims := getClaims(r)
+	client := normalizeBuildClient(r.URL.Query().Get("client"))
 
+	if ok, message := canAccessClientForClaims(claims, client); !ok {
+		jsonError(w, message, 403)
+		return
+	}
 	if !claims.canAccessProfile(name) {
 		jsonError(w, "无权访问该档案", 403)
 		return
 	}
 
-	content, _, lastUpdated, exists, err := h.getStoredProfile(name)
+	content, _, lastUpdated, exists, err := h.getStoredProfileForClient(client, name)
 	if err != nil {
 		jsonError(w, "加载档案失败: "+err.Error(), 500)
 		return
@@ -577,14 +642,17 @@ func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 	if payload.YamlContent != "" {
 		cleaned := normalizeSubscriptionConfig(payload.YamlContent)
+		if client == buildClientNexGenReact {
+			cleaned = stripNexGenProfileUnsupportedConfig(cleaned)
+		}
 		if cleaned != payload.YamlContent {
 			payload.YamlContent = cleaned
 			filePath, err := profileFilePath(name)
 			if err == nil {
-				_ = h.profileGH.SaveFileWithRetry(filePath, func(_ string) string {
+				_ = h.profileGitHubClient(client).SaveFileWithRetry(filePath, func(_ string) string {
 					return cleaned
 				}, "修复配置档案: "+name, 3)
-				invalidateProfileCache()
+				invalidateProfileCacheForClient(client)
 			}
 		}
 	}
@@ -602,6 +670,7 @@ func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(chi.URLParam(r, "name"))
 	claims := getClaims(r)
+	client := normalizeBuildClient(r.URL.Query().Get("client"))
 
 	var req struct {
 		YamlContent     string            `json:"yaml_content"`
@@ -612,6 +681,10 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
+		return
+	}
+	if ok, message := canAccessClientForClaims(claims, client); !ok {
+		jsonError(w, message, 403)
 		return
 	}
 	if !claims.canAccessProfile(name) {
@@ -631,6 +704,9 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		req.YamlContent = mergedYamlContent
 	}
 	req.YamlContent = normalizeSubscriptionConfig(req.YamlContent)
+	if client == buildClientNexGenReact {
+		req.YamlContent = stripNexGenProfileUnsupportedConfig(req.YamlContent)
+	}
 	if err := validateYamlContent(req.YamlContent); err != nil {
 		jsonError(w, "配置格式错误: "+err.Error(), 400)
 		return
@@ -642,7 +718,12 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, sha, err := h.profileGH.GetFile(filePath)
+	if err := h.ensureProfileBranchForClient(client); err != nil {
+		jsonError(w, "准备配置分支失败: "+err.Error(), 500)
+		return
+	}
+	profileGH := h.profileGitHubClient(client)
+	_, sha, err := profileGH.GetFile(filePath)
 	isNewProfile := false
 	pathMissing := false
 	if err != nil {
@@ -667,7 +748,7 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 	if req.CreateNew {
 		isNewProfile = true
 		sha = ""
-		uniqueName, err := h.createUniqueProfileKey(displayName)
+		uniqueName, err := h.createUniqueProfileKeyForClient(client, displayName)
 		if err != nil {
 			jsonError(w, err.Error(), 400)
 			return
@@ -686,7 +767,7 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		req.YamlContent = bindProfileTitle(req.YamlContent, displayName)
 	}
 
-	_, err = h.profileGH.SaveFile(filePath, req.YamlContent, sha, "保存配置档案: "+name)
+	_, err = profileGH.SaveFile(filePath, req.YamlContent, sha, "保存配置档案: "+name)
 	if err != nil {
 		jsonError(w, "保存失败: "+err.Error(), 500)
 		return
@@ -697,7 +778,7 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	invalidateProfileCache()
+	invalidateProfileCacheForClient(client)
 
 	logAudit(claims.CodeID, claims.CodeName, "save_profile", name, r.RemoteAddr)
 
@@ -715,7 +796,12 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(chi.URLParam(r, "name"))
 	claims := getClaims(r)
+	client := normalizeBuildClient(r.URL.Query().Get("client"))
 
+	if ok, message := canAccessClientForClaims(claims, client); !ok {
+		jsonError(w, message, 403)
+		return
+	}
 	if !claims.canAccessProfile(name) {
 		jsonError(w, "无权操作该档案", 403)
 		return
@@ -727,17 +813,17 @@ func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, sha, _, exists, err := h.getStoredProfile(name)
+	_, sha, _, exists, err := h.getStoredProfileForClient(client, name)
 	if err != nil {
 		jsonError(w, "加载档案失败: "+err.Error(), 500)
 		return
 	}
 	if exists {
-		if err := h.profileGH.DeleteFile(filePath, sha, "删除配置档案: "+name); err != nil {
+		if err := h.profileGitHubClient(client).DeleteFile(filePath, sha, "删除配置档案: "+name); err != nil {
 			jsonError(w, "删除失败: "+err.Error(), 500)
 			return
 		}
-		invalidateProfileCache()
+		invalidateProfileCacheForClient(client)
 	}
 
 	logAudit(claims.CodeID, claims.CodeName, "delete_profile", name, r.RemoteAddr)
@@ -752,6 +838,23 @@ const maxConcurrentMacOSBuildJobs = 5
 
 const recentWorkflowRunsSearchLimit = 100
 const fastWorkflowRunsSearchLimit = 20
+
+const (
+	buildClientLegacy      = "xboard_mihomo_sub"
+	buildClientNexGenReact = "nexgen_react"
+)
+
+type BuildClientConfig struct {
+	ID             string   `json:"id"`
+	Label          string   `json:"label"`
+	SourceOwner    string   `json:"source_owner"`
+	SourceRepo     string   `json:"source_repo"`
+	WorkflowFile   string   `json:"workflow_file"`
+	DefaultBranch  string   `json:"default_branch"`
+	DefaultCore    string   `json:"default_core"`
+	CoreSelectable bool     `json:"core_selectable"`
+	PlatformValues []string `json:"platform_values"`
+}
 
 var buildPlatformCatalog = []string{
 	"windows-amd64",
@@ -775,6 +878,66 @@ var buildCorePlatformCatalog = map[string][]string{
 	},
 }
 
+var nexGenReactPlatformCatalog = []string{
+	"windows",
+	"android",
+	"macos-amd64",
+	"macos-arm64",
+}
+
+func normalizeBuildClient(client string) string {
+	client = strings.TrimSpace(strings.ToLower(client))
+	switch client {
+	case "", "legacy", "xboard", "xboard_mihomo_sub":
+		return buildClientLegacy
+	case "nexgen", "nexgen-react", "nexgen_react":
+		return buildClientNexGenReact
+	default:
+		return client
+	}
+}
+
+func buildClientLabel(client string) string {
+	switch normalizeBuildClient(client) {
+	case buildClientNexGenReact:
+		return "NexGen Client React"
+	default:
+		return "Xboard-Mihomo_sub"
+	}
+}
+
+func buildClientConfig(client string) (BuildClientConfig, error) {
+	client = normalizeBuildClient(client)
+	switch client {
+	case buildClientLegacy:
+		return BuildClientConfig{
+			ID:             buildClientLegacy,
+			Label:          buildClientLabel(buildClientLegacy),
+			SourceOwner:    cfg.GithubOwner,
+			SourceRepo:     cfg.GithubRepo,
+			WorkflowFile:   "build.yaml",
+			DefaultBranch:  "main",
+			DefaultCore:    "mihomo",
+			CoreSelectable: true,
+			PlatformValues: buildPlatformCatalog,
+		}, nil
+	case buildClientNexGenReact:
+		return BuildClientConfig{
+			ID:             buildClientNexGenReact,
+			Label:          buildClientLabel(buildClientNexGenReact),
+			SourceOwner:    cfg.NexGenBuildOwner,
+			SourceRepo:     cfg.NexGenBuildRepo,
+			WorkflowFile:   "build-nexgen-react.yaml",
+			DefaultBranch:  "main",
+			DefaultCore:    "nexgen",
+			CoreSelectable: false,
+			PlatformValues: nexGenReactPlatformCatalog,
+		}, nil
+	default:
+		return BuildClientConfig{}, fmt.Errorf("无效的客户端：%s", client)
+	}
+}
+
 func normalizeBuildCore(core string) string {
 	core = strings.TrimSpace(strings.ToLower(core))
 	if core == "" {
@@ -791,7 +954,22 @@ func validateBuildCore(core string) (string, error) {
 	return core, nil
 }
 
-func buildPlatformCatalogForCore(core string) []string {
+func validateBuildCoreForClient(client, core string) (string, error) {
+	clientConfig, err := buildClientConfig(client)
+	if err != nil {
+		return "", err
+	}
+	if !clientConfig.CoreSelectable {
+		return clientConfig.DefaultCore, nil
+	}
+	return validateBuildCore(core)
+}
+
+func buildPlatformCatalogForClientCore(client, core string) []string {
+	client = normalizeBuildClient(client)
+	if client == buildClientNexGenReact {
+		return nexGenReactPlatformCatalog
+	}
 	core = normalizeBuildCore(core)
 	if platforms, ok := buildCorePlatformCatalog[core]; ok {
 		return platforms
@@ -799,10 +977,16 @@ func buildPlatformCatalogForCore(core string) []string {
 	return buildPlatformCatalog
 }
 
+func buildPlatformCatalogForCore(core string) []string {
+	return buildPlatformCatalogForClientCore(buildClientLegacy, core)
+}
+
 func buildCoreLabel(core string) string {
 	switch normalizeBuildCore(core) {
 	case "xray":
 		return "Xray"
+	case "nexgen":
+		return "NexGen"
 	default:
 		return "Mihomo"
 	}
@@ -839,6 +1023,7 @@ type BuildQueueSnapshot struct {
 
 type PendingBuild struct {
 	CodeID      int
+	Client      string
 	Profile     string
 	Tag         string
 	Branch      string
@@ -853,7 +1038,11 @@ var pendingBuildCache = make(map[string]PendingBuild)
 var buildStateCacheMu sync.RWMutex
 
 func estimateBuildJobDemand(core, platforms string) BuildJobDemand {
-	selectedJobs := expandRequestedBuildPlatformSet(core, platforms)
+	return estimateBuildJobDemandForClient(buildClientLegacy, core, platforms)
+}
+
+func estimateBuildJobDemandForClient(client, core, platforms string) BuildJobDemand {
+	selectedJobs := expandRequestedBuildPlatformSetForClient(client, core, platforms)
 
 	demand := BuildJobDemand{Total: len(selectedJobs)}
 	for job := range selectedJobs {
@@ -865,8 +1054,12 @@ func estimateBuildJobDemand(core, platforms string) BuildJobDemand {
 }
 
 func expandRequestedBuildPlatformSet(core, platforms string) map[string]struct{} {
+	return expandRequestedBuildPlatformSetForClient(buildClientLegacy, core, platforms)
+}
+
+func expandRequestedBuildPlatformSetForClient(client, core, platforms string) map[string]struct{} {
 	selectedJobs := make(map[string]struct{})
-	catalog := buildPlatformCatalogForCore(core)
+	catalog := buildPlatformCatalogForClientCore(client, core)
 	normalized := strings.TrimSpace(strings.ToLower(platforms))
 	if normalized == "" {
 		normalized = "all"
@@ -885,6 +1078,10 @@ func expandRequestedBuildPlatformSet(core, platforms string) map[string]struct{}
 				addJob(job)
 			}
 		case "windows":
+			if isPlatformInCatalog("windows", catalog) {
+				addJob("windows")
+				return
+			}
 			for _, job := range []string{"windows-amd64", "windows-arm64"} {
 				if isPlatformInCatalog(job, catalog) {
 					addJob(job)
@@ -932,7 +1129,12 @@ func normalizeBuildPlatformList(platforms []string) ([]string, error) {
 }
 
 func normalizeBuildPlatformListForCore(core string, platforms []string) ([]string, error) {
-	catalog := buildPlatformCatalogForCore(core)
+	return normalizeBuildPlatformListForClientCore(buildClientLegacy, core, platforms)
+}
+
+func normalizeBuildPlatformListForClientCore(client, core string, platforms []string) ([]string, error) {
+	catalog := buildPlatformCatalogForClientCore(client, core)
+	clientLabel := buildClientLabel(client)
 	result := []string{}
 	seen := map[string]struct{}{}
 	addExpandedGroup := func(token string, items []string) error {
@@ -948,7 +1150,7 @@ func normalizeBuildPlatformListForCore(core string, platforms []string) ([]strin
 			}
 		}
 		if !added {
-			return fmt.Errorf("%s 内核不支持打包平台：%s", buildCoreLabel(core), token)
+			return fmt.Errorf("%s 不支持打包平台：%s", clientLabel, token)
 		}
 		return nil
 	}
@@ -969,7 +1171,12 @@ func normalizeBuildPlatformListForCore(core string, platforms []string) ([]strin
 			}
 			switch token {
 			case "windows":
-				if err := addExpandedGroup(token, []string{"windows-amd64", "windows-arm64"}); err != nil {
+				if isPlatformInCatalog("windows", catalog) {
+					if _, ok := seen["windows"]; !ok {
+						seen["windows"] = struct{}{}
+						result = append(result, "windows")
+					}
+				} else if err := addExpandedGroup(token, []string{"windows-amd64", "windows-arm64"}); err != nil {
 					return nil, err
 				}
 			case "linux":
@@ -993,7 +1200,7 @@ func normalizeBuildPlatformListForCore(core string, platforms []string) ([]strin
 					}
 				}
 				if !matched {
-					return nil, fmt.Errorf("%s 内核不支持打包平台：%s", buildCoreLabel(core), token)
+					return nil, fmt.Errorf("%s 不支持打包平台：%s", clientLabel, token)
 				}
 			}
 		}
@@ -1005,9 +1212,70 @@ func expandRequestedBuildPlatforms(core, platforms string) ([]string, error) {
 	return normalizeBuildPlatformListForCore(core, []string{platforms})
 }
 
+func expandRequestedBuildPlatformsForClient(client, core, platforms string) ([]string, error) {
+	return normalizeBuildPlatformListForClientCore(client, core, []string{platforms})
+}
+
 func validateAllowedBuildPlatforms(allowedPlatforms []string) ([]string, error) {
+	return validateAllowedBuildPlatformsForClient(buildClientLegacy, allowedPlatforms)
+}
+
+func validateAllowedBuildClients(allowedClients []string) ([]string, error) {
+	if len(allowedClients) == 0 {
+		return []string{}, nil
+	}
+	result := []string{}
+	seen := map[string]struct{}{}
+	for _, client := range allowedClients {
+		client = normalizeBuildClient(client)
+		switch client {
+		case "":
+			continue
+		case buildClientLegacy, buildClientNexGenReact:
+			if _, ok := seen[client]; ok {
+				continue
+			}
+			seen[client] = struct{}{}
+			result = append(result, client)
+		default:
+			return nil, fmt.Errorf("无效的客户端权限：%s", client)
+		}
+	}
+	return result, nil
+}
+
+func canAccessClientForCodeID(codeID int, client string) (bool, string) {
+	ac, err := getActivationCodeByID(codeID)
+	if err != nil {
+		return false, err.Error()
+	}
+	claims := &Claims{
+		CodeID:         ac.ID,
+		Permissions:    ac.Permissions,
+		AllowedClients: ac.AllowedClients,
+	}
+	if claims.canAccessClient(client) {
+		return true, ""
+	}
+	return false, "当前激活码不允许访问该客户端"
+}
+
+func canAccessClientForClaims(claims *Claims, client string) (bool, string) {
+	if claims == nil {
+		return false, "未授权"
+	}
+	if claims.Permissions == "admin" {
+		return true, ""
+	}
+	return canAccessClientForCodeID(claims.CodeID, client)
+}
+
+func validateAllowedBuildPlatformsForClient(client string, allowedPlatforms []string) ([]string, error) {
 	if len(allowedPlatforms) == 0 {
 		return []string{}, nil
+	}
+	if normalizeBuildClient(client) == buildClientNexGenReact {
+		return normalizeAllowedNexGenBuildPlatforms(allowedPlatforms)
 	}
 	normalized, err := normalizeBuildPlatformList(allowedPlatforms)
 	if err != nil {
@@ -1019,8 +1287,55 @@ func validateAllowedBuildPlatforms(allowedPlatforms []string) ([]string, error) 
 	return normalized, nil
 }
 
+func normalizeAllowedNexGenBuildPlatforms(allowedPlatforms []string) ([]string, error) {
+	result := []string{}
+	seen := map[string]struct{}{}
+	add := func(platform string) {
+		if platform == "" {
+			return
+		}
+		if _, ok := seen[platform]; ok {
+			return
+		}
+		seen[platform] = struct{}{}
+		result = append(result, platform)
+	}
+	addMacOS := func() {
+		add("macos-amd64")
+		add("macos-arm64")
+	}
+	for _, platform := range allowedPlatforms {
+		for _, token := range strings.Split(strings.ToLower(strings.TrimSpace(platform)), ",") {
+			switch token {
+			case "":
+				continue
+			case "all":
+				for _, item := range nexGenReactPlatformCatalog {
+					add(item)
+				}
+			case "windows", "windows-amd64", "windows-arm64":
+				add("windows")
+			case "android":
+				add("android")
+			case "macos":
+				addMacOS()
+			case "macos-amd64", "macos-arm64":
+				add(token)
+			}
+		}
+	}
+	if len(result) == 0 {
+		return nil, fmt.Errorf("允许打包平台配置无效")
+	}
+	return result, nil
+}
+
 func canUseBuildPlatforms(allowedPlatforms []string, core, requestedPlatforms string) (bool, string) {
-	allowed, err := validateAllowedBuildPlatforms(allowedPlatforms)
+	return canUseBuildPlatformsForClient(buildClientLegacy, allowedPlatforms, core, requestedPlatforms)
+}
+
+func canUseBuildPlatformsForClient(client string, allowedPlatforms []string, core, requestedPlatforms string) (bool, string) {
+	allowed, err := validateAllowedBuildPlatformsForClient(client, allowedPlatforms)
 	if err != nil {
 		return false, err.Error()
 	}
@@ -1028,7 +1343,7 @@ func canUseBuildPlatforms(allowedPlatforms []string, core, requestedPlatforms st
 		return true, ""
 	}
 
-	requested, err := expandRequestedBuildPlatforms(core, requestedPlatforms)
+	requested, err := expandRequestedBuildPlatformsForClient(client, core, requestedPlatforms)
 	if err != nil {
 		return false, err.Error()
 	}
@@ -1064,12 +1379,20 @@ func formatBuildQueueExceededMessage(activeJobs, activeMacOSJobs int, demand Bui
 }
 
 func (h *Handlers) getActiveBuildJobUsage() (BuildQueueSnapshot, error) {
+	return h.getActiveBuildJobUsageForClient(buildClientLegacy)
+}
+
+func (h *Handlers) getActiveBuildJobUsageForClient(client string) (BuildQueueSnapshot, error) {
 	snapshot := BuildQueueSnapshot{
 		MaxJobs:      maxConcurrentBuildJobs,
 		MaxMacOSJobs: maxConcurrentMacOSBuildJobs,
 	}
 
-	runs, err := h.gh.GetActiveWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml")
+	clientConfig, err := buildClientConfig(client)
+	if err != nil {
+		return snapshot, err
+	}
+	runs, err := h.gh.GetActiveWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, clientConfig.WorkflowFile)
 	if err != nil {
 		return snapshot, err
 	}
@@ -1093,7 +1416,11 @@ func (h *Handlers) getActiveBuildJobUsage() (BuildQueueSnapshot, error) {
 		inputs, inputsErr := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
 		demand := BuildJobDemand{Total: 1}
 		if inputsErr == nil {
-			if estimated := estimateBuildJobDemand(inputs["core"], inputs["platforms"]); estimated.Total > 0 {
+			inputClient := normalizeBuildClient(inputs["client"])
+			if inputClient == buildClientLegacy && client != buildClientLegacy && strings.TrimSpace(inputs["client"]) == "" {
+				inputClient = normalizeBuildClient(client)
+			}
+			if estimated := estimateBuildJobDemandForClient(inputClient, inputs["core"], inputs["platforms"]); estimated.Total > 0 {
 				demand = estimated
 			}
 		}
@@ -1116,10 +1443,15 @@ func (h *Handlers) getActiveBuildJobUsage() (BuildQueueSnapshot, error) {
 }
 
 func (h *Handlers) getBuildQueueSnapshot(core, platforms string) (BuildQueueSnapshot, error) {
+	return h.getBuildQueueSnapshotForClient(buildClientLegacy, core, platforms)
+}
+
+func (h *Handlers) getBuildQueueSnapshotForClient(client, core, platforms string) (BuildQueueSnapshot, error) {
+	client = normalizeBuildClient(client)
 	core = normalizeBuildCore(core)
-	cacheKey := core + "|" + strings.TrimSpace(platforms)
+	cacheKey := client + "|" + core + "|" + strings.TrimSpace(platforms)
 	if cacheKey == "" {
-		cacheKey = core + "|all"
+		cacheKey = client + "|" + core + "|all"
 	}
 	if cached, ok := buildQueueSnapshotCache.get(cacheKey); ok {
 		return cached, nil
@@ -1131,12 +1463,12 @@ func (h *Handlers) getBuildQueueSnapshot(core, platforms string) (BuildQueueSnap
 		return cached, nil
 	}
 
-	snapshot, err := h.getActiveBuildJobUsage()
+	snapshot, err := h.getActiveBuildJobUsageForClient(client)
 	if err != nil {
 		return snapshot, err
 	}
 
-	demand := estimateBuildJobDemand(core, platforms)
+	demand := estimateBuildJobDemandForClient(client, core, platforms)
 	if demand.Total > 0 {
 		snapshot.RequestedPlatforms = platforms
 		snapshot.RequestedJobs = demand.Total
@@ -1152,13 +1484,18 @@ func (h *Handlers) getBuildQueueSnapshot(core, platforms string) (BuildQueueSnap
 	return snapshot, nil
 }
 
-func buildPendingCacheKey(codeID int, profile, tag, branch, core, platforms string) string {
-	return fmt.Sprintf("code:%d|profile:%s|tag:%s|branch:%s|core:%s|platforms:%s", codeID, profile, tag, branch, normalizeBuildCore(core), platforms)
+func buildPendingCacheKey(codeID int, client, profile, tag, branch, core, platforms string) string {
+	return fmt.Sprintf("code:%d|client:%s|profile:%s|tag:%s|branch:%s|core:%s|platforms:%s", codeID, normalizeBuildClient(client), profile, tag, branch, normalizeBuildCore(core), platforms)
 }
 
 func rememberPendingBuild(codeID int, profile, tag, branch, core, platforms string) PendingBuild {
+	return rememberPendingBuildForClient(codeID, buildClientLegacy, profile, tag, branch, core, platforms)
+}
+
+func rememberPendingBuildForClient(codeID int, client, profile, tag, branch, core, platforms string) PendingBuild {
 	pending := PendingBuild{
 		CodeID:      codeID,
+		Client:      normalizeBuildClient(client),
 		Profile:     profile,
 		Tag:         tag,
 		Branch:      branch,
@@ -1167,19 +1504,28 @@ func rememberPendingBuild(codeID int, profile, tag, branch, core, platforms stri
 		TriggeredAt: time.Now().UTC(),
 	}
 	buildStateCacheMu.Lock()
-	pendingBuildCache[buildPendingCacheKey(codeID, profile, tag, branch, core, platforms)] = pending
+	pendingBuildCache[buildPendingCacheKey(codeID, client, profile, tag, branch, core, platforms)] = pending
 	buildStateCacheMu.Unlock()
 	return pending
 }
 
 func getPendingBuild(codeID int, profile, tag, branch, core, platforms string) (PendingBuild, bool) {
+	return getPendingBuildForClient(codeID, buildClientLegacy, profile, tag, branch, core, platforms)
+}
+
+func getPendingBuildForClient(codeID int, client, profile, tag, branch, core, platforms string) (PendingBuild, bool) {
 	buildStateCacheMu.RLock()
-	pending, ok := pendingBuildCache[buildPendingCacheKey(codeID, profile, tag, branch, core, platforms)]
+	pending, ok := pendingBuildCache[buildPendingCacheKey(codeID, client, profile, tag, branch, core, platforms)]
 	buildStateCacheMu.RUnlock()
 	return pending, ok
 }
 
 func getLatestPendingBuildByProfile(codeID int, profile string) (PendingBuild, bool) {
+	return getLatestPendingBuildByClientProfile(codeID, buildClientLegacy, profile)
+}
+
+func getLatestPendingBuildByClientProfile(codeID int, client, profile string) (PendingBuild, bool) {
+	client = normalizeBuildClient(client)
 	var latest PendingBuild
 	found := false
 	buildStateCacheMu.RLock()
@@ -1191,6 +1537,9 @@ func getLatestPendingBuildByProfile(codeID int, profile string) (PendingBuild, b
 		if pending.Profile != profile {
 			continue
 		}
+		if normalizeBuildClient(pending.Client) != client {
+			continue
+		}
 		if !found || pending.TriggeredAt.After(latest.TriggeredAt) {
 			latest = pending
 			found = true
@@ -1200,8 +1549,12 @@ func getLatestPendingBuildByProfile(codeID int, profile string) (PendingBuild, b
 }
 
 func clearPendingBuild(codeID int, profile, tag, branch, core, platforms string) {
+	clearPendingBuildForClient(codeID, buildClientLegacy, profile, tag, branch, core, platforms)
+}
+
+func clearPendingBuildForClient(codeID int, client, profile, tag, branch, core, platforms string) {
 	buildStateCacheMu.Lock()
-	delete(pendingBuildCache, buildPendingCacheKey(codeID, profile, tag, branch, core, platforms))
+	delete(pendingBuildCache, buildPendingCacheKey(codeID, client, profile, tag, branch, core, platforms))
 	buildStateCacheMu.Unlock()
 }
 
@@ -1272,13 +1625,21 @@ func matchRunByPendingBuild(run *WorkflowRun, pending PendingBuild) bool {
 }
 
 func buildRunCacheKey(codeID int, profile, requestID, tag, branch, core, platforms string) string {
+	return buildRunCacheKeyForClient(codeID, buildClientLegacy, profile, requestID, tag, branch, core, platforms)
+}
+
+func buildRunCacheKeyForClient(codeID int, client, profile, requestID, tag, branch, core, platforms string) string {
 	if requestID != "" {
 		return "request:" + requestID
 	}
-	return fmt.Sprintf("code:%d|profile:%s|tag:%s|branch:%s|core:%s|platforms:%s", codeID, profile, tag, branch, normalizeBuildCore(core), platforms)
+	return fmt.Sprintf("code:%d|client:%s|profile:%s|tag:%s|branch:%s|core:%s|platforms:%s", codeID, normalizeBuildClient(client), profile, tag, branch, normalizeBuildCore(core), platforms)
 }
 
 func buildRequestMatches(inputs map[string]string, profile, requestID, tag, branch, core, platforms string) bool {
+	return buildRequestMatchesForClient(inputs, buildClientLegacy, profile, requestID, tag, branch, core, platforms)
+}
+
+func buildRequestMatchesForClient(inputs map[string]string, client, profile, requestID, tag, branch, core, platforms string) bool {
 	if len(inputs) == 0 {
 		return false
 	}
@@ -1286,6 +1647,13 @@ func buildRequestMatches(inputs map[string]string, profile, requestID, tag, bran
 		return strings.TrimSpace(inputs["request_id"]) == strings.TrimSpace(requestID)
 	}
 	if inputs["profile"] != profile {
+		return false
+	}
+	inputClient := normalizeBuildClient(inputs["client"])
+	if strings.TrimSpace(inputs["client"]) == "" {
+		inputClient = buildClientLegacy
+	}
+	if normalizeBuildClient(client) != inputClient {
 		return false
 	}
 	if tag != "" && inputs["tag"] != tag {
@@ -1331,7 +1699,23 @@ func buildWorkflowRunURL(runID int64) string {
 	return fmt.Sprintf("https://github.com/%s/%s/actions/runs/%d", cfg.BuildOwner, cfg.BuildRepo, runID)
 }
 
+func buildWorkflowFileForClient(client string) string {
+	clientConfig, err := buildClientConfig(client)
+	if err != nil {
+		return "build.yaml"
+	}
+	return clientConfig.WorkflowFile
+}
+
 func resolveBuildSourceRepo(core string) (string, string) {
+	return resolveBuildSourceRepoForClient(buildClientLegacy, core)
+}
+
+func resolveBuildSourceRepoForClient(client, core string) (string, string) {
+	clientConfig, err := buildClientConfig(client)
+	if err == nil && normalizeBuildClient(client) == buildClientNexGenReact {
+		return clientConfig.SourceOwner, clientConfig.SourceRepo
+	}
 	if normalizeBuildCore(core) == "xray" {
 		return cfg.XrayBuildOwner, cfg.XrayBuildRepo
 	}
@@ -1363,7 +1747,11 @@ func canAccessBuildRecord(claims *Claims, record *BuildRecord) bool {
 	if claims.Permissions == "admin" {
 		return true
 	}
-	return claims.CodeID == record.CodeID
+	if claims.CodeID != record.CodeID {
+		return false
+	}
+	ok, _ := canAccessClientForCodeID(claims.CodeID, record.Client)
+	return ok
 }
 
 func buildRecordResponse(record BuildRecord) map[string]interface{} {
@@ -1373,6 +1761,8 @@ func buildRecordResponse(record BuildRecord) map[string]interface{} {
 		"code_id":        record.CodeID,
 		"code_name":      record.CodeName,
 		"request_id":     buildRecordRequestID(&record),
+		"client":         normalizeBuildClient(record.Client),
+		"client_label":   buildClientLabel(record.Client),
 		"profile":        record.Profile,
 		"tag":            record.Tag,
 		"branch":         record.Branch,
@@ -1398,6 +1788,7 @@ func buildRecordInputs(record *BuildRecord) map[string]string {
 		return nil
 	}
 	return map[string]string{
+		"client":     normalizeBuildClient(record.Client),
 		"profile":    record.Profile,
 		"tag":        record.Tag,
 		"branch":     record.Branch,
@@ -1426,6 +1817,7 @@ func buildStatusResponseFromRecord(record *BuildRecord) map[string]interface{} {
 		"updated_at":    record.UpdatedAt,
 		"release_tag":   buildReleaseTag(record),
 		"request_id":    buildRecordRequestID(record),
+		"client":        normalizeBuildClient(record.Client),
 		"inputs":        buildRecordInputs(record),
 	}
 }
@@ -1457,7 +1849,7 @@ func derivePendingBuildForRecord(record *BuildRecord) (PendingBuild, bool) {
 	if record == nil {
 		return PendingBuild{}, false
 	}
-	if pendingBuild, ok := getPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Core, record.Platforms); ok {
+	if pendingBuild, ok := getPendingBuildForClient(record.CodeID, record.Client, record.Profile, record.Tag, record.Branch, record.Core, record.Platforms); ok {
 		if buildPendingMatchesRecordTime(record, pendingBuild) {
 			return pendingBuild, true
 		}
@@ -1465,6 +1857,7 @@ func derivePendingBuildForRecord(record *BuildRecord) (PendingBuild, bool) {
 	if createdAt, ok := parseDBTimestamp(record.CreatedAt); ok {
 		return PendingBuild{
 			CodeID:      record.CodeID,
+			Client:      normalizeBuildClient(record.Client),
 			Profile:     record.Profile,
 			Tag:         record.Tag,
 			Branch:      record.Branch,
@@ -1480,7 +1873,7 @@ func workflowRunMatchesRecord(record *BuildRecord, run *WorkflowRun, inputs map[
 	if record == nil {
 		return false
 	}
-	if len(inputs) > 0 && buildRequestMatches(inputs, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms) {
+	if len(inputs) > 0 && buildRequestMatchesForClient(inputs, record.Client, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms) {
 		return true
 	}
 	// 绑定回调已经把 run_id 明确写进数据库后，后续查询不再强依赖 GitHub run 详情里必须带 inputs。
@@ -1494,17 +1887,22 @@ func workflowRunMatchesRecord(record *BuildRecord, run *WorkflowRun, inputs map[
 }
 
 func (h *Handlers) findWorkflowRunByRequestID(requestID string, activeOnly bool) (*WorkflowRun, map[string]string, error) {
+	return h.findWorkflowRunByRequestIDForClient(buildClientLegacy, requestID, activeOnly)
+}
+
+func (h *Handlers) findWorkflowRunByRequestIDForClient(client, requestID string, activeOnly bool) (*WorkflowRun, map[string]string, error) {
 	requestID = strings.TrimSpace(requestID)
 	if requestID == "" {
 		return nil, nil, nil
 	}
+	workflowFile := buildWorkflowFileForClient(client)
 
 	searchCounts := []int{fastWorkflowRunsSearchLimit, recentWorkflowRunsSearchLimit}
 	for index, count := range searchCounts {
 		if index > 0 && searchCounts[index-1] >= count {
 			continue
 		}
-		runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", count)
+		runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, workflowFile, count)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1543,7 +1941,7 @@ func (h *Handlers) findActiveWorkflowRunForRecord(record *BuildRecord) (*Workflo
 		}
 	}
 
-	run, _, err := h.findWorkflowRunByRequestID(buildRecordRequestID(record), true)
+	run, _, err := h.findWorkflowRunByRequestIDForClient(record.Client, buildRecordRequestID(record), true)
 	if err != nil {
 		return nil, err
 	}
@@ -1643,10 +2041,10 @@ func (h *Handlers) applyWorkflowRunToBuildRecord(record *BuildRecord, run *Workf
 		record.UpdatedAt = run.UpdatedAt
 	}
 	if run.Status == "completed" {
-		clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Core, record.Platforms)
-		deleteCachedProfileRunID(buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms))
+		clearPendingBuildForClient(record.CodeID, record.Client, record.Profile, record.Tag, record.Branch, record.Core, record.Platforms)
+		deleteCachedProfileRunID(buildRunCacheKeyForClient(record.CodeID, record.Client, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms))
 	} else {
-		setCachedProfileRunID(buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms), run.ID)
+		setCachedProfileRunID(buildRunCacheKeyForClient(record.CodeID, record.Client, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms), run.ID)
 	}
 	invalidateBuildCachesForRecord(record)
 }
@@ -1697,31 +2095,39 @@ func (h *Handlers) reconcileBuildRecords(records []BuildRecord, deep bool) []Bui
 		return records
 	}
 
-	runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", recentWorkflowRunsSearchLimit)
-	if err != nil {
-		return records
+	groupedUnresolved := map[string][]unresolvedRecord{}
+	for _, item := range unresolved {
+		record := records[item.index]
+		client := normalizeBuildClient(record.Client)
+		groupedUnresolved[client] = append(groupedUnresolved[client], item)
 	}
-
 	resolved := make(map[int]struct{})
-	for i := range runs {
-		run := &runs[i]
-		inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
-		for _, item := range unresolved {
-			if _, ok := resolved[item.index]; ok {
-				continue
-			}
-			record := &records[item.index]
-			matchesByInputs := err == nil && buildRequestMatches(inputs, record.Profile, item.requestID, record.Tag, record.Branch, record.Core, record.Platforms)
-			matchesByPending := item.requestID == "" && run.Status != "completed" && item.hasPending && matchRunByPendingBuild(run, item.pending)
-			if !matchesByInputs && !matchesByPending {
-				continue
-			}
-			h.applyWorkflowRunToBuildRecord(record, run)
-			resolved[item.index] = struct{}{}
-			break
+	for client, items := range groupedUnresolved {
+		runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, buildWorkflowFileForClient(client), recentWorkflowRunsSearchLimit)
+		if err != nil {
+			continue
 		}
-		if len(resolved) == len(unresolved) {
-			break
+
+		for i := range runs {
+			run := &runs[i]
+			inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+			for _, item := range items {
+				if _, ok := resolved[item.index]; ok {
+					continue
+				}
+				record := &records[item.index]
+				matchesByInputs := err == nil && buildRequestMatchesForClient(inputs, record.Client, record.Profile, item.requestID, record.Tag, record.Branch, record.Core, record.Platforms)
+				matchesByPending := item.requestID == "" && run.Status != "completed" && item.hasPending && matchRunByPendingBuild(run, item.pending)
+				if !matchesByInputs && !matchesByPending {
+					continue
+				}
+				h.applyWorkflowRunToBuildRecord(record, run)
+				resolved[item.index] = struct{}{}
+				break
+			}
+			if len(resolved) == len(unresolved) {
+				break
+			}
 		}
 	}
 
@@ -1791,10 +2197,10 @@ func (h *Handlers) deleteBuildRecordRelease(record *BuildRecord) error {
 	return h.gh.DeleteReleaseByTag(cfg.BuildOwner, cfg.BuildRepo, releaseTag)
 }
 
-func (h *Handlers) cleanupOverflowBuildRecords(codeID int) {
-	records, err := listOverflowBuildRecords(codeID, maxBuildRecordHistory)
+func (h *Handlers) cleanupOverflowBuildRecords(codeID int, client string) {
+	records, err := listOverflowBuildRecordsByClient(codeID, normalizeBuildClient(client), maxBuildRecordHistory)
 	if err != nil {
-		log.Printf("清理旧打包记录失败: code_id=%d err=%v", codeID, err)
+		log.Printf("清理旧打包记录失败: code_id=%d client=%s err=%v", codeID, client, err)
 		return
 	}
 
@@ -1814,6 +2220,7 @@ func (h *Handlers) cleanupOverflowBuildRecords(codeID int) {
 
 func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 	var req struct {
+		Client    string `json:"client"`
 		Profile   string `json:"profile"`
 		Tag       string `json:"tag"`
 		Core      string `json:"core"`
@@ -1829,17 +2236,29 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "请填写配置档案和版本标签", 400)
 		return
 	}
+	clientConfig, err := buildClientConfig(req.Client)
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
+	req.Client = clientConfig.ID
 
 	claims := getClaims(r)
 	if !claims.canAccessProfile(req.Profile) {
 		jsonError(w, "无权操作该档案", 403)
 		return
 	}
+	if claims.Permissions != "admin" {
+		if ok, message := canAccessClientForCodeID(claims.CodeID, req.Client); !ok {
+			jsonError(w, message, 403)
+			return
+		}
+	}
 
 	if req.Platforms == "" {
 		req.Platforms = "all"
 	}
-	core, err := validateBuildCore(req.Core)
+	core, err := validateBuildCoreForClient(req.Client, req.Core)
 	if err != nil {
 		jsonError(w, err.Error(), 400)
 		return
@@ -1848,16 +2267,17 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 	if req.Branch == "" {
 		req.Branch = "main"
 	}
-	if strings.EqualFold(strings.TrimSpace(req.Branch), strings.TrimSpace(cfg.GithubProfileBranch)) {
+	profileBranch := h.profileBranchForClient(req.Client)
+	if strings.EqualFold(strings.TrimSpace(req.Branch), strings.TrimSpace(profileBranch)) {
 		jsonError(w, "配置档案分支不可作为打包源码分支", 400)
 		return
 	}
 
-	if _, err := expandRequestedBuildPlatforms(req.Core, req.Platforms); err != nil {
+	if _, err := expandRequestedBuildPlatformsForClient(req.Client, req.Core, req.Platforms); err != nil {
 		jsonError(w, err.Error(), 400)
 		return
 	}
-	demand := estimateBuildJobDemand(req.Core, req.Platforms)
+	demand := estimateBuildJobDemandForClient(req.Client, req.Core, req.Platforms)
 	if demand.Total <= 0 {
 		jsonError(w, "无效的打包平台选择", 400)
 		return
@@ -1869,13 +2289,13 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, err.Error(), 403)
 			return
 		}
-		if ok, message := canUseBuildPlatforms(ac.AllowedPlatforms, req.Core, req.Platforms); !ok {
+		if ok, message := canUseBuildPlatformsForClient(req.Client, ac.AllowedPlatforms, req.Core, req.Platforms); !ok {
 			jsonError(w, message, 403)
 			return
 		}
 	}
 
-	queueSnapshot, err := h.getBuildQueueSnapshot(req.Core, req.Platforms)
+	queueSnapshot, err := h.getBuildQueueSnapshotForClient(req.Client, req.Core, req.Platforms)
 	if err == nil && !queueSnapshot.Available {
 		jsonError(w, queueSnapshot.Message, 429)
 		return
@@ -1890,7 +2310,7 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		usageConsumed = true
 	}
 
-	if err := h.validateProfileYaml(req.Profile); err != nil {
+	if err := h.validateProfileYamlForClient(req.Client, req.Profile); err != nil {
 		if usageConsumed {
 			_ = rollbackBuildUsage(claims.CodeID)
 		}
@@ -1898,7 +2318,7 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	record, err := createBuildRecord(claims.CodeID, claims.CodeName, req.Profile, req.Tag, req.Branch, req.Core, req.Platforms)
+	record, err := createBuildRecord(claims.CodeID, claims.CodeName, req.Client, req.Profile, req.Tag, req.Branch, req.Core, req.Platforms)
 	if err != nil {
 		if usageConsumed {
 			_ = rollbackBuildUsage(claims.CodeID)
@@ -1909,8 +2329,9 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 
 	requestID := buildRecordRequestID(record)
 	inputs := map[string]string{
+		"client":         req.Client,
 		"profile":        req.Profile,
-		"profile_branch": cfg.GithubProfileBranch,
+		"profile_branch": profileBranch,
 		"tag":            req.Tag,
 		"platforms":      req.Platforms,
 		"branch":         req.Branch,
@@ -1918,7 +2339,7 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		"request_id":     requestID,
 	}
 
-	err = h.gh.TriggerWorkflow(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", inputs)
+	err = h.gh.TriggerWorkflow(cfg.BuildOwner, cfg.BuildRepo, clientConfig.WorkflowFile, inputs)
 	if err != nil {
 		if usageConsumed {
 			_ = rollbackBuildUsage(claims.CodeID)
@@ -1928,17 +2349,17 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rememberPendingBuild(claims.CodeID, req.Profile, req.Tag, req.Branch, req.Core, req.Platforms)
+	rememberPendingBuildForClient(claims.CodeID, req.Client, req.Profile, req.Tag, req.Branch, req.Core, req.Platforms)
 
-	deleteCachedProfileRunID(buildRunCacheKey(claims.CodeID, req.Profile, requestID, req.Tag, req.Branch, req.Core, req.Platforms))
-	deleteCachedProfileRunID(buildRunCacheKey(claims.CodeID, req.Profile, "", "", "", req.Core, ""))
+	deleteCachedProfileRunID(buildRunCacheKeyForClient(claims.CodeID, req.Client, req.Profile, requestID, req.Tag, req.Branch, req.Core, req.Platforms))
+	deleteCachedProfileRunID(buildRunCacheKeyForClient(claims.CodeID, req.Client, req.Profile, "", "", "", req.Core, ""))
 	invalidateBuildCachesForRecord(record)
 
 	logAudit(claims.CodeID, claims.CodeName, "trigger_build",
-		fmt.Sprintf("record_id=%d profile=%s tag=%s core=%s platforms=%s branch=%s", record.ID, req.Profile, req.Tag, req.Core, req.Platforms, req.Branch),
+		fmt.Sprintf("record_id=%d client=%s profile=%s tag=%s core=%s platforms=%s branch=%s", record.ID, req.Client, req.Profile, req.Tag, req.Core, req.Platforms, req.Branch),
 		r.RemoteAddr)
 
-	go h.cleanupOverflowBuildRecords(record.CodeID)
+	go h.cleanupOverflowBuildRecords(record.CodeID, record.Client)
 
 	jsonResponse(w, map[string]interface{}{
 		"message":    "打包已提交",
@@ -2012,9 +2433,9 @@ func (h *Handlers) persistBuildRecordEvent(record *BuildRecord, runID int64, sta
 		return nil, err
 	}
 
-	cacheKey := buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms)
+	cacheKey := buildRunCacheKeyForClient(record.CodeID, record.Client, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms)
 	if status == "completed" {
-		clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Core, record.Platforms)
+		clearPendingBuildForClient(record.CodeID, record.Client, record.Profile, record.Tag, record.Branch, record.Core, record.Platforms)
 		deleteCachedProfileRunID(cacheKey)
 	} else if runID > 0 {
 		setCachedProfileRunID(cacheKey, runID)
@@ -2179,8 +2600,10 @@ func (h *Handlers) HandleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 	if workflowPath == "" {
 		workflowPath = strings.TrimSpace(payload.WorkflowRun.Path)
 	}
-	if workflowPath != "" && !strings.HasSuffix(workflowPath, "build.yaml") {
-		jsonResponse(w, map[string]interface{}{"message": "已忽略非 build.yaml 工作流"})
+	if workflowPath != "" &&
+		!strings.HasSuffix(workflowPath, buildWorkflowFileForClient(buildClientLegacy)) &&
+		!strings.HasSuffix(workflowPath, buildWorkflowFileForClient(buildClientNexGenReact)) {
+		jsonResponse(w, map[string]interface{}{"message": "已忽略非客户端打包工作流"})
 		return
 	}
 	if payload.WorkflowRun.ID <= 0 {
@@ -2246,7 +2669,12 @@ func (h *Handlers) HandleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) validateProfileYaml(profileName string) error {
-	content, _, _, exists, err := h.getStoredProfile(profileName)
+	return h.validateProfileYamlForClient(buildClientLegacy, profileName)
+}
+
+func (h *Handlers) validateProfileYamlForClient(client, profileName string) error {
+	client = normalizeBuildClient(client)
+	content, _, _, exists, err := h.getStoredProfileForClient(client, profileName)
 	if err != nil {
 		return fmt.Errorf("读取档案失败")
 	}
@@ -2254,12 +2682,15 @@ func (h *Handlers) validateProfileYaml(profileName string) error {
 		return fmt.Errorf("未找到档案")
 	}
 	cleaned := normalizeSubscriptionConfig(content)
+	if client == buildClientNexGenReact {
+		cleaned = stripNexGenProfileUnsupportedConfig(cleaned)
+	}
 	if cleaned != content {
 		filePath, err := profileFilePath(profileName)
 		if err != nil {
 			return fmt.Errorf("修复档案失败")
 		}
-		_ = h.profileGH.SaveFileWithRetry(filePath, func(_ string) string {
+		_ = h.profileGitHubClient(client).SaveFileWithRetry(filePath, func(_ string) string {
 			return cleaned
 		}, "修复配置档案: "+profileName, 3)
 	}
@@ -2268,7 +2699,12 @@ func (h *Handlers) validateProfileYaml(profileName string) error {
 
 func (h *Handlers) GetBuildHistory(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
-	records, err := listBuildRecords(claims.CodeID, claims.Permissions == "admin", 100)
+	client := normalizeBuildClient(r.URL.Query().Get("client"))
+	if ok, message := canAccessClientForClaims(claims, client); !ok {
+		jsonError(w, message, 403)
+		return
+	}
+	records, err := listBuildRecordsByClient(claims.CodeID, claims.Permissions == "admin", client, 100)
 	if err != nil {
 		jsonResponse(w, map[string]interface{}{})
 		return
@@ -2276,6 +2712,9 @@ func (h *Handlers) GetBuildHistory(w http.ResponseWriter, r *http.Request) {
 
 	history := make(map[string]interface{})
 	for _, record := range records {
+		if normalizeBuildClient(record.Client) != client {
+			continue
+		}
 		if _, exists := history[record.Profile]; exists {
 			continue
 		}
@@ -2291,7 +2730,17 @@ func (h *Handlers) GetBuildHistory(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) GetClientUpdates(w http.ResponseWriter, r *http.Request) {
 	limit := getClientUpdatesLimit()
-	core, err := validateBuildCore(r.URL.Query().Get("core"))
+	claims := getClaims(r)
+	clientConfig, err := buildClientConfig(r.URL.Query().Get("client"))
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
+	if ok, message := canAccessClientForClaims(claims, clientConfig.ID); !ok {
+		jsonError(w, message, 403)
+		return
+	}
+	core, err := validateBuildCoreForClient(clientConfig.ID, r.URL.Query().Get("core"))
 	if err != nil {
 		jsonError(w, err.Error(), 400)
 		return
@@ -2301,7 +2750,7 @@ func (h *Handlers) GetClientUpdates(w http.ResponseWriter, r *http.Request) {
 		branch = cfg.GithubBranch
 	}
 
-	owner, repo := resolveBuildSourceRepo(core)
+	owner, repo := resolveBuildSourceRepoForClient(clientConfig.ID, core)
 	commits, err := h.gh.ListRecentCommitsForRepo(owner, repo, branch, limit)
 	if err != nil {
 		jsonError(w, "获取更新记录失败: "+err.Error(), 500)
@@ -2309,6 +2758,7 @@ func (h *Handlers) GetClientUpdates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonResponse(w, map[string]interface{}{
+		"client":  clientConfig.ID,
 		"core":    core,
 		"repo":    repo,
 		"branch":  branch,
@@ -2318,12 +2768,22 @@ func (h *Handlers) GetClientUpdates(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) ListBranches(w http.ResponseWriter, r *http.Request) {
-	core, err := validateBuildCore(r.URL.Query().Get("core"))
+	claims := getClaims(r)
+	clientConfig, err := buildClientConfig(r.URL.Query().Get("client"))
 	if err != nil {
 		jsonError(w, err.Error(), 400)
 		return
 	}
-	owner, repo := resolveBuildSourceRepo(core)
+	if ok, message := canAccessClientForClaims(claims, clientConfig.ID); !ok {
+		jsonError(w, message, 403)
+		return
+	}
+	core, err := validateBuildCoreForClient(clientConfig.ID, r.URL.Query().Get("core"))
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
+	owner, repo := resolveBuildSourceRepoForClient(clientConfig.ID, core)
 	branches, err := h.gh.ListBranchesForRepo(owner, repo)
 	if err != nil {
 		jsonError(w, "获取分支列表失败", 500)
@@ -2334,6 +2794,7 @@ func (h *Handlers) ListBranches(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
+	client := normalizeBuildClient(r.URL.Query().Get("client"))
 	profile := strings.TrimSpace(r.URL.Query().Get("profile"))
 	requestID := strings.TrimSpace(r.URL.Query().Get("request_id"))
 	tag := strings.TrimSpace(r.URL.Query().Get("tag"))
@@ -2363,6 +2824,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		recordID = record.ID
 		requestID = buildRecordRequestID(record)
+		client = normalizeBuildClient(record.Client)
 		if profile == "" {
 			profile = record.Profile
 		}
@@ -2379,10 +2841,16 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			platforms = record.Platforms
 		}
 	}
+	if record == nil {
+		if ok, message := canAccessClientForClaims(claims, client); !ok {
+			jsonError(w, message, 403)
+			return
+		}
+	}
 	if core == "" {
 		core = "mihomo"
 	}
-	core, err := validateBuildCore(core)
+	core, err := validateBuildCoreForClient(client, core)
 	if err != nil {
 		jsonError(w, err.Error(), 400)
 		return
@@ -2399,7 +2867,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			if requestID != "" {
 				result["request_id"] = requestID
 			}
-			writeBuildStatusResponse(w, buildStatusCacheKey(record, 0, profile, requestID, tag, branch, core, platforms), result)
+			writeBuildStatusResponse(w, buildStatusCacheKey(record, 0, client, profile, requestID, tag, branch, core, platforms), result)
 			return
 		}
 		if claims.Permissions != "admin" {
@@ -2428,10 +2896,10 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	if record != nil {
 		pendingBuild, hasPendingBuild = derivePendingBuildForRecord(record)
 	} else {
-		pendingBuild, hasPendingBuild = getPendingBuild(pendingCodeID, profile, tag, branch, core, platforms)
+		pendingBuild, hasPendingBuild = getPendingBuildForClient(pendingCodeID, client, profile, tag, branch, core, platforms)
 	}
 	if !hasPendingBuild && profile != "" && claims.Permissions == "admin" {
-		if inferredPending, ok := getLatestPendingBuildByProfile(pendingCodeID, profile); ok {
+		if inferredPending, ok := getLatestPendingBuildByClientProfile(pendingCodeID, client, profile); ok {
 			pendingBuild = inferredPending
 			hasPendingBuild = true
 			if tag == "" {
@@ -2443,13 +2911,16 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			if core == "" {
 				core = inferredPending.Core
 			}
+			if client == "" {
+				client = inferredPending.Client
+			}
 			if platforms == "" {
 				platforms = inferredPending.Platforms
 			}
 		}
 	}
-	cacheKey := buildRunCacheKey(pendingCodeID, profile, requestID, tag, branch, core, platforms)
-	statusCacheKey = buildStatusCacheKey(record, pendingCodeID, profile, requestID, tag, branch, core, platforms)
+	cacheKey := buildRunCacheKeyForClient(pendingCodeID, client, profile, requestID, tag, branch, core, platforms)
+	statusCacheKey = buildStatusCacheKey(record, pendingCodeID, client, profile, requestID, tag, branch, core, platforms)
 	if cached, ok := buildStatusCache.get(statusCacheKey); ok {
 		jsonResponse(w, cloneInterfaceMap(cached))
 		return
@@ -2467,7 +2938,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if matchedRun == nil {
-			run, inputs, err := h.findWorkflowRunByRequestID(requestID, false)
+			run, inputs, err := h.findWorkflowRunByRequestIDForClient(record.Client, requestID, false)
 			if err != nil {
 				result := buildStatusResponseFromRecord(record)
 				result["sync_error"] = true
@@ -2541,12 +3012,12 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	if cachedRunID, ok := getCachedProfileRunID(cacheKey); ok {
 		run, inputs, err := h.gh.GetWorkflowRun(cfg.BuildOwner, cfg.BuildRepo, cachedRunID)
 		if err == nil {
-			if buildRequestMatches(inputs, profile, requestID, tag, branch, core, platforms) || (requestID == "" && hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)) {
+			if buildRequestMatchesForClient(inputs, client, profile, requestID, tag, branch, core, platforms) || (requestID == "" && hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)) {
 				matchedRun = run
 				matchedInputs = inputs
 				if matchedRun.Status == "completed" {
 					deleteCachedProfileRunID(cacheKey)
-					clearPendingBuild(pendingCodeID, profile, tag, branch, core, platforms)
+					clearPendingBuildForClient(pendingCodeID, client, profile, tag, branch, core, platforms)
 				}
 			} else {
 				deleteCachedProfileRunID(cacheKey)
@@ -2558,7 +3029,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 
 	if matchedRun == nil {
 		if requestID != "" {
-			run, inputs, err := h.findWorkflowRunByRequestID(requestID, false)
+			run, inputs, err := h.findWorkflowRunByRequestIDForClient(client, requestID, false)
 			if err != nil {
 				jsonError(w, "查询构建状态失败", 500)
 				return
@@ -2567,13 +3038,13 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 				matchedRun = run
 				matchedInputs = inputs
 				if matchedRun.Status == "completed" {
-					clearPendingBuild(pendingCodeID, profile, tag, branch, core, platforms)
+					clearPendingBuildForClient(pendingCodeID, client, profile, tag, branch, core, platforms)
 				} else {
 					setCachedProfileRunID(cacheKey, run.ID)
 				}
 			}
 		} else {
-			runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, "build.yaml", recentWorkflowRunsSearchLimit)
+			runs, err := h.gh.GetRecentWorkflowRuns(cfg.BuildOwner, cfg.BuildRepo, buildWorkflowFileForClient(client), recentWorkflowRunsSearchLimit)
 			if err != nil {
 				jsonError(w, "查询构建状态失败", 500)
 				return
@@ -2585,7 +3056,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
-				matchesByInputs := err == nil && buildRequestMatches(inputs, profile, requestID, tag, branch, core, platforms)
+				matchesByInputs := err == nil && buildRequestMatchesForClient(inputs, client, profile, requestID, tag, branch, core, platforms)
 				matchesByPending := hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)
 				if matchesByInputs || matchesByPending {
 					matchedRun = run
@@ -2604,13 +3075,13 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 						continue
 					}
 					inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
-					matchesByInputs := err == nil && buildRequestMatches(inputs, profile, requestID, tag, branch, core, platforms)
+					matchesByInputs := err == nil && buildRequestMatchesForClient(inputs, client, profile, requestID, tag, branch, core, platforms)
 					if matchesByInputs {
 						matchedRun = run
 						if err == nil {
 							matchedInputs = inputs
 						}
-						clearPendingBuild(pendingCodeID, profile, tag, branch, core, platforms)
+						clearPendingBuildForClient(pendingCodeID, client, profile, tag, branch, core, platforms)
 						break
 					}
 				}
@@ -2649,6 +3120,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		"created_at": matchedRun.CreatedAt,
 		"updated_at": matchedRun.UpdatedAt,
 		"inputs": map[string]string{
+			"client":     client,
 			"profile":    profile,
 			"tag":        tag,
 			"branch":     branch,
@@ -2863,17 +3335,27 @@ func (h *Handlers) CancelBuildRecord(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) GetBuildQueue(w http.ResponseWriter, r *http.Request) {
-	core, err := validateBuildCore(r.URL.Query().Get("core"))
+	claims := getClaims(r)
+	clientConfig, err := buildClientConfig(r.URL.Query().Get("client"))
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
+	if ok, message := canAccessClientForClaims(claims, clientConfig.ID); !ok {
+		jsonError(w, message, 403)
+		return
+	}
+	core, err := validateBuildCoreForClient(clientConfig.ID, r.URL.Query().Get("core"))
 	if err != nil {
 		jsonError(w, err.Error(), 400)
 		return
 	}
 	platforms := strings.TrimSpace(r.URL.Query().Get("platforms"))
-	if _, err := expandRequestedBuildPlatforms(core, platforms); err != nil {
+	if _, err := expandRequestedBuildPlatformsForClient(clientConfig.ID, core, platforms); err != nil {
 		jsonError(w, err.Error(), 400)
 		return
 	}
-	queueSnapshot, err := h.getBuildQueueSnapshot(core, platforms)
+	queueSnapshot, err := h.getBuildQueueSnapshotForClient(clientConfig.ID, core, platforms)
 	if err != nil {
 		jsonResponse(w, BuildQueueSnapshot{
 			MaxJobs:      maxConcurrentBuildJobs,
@@ -2902,8 +3384,13 @@ func (h *Handlers) GetBuildQueue(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) ListBuildRecords(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
+	client := normalizeBuildClient(r.URL.Query().Get("client"))
+	if ok, message := canAccessClientForClaims(claims, client); !ok {
+		jsonError(w, message, 403)
+		return
+	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	records, err := listBuildRecords(claims.CodeID, claims.Permissions == "admin", limit)
+	records, err := listBuildRecordsByClient(claims.CodeID, claims.Permissions == "admin", client, limit)
 	if err != nil {
 		jsonError(w, "获取打包记录失败", 500)
 		return
@@ -2912,6 +3399,9 @@ func (h *Handlers) ListBuildRecords(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]map[string]interface{}, 0, len(records))
 	for _, record := range records {
+		if normalizeBuildClient(record.Client) != client {
+			continue
+		}
 		if claims.Permissions != "admin" && record.CodeID != claims.CodeID {
 			continue
 		}
@@ -3106,8 +3596,8 @@ func (h *Handlers) DeleteBuildRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deleteCachedProfileRunID(buildRunCacheKey(record.CodeID, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms))
-	clearPendingBuild(record.CodeID, record.Profile, record.Tag, record.Branch, record.Core, record.Platforms)
+	deleteCachedProfileRunID(buildRunCacheKeyForClient(record.CodeID, record.Client, record.Profile, buildRecordRequestID(record), record.Tag, record.Branch, record.Core, record.Platforms))
+	clearPendingBuildForClient(record.CodeID, record.Client, record.Profile, record.Tag, record.Branch, record.Core, record.Platforms)
 	invalidateBuildCachesForRecord(record)
 
 	logAudit(claims.CodeID, claims.CodeName, "delete_build_record",
@@ -3249,6 +3739,7 @@ func (h *Handlers) CreateCode(w http.ResponseWriter, r *http.Request) {
 		AllowedProfiles  []string `json:"allowed_profiles"`
 		ManualProfiles   []string `json:"manual_profiles"`
 		AllowedPlatforms []string `json:"allowed_platforms"`
+		AllowedClients   []string `json:"allowed_clients"`
 		ExpiresAt        string   `json:"expires_at"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -3264,17 +3755,22 @@ func (h *Handlers) CreateCode(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, err.Error(), 400)
 		return
 	}
+	allowedClients, err := validateAllowedBuildClients(req.AllowedClients)
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
 	if _, err := normalizeExpiresAt(req.ExpiresAt); err != nil {
 		jsonError(w, "创建激活码失败: "+err.Error(), 400)
 		return
 	}
-	allowedProfiles, createdProfiles, err := h.resolveAllowedProfiles(req.AllowedProfiles, req.ManualProfiles)
+	allowedProfiles, createdProfiles, err := h.resolveAllowedProfiles(req.AllowedProfiles, req.ManualProfiles, allowedClients)
 	if err != nil {
 		jsonError(w, "创建手动档案失败: "+err.Error(), 400)
 		return
 	}
 
-	ac, err := createCode(req.Name, req.MaxUses, allowedProfiles, allowedPlatforms, req.ExpiresAt)
+	ac, err := createCode(req.Name, req.MaxUses, allowedProfiles, allowedPlatforms, allowedClients, req.ExpiresAt)
 	if err != nil {
 		statusCode := 500
 		if strings.Contains(err.Error(), "到期时间格式错误") {
@@ -3296,6 +3792,7 @@ func (h *Handlers) CreateCode(w http.ResponseWriter, r *http.Request) {
 		"used_count":        ac.UsedCount,
 		"allowed_profiles":  ac.AllowedProfiles,
 		"allowed_platforms": ac.AllowedPlatforms,
+		"allowed_clients":   ac.AllowedClients,
 		"expires_at":        ac.ExpiresAt,
 		"created_at":        ac.CreatedAt,
 		"is_active":         ac.IsActive,
@@ -3318,6 +3815,7 @@ func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
 		AllowedProfiles  []string `json:"allowed_profiles"`
 		ManualProfiles   []string `json:"manual_profiles"`
 		AllowedPlatforms []string `json:"allowed_platforms"`
+		AllowedClients   []string `json:"allowed_clients"`
 		ExpiresAt        string   `json:"expires_at"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -3337,6 +3835,11 @@ func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, err.Error(), 400)
 		return
 	}
+	allowedClients, err := validateAllowedBuildClients(req.AllowedClients)
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
 	if _, err := normalizeExpiresAt(req.ExpiresAt); err != nil {
 		jsonError(w, "更新失败: "+err.Error(), 400)
 		return
@@ -3345,13 +3848,13 @@ func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "更新失败: 激活码不存在", 404)
 		return
 	}
-	allowedProfiles, createdProfiles, err := h.resolveAllowedProfiles(req.AllowedProfiles, req.ManualProfiles)
+	allowedProfiles, createdProfiles, err := h.resolveAllowedProfiles(req.AllowedProfiles, req.ManualProfiles, allowedClients)
 	if err != nil {
 		jsonError(w, "创建手动档案失败: "+err.Error(), 400)
 		return
 	}
 
-	if err := updateCode(id, req.Name, req.MaxUses, req.UsedCount, allowedProfiles, allowedPlatforms, req.ExpiresAt); err != nil {
+	if err := updateCode(id, req.Name, req.MaxUses, req.UsedCount, allowedProfiles, allowedPlatforms, allowedClients, req.ExpiresAt); err != nil {
 		statusCode := 500
 		if strings.Contains(err.Error(), "到期时间格式错误") {
 			statusCode = 400
@@ -3368,7 +3871,46 @@ func (h *Handlers) UpdateCode(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, map[string]interface{}{
 		"message":          "更新成功",
 		"allowed_profiles": allowedProfiles,
+		"allowed_clients":  allowedClients,
 		"created_profiles": createdProfiles,
+	})
+}
+
+func (h *Handlers) BatchUpdateCodeClients(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs            []int    `json:"ids"`
+		AllowedClients []string `json:"allowed_clients"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "请求格式错误", 400)
+		return
+	}
+	if len(req.IDs) == 0 {
+		jsonError(w, "请选择要批量编辑的激活码", 400)
+		return
+	}
+	allowedClients, err := validateAllowedBuildClients(req.AllowedClients)
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
+	updatedCount, err := updateCodesAllowedClients(req.IDs, allowedClients)
+	if err != nil {
+		statusCode := 500
+		if strings.Contains(err.Error(), "请选择") || strings.Contains(err.Error(), "未找到") {
+			statusCode = 400
+		}
+		jsonError(w, "批量更新失败: "+err.Error(), statusCode)
+		return
+	}
+
+	claims := getClaims(r)
+	logAudit(claims.CodeID, claims.CodeName, "batch_update_code_clients", fmt.Sprintf("ids=%v allowed_clients=%v updated=%d", req.IDs, allowedClients, updatedCount), r.RemoteAddr)
+
+	jsonResponse(w, map[string]interface{}{
+		"message":         "批量更新成功",
+		"updated_count":   updatedCount,
+		"allowed_clients": allowedClients,
 	})
 }
 
@@ -3393,6 +3935,7 @@ func (h *Handlers) DeleteCode(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) RenameProfile(w http.ResponseWriter, r *http.Request) {
 	oldName := strings.TrimSpace(chi.URLParam(r, "name"))
+	client := normalizeBuildClient(r.URL.Query().Get("client"))
 	var req struct {
 		NewName string `json:"new_name"`
 	}
@@ -3421,7 +3964,7 @@ func (h *Handlers) RenameProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content, sha, _, exists, err := h.getStoredProfile(oldName)
+	content, sha, _, exists, err := h.getStoredProfileForClient(client, oldName)
 	if err != nil {
 		jsonError(w, "读取原档案失败: "+err.Error(), 500)
 		return
@@ -3430,7 +3973,7 @@ func (h *Handlers) RenameProfile(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "原档案不存在", 404)
 		return
 	}
-	_, _, _, newExists, err := h.getStoredProfile(newName)
+	_, _, _, newExists, err := h.getStoredProfileForClient(client, newName)
 	if err != nil {
 		jsonError(w, "检查新档案名称失败: "+err.Error(), 500)
 		return
@@ -3441,11 +3984,12 @@ func (h *Handlers) RenameProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	renamedContent := bindProfileTitle(content, newName)
-	if _, err := h.profileGH.SaveFile(newPath, renamedContent, "", "重命名配置档案: "+oldName+" -> "+newName); err != nil {
+	profileGH := h.profileGitHubClient(client)
+	if _, err := profileGH.SaveFile(newPath, renamedContent, "", "重命名配置档案: "+oldName+" -> "+newName); err != nil {
 		jsonError(w, "创建新档案失败: "+err.Error(), 500)
 		return
 	}
-	if err := h.profileGH.DeleteFile(oldPath, sha, "删除重命名前旧档案: "+oldName); err != nil {
+	if err := profileGH.DeleteFile(oldPath, sha, "删除重命名前旧档案: "+oldName); err != nil {
 		jsonError(w, "删除旧档案失败，新档案已创建，请稍后手动清理旧档案: "+err.Error(), 500)
 		return
 	}
@@ -3454,7 +3998,7 @@ func (h *Handlers) RenameProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invalidateProfileCache()
+	invalidateProfileCacheForClient(client)
 	buildStatusCache.clear()
 	buildQueueSnapshotCache.clear()
 

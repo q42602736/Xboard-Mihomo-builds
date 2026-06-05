@@ -70,12 +70,16 @@ func randomProfileKeySuffix() string {
 }
 
 func (h *Handlers) createUniqueProfileKey(displayName string) (string, error) {
+	return h.createUniqueProfileKeyForClient(buildClientLegacy, displayName)
+}
+
+func (h *Handlers) createUniqueProfileKeyForClient(client, displayName string) (string, error) {
 	base := strings.TrimSpace(displayName)
 	if _, err := profileFilePath(base); err != nil {
 		return "", err
 	}
 
-	_, _, _, exists, err := h.getStoredProfile(base)
+	_, _, _, exists, err := h.getStoredProfileForClient(client, base)
 	if err != nil {
 		return "", err
 	}
@@ -89,7 +93,7 @@ func (h *Handlers) createUniqueProfileKey(displayName string) (string, error) {
 			continue
 		}
 		key := base + "--" + suffix
-		_, _, _, exists, err := h.getStoredProfile(key)
+		_, _, _, exists, err := h.getStoredProfileForClient(client, key)
 		if err != nil {
 			return "", err
 		}
@@ -179,11 +183,31 @@ func defaultProfileYaml(displayName string) string {
 }
 
 func (h *Handlers) createManualProfile(displayName string) (StoredProfile, error) {
+	return h.createManualProfileForClient(buildClientLegacy, displayName)
+}
+
+func (h *Handlers) profileGitHubClient(client string) *GitHubClient {
+	if normalizeBuildClient(client) == buildClientNexGenReact && h.nexGenProfileGH != nil {
+		return h.nexGenProfileGH
+	}
+	return h.profileGH
+}
+
+func (h *Handlers) profileBranchForClient(client string) string {
+	return h.profileGitHubClient(client).Branch
+}
+
+func (h *Handlers) ensureProfileBranchForClient(client string) error {
+	return h.profileGitHubClient(client).EnsureBranchFromDefault()
+}
+
+func (h *Handlers) createManualProfileForClient(client, displayName string) (StoredProfile, error) {
+	client = normalizeBuildClient(client)
 	displayName = strings.TrimSpace(displayName)
 	if displayName == "" {
 		return StoredProfile{}, fmt.Errorf("档案名称不能为空")
 	}
-	key, err := h.createUniqueProfileKey(displayName)
+	key, err := h.createUniqueProfileKeyForClient(client, displayName)
 	if err != nil {
 		return StoredProfile{}, err
 	}
@@ -192,13 +216,19 @@ func (h *Handlers) createManualProfile(displayName string) (StoredProfile, error
 		return StoredProfile{}, err
 	}
 	yamlContent := normalizeSubscriptionConfig(defaultProfileYaml(displayName))
+	if client == buildClientNexGenReact {
+		yamlContent = stripNexGenProfileUnsupportedConfig(yamlContent)
+	}
 	if err := validateYamlContent(yamlContent); err != nil {
 		return StoredProfile{}, err
 	}
-	if _, err := h.profileGH.SaveFile(filePath, yamlContent, "", "创建配置档案: "+key); err != nil {
+	if err := h.ensureProfileBranchForClient(client); err != nil {
 		return StoredProfile{}, err
 	}
-	invalidateProfileCache()
+	if _, err := h.profileGitHubClient(client).SaveFile(filePath, yamlContent, "", "创建配置档案: "+key); err != nil {
+		return StoredProfile{}, err
+	}
+	invalidateProfileCacheForClient(client)
 	return StoredProfile{
 		Name:        key,
 		Key:         key,
@@ -207,11 +237,20 @@ func (h *Handlers) createManualProfile(displayName string) (StoredProfile, error
 }
 
 func (h *Handlers) listStoredProfiles() (map[string]StoredProfile, error) {
-	if cached, ok := storedProfilesCache.get(); ok {
+	return h.listStoredProfilesForClient(buildClientLegacy)
+}
+
+func (h *Handlers) listStoredProfilesForClient(client string) (map[string]StoredProfile, error) {
+	client = normalizeBuildClient(client)
+	if cached, ok := storedProfilesCache.get(client); ok {
 		return cloneStoredProfileMap(cached), nil
 	}
 
-	items, err := h.profileGH.ListDirectory(profilesDir)
+	if err := h.ensureProfileBranchForClient(client); err != nil {
+		return nil, err
+	}
+	profileGH := h.profileGitHubClient(client)
+	items, err := profileGH.ListDirectory(profilesDir)
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
 			return map[string]StoredProfile{}, nil
@@ -226,12 +265,12 @@ func (h *Handlers) listStoredProfiles() (map[string]StoredProfile, error) {
 		}
 
 		name := strings.TrimSuffix(item.Name, ".yaml")
-		content, _, err := h.profileGH.GetFile(item.Path)
+		content, _, err := profileGH.GetFile(item.Path)
 		displayName := name
 		if err == nil {
 			displayName = profileDisplayNameFromYaml(content, name)
 		}
-		lastUpdated, err := h.profileGH.GetLatestCommitTime(item.Path)
+		lastUpdated, err := profileGH.GetLatestCommitTime(item.Path)
 		if err != nil {
 			lastUpdated = ""
 		}
@@ -242,17 +281,26 @@ func (h *Handlers) listStoredProfiles() (map[string]StoredProfile, error) {
 			LastUpdated: lastUpdated,
 		}
 	}
-	storedProfilesCache.set(cloneStoredProfileMap(profiles), profileListCacheTTL)
+	storedProfilesCache.set(client, cloneStoredProfileMap(profiles), profileListCacheTTL)
 	return profiles, nil
 }
 
 func (h *Handlers) getStoredProfile(name string) (yamlContent string, sha string, lastUpdated string, exists bool, err error) {
+	return h.getStoredProfileForClient(buildClientLegacy, name)
+}
+
+func (h *Handlers) getStoredProfileForClient(client, name string) (yamlContent string, sha string, lastUpdated string, exists bool, err error) {
+	client = normalizeBuildClient(client)
 	filePath, err := profileFilePath(name)
 	if err != nil {
 		return "", "", "", false, err
 	}
 
-	content, sha, err := h.profileGH.GetFile(filePath)
+	if err := h.ensureProfileBranchForClient(client); err != nil {
+		return "", "", "", false, err
+	}
+	profileGH := h.profileGitHubClient(client)
+	content, sha, err := profileGH.GetFile(filePath)
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
 			return "", "", "", false, nil
@@ -260,7 +308,7 @@ func (h *Handlers) getStoredProfile(name string) (yamlContent string, sha string
 		return "", "", "", false, err
 	}
 
-	lastUpdated, err = h.profileGH.GetLatestCommitTime(filePath)
+	lastUpdated, err = profileGH.GetLatestCommitTime(filePath)
 	if err != nil {
 		lastUpdated = ""
 	}

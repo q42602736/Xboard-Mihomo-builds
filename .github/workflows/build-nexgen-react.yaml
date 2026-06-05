@@ -1,0 +1,425 @@
+name: build-nexgen-react
+
+on:
+  workflow_dispatch:
+    inputs:
+      client:
+        description: '客户端类型'
+        required: false
+        type: string
+        default: 'nexgen_react'
+      profile:
+        description: '配置档案名称'
+        required: true
+        type: string
+      profile_branch:
+        description: '配置档案分支'
+        required: false
+        type: string
+        default: 'profiles'
+      tag:
+        description: '构建版本号'
+        required: true
+        type: string
+      branch:
+        description: 'NexGen-client-React 源码分支'
+        required: false
+        type: string
+        default: 'main'
+      core:
+        description: '固定为 nexgen'
+        required: false
+        type: string
+        default: 'nexgen'
+      platforms:
+        description: '选择平台：all, windows, android, macos, macos-amd64, macos-arm64'
+        required: true
+        type: string
+        default: 'all'
+      request_id:
+        description: '构建请求唯一标识'
+        required: false
+        type: string
+
+run-name: nexgen-${{ github.event.inputs.request_id || github.run_id }}-${{ github.event.inputs.profile }}-${{ github.event.inputs.tag }}
+
+concurrency:
+  group: nexgen-react-${{ github.event.inputs.profile }}
+  cancel-in-progress: false
+
+env:
+  PROFILE_REPO: q42602736/NexGen-client-React
+  NEXGEN_SOURCE_REPO: q42602736/NexGen-client-React
+  NODE_VERSION: '22'
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.release.outputs.release_id }}
+      upload_url: ${{ steps.release.outputs.upload_url }}
+      release_tag: ${{ steps.release.outputs.release_tag }}
+      app_name: ${{ steps.config.outputs.app_name }}
+    steps:
+      - name: Validate Config Server Callback
+        env:
+          CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+          CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+        run: |
+          if [ -z "$REQUEST_ID" ]; then
+            echo "::error::缺少 request_id，配置服务器无法绑定本次打包记录。"
+            exit 1
+          fi
+          if [ -z "$CONFIG_SERVER_URL" ]; then
+            echo "::error::缺少 GitHub Actions secret: CONFIG_SERVER_URL"
+            exit 1
+          fi
+          if [ -z "$CONFIG_SERVER_EVENT_TOKEN" ]; then
+            echo "::error::缺少 GitHub Actions secret: CONFIG_SERVER_EVENT_TOKEN"
+            exit 1
+          fi
+
+      - name: Checkout Build Scripts
+        uses: actions/checkout@v4
+        with:
+          path: build-server
+
+      - name: Checkout NexGen Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.NEXGEN_SOURCE_REPO }}
+          ref: ${{ github.event.inputs.branch || 'main' }}
+          token: ${{ secrets.WORKFLOW_TOKEN }}
+          path: source
+
+      - name: Read And Convert Profile
+        id: config
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          PROFILE_NAME: ${{ github.event.inputs.profile }}
+          PROFILE_BRANCH: ${{ github.event.inputs.profile_branch }}
+        run: |
+          PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
+          ENCODED_PROFILE_PATH=$(node -e "console.log(process.argv[1].split('/').map(encodeURIComponent).join('/'))" "$PROFILE_PATH")
+          API_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${PROFILE_REPO}/contents/${ENCODED_PROFILE_PATH}?ref=${PROFILE_BRANCH}")
+          if ! echo "$API_RESPONSE" | grep -q '"content"'; then
+            echo "::error::读取配置档案失败：$PROFILE_PATH"
+            echo "$API_RESPONSE"
+            exit 1
+          fi
+          printf '%s' "$API_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(Buffer.from(String(data.content || '').replace(/\\n/g, ''), 'base64').toString());
+          " > profile.yaml
+
+          node build-server/.github/scripts/nexgen-profile-to-config.mjs profile.yaml source/nexgen.config.yaml source/nexgen.config.yaml
+          APP_NAME=$(node -e "
+            const fs = require('fs');
+            const yaml = fs.readFileSync('source/nexgen.config.yaml', 'utf8');
+            const match = yaml.match(/(?:^|\\n)    title:\\s*([^\\r\\n]+)/);
+            const raw = match ? match[1].replace(/^['\\\"]|['\\\"]$/g, '').trim() : '${PROFILE_NAME}';
+            process.stdout.write((raw || '${PROFILE_NAME}').replace(/[\\r\\n]+/g, ' ').trim());
+          ")
+          echo "app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
+          echo "已生成 nexgen.config.yaml，应用名称：$APP_NAME"
+
+      - name: Prepare Draft Release
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          APP_NAME: ${{ steps.config.outputs.app_name }}
+          VERSION: ${{ github.event.inputs.tag }}
+          PROFILE_NAME: ${{ github.event.inputs.profile }}
+        run: |
+          RELEASE_TAG="${PROFILE_NAME}-${VERSION}-${{ github.run_id }}"
+          EXISTING_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${RELEASE_TAG}")
+          EXISTING_ID=$(printf '%s' "$EXISTING_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(data && data.id ? String(data.id) : '');
+          ")
+          if [ -n "$EXISTING_ID" ]; then
+            curl -s -X DELETE -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/${EXISTING_ID}" > /dev/null
+          fi
+
+          RELEASE_PAYLOAD=$(node -e '
+            const [appName, version, releaseTag, profileName] = process.argv.slice(1);
+            process.stdout.write(JSON.stringify({
+              tag_name: releaseTag,
+              name: `${appName} ${version} NexGen React`,
+              draft: true,
+              body: `${appName} ${version} NexGen React 构建产物\n\n档案: ${profileName}`
+            }));
+          ' "$APP_NAME" "$VERSION" "$RELEASE_TAG" "$PROFILE_NAME")
+          RELEASE_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases" \
+            -d "$RELEASE_PAYLOAD")
+          RELEASE_ID=$(printf '%s' "$RELEASE_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(data && data.id ? String(data.id) : '');
+          ")
+          UPLOAD_URL=$(printf '%s' "$RELEASE_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write((data && data.upload_url ? String(data.upload_url) : '').replace(/\\{.*$/, ''));
+          ")
+          if [ -z "$RELEASE_ID" ] || [ -z "$UPLOAD_URL" ]; then
+            echo "::error::创建 draft release 失败"
+            echo "$RELEASE_RESPONSE"
+            exit 1
+          fi
+          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+          echo "upload_url=$UPLOAD_URL" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Bind Build Record
+        env:
+          CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+          CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+        run: |
+          CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/bind"
+          PAYLOAD=$(node -e '
+            const payload = {
+              request_id: process.env.REQUEST_ID,
+              run_id: Number(process.env.RUN_ID || 0),
+              run_url: process.env.RUN_URL || "",
+              status: "in_progress",
+              release_tag: process.env.RELEASE_TAG || ""
+            };
+            process.stdout.write(JSON.stringify(payload));
+          ')
+          curl -fsS -X POST "$CALLBACK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+            -d "$PAYLOAD"
+
+  build:
+    needs: prepare-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            os: windows-2022
+            family: windows
+          - platform: macos-amd64
+            os: macos-13
+            family: macos
+          - platform: macos-arm64
+            os: macos-14
+            family: macos
+          - platform: android
+            os: ubuntu-latest
+            family: android
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check Platform Selection
+        id: check
+        shell: bash
+        run: |
+          RAW="${{ github.event.inputs.platforms }}"
+          RAW="${RAW:-all}"
+          CURRENT="${{ matrix.platform }}"
+          FAMILY="${{ matrix.family }}"
+          SHOULD_RUN=false
+          IFS=',' read -ra ITEMS <<< "$RAW"
+          for ITEM in "${ITEMS[@]}"; do
+            ITEM="$(echo "$ITEM" | xargs | tr '[:upper:]' '[:lower:]')"
+            if [ "$ITEM" = "all" ] || [ "$ITEM" = "$CURRENT" ] || [ "$ITEM" = "$FAMILY" ]; then
+              SHOULD_RUN=true
+            fi
+          done
+          echo "should_run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout Build Scripts
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+        with:
+          path: build-server
+
+      - name: Checkout NexGen Source
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.NEXGEN_SOURCE_REPO }}
+          ref: ${{ github.event.inputs.branch || 'main' }}
+          token: ${{ secrets.WORKFLOW_TOKEN }}
+          path: source
+
+      - name: Setup Node
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+
+      - name: Setup Rust
+        if: steps.check.outputs.should_run == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Java
+        if: steps.check.outputs.should_run == 'true' && matrix.family == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        if: steps.check.outputs.should_run == 'true' && matrix.family == 'android'
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android Targets
+        if: steps.check.outputs.should_run == 'true' && matrix.family == 'android'
+        shell: bash
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;28.0.13004108"
+
+      - name: Install Dependencies
+        if: steps.check.outputs.should_run == 'true'
+        working-directory: source
+        run: npm ci
+
+      - name: Apply Profile Config
+        if: steps.check.outputs.should_run == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          PROFILE_NAME: ${{ github.event.inputs.profile }}
+          PROFILE_BRANCH: ${{ github.event.inputs.profile_branch }}
+        run: |
+          PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
+          ENCODED_PROFILE_PATH=$(node -e "console.log(process.argv[1].split('/').map(encodeURIComponent).join('/'))" "$PROFILE_PATH")
+          API_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${PROFILE_REPO}/contents/${ENCODED_PROFILE_PATH}?ref=${PROFILE_BRANCH}")
+          if ! echo "$API_RESPONSE" | grep -q '"content"'; then
+            echo "::error::读取配置档案失败：$PROFILE_PATH"
+            echo "$API_RESPONSE"
+            exit 1
+          fi
+          printf '%s' "$API_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(Buffer.from(String(data.content || '').replace(/\\n/g, ''), 'base64').toString());
+          " > profile.yaml
+          node build-server/.github/scripts/nexgen-profile-to-config.mjs profile.yaml source/nexgen.config.yaml source/nexgen.config.yaml
+
+      - name: Build Windows Package
+        if: steps.check.outputs.should_run == 'true' && matrix.family == 'windows'
+        working-directory: source
+        shell: bash
+        run: |
+          npm run desktop:core
+          npm run package:windows -- --bundles nsis
+
+      - name: Build macOS Package
+        if: steps.check.outputs.should_run == 'true' && matrix.family == 'macos'
+        working-directory: source
+        shell: bash
+        run: |
+          npm run desktop:core
+          if [ "${{ matrix.platform }}" = "macos-arm64" ]; then
+            npm run package:macos -- --targets arm64 --bundles dmg
+          else
+            npm run package:macos -- --targets amd64 --bundles dmg
+          fi
+
+      - name: Build Android Package
+        if: steps.check.outputs.should_run == 'true' && matrix.family == 'android'
+        working-directory: source
+        shell: bash
+        run: |
+          npm run android:core
+          npm run tauri -- android build --apk --target aarch64 armv7 --split-per-abi
+          mkdir -p dist
+          find src-tauri/gen/android -type f -name "*.apk" -exec cp {} dist/ \;
+
+      - name: Upload Release Assets
+        if: steps.check.outputs.should_run == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          UPLOAD_URL: ${{ needs.prepare-release.outputs.upload_url }}
+          APP_NAME: ${{ needs.prepare-release.outputs.app_name }}
+          VERSION: ${{ github.event.inputs.tag }}
+        run: |
+          shopt -s nullglob
+          files=(source/dist/*)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::未找到打包产物"
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            base="$(basename "$file")"
+            safe_base="$(echo "$base" | tr ' ' '-')"
+            asset_name="${APP_NAME}-${VERSION}-${{ matrix.platform }}-${safe_base}"
+            content_type="application/octet-stream"
+            case "$asset_name" in
+              *.zip) content_type="application/zip" ;;
+              *.dmg) content_type="application/x-apple-diskimage" ;;
+              *.exe) content_type="application/vnd.microsoft.portable-executable" ;;
+              *.msi) content_type="application/x-msi" ;;
+              *.apk) content_type="application/vnd.android.package-archive" ;;
+            esac
+            encoded_name="$(node -e 'console.log(encodeURIComponent(process.argv[1]))' "$asset_name")"
+            curl -fsS -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: $content_type" \
+              --data-binary @"$file" \
+              "${UPLOAD_URL}?name=${encoded_name}"
+          done
+
+  notify-build-complete:
+    runs-on: ubuntu-latest
+    needs: [prepare-release, build]
+    if: ${{ always() }}
+    steps:
+      - name: Complete Build Record
+        env:
+          CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+          CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RELEASE_TAG: ${{ needs.prepare-release.outputs.release_tag }}
+          PREPARE_RESULT: ${{ needs.prepare-release.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: |
+          if [ -z "$REQUEST_ID" ] || [ -z "$CONFIG_SERVER_URL" ] || [ -z "$CONFIG_SERVER_EVENT_TOKEN" ]; then
+            echo "::error::缺少回写配置，无法同步打包完成状态。"
+            exit 1
+          fi
+          CONCLUSION="success"
+          if [ "$PREPARE_RESULT" = "failure" ] || [ "$BUILD_RESULT" = "failure" ]; then
+            CONCLUSION="failure"
+          elif [ "$PREPARE_RESULT" = "cancelled" ] || [ "$BUILD_RESULT" = "cancelled" ]; then
+            CONCLUSION="cancelled"
+          fi
+          CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/complete"
+          PAYLOAD=$(node -e '
+            const payload = {
+              request_id: process.env.REQUEST_ID,
+              run_id: Number(process.env.RUN_ID || 0),
+              run_url: process.env.RUN_URL || "",
+              status: "completed",
+              conclusion: process.env.CONCLUSION || "",
+              release_tag: process.env.RELEASE_TAG || ""
+            };
+            process.stdout.write(JSON.stringify(payload));
+          ')
+          curl -fsS -X POST "$CALLBACK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+            -d "$PAYLOAD"

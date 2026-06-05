@@ -69,6 +69,10 @@ func escapeGitHubContentPath(filePath string) string {
 	return strings.Join(parts, "/")
 }
 
+func escapeGitHubRefName(refName string) string {
+	return escapeGitHubContentPath(strings.TrimSpace(refName))
+}
+
 func (g *GitHubClient) doRequest(method, url string, body interface{}) (*http.Response, error) {
 	var bodyReader io.Reader
 	if body != nil {
@@ -99,6 +103,12 @@ type ghFileResponse struct {
 	SHA         string `json:"sha"`
 	Encoding    string `json:"encoding"`
 	DownloadURL string `json:"download_url"`
+}
+
+type ghRefResponse struct {
+	Object struct {
+		SHA string `json:"sha"`
+	} `json:"object"`
 }
 
 func (g *GitHubClient) doRawGet(url string) ([]byte, error) {
@@ -169,6 +179,84 @@ func (g *GitHubClient) GetFile(path string) (content string, sha string, err err
 		return "", "", err
 	}
 	return string(data), sha, nil
+}
+
+func (g *GitHubClient) EnsureBranchFromDefault() error {
+	targetBranch := strings.TrimSpace(g.Branch)
+	if targetBranch == "" {
+		return fmt.Errorf("目标分支不能为空")
+	}
+
+	refURL := g.apiURL("git/ref/heads/" + escapeGitHubRefName(targetBranch))
+	resp, err := g.doRequest("GET", refURL, nil)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusOK {
+		resp.Body.Close()
+		return nil
+	}
+	if resp.StatusCode != http.StatusNotFound {
+		respBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return fmt.Errorf("检查分支失败 (%d): %s", resp.StatusCode, string(respBody))
+	}
+	resp.Body.Close()
+
+	branches, err := g.ListBranchesForRepo(g.Owner, g.Repo)
+	if err != nil {
+		return err
+	}
+	sourceBranch := ""
+	if len(branches) > 0 {
+		sourceBranch = branches[0].Name
+	}
+	for _, branch := range branches {
+		if branch.Name == "main" || branch.Name == "master" {
+			sourceBranch = branch.Name
+			break
+		}
+	}
+	if sourceBranch == "" {
+		return fmt.Errorf("无法找到可用于创建分支的默认分支")
+	}
+
+	sourceURL := g.apiURL("git/ref/heads/" + escapeGitHubRefName(sourceBranch))
+	sourceResp, err := g.doRequest("GET", sourceURL, nil)
+	if err != nil {
+		return err
+	}
+	defer sourceResp.Body.Close()
+	if sourceResp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(sourceResp.Body)
+		return fmt.Errorf("读取默认分支失败 (%d): %s", sourceResp.StatusCode, string(respBody))
+	}
+	var sourceRef ghRefResponse
+	if err := json.NewDecoder(sourceResp.Body).Decode(&sourceRef); err != nil {
+		return err
+	}
+	if strings.TrimSpace(sourceRef.Object.SHA) == "" {
+		return fmt.Errorf("默认分支 SHA 为空")
+	}
+
+	createBody := map[string]string{
+		"ref": "refs/heads/" + targetBranch,
+		"sha": sourceRef.Object.SHA,
+	}
+	createResp, err := g.doRequest("POST", g.apiURL("git/refs"), createBody)
+	if err != nil {
+		return err
+	}
+	defer createResp.Body.Close()
+	if createResp.StatusCode != http.StatusCreated && createResp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(createResp.Body)
+		if createResp.StatusCode == http.StatusUnprocessableEntity && strings.Contains(string(respBody), "Reference already exists") {
+			return nil
+		}
+		return fmt.Errorf("创建分支失败 (%d): %s", createResp.StatusCode, string(respBody))
+	}
+	githubBranchesCache.delete(fmt.Sprintf("%s/%s", g.Owner, g.Repo))
+	return nil
 }
 
 // SaveFile 创建或更新 GitHub 仓库中的文件。sha 为空时创建新文件，非空时更新。

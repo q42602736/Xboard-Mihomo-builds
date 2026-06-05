@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xboard-Mihomo_sub 配置编辑器</title>
+    <title>NexGen Client 配置编辑器</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -3081,7 +3081,7 @@
         <!-- 左侧边栏 -->
         <div class="sidebar">
             <div class="sidebar-header">
-                <h1 id="sidebarClientTitle">Xboard-Mihomo_sub</h1>
+                <h1 id="sidebarClientTitle">NexGen Client</h1>
                 <div class="user-info">
                     <span class="user-name" id="userName"></span>
                     <span id="userPerm"></span>
@@ -3119,10 +3119,6 @@
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 5a2 2 0 012-2h8a2 2 0 012 2v1a1 1 0 11-2 0V5H6v2h8a2 2 0 012 2v1a1 1 0 11-2 0V9H6v2h8a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-1a1 1 0 112 0v1h8v-2H6a2 2 0 01-2-2v-2a2 2 0 012-2h8V5H6v1a1 1 0 11-2 0V5z" clip-rule="evenodd"/></svg>
                     UI 设置
                 </div>
-                <div class="nav-item" onclick="switchSection('customFeatures')">
-                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 01.894.553l1.382 2.764 3.049.443a1 1 0 01.554 1.706l-2.205 2.149.52 3.037a1 1 0 01-1.45 1.054L10 12.347l-2.724 1.432a1 1 0 01-1.45-1.054l.52-3.037L4.141 7.466a1 1 0 01.554-1.706l3.049-.443 1.382-2.764A1 1 0 0110 2zm0 3.236L9.236 6.76a1 1 0 01-.753.547l-1.681.244 1.217 1.187a1 1 0 01.288.885l-.287 1.673 1.504-.791a1 1 0 01.93 0l1.504.791-.287-1.673a1 1 0 01.288-.885l1.217-1.187-1.681-.244a1 1 0 01-.753-.547L10 5.236z" clip-rule="evenodd"/></svg>
-                    自定义功能
-                </div>
                 <div class="nav-item" onclick="switchSection('subscription')">
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
                     订阅设置
@@ -3130,10 +3126,6 @@
                 <div class="nav-item" onclick="switchSection('sources')">
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"/></svg>
                     远程配置源
-                </div>
-                <div class="nav-item" onclick="switchSection('support')">
-                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clip-rule="evenodd"/></svg>
-                    在线客服
                 </div>
                 <div class="nav-item" onclick="switchSection('updates')">
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm3 4a1 1 0 000 2h6a1 1 0 100-2H7zm0 3a1 1 0 100 2h6a1 1 0 100-2H7zm0 3a1 1 0 100 2h4a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
@@ -3166,7 +3158,7 @@
                     <div class="page-header">
                         <div class="page-header-content">
                             <h2>基础设置</h2>
-                            <p class="subtitle">应用信息、Logo、图标与登录背景配置</p>
+                            <p class="subtitle">应用信息、图标与登录背景配置</p>
                         </div>
                     </div>
                     <div class="editor-container">
@@ -3182,19 +3174,8 @@
                                     <label>应用名称</label>
                                     <input type="text" id="appTitle" placeholder="如：你的应用名称">
                                 </div>
-                                <div class="form-group">
-                                    <label>Logo类型</label>
-                                    <select id="logoType">
-                                        <option value="text">文字Logo</option>
-                                        <option value="image">图片Logo</option>
-                                    </select>
-                                </div>
                             </div>
-                            <div class="form-group">
-                                <label>Logo图片地址</label>
-                                <input type="text" id="logoImageUrl" placeholder="https://example.com/logo.png">
-                                <div class="help-text">仅当Logo类型为"图片Logo"时生效</div>
-                            </div>
+                            <div class="help-text">新客户端固定使用配置档案名称作为文字 Logo，不再提供图片 Logo 配置。</div>
                         </div>
                         <div class="section">
                             <div class="section-title">应用图标</div>
@@ -3258,38 +3239,7 @@
                     </div>
                     <div class="editor-container">
                         <div class="section">
-                            <div class="section-title">首页与界面布局</div>
-                            <div class="form-group">
-                                <label>首页面板布局</label>
-                                <select id="homePanelDefaultLayout">
-                                    <option value="default">默认布局</option>
-                                    <option value="layout1">布局 1（订阅置顶）</option>
-                                </select>
-                                <div class="help-text">仅会写入配置文件，客户端内不提供切换入口，打包后按配置固定。</div>
-                            </div>
-                            <div class="home-preview-panel">
-                                <div class="home-preview-header">
-                                    <div>
-                                        <div class="home-preview-title">首页布局预览</div>
-                                        <div class="home-preview-subtitle">默认不展开预览，点击后直接查看真实截图，比代码模拟预览更接近最终打包效果。</div>
-                                    </div>
-                                    <div class="help-text" style="margin:0;">点击已打开的入口可直接关闭预览</div>
-                                </div>
-                                <div class="home-preview-launchers" id="homePreviewLaunchers"></div>
-                                <div class="home-preview-modal" id="homePreviewModal">
-                                    <button type="button" class="home-preview-modal-backdrop" aria-label="关闭预览" onclick="closeHomePanelPreview()"></button>
-                                    <div class="home-preview-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="homePreviewModalTitle">
-                                        <div class="home-preview-modal-header">
-                                            <div>
-                                                <div class="home-preview-modal-title" id="homePreviewModalTitle">首页布局预览</div>
-                                                <div class="home-preview-modal-desc" id="homePreviewModalDesc">静态截图预览</div>
-                                            </div>
-                                            <button type="button" class="home-preview-close-btn" onclick="closeHomePanelPreview()">关闭预览</button>
-                                        </div>
-                                        <div class="home-preview-stage" id="homePanelPreviewStage"></div>
-                                    </div>
-                                </div>
-                            </div>
+                            <div class="section-title">界面行为</div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
                                     <span class="switch-card-label">隐藏流量详情标签页</span>
@@ -3309,16 +3259,6 @@
                                     </div>
                                 </div>
                                 <div class="help-text">启用后，不显示节点在线/离线状态与筛选。</div>
-                            </div>
-                            <div class="switch-card" style="margin-top:16px;">
-                                <div class="switch-card-header">
-                                    <span class="switch-card-label">显示加速后 IP 信息</span>
-                                    <div class="switch-group">
-                                        <label class="switch"><input type="checkbox" id="showIpInfo" checked><span class="slider"></span></label>
-                                        <span id="showIpInfoLabel">开启</span>
-                                    </div>
-                                </div>
-                                <div class="help-text">开启后，首页加速按钮下方会显示当前公网 IP；关闭后隐藏检测中、超时和 IP 文本。</div>
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
@@ -3361,16 +3301,6 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
-                                    <span class="switch-card-label">显示登录注册页客服入口</span>
-                                    <div class="switch-group">
-                                        <label class="switch"><input type="checkbox" id="authPagesSupportShowButton"><span class="slider"></span></label>
-                                        <span id="authPagesSupportShowButtonLabel">关闭</span>
-                                    </div>
-                                </div>
-                                <div class="help-text">控制桌面端和 Android 登录页、注册页右下角客服入口显示；仅对可直接打开的客服类型生效。</div>
-                            </div>
-                            <div class="switch-card" style="margin-top:16px;">
-                                <div class="switch-card-header">
                                     <span class="switch-card-label">显示礼品卡按钮</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="giftCardShowButton"><span class="slider"></span></label>
@@ -3393,431 +3323,6 @@
                     </div>
                     <div class="page-footer">
                         <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
-                    </div>
-                </div>
-
-                <!-- 自定义功能 -->
-                <div class="content-section" id="customFeaturesSection">
-                    <div class="page-header">
-                        <div class="page-header-content">
-                            <h2>自定义功能</h2>
-                            <p class="subtitle">输入对接码并验证后，显示对应的自定义功能配置</p>
-                        </div>
-                    </div>
-                    <div class="editor-container">
-                        <div class="section">
-                            <div id="customTrafficBarGateWrap" style="margin-top:16px;">
-                                <div class="help-text" id="customTrafficBarCodeHint">输入对接码并验证通过后，才会显示可用的自定义功能。</div>
-                                <div class="form-row" style="grid-template-columns:minmax(0,1fr) 220px; align-items:end; margin-top:12px;">
-                                    <div class="form-group" style="margin-bottom:0;">
-                                        <label id="customTrafficBarAccessLabel">对接码</label>
-                                        <input type="text" id="customTrafficBarIntegrationCode" placeholder="请输入后台设置的对接码">
-                                    </div>
-                                    <div class="form-group" style="margin-bottom:0;">
-                                        <button type="button" class="btn btn-primary" id="customTrafficBarUnlockBtn" onclick="unlockCustomTrafficBarConfig()" style="width:100%;">验证对接码</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="customTrafficBarEditorPanel" style="display:none;">
-                                <div class="section-title">自定义功能配置</div>
-                                <div class="help-text">只会显示当前对接码已绑定的功能。保存后会直接写入当前档案对应的公共 YAML 配置。</div>
-                                <div class="custom-feature-grid">
-                                <div class="switch-card" data-custom-feature-key="traffic_bar_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">流量条自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" id="customTrafficBarExtra">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="customTrafficBarColorPicker" value="#00897b" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="customTrafficBarColor" placeholder="#00897B">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('customTrafficBarColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认流量条颜色；如需透明度，也可以手动输入 <code>#AARRGGBB</code>。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="notice_dialog_icon_background_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">公告弹窗图标背景自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="noticeDialogIconBackgroundColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="noticeDialogIconBackgroundColor" placeholder="#00897B">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('noticeDialogIconBackgroundColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认背景颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="subscription_website_icon_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">官网按钮图标自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="subscriptionWebsiteIconColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="subscriptionWebsiteIconColor" placeholder="#00897B">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('subscriptionWebsiteIconColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认图标颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="subscription_refresh_icon_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">刷新按钮图标自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="subscriptionRefreshIconColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="subscriptionRefreshIconColor" placeholder="#00897B">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('subscriptionRefreshIconColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认图标颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="subscription_notice_icon_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">公告按钮图标自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="subscriptionNoticeIconColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="subscriptionNoticeIconColor" placeholder="#00897B">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('subscriptionNoticeIconColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认图标颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="login_button_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">登录按钮颜色自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="loginButtonColorPicker" value="#374151" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="loginButtonColor" placeholder="#374151">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('loginButtonColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认登录按钮颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="plans_subscribe_button_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">套餐订阅按钮颜色自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="plansSubscribeButtonColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="plansSubscribeButtonColor" placeholder="#00897B">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('plansSubscribeButtonColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认套餐订阅按钮颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="plans_filter_tab_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">套餐筛选按钮颜色自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="plansFilterTabColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="plansFilterTabColor" placeholder="#00897B">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('plansFilterTabColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认套餐筛选按钮颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="invite_code_text_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">邀请码文本颜色自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="inviteCodeTextColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="inviteCodeTextColor" placeholder="#00897B">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('inviteCodeTextColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认邀请码文本颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="invite_code_background_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">邀请码卡片背景颜色自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="inviteCodeBackgroundColorPicker" value="#4DB6AC" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="inviteCodeBackgroundColor" placeholder="#4DB6AC">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('inviteCodeBackgroundColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认邀请码卡片背景颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="commission_balance_card_background_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">可用佣金卡片背景颜色自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="commissionBalanceCardBackgroundColorPicker" value="#4DB6AC" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="commissionBalanceCardBackgroundColor" placeholder="#4DB6AC">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('commissionBalanceCardBackgroundColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认可用佣金卡片背景颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="invite_stats_total_invites_icon_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">邀请统计总邀请图标颜色自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="inviteStatsTotalInvitesIconColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="inviteStatsTotalInvitesIconColor" placeholder="#00897B">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('inviteStatsTotalInvitesIconColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认邀请统计总邀请图标颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="invite_stats_commission_rate_icon_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">邀请统计返佣比例图标颜色自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="inviteStatsCommissionRateIconColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="inviteStatsCommissionRateIconColor" placeholder="#00897B">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('inviteStatsCommissionRateIconColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认邀请统计返佣比例图标颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="invite_stats_total_commission_icon_color" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">邀请统计总佣金图标颜色自定义</span>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">
-                                            <div class="form-group">
-                                                <label>颜色选择器</label>
-                                                <input type="color" id="inviteStatsTotalCommissionIconColorPicker" value="#00897B" style="height:44px;padding:6px 8px;">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>颜色值</label>
-                                                <input type="text" id="inviteStatsTotalCommissionIconColor" placeholder="#00897B">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>&nbsp;</label>
-                                                <button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField('inviteStatsTotalCommissionIconColor')" style="width:100%;">清空</button>
-                                            </div>
-                                        </div>
-                                        <div class="help-text">留空则继续使用默认邀请统计总佣金图标颜色。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="subscription_status_popup" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">登录窗口套餐状态拦截</span>
-                                        <div class="switch-group">
-                                            <label class="switch"><input type="checkbox" id="subscriptionStatusPopupEnabled"><span class="slider"></span></label>
-                                            <span id="subscriptionStatusPopupEnabledLabel">关闭</span>
-                                        </div>
-                                    </div>
-                                    <div class="switch-card-extra" style="margin-top:12px;">
-                                        <div class="form-group" style="margin-bottom:0;">
-                                            <label>官网跳转地址</label>
-                                            <input type="url" id="subscriptionStatusOfficialUrl" placeholder="https://example.com">
-                                        </div>
-                                        <div class="help-text">开启后会在登录窗口校验套餐；无套餐、到期或流量用尽时提示用户前往官网处理。</div>
-                                    </div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="main_policy_nodes_only" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">节点弹窗仅显示主策略节点</span>
-                                        <div class="switch-group">
-                                            <label class="switch"><input type="checkbox" id="proxyGroupsMainPolicyNodesOnly"><span class="slider"></span></label>
-                                            <span id="proxyGroupsMainPolicyNodesOnlyLabel">关闭</span>
-                                        </div>
-                                    </div>
-                                    <div class="help-text">开启后，选择节点弹窗直接显示主策略组节点，不再先显示其他分流组。</div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="sspanel_node_page_parse" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">SSPanel 节点页面解析</span>
-                                        <div class="switch-group">
-                                            <label class="switch"><input type="checkbox" id="sspanelNodePageParseEnabled"><span class="slider"></span></label>
-                                            <span id="sspanelNodePageParseEnabledLabel">关闭</span>
-                                        </div>
-                                    </div>
-                                    <div class="help-text">开启后客户端节点列表改从 SSPanel 的 /user/node 页面解析节点卡片；关闭时继续使用默认 API 接口。</div>
-                                </div>
-                                <div class="switch-card" data-custom-feature-key="cloud_dispatch" style="margin-top:16px;">
-                                    <div class="switch-card-header">
-                                        <span class="switch-card-label">云端调度</span>
-                                        <div class="switch-group">
-                                            <label class="switch"><input type="checkbox" id="cloudDispatchEnabled"><span class="slider"></span></label>
-                                            <span id="cloudDispatchEnabledLabel">关闭</span>
-                                        </div>
-                                    </div>
-                                    <div class="switch-card-extra cloud-dispatch-extra">
-                                        <div class="cloud-dispatch-fields">
-                                            <div class="form-group">
-                                                <label>GTM 服务地址</label>
-                                                <input type="url" id="cloudDispatchQueryUrl" placeholder="https://gtm.example.com">
-                                                <div class="help-text">只填协议、主机和端口即可；客户端固定请求 <code>/api/query/machines</code>。</div>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>查询密钥</label>
-                                                <input type="text" id="cloudDispatchQuerySecret" placeholder="填写 GTM QUERY_SECRET">
-                                            </div>
-                                        </div>
-                                        <div class="cloud-dispatch-auto-section">
-                                            <div class="cloud-dispatch-auto-header">
-                                                <div class="cloud-dispatch-auto-copy">
-                                                    <div class="cloud-dispatch-auto-title">自动调度</div>
-                                                    <div class="cloud-dispatch-auto-hint">开启后客户端按间隔自动查询并替换入口 IP。</div>
-                                                </div>
-                                                <div class="switch-group cloud-dispatch-auto-control">
-                                                    <label class="switch"><input type="checkbox" id="cloudDispatchAutoEnabled"><span class="slider"></span></label>
-                                                    <span id="cloudDispatchAutoEnabledLabel">关闭</span>
-                                                </div>
-                                            </div>
-                                            <div class="form-group cloud-dispatch-auto-input">
-                                                <label>自动调度间隔（分钟）</label>
-                                                <input type="number" id="cloudDispatchAutoIntervalMinutes" min="1" max="1440" value="5">
-                                            </div>
-                                            <div class="form-group cloud-dispatch-auto-input">
-                                                <label>离线兜底回查间隔（分钟）</label>
-                                                <input type="number" id="cloudDispatchFallbackRetryMinutes" min="1" max="1440" value="5">
-                                                <div class="help-text">目标入口离线后先切到其他可用入口；到达该间隔后再次允许回查原入口，恢复后切回原入口最新 IP。</div>
-                                            </div>
-                                        </div>
-                                        <div class="help-text cloud-dispatch-note">客户端只使用 GTM 服务地址和查询密钥，不需要上传密钥或后台 token；会自动用 GTM 返回域名匹配订阅节点，未知运营商命中 GTM 总入口时随机选择可用分类入口。</div>
-                                    </div>
-                                </div>
-                                </div>
-                                <div class="page-footer" style="justify-content:flex-start; gap:10px;">
-                                    <button type="button" class="btn btn-primary" onclick="loadCustomTrafficBarConfig()">读取当前配置</button>
-                                    <button type="button" class="btn btn-success page-save-btn" onclick="saveCustomTrafficBarConfig()">保存到公共配置</button>
-                                </div>
-                            </div>
-                            <div id="customTrafficBarStatus" class="sidebar-status info" style="display:none; margin-top:12px;"></div>
-                        </div>
                     </div>
                 </div>
 
@@ -3892,7 +3397,7 @@
                                 <input type="text" id="decryptKey" placeholder="your_secret_decrypt_key_here">
                             </div>
                         </div>
-                        <div class="section" id="sspanelMetronConfigSection">
+                        <div class="section" id="sspanelMetronConfigSection" style="display:none;">
                             <div class="section-title">SSPanel-Metron 专属配置</div>
                             <div class="form-group">
                                 <label>自定义订阅查询后缀</label>
@@ -4087,6 +3592,24 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="section" style="margin-top: 20px; margin-bottom: 10px;">
+                                    <div class="section-title">OSS 在线客服配置（onlineSupport）</div>
+                                    <div class="switch-card" style="margin-bottom:14px;">
+                                        <div class="switch-card-header">
+                                            <span class="switch-card-label">登录注册页显示客服入口</span>
+                                            <div class="switch-group">
+                                                <label class="switch"><input type="checkbox" id="remoteConfigAuthPagesSupportShowButton"><span class="slider"></span></label>
+                                                <span id="remoteConfigAuthPagesSupportShowButtonLabel">关闭</span>
+                                            </div>
+                                        </div>
+                                        <div class="remote-config-switch-note">新客户端从 OSS 的 remote.config.json 读取客服配置；这里会写入 <code>onlineSupport</code> 和 <code>ui.onlineSupport.authPages.showButton</code>。</div>
+                                    </div>
+                                    <div id="remoteConfigSupportContainer"></div>
+                                    <div class="remote-config-actions" id="remoteConfigSupportActions" style="margin-top:10px; margin-bottom:10px;">
+                                        <button type="button" class="btn btn-primary" id="addRemoteConfigSupportBtn">+ 添加客服配置</button>
+                                    </div>
+                                    <div class="help-text">支持 browser、crisp、chatra、chatway、tawkto、chatwoot。留空时不会写入客服数组。</div>
+                                </div>
                                 <div class="remote-config-actions" style="margin-top: 16px; margin-bottom: 10px;">
                                     <button type="button" class="btn btn-secondary" onclick="downloadRemoteConfigJson()">下载配置好的 JSON</button>
                                     <button type="button" class="btn btn-success page-save-btn" onclick="saveCurrentRemoteConfig()">保存当前配置</button>
@@ -4142,24 +3665,6 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- 在线客服 -->
-                <div class="content-section" id="supportSection">
-                    <div class="page-header">
-                        <div class="page-header-content">
-                            <h2>在线客服</h2>
-                            <p class="subtitle">配置在线客服接入方式</p>
-                        </div>
-                    </div>
-                    <div class="editor-container">
-                        <div id="onlineSupportContainer"></div>
-                        <button type="button" class="btn btn-primary" id="addSupportBtn" style="margin-top: 10px;">+ 添加客服类型</button>
-                        <div class="help-text" style="margin-top: 10px;">支持类型: browser(网页), crisp, chatra, chatway, tawkto, chatwoot。第一个有效配置会被使用，旧版 Chatra <code>widget_code</code> 配置也会自动兼容。</div>
-                    </div>
-                    <div class="page-footer">
-                        <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
                     </div>
                 </div>
 
@@ -4234,6 +3739,7 @@
 
                     <div class="build-panel">
 	                        <h3>打包配置</h3>
+	                        <div class="build-usage-info" id="buildClientModeInfo" style="margin-top:12px; margin-bottom:12px;">当前打包客户端加载中...</div>
 	                        <div class="build-usage-info" id="buildUsageInfo" style="margin-top:12px; margin-bottom:12px;">软件打包状态加载中...</div>
 	                        <div class="form-group" id="buildCoreGroup">
 	                            <label>选择打包内核</label>
@@ -4272,14 +3778,15 @@
 	                                <label>选择打包平台</label>
 	                            <div class="platform-checkboxes">
 	                                <label class="platform-checkbox"><input type="checkbox" value="all" id="platformAll" checked><span class="platform-checkbox-label" id="platformAllLabel">全部平台</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="windows" class="platformItem" data-cores="nexgen"><span class="platform-checkbox-label">Windows</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="windows-arm64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">Windows ARM64</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="windows-amd64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">Windows AMD64</span></label>
-	                                <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">Android（手机）</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">Android（手机）</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="android-tv" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Android TV</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="linux-arm64" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Linux ARM64</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="linux-amd64" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Linux AMD64</span></label>
-	                                <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">macOS ARM64</span></label>
-	                                <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">macOS AMD64</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">macOS ARM64</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">macOS AMD64</span></label>
 	                            </div>
 	                            <div class="help-text" id="buildPlatformHelpText">Windows、Linux 和 macOS 都只保留 ARM64 / AMD64 两个架构选项。Android TV 使用独立入口和 TV 界面，也包含在“全部平台”中；如需全平台请直接选择“全部平台”。</div>
 	                        </div>
@@ -4374,7 +3881,8 @@
         var SELECTED_CLIENT_KEY = 'xboard_selected_client';
         var PERSISTED_CLIENT_KEY = 'xboard_persisted_client';
         var BUILD_CLIENT_LEGACY = 'xboard_mihomo_sub';
-        var BUILD_CLIENT = BUILD_CLIENT_LEGACY;
+        var BUILD_CLIENT_NEXGEN_REACT = 'nexgen_react';
+        var BUILD_CLIENT = BUILD_CLIENT_NEXGEN_REACT;
 
         function appendBuildClientQuery(path) {
             var separator = path.indexOf('?') === -1 ? '?' : '&';
@@ -4398,15 +3906,26 @@
 
         function isKnownBuildClient(client) {
             client = normalizeClient(client);
-            return client === BUILD_CLIENT_LEGACY;
+            return client === BUILD_CLIENT_LEGACY || client === BUILD_CLIENT_NEXGEN_REACT;
         }
 
         function resolveCurrentBuildClient() {
-            return BUILD_CLIENT_LEGACY;
+            return BUILD_CLIENT_NEXGEN_REACT;
+        }
+
+        function isNexGenClient() {
+            return BUILD_CLIENT === BUILD_CLIENT_NEXGEN_REACT;
         }
 
         function getBuildClientLabel() {
-            return 'Xboard-Mihomo_sub';
+            return isNexGenClient() ? 'NexGen Client React' : 'Xboard-Mihomo_sub';
+        }
+
+        function getBuildClientModeText() {
+            if (isNexGenClient()) {
+                return '当前打包客户端：NexGen Client React。左侧配置、远程 OSS/远程配置源、订阅、客服等仍使用完整编辑器；软件打包固定走 React / Tauri 新客户端流程。';
+            }
+            return '当前打包客户端：Xboard-Mihomo_sub。使用老客户端完整配置编辑器和 Mihomo / Xray 打包流程。';
         }
 
         function syncClientModeUI() {
@@ -4415,13 +3934,22 @@
             if (title) {
                 title.textContent = getBuildClientLabel();
             }
+            var modeInfo = document.getElementById('buildClientModeInfo');
+            if (modeInfo) {
+                modeInfo.textContent = getBuildClientModeText();
+                modeInfo.className = 'build-usage-info ok';
+            }
+            var coreGroup = document.getElementById('buildCoreGroup');
+            if (coreGroup) {
+                coreGroup.style.display = isNexGenClient() ? 'none' : '';
+            }
             var buildBtn = document.getElementById('buildBtn');
             if (buildBtn) {
-                buildBtn.textContent = '开始打包';
+                buildBtn.textContent = isNexGenClient() ? '开始打包新客户端' : '开始打包';
             }
             var buildStatus = document.getElementById('buildStatus');
             if (buildStatus) {
-                buildStatus.textContent = '选择平台和版本后点击“开始打包”';
+                buildStatus.textContent = isNexGenClient() ? '选择平台和版本后点击“开始打包新客户端”' : '选择平台和版本后点击“开始打包”';
             }
         }
 
@@ -5086,6 +4614,9 @@
         }
 
 	        function getBuildPlatformCatalogValues() {
+	            if (isNexGenClient()) {
+	                return ['windows', 'android', 'macos-amd64', 'macos-arm64'];
+	            }
 	            return [
 	                'windows-arm64',
 	                'windows-amd64',
@@ -5101,11 +4632,15 @@
 	        function getBuildCoreLabelMap() {
 	            return {
 	                mihomo: 'Mihomo',
-	                xray: 'Xray'
+	                xray: 'Xray',
+	                nexgen: 'NexGen'
 	            };
 	        }
 
 	        function getSelectedBuildCore() {
+	            if (isNexGenClient()) {
+	                return 'nexgen';
+	            }
 	            var checked = document.querySelector('input[name="buildCore"]:checked');
 	            return checked ? checked.value : 'mihomo';
 	        }
@@ -5127,7 +4662,31 @@
 
 	        function normalizeAllowedBuildPlatformsForCurrentClient(platforms) {
 	            if (!Array.isArray(platforms) || platforms.length === 0) return [];
-	            return platforms;
+	            if (!isNexGenClient()) return platforms;
+	            var result = [];
+	            var seen = {};
+	            var add = function(platform) {
+	                if (!platform || seen[platform]) return;
+	                seen[platform] = true;
+	                result.push(platform);
+	            };
+	            platforms.forEach(function(platform) {
+	                String(platform || '').toLowerCase().split(',').forEach(function(token) {
+	                    token = token.trim();
+	                    if (!token) return;
+	                    if (token === 'all') {
+	                        getBuildPlatformCatalogValues().forEach(add);
+	                    } else if (token === 'windows' || token === 'windows-amd64' || token === 'windows-arm64') {
+	                        add('windows');
+	                    } else if (token === 'macos') {
+	                        add('macos-amd64');
+	                        add('macos-arm64');
+	                    } else if (getBuildPlatformCatalogValues().indexOf(token) !== -1) {
+	                        add(token);
+	                    }
+	                });
+	            });
+	            return result;
 	        }
 
 	        function formatAllowedBuildPlatforms(platforms) {
@@ -5174,7 +4733,11 @@
 	            }
 	            var allLabelText = document.getElementById('platformAllLabel');
 	            if (allLabelText) {
-	                allLabelText.textContent = currentCore === 'xray' ? '全部 Xray 支持平台' : '全部平台';
+	                if (isNexGenClient()) {
+	                    allLabelText.textContent = '全部 NexGen 支持平台';
+	                } else {
+	                    allLabelText.textContent = currentCore === 'xray' ? '全部 Xray 支持平台' : '全部平台';
+	                }
 	            }
 	            if (allCheckbox.disabled && allCheckbox.checked) {
 	                allCheckbox.checked = false;
@@ -5209,7 +4772,9 @@
 	        function updateBuildPlatformHelpText() {
 	            var help = document.getElementById('buildPlatformHelpText');
 	            if (!help) return;
-	            if (getSelectedBuildCore() === 'xray') {
+	            if (isNexGenClient()) {
+	                help.textContent = 'NexGen Client React 当前支持 Windows、Android、macOS AMD64、macOS ARM64。远程 OSS、远程配置源、订阅、客服和 UI 配置仍在左侧完整配置页维护。';
+	            } else if (getSelectedBuildCore() === 'xray') {
 	                help.textContent = 'Xray 内核当前只支持 Windows ARM64/AMD64、Android（手机）和 macOS ARM64/AMD64；Linux 与 Android TV 已自动隐藏。';
 	            } else {
 	                help.textContent = 'Windows、Linux 和 macOS 都只保留 ARM64 / AMD64 两个架构选项。Android TV 使用独立入口和 TV 界面，也包含在“全部平台”中；如需全平台请直接选择“全部平台”。';
@@ -5734,489 +5299,20 @@
                 syncSessionUserInfo(data);
                 if (!ensureCurrentClientAllowed()) return;
                 renderBuildUsageInfo(data);
-                updateCustomTrafficBarCodeHint();
-                syncCustomTrafficBarAccessView();
             } catch (e) {
                 currentUserInfo = null;
                 renderBuildUsageInfo({ can_build: false, build_status_text: '加载失败' });
-                updateCustomTrafficBarCodeHint();
-                syncCustomTrafficBarAccessView();
-            }
-        }
-
-        function setCustomTrafficBarStatus(message, type) {
-            var el = document.getElementById('customTrafficBarStatus');
-            if (!el) return;
-            if (!message) {
-                el.style.display = 'none';
-                el.textContent = '';
-                el.className = 'sidebar-status info';
-                return;
-            }
-            el.style.display = 'block';
-            el.textContent = message;
-            el.className = 'sidebar-status ' + (type || 'info');
-        }
-
-	        function getSelectedCustomTrafficBarProfile() {
-	            var select = document.getElementById('profileSelect');
-	            return select ? String(select.value || '').trim() : '';
-	        }
-
-	        function syncCustomTrafficBarProfileName() {
-	            var el = document.getElementById('customTrafficBarProfileName');
-	            if (!el) return;
-	            el.textContent = getSelectedCustomTrafficBarProfile() ? getSelectedProfileDisplayName() : '未选择';
-	        }
-
-        function hasCustomTrafficBarFeatureConfigured() {
-            return !(currentUserInfo && currentUserInfo.integration_code_configured === false);
-        }
-
-        function isCustomTrafficBarAccessUnlocked() {
-            return isAdminSession() || customTrafficBarAccessVerified;
-        }
-
-        function getVisibleCustomUIColorFeatureKeys() {
-            return isAdminSession()
-                ? customUIColorFeatureKeys.slice()
-                : customUIColorAvailableFeatures.slice();
-        }
-
-        function isCustomUIColorFeatureVisible(featureKey) {
-            return getVisibleCustomUIColorFeatureKeys().indexOf(featureKey) !== -1;
-        }
-
-        function syncCustomUIColorFeatureVisibility() {
-            var visibleFeatureKeys = getVisibleCustomUIColorFeatureKeys();
-            document.querySelectorAll('[data-custom-feature-key]').forEach(function(section) {
-                var featureKey = String(section.getAttribute('data-custom-feature-key') || '').trim();
-                section.style.display = visibleFeatureKeys.indexOf(featureKey) !== -1 ? 'block' : 'none';
-            });
-        }
-
-        function syncCustomTrafficBarAccessView() {
-            var gateWrap = document.getElementById('customTrafficBarGateWrap');
-            var editorPanel = document.getElementById('customTrafficBarEditorPanel');
-            var unlockBtn = document.getElementById('customTrafficBarUnlockBtn');
-            var accessLabel = document.getElementById('customTrafficBarAccessLabel');
-            var unlocked = isCustomTrafficBarAccessUnlocked();
-            var configured = hasCustomTrafficBarFeatureConfigured();
-
-            if (gateWrap) {
-                gateWrap.style.display = isAdminSession() ? 'none' : 'block';
-            }
-            if (editorPanel) {
-                editorPanel.style.display = unlocked ? 'block' : 'none';
-            }
-            if (unlockBtn) {
-                unlockBtn.disabled = !configured;
-                unlockBtn.textContent = customTrafficBarAccessVerified ? '重新验证对接码' : '验证对接码';
-            }
-            if (accessLabel) {
-                accessLabel.textContent = configured ? '对接码' : '对接码（后台未配置）';
-            }
-            syncCustomUIColorFeatureVisibility();
-        }
-
-        function applyCustomTrafficBarConfig(data) {
-            customUIColorAvailableFeatures = Array.isArray(data.feature_keys)
-                ? data.feature_keys.map(function(item) { return String(item || '').trim(); }).filter(Boolean)
-                : [];
-            applyCustomUIColorTextValue(
-                'customTrafficBarColor',
-                data.traffic_bar_enabled ? (data.traffic_bar_color || '') : ''
-            );
-            applyCustomUIColorTextValue('noticeDialogIconBackgroundColor', data.notice_dialog_icon_background_color || '');
-            applyCustomUIColorTextValue('subscriptionWebsiteIconColor', data.subscription_website_icon_color || '');
-            applyCustomUIColorTextValue('subscriptionRefreshIconColor', data.subscription_refresh_icon_color || '');
-            applyCustomUIColorTextValue('subscriptionNoticeIconColor', data.subscription_notice_icon_color || '');
-            applyCustomUIColorTextValue('loginButtonColor', data.login_button_color || '');
-            applyCustomUIColorTextValue('plansSubscribeButtonColor', data.plans_subscribe_button_color || '');
-            applyCustomUIColorTextValue('plansFilterTabColor', data.plans_filter_tab_color || '');
-            applyCustomUIColorTextValue('inviteCodeTextColor', data.invite_code_text_color || '');
-            applyCustomUIColorTextValue('inviteCodeBackgroundColor', data.invite_code_background_color || '');
-            applyCustomUIColorTextValue('commissionBalanceCardBackgroundColor', data.commission_balance_card_background_color || '');
-            applyCustomUIColorTextValue('inviteStatsTotalInvitesIconColor', data.invite_stats_total_invites_icon_color || '');
-            applyCustomUIColorTextValue('inviteStatsCommissionRateIconColor', data.invite_stats_commission_rate_icon_color || '');
-            applyCustomUIColorTextValue('inviteStatsTotalCommissionIconColor', data.invite_stats_total_commission_icon_color || '');
-            setCustomFeatureSwitchValue('subscriptionStatusPopupEnabled', !!data.subscription_status_popup_enabled);
-            setCustomFeatureSwitchValue('proxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
-            setCustomFeatureSwitchValue('sspanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
-            setCustomFeatureSwitchValue('cloudDispatchEnabled', !!data.cloud_dispatch_enabled);
-            setCustomFeatureSwitchValue('cloudDispatchAutoEnabled', !!data.cloud_dispatch_auto_enabled);
-            var subscriptionStatusOfficialUrl = document.getElementById('subscriptionStatusOfficialUrl');
-            if (subscriptionStatusOfficialUrl) {
-                subscriptionStatusOfficialUrl.value = data.subscription_status_official_url || '';
-            }
-            var cloudDispatchQueryUrl = document.getElementById('cloudDispatchQueryUrl');
-            if (cloudDispatchQueryUrl) {
-                cloudDispatchQueryUrl.value = data.cloud_dispatch_query_url || '';
-            }
-            var cloudDispatchQuerySecret = document.getElementById('cloudDispatchQuerySecret');
-            if (cloudDispatchQuerySecret) {
-                cloudDispatchQuerySecret.value = data.cloud_dispatch_query_secret || '';
-            }
-            var cloudDispatchAutoIntervalMinutes = document.getElementById('cloudDispatchAutoIntervalMinutes');
-            if (cloudDispatchAutoIntervalMinutes) {
-                cloudDispatchAutoIntervalMinutes.value = data.cloud_dispatch_auto_interval_minutes || 5;
-            }
-            var cloudDispatchFallbackRetryMinutes = document.getElementById('cloudDispatchFallbackRetryMinutes');
-            if (cloudDispatchFallbackRetryMinutes) {
-                cloudDispatchFallbackRetryMinutes.value = data.cloud_dispatch_fallback_retry_minutes || 5;
-            }
-            syncCustomUIColorFeatureVisibility();
-        }
-
-        function updateCustomTrafficBarCodeHint() {
-            var hintEl = document.getElementById('customTrafficBarCodeHint');
-            if (!hintEl) return;
-            if (isAdminSession()) {
-                hintEl.textContent = '当前为管理员登录，可直接查看和保存；普通用户则需要先输入对接码并验证。';
-                return;
-            }
-            if (currentUserInfo && currentUserInfo.integration_code_configured === false) {
-                hintEl.textContent = '后台还没有为该自定义功能配置任何可用的自定义功能组，请先到管理后台系统设置中新增。';
-                return;
-            }
-            hintEl.textContent = '请输入后台设置的对接码，验证通过后才会显示对应功能。';
-        }
-
-        function normalizeCustomTrafficBarColorInput(value) {
-            value = String(value || '').trim().toUpperCase();
-            if (!value) return '';
-            if (value.charAt(0) !== '#') {
-                value = '#' + value;
-            }
-            return value;
-        }
-
-        function getCustomUIColorPickerId(inputId) {
-            return inputId + 'Picker';
-        }
-
-        function applyCustomUIColorTextValue(inputId, value) {
-            var input = document.getElementById(inputId);
-            var picker = document.getElementById(getCustomUIColorPickerId(inputId));
-            if (!input || !picker) return;
-            var normalized = normalizeCustomTrafficBarColorInput(value);
-            input.value = normalized;
-            if (/^#[0-9A-F]{6}$/.test(normalized)) {
-                picker.value = normalized;
-            } else if (picker.dataset.defaultColor) {
-                picker.value = picker.dataset.defaultColor;
-            }
-        }
-
-        function syncCustomUIColorTextFromPicker(inputId) {
-            var input = document.getElementById(inputId);
-            var picker = document.getElementById(getCustomUIColorPickerId(inputId));
-            if (!input || !picker) return;
-            input.value = String(picker.value || '').toUpperCase();
-        }
-
-        function syncCustomUIColorPickerFromText(inputId) {
-            var input = document.getElementById(inputId);
-            var picker = document.getElementById(getCustomUIColorPickerId(inputId));
-            if (!input || !picker) return;
-            var normalized = normalizeCustomTrafficBarColorInput(input.value);
-            if (/^#[0-9A-F]{6}$/.test(normalized)) {
-                picker.value = normalized;
-            }
-        }
-
-        function clearCustomUIColorField(inputId) {
-            var input = document.getElementById(inputId);
-            var picker = document.getElementById(getCustomUIColorPickerId(inputId));
-            if (input) {
-                input.value = '';
-            }
-            if (picker && picker.dataset.defaultColor) {
-                picker.value = picker.dataset.defaultColor;
-            }
-        }
-
-        function syncCustomFeatureSwitchLabel(id) {
-            var input = document.getElementById(id);
-            var label = document.getElementById(id + 'Label');
-            if (!input || !label) return;
-            label.textContent = input.checked ? '开启' : '关闭';
-        }
-
-        function setCustomFeatureSwitchValue(id, checked) {
-            var input = document.getElementById(id);
-            if (input) {
-                input.checked = !!checked;
-            }
-            syncCustomFeatureSwitchLabel(id);
-        }
-
-        function initCustomFeatureSwitches() {
-            [
-                'subscriptionStatusPopupEnabled',
-                'proxyGroupsMainPolicyNodesOnly',
-                'sspanelNodePageParseEnabled',
-                'cloudDispatchEnabled',
-                'cloudDispatchAutoEnabled'
-            ].forEach(function(id) {
-                var input = document.getElementById(id);
-                if (!input) return;
-                input.addEventListener('change', function() {
-                    syncCustomFeatureSwitchLabel(id);
-                });
-                syncCustomFeatureSwitchLabel(id);
-            });
-        }
-
-        async function unlockCustomTrafficBarConfig() {
-            var profileName = getSelectedCustomTrafficBarProfile();
-            var integrationCode = String(document.getElementById('customTrafficBarIntegrationCode').value || '').trim();
-            if (isAdminSession()) {
-                customTrafficBarAccessVerified = true;
-                syncCustomTrafficBarAccessView();
-                setCustomTrafficBarStatus('当前为管理员，功能已直接显示', 'success');
-                return;
-            }
-            if (!hasCustomTrafficBarFeatureConfigured()) {
-                customTrafficBarAccessVerified = false;
-                syncCustomTrafficBarAccessView();
-                setCustomTrafficBarStatus('后台还没有为该自定义功能配置任何可用的自定义功能组', 'error');
-                return;
-            }
-            if (!profileName) {
-                setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
-                return;
-            }
-            if (!integrationCode) {
-                setCustomTrafficBarStatus('请输入对接码后再展开自定义功能页', 'error');
-                return;
-            }
-
-            setCustomTrafficBarStatus('正在校验对接码并读取当前公共配置...', 'info');
-            try {
-                var response = await api('POST', appendBuildClientQuery('/custom-features/ui-colors/load'), {
-                    profile: profileName,
-                    integration_code: integrationCode
-                });
-                if (!response) return;
-                var data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || '校验失败');
-                }
-
-                customTrafficBarAccessVerified = true;
-                applyCustomTrafficBarConfig(data);
-                sessionStorage.setItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY, integrationCode);
-                syncCustomTrafficBarAccessView();
-                setCustomTrafficBarStatus('对接码验证通过，已显示当前绑定的自定义功能', 'success');
-            } catch (e) {
-                customTrafficBarAccessVerified = false;
-                customUIColorAvailableFeatures = [];
-                syncCustomTrafficBarAccessView();
-                setCustomTrafficBarStatus('验证失败: ' + e.message, 'error');
-            }
-        }
-
-        async function loadCustomTrafficBarConfig() {
-            var profileName = getSelectedCustomTrafficBarProfile();
-            var integrationCode = String(document.getElementById('customTrafficBarIntegrationCode').value || '').trim();
-            if (!profileName) {
-                setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
-                return;
-            }
-            if (!isAdminSession() && !customTrafficBarAccessVerified) {
-                await unlockCustomTrafficBarConfig();
-                return;
-            }
-            if (!isAdminSession() && !integrationCode) {
-                setCustomTrafficBarStatus('请输入对接码后再读取当前配置', 'error');
-                return;
-            }
-
-            setCustomTrafficBarStatus('正在读取当前公共配置...', 'info');
-            try {
-                var response = await api('POST', appendBuildClientQuery('/custom-features/ui-colors/load'), {
-                    profile: profileName,
-                    integration_code: integrationCode
-                });
-                if (!response) return;
-                var data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || '读取失败');
-                }
-
-                applyCustomTrafficBarConfig(data);
-                if (integrationCode) {
-                    sessionStorage.setItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY, integrationCode);
-                }
-                if (!isAdminSession()) {
-                    customTrafficBarAccessVerified = true;
-                    syncCustomTrafficBarAccessView();
-                }
-                setCustomTrafficBarStatus('已读取当前自定义功能配置', 'success');
-            } catch (e) {
-                if (!isAdminSession()) {
-                    customTrafficBarAccessVerified = false;
-                    customUIColorAvailableFeatures = [];
-                    syncCustomTrafficBarAccessView();
-                }
-                setCustomTrafficBarStatus('读取失败: ' + e.message, 'error');
-            }
-        }
-
-        async function saveCustomTrafficBarConfig() {
-            var profileName = getSelectedCustomTrafficBarProfile();
-            var integrationCode = String(document.getElementById('customTrafficBarIntegrationCode').value || '').trim();
-            var color = normalizeCustomTrafficBarColorInput(document.getElementById('customTrafficBarColor').value);
-            var enabled = !!color;
-            var noticeDialogIconBackgroundColor = normalizeCustomTrafficBarColorInput(document.getElementById('noticeDialogIconBackgroundColor').value);
-            var subscriptionWebsiteIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('subscriptionWebsiteIconColor').value);
-            var subscriptionRefreshIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('subscriptionRefreshIconColor').value);
-            var subscriptionNoticeIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('subscriptionNoticeIconColor').value);
-            var loginButtonColor = normalizeCustomTrafficBarColorInput(document.getElementById('loginButtonColor').value);
-            var plansSubscribeButtonColor = normalizeCustomTrafficBarColorInput(document.getElementById('plansSubscribeButtonColor').value);
-            var plansFilterTabColor = normalizeCustomTrafficBarColorInput(document.getElementById('plansFilterTabColor').value);
-            var inviteCodeTextColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteCodeTextColor').value);
-            var inviteCodeBackgroundColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteCodeBackgroundColor').value);
-            var commissionBalanceCardBackgroundColor = normalizeCustomTrafficBarColorInput(document.getElementById('commissionBalanceCardBackgroundColor').value);
-            var inviteStatsTotalInvitesIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteStatsTotalInvitesIconColor').value);
-            var inviteStatsCommissionRateIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteStatsCommissionRateIconColor').value);
-            var inviteStatsTotalCommissionIconColor = normalizeCustomTrafficBarColorInput(document.getElementById('inviteStatsTotalCommissionIconColor').value);
-            var subscriptionStatusPopupEnabled = !!document.getElementById('subscriptionStatusPopupEnabled').checked;
-            var subscriptionStatusOfficialUrl = String(document.getElementById('subscriptionStatusOfficialUrl').value || '').trim();
-            var proxyGroupsMainPolicyNodesOnly = !!document.getElementById('proxyGroupsMainPolicyNodesOnly').checked;
-            var sspanelNodePageParseEnabled = !!document.getElementById('sspanelNodePageParseEnabled').checked;
-            var cloudDispatchEnabled = !!document.getElementById('cloudDispatchEnabled').checked;
-            var cloudDispatchQueryUrl = String(document.getElementById('cloudDispatchQueryUrl').value || '').trim();
-            var cloudDispatchQuerySecret = String(document.getElementById('cloudDispatchQuerySecret').value || '').trim();
-            var cloudDispatchAutoEnabled = !!document.getElementById('cloudDispatchAutoEnabled').checked;
-            var cloudDispatchAutoIntervalMinutes = parseInt(document.getElementById('cloudDispatchAutoIntervalMinutes').value || '5', 10) || 5;
-            var cloudDispatchFallbackRetryMinutes = parseInt(document.getElementById('cloudDispatchFallbackRetryMinutes').value || '5', 10) || 5;
-
-            if (!profileName) {
-                setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
-                return;
-            }
-            if (!isAdminSession() && !customTrafficBarAccessVerified) {
-                setCustomTrafficBarStatus('请先验证对接码并展开自定义功能页，再保存公共配置', 'error');
-                return;
-            }
-            if (!isAdminSession() && !integrationCode) {
-                setCustomTrafficBarStatus('请输入对接码后再保存公共配置', 'error');
-                return;
-            }
-            if (
-                isCustomUIColorFeatureVisible('subscription_status_popup') &&
-                subscriptionStatusPopupEnabled &&
-                !/^https?:\/\//i.test(subscriptionStatusOfficialUrl)
-            ) {
-                setCustomTrafficBarStatus('开启登录窗口套餐状态拦截时，请填写 http:// 或 https:// 开头的官网跳转地址', 'error');
-                return;
-            }
-            if (isCustomUIColorFeatureVisible('cloud_dispatch') && cloudDispatchEnabled) {
-                if (!/^https?:\/\//i.test(cloudDispatchQueryUrl)) {
-                    setCustomTrafficBarStatus('开启云端调度时，请填写 http:// 或 https:// 开头的 GTM 服务地址', 'error');
-                    return;
-                }
-                if (!cloudDispatchQuerySecret) {
-                    setCustomTrafficBarStatus('开启云端调度时，请填写查询密钥', 'error');
-                    return;
-                }
-                if (cloudDispatchAutoIntervalMinutes < 1) {
-                    setCustomTrafficBarStatus('自动调度间隔不能小于 1 分钟', 'error');
-                    return;
-                }
-                if (cloudDispatchFallbackRetryMinutes < 1) {
-                    setCustomTrafficBarStatus('离线兜底回查间隔不能小于 1 分钟', 'error');
-                    return;
-                }
-            }
-
-            setCustomTrafficBarStatus('正在写入公共配置...', 'info');
-            try {
-                var response = await api('PUT', appendBuildClientQuery('/custom-features/ui-colors'), {
-                    profile: profileName,
-                    integration_code: integrationCode,
-                    traffic_bar_enabled: enabled,
-                    traffic_bar_color: color,
-                    notice_dialog_icon_background_color: noticeDialogIconBackgroundColor,
-                    subscription_website_icon_color: subscriptionWebsiteIconColor,
-                    subscription_refresh_icon_color: subscriptionRefreshIconColor,
-                    subscription_notice_icon_color: subscriptionNoticeIconColor,
-                    login_button_color: loginButtonColor,
-                    plans_subscribe_button_color: plansSubscribeButtonColor,
-                    plans_filter_tab_color: plansFilterTabColor,
-                    invite_code_text_color: inviteCodeTextColor,
-                    invite_code_background_color: inviteCodeBackgroundColor,
-                    commission_balance_card_background_color: commissionBalanceCardBackgroundColor,
-                    invite_stats_total_invites_icon_color: inviteStatsTotalInvitesIconColor,
-                    invite_stats_commission_rate_icon_color: inviteStatsCommissionRateIconColor,
-                    invite_stats_total_commission_icon_color: inviteStatsTotalCommissionIconColor,
-                    subscription_status_popup_enabled: subscriptionStatusPopupEnabled,
-                    subscription_status_official_url: subscriptionStatusOfficialUrl,
-                    proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly,
-                    sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
-                    cloud_dispatch_enabled: cloudDispatchEnabled,
-                    cloud_dispatch_query_url: cloudDispatchQueryUrl,
-                    cloud_dispatch_query_secret: cloudDispatchQuerySecret,
-                    cloud_dispatch_auto_enabled: cloudDispatchAutoEnabled,
-                    cloud_dispatch_auto_interval_minutes: cloudDispatchAutoIntervalMinutes,
-                    cloud_dispatch_fallback_retry_minutes: cloudDispatchFallbackRetryMinutes
-                });
-                if (!response) return;
-                var data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || '保存失败');
-                }
-
-                applyCustomTrafficBarConfig(data);
-                if (integrationCode) {
-                    sessionStorage.setItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY, integrationCode);
-                }
-                if (profileName === getSelectedCustomTrafficBarProfile()) {
-                    await loadProfile();
-                }
-                setCustomTrafficBarStatus('自定义功能配置已保存', 'success');
-            } catch (e) {
-                if (!isAdminSession()) {
-                    customTrafficBarAccessVerified = false;
-                    customUIColorAvailableFeatures = [];
-                    syncCustomTrafficBarAccessView();
-                }
-                setCustomTrafficBarStatus('保存失败: ' + e.message, 'error');
             }
         }
 
 
         // ==================== 全局变量 ====================
         var currentUserInfo = null;
-        var customTrafficBarAccessVerified = false;
-        var customUIColorAvailableFeatures = [];
-        var customUIColorFeatureKeys = [
-            'traffic_bar_color',
-            'notice_dialog_icon_background_color',
-            'subscription_website_icon_color',
-            'subscription_refresh_icon_color',
-            'subscription_notice_icon_color',
-            'login_button_color',
-            'plans_subscribe_button_color',
-            'plans_filter_tab_color',
-            'invite_code_text_color',
-            'invite_code_background_color',
-            'commission_balance_card_background_color',
-            'invite_stats_total_invites_icon_color',
-            'invite_stats_commission_rate_icon_color',
-            'invite_stats_total_commission_icon_color',
-            'subscription_status_popup',
-            'main_policy_nodes_only',
-            'sspanel_node_page_parse',
-            'cloud_dispatch'
-        ];
-        var CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY = 'nexgen_custom_traffic_bar_code_v1';
         var sources = [];
         var remoteConfigEncryptedData = '';
         var remoteConfigEncryptionKey = '';
         var remoteConfigPanels = [];
+        var remoteConfigSupportItems = [];
         var remoteConfigActiveTab = 'visual';
         var REMOTE_CONFIG_HISTORY_STORAGE_KEY = 'nexgen_remote_config_history_v1';
         var remoteConfigHistoryRecords = [];
@@ -6243,7 +5339,6 @@
         var buildPermissionStatusMessage = '正在加载软件打包状态...';
         var BUILD_QUEUE_POLL_VISIBLE_INTERVAL = 15000;
         var BUILD_QUEUE_POLL_HIDDEN_INTERVAL = 60000;
-        var homePanelPreviewTarget = '';
 
         function getProfileKey(profile) {
             return String((profile && (profile.key || profile.name)) || '').trim();
@@ -6282,362 +5377,6 @@
             return getProfileDisplayName(profile) || key;
         }
 
-        function openHomePanelPreview(target) {
-            if (!target) {
-                homePanelPreviewTarget = '';
-                renderHomePanelPreview();
-                return;
-            }
-            if (homePanelPreviewTarget === target) {
-                closeHomePanelPreview();
-                return;
-            }
-            homePanelPreviewTarget = target;
-            renderHomePanelPreview();
-        }
-
-        function closeHomePanelPreview() {
-            homePanelPreviewTarget = '';
-            renderHomePanelPreview();
-        }
-
-        function buildHomePreviewSidebarItem(label, icon, active) {
-            return [
-                '<div class="home-preview-sidebar-item' + (active ? ' active' : '') + '">',
-                    '<div class="home-preview-sidebar-icon">' + icon + '</div>',
-                    '<div>' + label + '</div>',
-                '</div>'
-            ].join('');
-        }
-
-        function buildHomePreviewDesktopSidebar() {
-            return [
-                '<div class="home-preview-sidebar-rail">',
-                    buildHomePreviewSidebarItem('首页面板', '▦', true),
-                    buildHomePreviewSidebarItem('购买套餐', '🛒', false),
-                    buildHomePreviewSidebarItem('邀请推广', '🎁', false),
-                    buildHomePreviewSidebarItem('流量详情', '◌', false),
-                    buildHomePreviewSidebarItem('节点状态', '☰', false),
-                    buildHomePreviewSidebarItem('连接状态', '⌘', false),
-                    '<div class="home-preview-sidebar-spacer"></div>',
-                    buildHomePreviewSidebarItem('', '👤', false),
-                    buildHomePreviewSidebarItem('', '⚙', false),
-                    buildHomePreviewSidebarItem('', '⇥', false),
-                '</div>'
-            ].join('');
-        }
-
-        function buildHomePreviewSubscriptionCard(compact) {
-            return [
-                '<div class="home-preview-card home-preview-subscription' + (compact ? ' compact' : '') + '">',
-                    '<div class="home-preview-subscription-grid">',
-                        '<div class="home-preview-stat">',
-                            '<div class="home-preview-stat-label">剩余流量</div>',
-                            '<div class="home-preview-stat-value accent">107 GB</div>',
-                        '</div>',
-                        '<div class="home-preview-stat">',
-                            '<div class="home-preview-stat-label">有效期</div>',
-                            '<div class="home-preview-stat-value warning">4 天</div>',
-                        '</div>',
-                        '<div class="home-preview-subscription-refresh">' + (compact ? '刷新' : '刷新订阅') + '</div>',
-                    '</div>',
-                    '<div class="home-preview-progress">',
-                        '<span></span>',
-                        '<div class="home-preview-progress-text">2%</div>',
-                    '</div>',
-                    '<div class="home-preview-subscription-footer">',
-                        '<span>已用 2.74 GB</span>',
-                        '<span>共 110 GB</span>',
-                        '<span>预计重置日期 2026-04-19</span>',
-                    '</div>',
-                '</div>'
-            ].join('');
-        }
-
-        function buildHomePreviewPowerSection(mobile) {
-            return [
-                '<div class="home-preview-power-wrap' + (mobile ? ' mobile' : '') + '">',
-                    '<div class="home-preview-globe' + (mobile ? ' mobile' : '') + '"><span class="home-preview-power-icon" aria-hidden="true"></span></div>',
-                    '<div class="home-preview-status' + (mobile ? ' mobile' : '') + '">未连接</div>',
-                '</div>'
-            ].join('');
-        }
-
-        function buildHomePreviewModeCard(showTun) {
-            return [
-                '<div class="home-preview-card home-preview-mode">',
-                    '<div class="home-preview-mode-header">',
-                        '<div class="home-preview-card-title">代理模式</div>',
-                        '<div class="home-preview-mode-caption">根据规则自动选择直连或代理</div>',
-                    '</div>',
-                    '<div class="home-preview-mode-options">',
-                        '<div class="home-preview-mode-option active">✓ 规则</div>',
-                        '<div class="home-preview-mode-option">全局</div>',
-                        showTun ? '<div class="home-preview-mode-option">TUN</div>' : '',
-                    '</div>',
-                '</div>'
-            ].join('');
-        }
-
-        function buildHomePreviewNodeCard(mobile) {
-            var subtitle = mobile ? '香港5 IPV6 移动优化' : '新加坡 AWS 2x';
-            var latency = mobile ? '47ms' : '78ms';
-            return [
-                '<div class="home-preview-card home-preview-node">',
-                    '<div class="home-preview-node-row">',
-                        '<div class="home-preview-node-left">',
-                            '<div class="home-preview-node-flag">' + (mobile ? 'HK' : 'SG') + '</div>',
-                            '<div class="home-preview-node-name-wrap">',
-                                '<div class="home-preview-node-name">自动选择</div>',
-                                '<div class="home-preview-node-meta">' + subtitle + '</div>',
-                            '</div>',
-                        '</div>',
-                        '<div class="home-preview-node-right">',
-                            '<div class="home-preview-node-latency">' + latency + '</div>',
-                            '<div class="home-preview-node-action">▶</div>',
-                            '<div class="home-preview-node-arrow">⌄</div>',
-                        '</div>',
-                    '</div>',
-                '</div>'
-            ].join('');
-        }
-
-        function buildHomePreviewOfflineCard() {
-            return [
-                '<div class="home-preview-card home-preview-offline">',
-                    '<div class="home-preview-offline-row">',
-                        '<div class="home-preview-offline-left">',
-                            '<div class="home-preview-offline-icon">⚡</div>',
-                            '<div>',
-                                '<div class="home-preview-card-title">离线模式</div>',
-                                '<div class="home-preview-card-desc">开启后下次无需登录</div>',
-                            '</div>',
-                        '</div>',
-                        '<div class="home-preview-toggle"></div>',
-                    '</div>',
-                '</div>'
-            ].join('');
-        }
-
-        function buildHomePreviewShortcutCard(label, badge, mini) {
-            var icon = label === '官网' ? '◎' : '📢';
-            return [
-                '<div class="home-preview-shortcut-card home-preview-quick-card' + (mini ? ' mobile mini' : '') + '">',
-                    '<div class="home-preview-shortcut-card-inner">',
-                        '<div class="home-preview-shortcut-icon">' + icon + '</div>',
-                        '<div class="home-preview-shortcut-text"><span>' + label + '</span>' + (badge ? '<span class="home-preview-shortcut-badge">' + badge + '</span>' : '') + '</div>',
-                    '</div>',
-                '</div>'
-            ].join('');
-        }
-
-        function buildHomePreviewFloatingCards(mobile) {
-            return [
-                '<div class="home-preview-floating-corners">',
-                    buildHomePreviewShortcutCard('官网', '', mobile),
-                    buildHomePreviewShortcutCard('公告', mobile ? '' : '1', mobile),
-                '</div>'
-            ].join('');
-        }
-
-        function buildHomePreviewMobileShell(content) {
-            return [
-                '<div class="home-preview-frame mobile">',
-                    '<div class="home-preview-shell mobile">',
-                        '<div class="home-preview-mobile-statusbar">',
-                            '<span>17:36</span>',
-                            '<span>◖ ◗</span>',
-                        '</div>',
-                        '<div class="home-preview-mobile-dynamic"></div>',
-                        content,
-                        '<div class="home-preview-mobile-fab">☏</div>',
-                        '<div class="home-preview-mobile-bottomnav">',
-                            '<div class="home-preview-mobile-tab active"><div>⌂</div><div>首页面板</div></div>',
-                            '<div class="home-preview-mobile-tab"><div>🛍</div><div>购买套餐</div></div>',
-                            '<div class="home-preview-mobile-tab"><div>👥</div><div>邀请推广</div></div>',
-                            '<div class="home-preview-mobile-tab"><div>⌘</div><div>连接状态</div></div>',
-                            '<div class="home-preview-mobile-tab"><div>⋯</div><div>更多</div></div>',
-                        '</div>',
-                    '</div>',
-                '</div>'
-            ].join('');
-        }
-
-        function buildDesktopDefaultPreview() {
-            return [
-                '<div class="home-preview-frame desktop">',
-                    '<div class="home-preview-shell desktop">',
-                        buildHomePreviewDesktopSidebar(),
-                        '<div class="home-preview-main layout-default">',
-                            buildHomePreviewFloatingCards(false),
-                            '<div class="home-preview-stack desktop">',
-                                buildHomePreviewPowerSection(false),
-                                buildHomePreviewModeCard(true),
-                                buildHomePreviewNodeCard(false),
-                                buildHomePreviewSubscriptionCard(false),
-                                buildHomePreviewOfflineCard(),
-                            '</div>',
-                        '</div>',
-                    '</div>',
-                '</div>'
-            ].join('');
-        }
-
-        function buildDesktopLayout1Preview() {
-            return [
-                '<div class="home-preview-frame desktop">',
-                    '<div class="home-preview-shell desktop">',
-                        buildHomePreviewDesktopSidebar(),
-                        '<div class="home-preview-main layout1">',
-                            '<div class="home-preview-stack desktop layout1">',
-                                '<div class="home-preview-layout1-header">',
-                                    buildHomePreviewShortcutCard('官网', '', false),
-                                    buildHomePreviewSubscriptionCard(true),
-                                    buildHomePreviewShortcutCard('公告', '1', false),
-                                '</div>',
-                                buildHomePreviewPowerSection(false),
-                                buildHomePreviewModeCard(true),
-                                buildHomePreviewNodeCard(false),
-                            '</div>',
-                        '</div>',
-                    '</div>',
-                '</div>'
-            ].join('');
-        }
-
-        function buildMobileDefaultPreview() {
-            return buildHomePreviewMobileShell([
-                '<div class="home-preview-main mobile layout-default">',
-                    buildHomePreviewFloatingCards(true),
-                    '<div class="home-preview-stack mobile">',
-                        buildHomePreviewPowerSection(true),
-                        buildHomePreviewModeCard(false),
-                        buildHomePreviewNodeCard(true),
-                        buildHomePreviewSubscriptionCard(false),
-                        buildHomePreviewOfflineCard(),
-                    '</div>',
-                '</div>'
-            ].join(''));
-        }
-
-        function buildMobileLayout1Preview() {
-            return buildHomePreviewMobileShell([
-                '<div class="home-preview-main mobile layout1">',
-                    '<div class="home-preview-stack mobile">',
-                        buildHomePreviewSubscriptionCard(false),
-                        '<div class="home-preview-shortcut-row">',
-                            buildHomePreviewShortcutCard('官网', '', true),
-                            buildHomePreviewShortcutCard('公告', '1', true),
-                        '</div>',
-                        buildHomePreviewPowerSection(true),
-                        buildHomePreviewModeCard(false),
-                        buildHomePreviewNodeCard(true),
-                    '</div>',
-                '</div>'
-            ].join(''));
-        }
-
-        function buildHomePreviewScene(title, meta, imageUrl, active, deviceType) {
-            return [
-                '<div class="home-preview-scene' + (active ? ' active' : '') + '">',
-                    '<div class="home-preview-scene-head">',
-                        '<div>',
-                            '<div class="home-preview-scene-title">' + title + '</div>',
-                            '<div class="home-preview-scene-meta">' + meta + '</div>',
-                        '</div>',
-                        '<div class="home-preview-scene-badge' + (active ? ' active' : '') + '">' + (active ? '当前配置' : '对比参考') + '</div>',
-                    '</div>',
-                    '<div class="home-preview-image-shell">',
-                        '<div class="home-preview-image-frame ' + (deviceType === 'mobile' ? 'mobile' : 'desktop') + '">',
-                            '<img src="' + imageUrl + '" alt="' + title + ' 预览截图" loading="eager">',
-                        '</div>',
-                        '<div class="home-preview-image-note">此处展示的是静态截图预览，仅用于核对桌面端与移动端的实际布局结构，最终以打包产物内置配置为准。</div>',
-                    '</div>',
-                '</div>'
-            ].join('');
-        }
-
-        function buildHomePreviewLauncher(target, title, meta, currentLayout) {
-            var targetLayout = target.indexOf('layout1') !== -1 ? 'layout1' : 'default';
-            var isCurrentLayout = currentLayout === targetLayout;
-            var isActive = homePanelPreviewTarget === target;
-            return [
-                '<button type="button" class="home-preview-launcher' + (isActive ? ' active' : '') + '" onclick="openHomePanelPreview(\'' + target + '\')">',
-                    '<div class="home-preview-launcher-head">',
-                        '<div class="home-preview-launcher-title">' + title + '</div>',
-                        '<div class="home-preview-launcher-badge' + (isCurrentLayout ? ' current' : '') + '">' + (isCurrentLayout ? '当前配置' : '点击查看') + '</div>',
-                    '</div>',
-                    '<div class="home-preview-launcher-meta">' + meta + '</div>',
-                '</button>'
-            ].join('');
-        }
-
-        function renderHomePanelPreview() {
-            var stage = document.getElementById('homePanelPreviewStage');
-            var layoutSelect = document.getElementById('homePanelDefaultLayout');
-            var launchers = document.getElementById('homePreviewLaunchers');
-            var modal = document.getElementById('homePreviewModal');
-            var modalTitle = document.getElementById('homePreviewModalTitle');
-            var modalDesc = document.getElementById('homePreviewModalDesc');
-            if (!stage || !layoutSelect || !launchers || !modal) return;
-
-            var layout = layoutSelect.value === 'layout1' ? 'layout1' : 'default';
-            launchers.innerHTML = [
-                buildHomePreviewLauncher('desktop-default', '桌面端 · 默认布局', '顶部浮动官网与公告，订阅信息位于连接区下方。', layout),
-                buildHomePreviewLauncher('desktop-layout1', '桌面端 · 布局 1', '订阅信息上移到顶部横条，连接区和节点卡居中下排。', layout),
-                buildHomePreviewLauncher('mobile-default', '移动端 · 默认布局', '官网与公告保留顶部浮动，底部保留导航栏和客服浮标。', layout),
-                buildHomePreviewLauncher('mobile-layout1', '移动端 · 布局 1', '订阅置顶，官网/公告改为内容区快捷卡，首页不再展示离线模式。', layout)
-            ].join('');
-
-            if (!homePanelPreviewTarget) {
-                modal.classList.remove('is-open');
-                stage.innerHTML = '';
-                return;
-            }
-
-            var sceneMap = {
-                'desktop-default': {
-                    title: '桌面端 · 默认布局',
-                    meta: '顶部保留官网与公告浮动入口，订阅信息位于连接区下方。',
-                    image: './assets/home-previews/desktop-default.png',
-                    deviceType: 'desktop',
-                    active: layout === 'default'
-                },
-                'desktop-layout1': {
-                    title: '桌面端 · 布局 1',
-                    meta: '订阅信息上移到顶部横条，连接区和节点卡居中下排。',
-                    image: './assets/home-previews/desktop-layout1.png',
-                    deviceType: 'desktop',
-                    active: layout === 'layout1'
-                },
-                'mobile-default': {
-                    title: '移动端 · 默认布局',
-                    meta: '官网与公告保留顶部浮动，底部保留导航栏和客服浮标。',
-                    image: './assets/home-previews/mobile-default.png',
-                    deviceType: 'mobile',
-                    active: layout === 'default'
-                },
-                'mobile-layout1': {
-                    title: '移动端 · 布局 1',
-                    meta: '订阅置顶，官网/公告改为内容区快捷卡，首页不再展示离线模式。',
-                    image: './assets/home-previews/mobile-layout1.png',
-                    deviceType: 'mobile',
-                    active: layout === 'layout1'
-                }
-            };
-
-            var currentScene = sceneMap[homePanelPreviewTarget] || sceneMap['desktop-default'];
-            if (modalTitle) modalTitle.textContent = currentScene.title;
-            if (modalDesc) modalDesc.textContent = currentScene.meta;
-            stage.innerHTML = buildHomePreviewScene(
-                currentScene.title,
-                currentScene.meta,
-                currentScene.image,
-                currentScene.active,
-                currentScene.deviceType
-            );
-            modal.classList.add('is-open');
-        }
 
         // ==================== 导航切换 ====================
         function switchSection(sectionName, triggerElement) {
@@ -6670,14 +5409,6 @@
             targetSection.classList.add('active');
             if (sectionName === 'updates') {
                 loadClientUpdates(false);
-            } else if (sectionName === 'customFeatures') {
-                if (!isAdminSession()) {
-                    customTrafficBarAccessVerified = false;
-                    customUIColorAvailableFeatures = [];
-                }
-                syncCustomTrafficBarProfileName();
-                updateCustomTrafficBarCodeHint();
-                syncCustomTrafficBarAccessView();
             } else if (sectionName === 'secureLogs') {
                 updateSecureLogPathHint();
             }
@@ -6708,35 +5439,8 @@
             }
             renderProfileActionButtons();
             await loadCurrentUserInfo();
-            document.getElementById('customTrafficBarIntegrationCode').value =
-                sessionStorage.getItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY) || '';
-            syncCustomTrafficBarProfileName();
-            [
-                'customTrafficBarColorPicker',
-                'noticeDialogIconBackgroundColorPicker',
-                'subscriptionWebsiteIconColorPicker',
-                'subscriptionRefreshIconColorPicker',
-                'subscriptionNoticeIconColorPicker',
-                'loginButtonColorPicker',
-                'plansSubscribeButtonColorPicker',
-                'plansFilterTabColorPicker',
-                'inviteCodeTextColorPicker',
-                'inviteCodeBackgroundColorPicker',
-                'commissionBalanceCardBackgroundColorPicker',
-                'inviteStatsTotalInvitesIconColorPicker',
-                'inviteStatsCommissionRateIconColorPicker',
-                'inviteStatsTotalCommissionIconColorPicker'
-            ].forEach(function(id) {
-                var picker = document.getElementById(id);
-                if (picker) {
-                    picker.dataset.defaultColor = String(picker.value || '').toUpperCase();
-                }
-            });
-            updateCustomTrafficBarCodeHint();
-            syncCustomTrafficBarAccessView();
 
             document.getElementById('addSourceBtn').addEventListener('click', addSource);
-            document.getElementById('addSupportBtn').addEventListener('click', addSupportItem);
             document.getElementById('buildBtn').addEventListener('click', triggerBuild);
             document.getElementById('buildTag').addEventListener('input', updateBuildTagValidationState);
             document.getElementById('buildTag').addEventListener('change', updateBuildTagValidationState);
@@ -6765,59 +5469,12 @@
             document.getElementById('appIconUploadInput').addEventListener('change', handleAppIconUpload);
             document.getElementById('profileSelect').addEventListener('change', function() {
                 syncProfileBoundAppTitle();
-                syncCustomTrafficBarProfileName();
                 updateSecureLogPathHint();
-                setCustomTrafficBarStatus('', 'info');
                 if (!isAdminSession()) {
-                    customTrafficBarAccessVerified = false;
-                    customUIColorAvailableFeatures = [];
-                    syncCustomTrafficBarAccessView();
 	                    var selected = getSelectedProfileKey();
                     if (selected) {
                         loadProfile();
                     }
-                }
-            });
-            document.getElementById('customTrafficBarIntegrationCode').addEventListener('input', function() {
-                if (!isAdminSession()) {
-                    customTrafficBarAccessVerified = false;
-                    customUIColorAvailableFeatures = [];
-                    syncCustomTrafficBarAccessView();
-                }
-            });
-            document.getElementById('customTrafficBarIntegrationCode').addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    unlockCustomTrafficBarConfig();
-                }
-            });
-            [
-                'customTrafficBarColor',
-                'noticeDialogIconBackgroundColor',
-                'subscriptionWebsiteIconColor',
-                'subscriptionRefreshIconColor',
-                'subscriptionNoticeIconColor',
-                'loginButtonColor',
-                'plansSubscribeButtonColor',
-                'plansFilterTabColor',
-                'inviteCodeTextColor',
-                'inviteCodeBackgroundColor',
-                'commissionBalanceCardBackgroundColor',
-                'inviteStatsTotalInvitesIconColor',
-                'inviteStatsCommissionRateIconColor',
-                'inviteStatsTotalCommissionIconColor'
-            ].forEach(function(inputId) {
-                var picker = document.getElementById(getCustomUIColorPickerId(inputId));
-                var input = document.getElementById(inputId);
-                if (picker) {
-                    picker.addEventListener('input', function() {
-                        syncCustomUIColorTextFromPicker(inputId);
-                    });
-                }
-                if (input) {
-                    input.addEventListener('input', function() {
-                        syncCustomUIColorPickerFromText(inputId);
-                    });
                 }
             });
             document.getElementById('appTitle').addEventListener('input', updateSecureLogPathHint);
@@ -6830,7 +5487,6 @@
             document.getElementById('cancelSaveProfileBtn').addEventListener('click', hideSaveProfileInput);
 
             initSwitches();
-            initCustomFeatureSwitches();
             initPlatformCheckboxes();
             initCustomSelects(document);
             observeCustomSelectTree();
@@ -6839,7 +5495,6 @@
             renderSources();
             renderSupportItems();
             updateProviderConsistencyState();
-            renderHomePanelPreview();
 
             syncProfileBoundAppTitle();
             updateSecureLogPathHint();
@@ -6870,7 +5525,6 @@
                 '    title: ""',
                 '    logo:',
                 '      type: text',
-                '      image_url: ""',
                 '    auth_background:',
                 '      enabled: false',
                 '      image_url: ""',
@@ -6888,62 +5542,107 @@
                 '  subscription_cache:',
                 '    enabled: false',
                 '    ttl_hours: 24',
-                '  cloud_dispatch:',
-                '    # GTM 服务地址只填基础地址，客户端固定请求 /api/query/machines',
-                '    enabled: false',
-                '    query_url: ""',
-                '    query_secret: ""',
-                '    # 客户端会自动用 GTM 返回域名匹配订阅节点，无需手动配置目标域名',
-                '    # 未识别来源运营商且命中 GTM 总入口时，随机选择一个可用分类入口',
-                '    fallback_retry_minutes: 5',
-                '    auto:',
-                '      enabled: false',
-                '      interval_minutes: 5',
                 '  remote_config:',
                 '    sources:',
                 '      - name: redirect',
                 '        url: ""',
-                '  online_support:',
-                '    items: []',
                 '  ui:',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
-                '    show_ip_info: true',
-                '    custom_colors:',
-                '      notice_dialog_icon_background_color: ""',
-                '      subscription_website_icon_color: ""',
-                '      subscription_refresh_icon_color: ""',
-                '      subscription_notice_icon_color: ""',
-                '      login_button_color: ""',
-                '      plans_subscribe_button_color: ""',
-                '      plans_filter_tab_color: ""',
-                '      invite_code_text_color: ""',
-                '      invite_code_background_color: ""',
-                '      commission_balance_card_background_color: ""',
-                '      invite_stats_total_invites_icon_color: ""',
-                '      invite_stats_commission_rate_icon_color: ""',
-                '      invite_stats_total_commission_icon_color: ""',
-                '    home_panel_default_layout: default',
                 '    latency_reduction:',
                 '      enabled: false',
                 '      value: 0',
                 '    notice:',
                 '      auto_open_on_startup: false',
-                '    subscription_status_popup:',
-                '      enabled: false',
-                '      official_url: ""',
                 '    proxy_groups:',
                 '      show_custom_rule_entry: true',
                 '      main_policy_nodes_only: false',
-                '    online_support:',
-                '      auth_pages:',
-                '        show_button: false',
                 '    checkin:',
                 '      show_button: false',
                 '    gift_card:',
                 '      show_button: false'
             ];
             return lines.join('\n');
+        }
+
+        function stripYamlBlock(lines, startIndex, baseIndent) {
+            var endIndex = startIndex + 1;
+            while (endIndex < lines.length) {
+                var line = lines[endIndex];
+                if (line.trim() === '' || /^\s*#/.test(line)) {
+                    endIndex++;
+                    continue;
+                }
+                var indent = (line.match(/^(\s*)/) || [''])[0].length;
+                if (indent <= baseIndent) break;
+                endIndex++;
+            }
+            lines.splice(startIndex, endIndex - startIndex);
+        }
+
+        function enforceNexGenTextLogo(yamlContent) {
+            var lines = String(yamlContent || '').split('\n');
+            var inLogo = false;
+            var hasLogoType = false;
+            var logoTypeIndex = -1;
+            var logoEndIndex = -1;
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                var trimmed = line.trim();
+                var indent = (line.match(/^(\s*)/) || [''])[0].length;
+                if (indent === 4 && trimmed === 'logo:') {
+                    inLogo = true;
+                    logoEndIndex = i + 1;
+                    continue;
+                }
+                if (!inLogo) continue;
+                if (line.trim() !== '' && indent <= 4) {
+                    logoEndIndex = i;
+                    inLogo = false;
+                    i--;
+                    continue;
+                }
+                if (indent === 6 && /^type:\s*/.test(trimmed)) {
+                    lines[i] = '      type: text';
+                    hasLogoType = true;
+                    logoTypeIndex = i;
+                    logoEndIndex = i + 1;
+                    continue;
+                }
+                if (indent === 6 && /^image_url:\s*/.test(trimmed)) {
+                    stripYamlBlock(lines, i, indent);
+                    i--;
+                    continue;
+                }
+                logoEndIndex = i + 1;
+            }
+            if (inLogo && !hasLogoType) {
+                lines.splice(logoEndIndex, 0, '      type: text');
+            } else if (hasLogoType) {
+                lines[logoTypeIndex] = '      type: text';
+            }
+            return lines.join('\n');
+        }
+
+        function cleanNexGenProfileYaml(yamlContent) {
+            var lines = String(yamlContent || '').replace(/config_cache:/g, 'subscription_cache:').split('\n');
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                var trimmed = line.trim();
+                var indent = (line.match(/^(\s*)/) || [''])[0].length;
+
+                if (indent === 2 && /^(online_support|cloud_dispatch|cloudDispatch):\s*$/.test(trimmed)) {
+                    stripYamlBlock(lines, i, indent);
+                    i--;
+                    continue;
+                }
+                if (indent === 4 && /^(online_support|custom_colors|customColors|home_panel_default_layout|subscription_status_popup|subscriptionStatusPopup|show_ip_info|showIpInfo):\s*(?:.*)$/.test(trimmed)) {
+                    stripYamlBlock(lines, i, indent);
+                    i--;
+                    continue;
+                }
+            }
+            return enforceNexGenTextLogo(lines.join('\n')).replace(/\n{3,}/g, '\n\n').trim();
         }
 
         // ==================== 配置档案 API ====================
@@ -7006,7 +5705,7 @@
                     syncProfileBoundAppTitle();
 	                    setStatus('档案 "' + getSelectedProfileDisplayName() + '" 尚未创建，请配置后保存', 'info');
 	                } else {
-                    currentProfileBaseYaml = data.yaml_content;
+                    currentProfileBaseYaml = cleanNexGenProfileYaml(data.yaml_content);
                     document.getElementById('editor').value = currentProfileBaseYaml;
                     yamlToForm();
                     syncProfileBoundAppTitle();
@@ -7061,36 +5760,11 @@
                 };
             });
 
-            var validSupportItems = onlineSupportItems.filter(function(item) {
-                if (!item) return false;
-                if (item.type === 'browser' && item.url) return true;
-                if (item.type === 'crisp' && item.website_id) return true;
-                if (item.type === 'chatra' && (item.chatra_id || item.widget_code)) return true;
-                if (item.type === 'chatway' && item.widget_id) return true;
-                if (item.type === 'tawkto' && (item.property_id || item.widget_id)) return true;
-                if (item.type === 'chatwoot' && (item.website_token || item.base_url)) return true;
-                return false;
-            }).map(function(item) {
-                return {
-                    merge_key: item._merge_key || '',
-                    type: item.type || '',
-                    description: item.description || '',
-                    url: item.url || '',
-                    website_id: item.website_id || '',
-                    chatra_id: item.chatra_id || '',
-                    widget_code: item.widget_code || '',
-                    widget_id: item.widget_id || '',
-                    property_id: item.property_id || '',
-                    website_token: item.website_token || '',
-                    base_url: item.base_url || ''
-                };
-            });
-
             var formState = {
                 provider: document.getElementById('provider').value.trim(),
                 app_title: getBoundAppTitleValue(),
-                logo_type: document.getElementById('logoType').value,
-                logo_image_url: document.getElementById('logoImageUrl').value.trim(),
+                logo_type: 'text',
+                logo_image_url: '',
                 app_icon_url: document.getElementById('appIconUrl').value.trim(),
                 auth_background_enabled: document.getElementById('authBackgroundEnabled').checked,
                 auth_background_image_url: document.getElementById('authBackgroundImageUrl').value.trim(),
@@ -7101,27 +5775,18 @@
                 use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
                 auto_offline_enabled: document.getElementById('autoOfflineEnabled').checked,
-                cloud_dispatch_enabled: document.getElementById('cloudDispatchEnabled') ? document.getElementById('cloudDispatchEnabled').checked : false,
-                cloud_dispatch_query_url: document.getElementById('cloudDispatchQueryUrl') ? document.getElementById('cloudDispatchQueryUrl').value.trim() : '',
-                cloud_dispatch_query_secret: document.getElementById('cloudDispatchQuerySecret') ? document.getElementById('cloudDispatchQuerySecret').value.trim() : '',
-                cloud_dispatch_auto_enabled: document.getElementById('cloudDispatchAutoEnabled') ? document.getElementById('cloudDispatchAutoEnabled').checked : false,
-                cloud_dispatch_auto_interval_minutes: document.getElementById('cloudDispatchAutoIntervalMinutes') ? (parseInt(document.getElementById('cloudDispatchAutoIntervalMinutes').value || '5', 10) || 5) : 5,
-                cloud_dispatch_fallback_retry_minutes: document.getElementById('cloudDispatchFallbackRetryMinutes') ? (parseInt(document.getElementById('cloudDispatchFallbackRetryMinutes').value || '5', 10) || 5) : 5,
                 subscription_cache_enabled: document.getElementById('subscriptionCacheEnabled').checked,
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
-                show_ip_info: document.getElementById('showIpInfo').checked,
-                home_panel_default_layout: document.getElementById('homePanelDefaultLayout').value,
                 latency_reduction_enabled: document.getElementById('latencyReductionEnabled').checked,
                 latency_reduction_value: normalizeLatencyReductionValue(document.getElementById('latencyReductionValue').value),
                 notice_auto_open_on_startup: document.getElementById('noticeAutoOpenOnStartup').checked,
                 show_custom_rule_entry: document.getElementById('showCustomRuleEntry').checked,
                 checkin_show_button: document.getElementById('checkinShowButton').checked,
-                auth_pages_support_show_button: document.getElementById('authPagesSupportShowButton').checked,
                 gift_card_show_button: document.getElementById('giftCardShowButton').checked,
                 sources: validSources,
-                online_support_items: validSupportItems
+                online_support_items: []
             };
             return formState;
         }
@@ -7140,7 +5805,9 @@
                 setStatus('配置内容为空，无法保存', 'error');
                 return false;
             }
-            baseYamlContent = baseYamlContent.replace(/config_cache:/g, 'subscription_cache:');
+            baseYamlContent = cleanNexGenProfileYaml(baseYamlContent);
+            currentProfileBaseYaml = baseYamlContent;
+            document.getElementById('editor').value = baseYamlContent;
             setStatus(options.loadingMessage || '正在保存...', 'info');
 
 	            try {
@@ -7158,7 +5825,7 @@
                     throw new Error(respBody.error || '保存失败');
                 }
                 if (respBody && respBody.yaml_content) {
-                    currentProfileBaseYaml = respBody.yaml_content;
+                    currentProfileBaseYaml = cleanNexGenProfileYaml(respBody.yaml_content);
                     document.getElementById('editor').value = currentProfileBaseYaml;
                     yamlToForm();
                 }
@@ -7241,7 +5908,7 @@
 	                    buildBranches = [];
 	                }
 	                var updateBranches = buildBranches;
-                if (core !== 'mihomo') {
+                if (!isNexGenClient() && core !== 'mihomo') {
                     var updateResponse = await api('GET', appendBuildClientQuery('/branches?core=mihomo'));
 	                    if (updateResponse && updateResponse.ok) {
 	                        updateBranches = await updateResponse.json();
@@ -7308,7 +5975,7 @@
                 }), 'main', false);
                 fillBranchSelect(document.getElementById('updatesBranch'), updateBranches.filter(function(branch) {
                     return branch && !isHiddenClientUpdatesBranch(branch.name);
-                }), '', true, [
+                }), '', true, isNexGenClient() ? [] : [
                     { value: '__xray_default__', label: 'xray', core: 'xray', branch: '' }
                 ]);
             } catch (e) {
@@ -7431,7 +6098,7 @@
                 selectedBranch = String(selectedBranch || '').trim();
             }
             var selectedCore = getSelectedBuildCore();
-            if (selectedOption) {
+            if (selectedOption && !isNexGenClient()) {
                 selectedCore = selectedOption.getAttribute('data-core') || getSelectedBuildCore();
             }
             if (isHiddenClientUpdatesBranch(selectedBranch)) {
@@ -7455,7 +6122,7 @@
             try {
                 var params = new URLSearchParams();
                 params.set('client', BUILD_CLIENT);
-                if (selectedCore && selectedCore !== 'mihomo') {
+                if (selectedCore && (isNexGenClient() || selectedCore !== 'mihomo')) {
                     params.set('core', selectedCore);
                 }
                 if (selectedBranch) {
@@ -8125,9 +6792,10 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'showIpInfo', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'authPagesSupportShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
+                if (!el || !label) return;
                 el.addEventListener('change', function() {
                     label.textContent = this.checked ? '开启' : '关闭';
                     if (id === 'useExclusiveMode') {
@@ -8137,14 +6805,6 @@
                     scheduleAutoSaveCurrentProfile('开关配置已自动保存');
                 });
             });
-            var homePanelDefaultLayout = document.getElementById('homePanelDefaultLayout');
-            if (homePanelDefaultLayout) {
-                homePanelDefaultLayout.addEventListener('change', function() {
-                    renderHomePanelPreview();
-                    formToYaml();
-                    scheduleAutoSaveCurrentProfile('UI 配置已自动保存');
-                });
-            }
             document.getElementById('subscriptionCacheTtl').addEventListener('change', function() {
                 formToYaml();
             });
@@ -8557,6 +7217,7 @@
             var lineCount = String(content || '').split('\n').length;
             var siteCount = 0;
             var updateCount = 0;
+            var supportCount = 0;
             try {
                 var data = JSON.parse(content || '{}');
                 if (data.panels && typeof data.panels === 'object') {
@@ -8568,9 +7229,11 @@
                     });
                 }
                 updateCount = Array.isArray(data.update) ? data.update.length : 0;
+                var onlineSupportData = Array.isArray(data.onlineSupport) ? data.onlineSupport : data.online_support;
+                supportCount = Array.isArray(onlineSupportData) ? onlineSupportData.length : 0;
             } catch (e) {}
 
-            metaEl.textContent = '共 ' + lineCount + ' 行 · 站点 ' + siteCount + ' 个 · 更新项 ' + updateCount + ' 个';
+            metaEl.textContent = '共 ' + lineCount + ' 行 · 站点 ' + siteCount + ' 个 · 更新项 ' + updateCount + ' 个 · 客服 ' + supportCount + ' 个';
         }
 
         function copyRemoteConfigSource() {
@@ -8668,6 +7331,155 @@
             handleRemoteConfigFormInput();
         }
 
+        function getDefaultRemoteConfigSupportItem() {
+            return { type: 'browser', url: '', description: '在线客服' };
+        }
+
+        function normalizeRemoteConfigSupportItem(item) {
+            item = normalizeSupportItem(item || {});
+            return {
+                type: item.type || 'browser',
+                description: item.description || '',
+                url: item.url || '',
+                website_id: item.website_id || item.websiteId || '',
+                chatra_id: item.chatra_id || item.chatraId || item.ChatraID || '',
+                widget_code: item.widget_code || item.widgetCode || '',
+                widget_id: item.widget_id || item.widgetId || '',
+                property_id: item.property_id || item.propertyId || '',
+                website_token: item.website_token || item.websiteToken || '',
+                base_url: item.base_url || item.baseUrl || '',
+                chatway_widget_id: item.chatway_widget_id || item.chatwayWidgetId || item.widget_id || item.widgetId || ''
+            };
+        }
+
+        function renderRemoteConfigSupportItems() {
+            var container = document.getElementById('remoteConfigSupportContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            remoteConfigSupportItems.forEach(function(item, index) {
+                var normalized = normalizeRemoteConfigSupportItem(item);
+                if (normalized.type === 'chatway' && normalized.chatway_widget_id && !normalized.widget_id) {
+                    normalized.widget_id = normalized.chatway_widget_id;
+                }
+                var el = createSupportItem(index, normalized, {
+                    removeHandler: 'removeRemoteConfigSupportItem',
+                    changeHandler: 'handleRemoteConfigFormInput'
+                });
+                container.appendChild(el);
+                el.querySelectorAll('input, select').forEach(function(input) {
+                    input.addEventListener('input', handleRemoteConfigFormInput);
+                    input.addEventListener('change', handleRemoteConfigFormInput);
+                });
+            });
+            syncAllCustomSelects(container, true);
+        }
+
+        function addRemoteConfigSupportItem() {
+            collectRemoteConfigSupportItems();
+            remoteConfigSupportItems.push(getDefaultRemoteConfigSupportItem());
+            renderRemoteConfigSupportItems();
+            handleRemoteConfigFormInput();
+        }
+
+        function removeRemoteConfigSupportItem(index) {
+            collectRemoteConfigSupportItems();
+            remoteConfigSupportItems.splice(index, 1);
+            renderRemoteConfigSupportItems();
+            handleRemoteConfigFormInput();
+        }
+
+        function collectRemoteConfigSupportItems() {
+            var container = document.getElementById('remoteConfigSupportContainer');
+            if (!container) return [];
+            var items = container.querySelectorAll('.support-item');
+            remoteConfigSupportItems = [];
+            items.forEach(function(item) {
+                var type = item.querySelector('.support-type').value;
+                var obj = {
+                    type: type,
+                    description: item.querySelector('.support-description').value.trim()
+                };
+                if (type === 'browser') {
+                    obj.url = item.querySelector('.support-url').value.trim();
+                } else if (type === 'crisp') {
+                    obj.website_id = item.querySelector('.support-website-id').value.trim();
+                } else if (type === 'chatra') {
+                    obj.chatra_id = item.querySelector('.support-chatra-id').value.trim();
+                    if (!obj.chatra_id && item.dataset.legacyChatraWidgetCode) {
+                        obj.widget_code = item.dataset.legacyChatraWidgetCode;
+                    }
+                } else if (type === 'chatway') {
+                    obj.chatway_widget_id = item.querySelector('.support-chatway-widget-id').value.trim();
+                } else if (type === 'tawkto') {
+                    obj.property_id = item.querySelector('.support-property-id').value.trim();
+                    obj.widget_id = item.querySelector('.support-tawkto-widget-id').value.trim();
+                } else if (type === 'chatwoot') {
+                    obj.website_token = item.querySelector('.support-website-token').value.trim();
+                    obj.base_url = item.querySelector('.support-base-url').value.trim();
+                }
+                remoteConfigSupportItems.push(obj);
+            });
+            return remoteConfigSupportItems;
+        }
+
+        function buildRemoteConfigOnlineSupportItems() {
+            return collectRemoteConfigSupportItems().map(function(item) {
+                item = normalizeRemoteConfigSupportItem(item);
+                var result = {
+                    type: item.type || 'browser'
+                };
+                if (item.description) result.description = item.description;
+                if (item.type === 'browser' && item.url) {
+                    result.url = item.url;
+                } else if (item.type === 'crisp' && item.website_id) {
+                    result.websiteId = item.website_id;
+                } else if (item.type === 'chatra') {
+                    if (item.chatra_id) result.chatraId = item.chatra_id;
+                    if (item.widget_code) result.widgetCode = item.widget_code;
+                } else if (item.type === 'chatway' && item.chatway_widget_id) {
+                    result.chatwayWidgetId = item.chatway_widget_id;
+                } else if (item.type === 'tawkto') {
+                    if (item.property_id) result.propertyId = item.property_id;
+                    if (item.widget_id) result.widgetId = item.widget_id;
+                } else if (item.type === 'chatwoot') {
+                    if (item.website_token) result.websiteToken = item.website_token;
+                    if (item.base_url) result.baseUrl = item.base_url;
+                }
+                var hasConfigValue = Object.keys(result).some(function(key) {
+                    return key !== 'type' && key !== 'description' && String(result[key] || '').trim() !== '';
+                });
+                return hasConfigValue ? result : null;
+            }).filter(Boolean);
+        }
+
+        function setRemoteConfigSupportFormValues(items, uiConfig) {
+            remoteConfigSupportItems = Array.isArray(items) ? items.map(normalizeRemoteConfigSupportItem) : [];
+            renderRemoteConfigSupportItems();
+            var showButtonInput = document.getElementById('remoteConfigAuthPagesSupportShowButton');
+            if (showButtonInput) {
+                var onlineSupport = uiConfig && (uiConfig.onlineSupport || uiConfig.online_support);
+                var authPages = onlineSupport && (onlineSupport.authPages || onlineSupport.auth_pages);
+                showButtonInput.checked = !!(authPages && (authPages.showButton || authPages.show_button));
+                syncRemoteConfigSupportAuthPagesLabel();
+            }
+        }
+
+        function syncRemoteConfigSupportAuthPagesLabel() {
+            var input = document.getElementById('remoteConfigAuthPagesSupportShowButton');
+            var label = document.getElementById('remoteConfigAuthPagesSupportShowButtonLabel');
+            if (input && label) {
+                label.textContent = input.checked ? '开启' : '关闭';
+            }
+            syncRemoteConfigSupportActions();
+        }
+
+        function syncRemoteConfigSupportActions() {
+            var input = document.getElementById('remoteConfigAuthPagesSupportShowButton');
+            var actions = document.getElementById('remoteConfigSupportActions');
+            if (!actions) return;
+            actions.style.display = input && input.checked ? '' : 'none';
+        }
+
         function updateProviderConsistencyState(options) {
             options = options || {};
             var source = options.source || '';
@@ -8725,6 +7537,8 @@
             updateProviderConsistencyState();
             var rawPanelItems = collectRemoteConfigPanels();
             var updateItems = getRemoteConfigUpdateFormData(requireComplete);
+            var supportItems = isNexGenClient() ? buildRemoteConfigOnlineSupportItems() : [];
+            var supportShowButtonInput = document.getElementById('remoteConfigAuthPagesSupportShowButton');
             var panelItems = [];
 
             rawPanelItems.forEach(function(item, index) {
@@ -8775,6 +7589,16 @@
                 ws: [],
                 update: updateItems
             };
+            if (isNexGenClient()) {
+                result.onlineSupport = supportItems;
+                result.ui = {
+                    onlineSupport: {
+                        authPages: {
+                            showButton: !!(supportShowButtonInput && supportShowButtonInput.checked)
+                        }
+                    }
+                };
+            }
             return result;
         }
 
@@ -8810,6 +7634,8 @@
             var addPanelBtn = document.getElementById('addRemoteConfigPanelBtn');
             var fileInput = document.getElementById('remoteConfigFileInput');
             var updateEnabledInput = document.getElementById('remoteConfigUpdateEnabled');
+            var addSupportBtn = document.getElementById('addRemoteConfigSupportBtn');
+            var authPagesSupportInput = document.getElementById('remoteConfigAuthPagesSupportShowButton');
             var updateFieldIds = [
                 'remoteConfigUpdateDescription',
                 'remoteConfigUpdateLatestVersion',
@@ -8830,6 +7656,7 @@
             }
             renderRemoteConfigPanels();
             setRemoteConfigUpdateFormValues(getDefaultRemoteConfigUpdateItem(), { enabled: false });
+            setRemoteConfigSupportFormValues([], {});
 
             [panelTypeInput, websiteUrlInput].forEach(function(input) {
                 if (!input) return;
@@ -8846,6 +7673,15 @@
             }
             if (addPanelBtn) {
                 addPanelBtn.addEventListener('click', addRemoteConfigPanel);
+            }
+            if (addSupportBtn) {
+                addSupportBtn.addEventListener('click', addRemoteConfigSupportItem);
+            }
+            if (authPagesSupportInput) {
+                authPagesSupportInput.addEventListener('change', function() {
+                    syncRemoteConfigSupportAuthPagesLabel();
+                    handleRemoteConfigFormInput();
+                });
             }
             if (fileInput) {
                 fileInput.addEventListener('change', handleRemoteConfigFileUpload);
@@ -9092,6 +7928,8 @@
             var providerKey = providerKeys.length ? providerKeys[0] : '';
             var siteCount = 0;
             var updateCount = Array.isArray(data.update) ? data.update.length : 0;
+            var onlineSupportData = Array.isArray(data.onlineSupport) ? data.onlineSupport : data.online_support;
+            var supportCount = Array.isArray(onlineSupportData) ? onlineSupportData.length : 0;
             providerKeys.forEach(function(key) {
                 var items = Array.isArray(data.panels[key]) ? data.panels[key] : [];
                 siteCount += items.filter(function(item) { return item && item.url; }).length;
@@ -9104,6 +7942,7 @@
                 provider_key: providerKey,
                 site_count: siteCount,
                 update_count: updateCount,
+                support_count: supportCount,
                 saved_at: new Date().toISOString(),
                 content: content
             };
@@ -9130,6 +7969,8 @@
             setRemoteConfigUpdateFormValues(firstUpdateItem || getDefaultRemoteConfigUpdateItem(), {
                 enabled: !!firstUpdateItem
             });
+            var onlineSupportData = Array.isArray(data.onlineSupport) ? data.onlineSupport : data.online_support;
+            setRemoteConfigSupportFormValues(Array.isArray(onlineSupportData) ? onlineSupportData : [], data.ui || {});
             remoteConfigEncryptedData = '';
             renderRemoteConfigPanels();
             syncAllCustomSelects(document);
@@ -9166,7 +8007,7 @@
                 html += '<div class="remote-config-history-title">' + escapeHtml(recordTitle) + '</div>';
                 html += '<div class="remote-config-history-time">' + escapeHtml(formatRemoteConfigHistoryTime(record.saved_at)) + '</div>';
                 html += '</div>';
-                html += '<div class="remote-config-history-meta">面板类型：' + escapeHtml(record.panel_type || '-') + ' · 站点分组名称：' + escapeHtml(record.provider_key || '-') + ' · 站点数：' + escapeHtml(String(record.site_count || 0)) + ' · 更新项：' + escapeHtml(String(record.update_count || 0)) + '</div>';
+                html += '<div class="remote-config-history-meta">面板类型：' + escapeHtml(record.panel_type || '-') + ' · 站点分组名称：' + escapeHtml(record.provider_key || '-') + ' · 站点数：' + escapeHtml(String(record.site_count || 0)) + ' · 更新项：' + escapeHtml(String(record.update_count || 0)) + ' · 客服数：' + escapeHtml(String(record.support_count || 0)) + '</div>';
                 if (record.website_url) {
                     html += '<div class="remote-config-history-meta">官网地址：' + escapeHtml(record.website_url) + '</div>';
                 }
@@ -9408,6 +8249,7 @@
 
         function renderSupportItems() {
             var container = document.getElementById('onlineSupportContainer');
+            if (!container) return;
             container.innerHTML = '';
             onlineSupportItems.forEach(function(item, index) {
                 var el = createSupportItem(index, item);
@@ -9432,7 +8274,12 @@
         }
 
         function collectSupportItems() {
-            var items = document.querySelectorAll('.support-item');
+            var container = document.getElementById('onlineSupportContainer');
+            if (!container) {
+                onlineSupportItems = [];
+                return onlineSupportItems;
+            }
+            var items = container.querySelectorAll('.support-item');
             onlineSupportItems = [];
             items.forEach(function(item) {
                 var type = item.querySelector('.support-type').value;
@@ -9499,9 +8346,6 @@
             }
             document.getElementById('appTitle').value = getValue('title');
             syncProfileBoundAppTitle();
-            document.getElementById('logoType').value = getValue('type') || 'text';
-            var logoMatch = yaml.match(/logo:[\s\S]*?image_url:[^\S\n]*(.*)/);
-            document.getElementById('logoImageUrl').value = logoMatch ? logoMatch[1].trim().replace(/^["']|["']$/g, '') : '';
             var iconMatch = yaml.match(/app_icon:[\s\S]*?image_url:[^\S\n]*(.*)/);
             document.getElementById('appIconUrl').value = iconMatch ? iconMatch[1].trim().replace(/^["']|["']$/g, '') : '';
             updateAppIconPreview(document.getElementById('appIconUrl').value);
@@ -9518,39 +8362,6 @@
             var autoOfflineEnabled = autoOfflineMatch ? autoOfflineMatch[1] === 'true' : false;
             document.getElementById('autoOfflineEnabled').checked = autoOfflineEnabled;
             document.getElementById('autoOfflineEnabledLabel').textContent = autoOfflineEnabled ? '开启' : '关闭';
-            var cloudDispatchEnabledMatch =
-                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}enabled:\s*(true|false)/m) ||
-                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);
-            var cloudDispatchEnabled = cloudDispatchEnabledMatch ? cloudDispatchEnabledMatch[1] === 'true' : false;
-            setCustomFeatureSwitchValue('cloudDispatchEnabled', cloudDispatchEnabled);
-            var cloudDispatchQueryUrlMatch =
-                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}query_url:[^\S\n]*(.*)/m) ||
-                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)queryUrl:[^\S\n]*(.*)/);
-            var cloudDispatchQuerySecretMatch =
-                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}query_secret:[^\S\n]*(.*)/m) ||
-                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)querySecret:[^\S\n]*(.*)/);
-            if (document.getElementById('cloudDispatchQueryUrl')) {
-                document.getElementById('cloudDispatchQueryUrl').value = cloudDispatchQueryUrlMatch ? cloudDispatchQueryUrlMatch[1].trim().replace(/^["']|["']$/g, '') : '';
-            }
-            if (document.getElementById('cloudDispatchQuerySecret')) {
-                document.getElementById('cloudDispatchQuerySecret').value = cloudDispatchQuerySecretMatch ? cloudDispatchQuerySecretMatch[1].trim().replace(/^["']|["']$/g, '') : '';
-            }
-            var cloudDispatchAutoEnabledMatch =
-                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}auto:\s*\n(?:[\s\S]*?)^\s{6}enabled:\s*(true|false)/m) ||
-                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)auto:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);
-            var cloudDispatchAutoIntervalMatch =
-                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}auto:\s*\n(?:[\s\S]*?)^\s{6}interval_minutes:\s*(\d+)/m) ||
-                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)auto:\s*\n(?:[\s\S]*?)intervalMinutes:\s*(\d+)/);
-            var cloudDispatchFallbackRetryMatch =
-                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}fallback_retry_minutes:\s*(\d+)/m) ||
-                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)fallbackRetryMinutes:\s*(\d+)/);
-            setCustomFeatureSwitchValue('cloudDispatchAutoEnabled', cloudDispatchAutoEnabledMatch ? cloudDispatchAutoEnabledMatch[1] === 'true' : false);
-            if (document.getElementById('cloudDispatchAutoIntervalMinutes')) {
-                document.getElementById('cloudDispatchAutoIntervalMinutes').value = cloudDispatchAutoIntervalMatch ? parseInt(cloudDispatchAutoIntervalMatch[1], 10) : 5;
-            }
-            if (document.getElementById('cloudDispatchFallbackRetryMinutes')) {
-                document.getElementById('cloudDispatchFallbackRetryMinutes').value = cloudDispatchFallbackRetryMatch ? parseInt(cloudDispatchFallbackRetryMatch[1], 10) : 5;
-            }
             var subCacheEnabledMatch = yaml.match(/subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var subCacheEnabled = subCacheEnabledMatch ? subCacheEnabledMatch[1] === 'true' : false;
             document.getElementById('subscriptionCacheEnabled').checked = subCacheEnabled;
@@ -9566,16 +8377,6 @@
             var hideNodeStatus = hideNodeStatusMatch ? hideNodeStatusMatch[1] === 'true' : false;
             document.getElementById('hideNodeStatus').checked = hideNodeStatus;
             document.getElementById('hideNodeStatusLabel').textContent = hideNodeStatus ? '开启' : '关闭';
-            var showIpInfoMatch =
-                yaml.match(/ui:\s*\n(?:[\s\S]*?)show_ip_info:\s*(true|false)/) ||
-                yaml.match(/ui:\s*\n(?:[\s\S]*?)showIpInfo:\s*(true|false)/);
-            var showIpInfo = showIpInfoMatch ? showIpInfoMatch[1] === 'true' : true;
-            document.getElementById('showIpInfo').checked = showIpInfo;
-            document.getElementById('showIpInfoLabel').textContent = showIpInfo ? '开启' : '关闭';
-            var homePanelDefaultLayoutMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)home_panel_default_layout:\s*([^\s#]+)/);
-            var homePanelDefaultLayout = homePanelDefaultLayoutMatch ? homePanelDefaultLayoutMatch[1].trim().replace(/^["']|["']$/g, '') : 'default';
-            document.getElementById('homePanelDefaultLayout').value = homePanelDefaultLayout || 'default';
-            syncAllCustomSelects(document.getElementById('homePanelDefaultLayout'));
             var latencyReductionEnabledMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}latency_reduction:\s*\n(?:[\s\S]*?)^\s{6}enabled:\s*(true|false)/m) ||
                 yaml.match(/latency_reduction:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);
@@ -9613,12 +8414,6 @@
             var checkinShowButton = checkinShowButtonMatch ? checkinShowButtonMatch[1] === 'true' : false;
             document.getElementById('checkinShowButton').checked = checkinShowButton;
             document.getElementById('checkinShowButtonLabel').textContent = checkinShowButton ? '开启' : '关闭';
-            var authPagesSupportShowButtonMatch =
-                yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}online_support:\s*\n(?:[\s\S]*?)^\s{6}auth_pages:\s*\n(?:[\s\S]*?)^\s{8}show_button:\s*(true|false)/m) ||
-                yaml.match(/online_support:\s*\n(?:[\s\S]*?)auth_pages:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);
-            var authPagesSupportShowButton = authPagesSupportShowButtonMatch ? authPagesSupportShowButtonMatch[1] === 'true' : false;
-            document.getElementById('authPagesSupportShowButton').checked = authPagesSupportShowButton;
-            document.getElementById('authPagesSupportShowButtonLabel').textContent = authPagesSupportShowButton ? '开启' : '关闭';
             var giftCardShowButtonMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}gift_card:\s*\n(?:[\s\S]*?)^\s{6}show_button:\s*(true|false)/m) ||
                 yaml.match(/gift_card:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);
@@ -9681,83 +8476,8 @@
             }
             renderSources();
 
-            // 解析 online_support
-            onlineSupportItems = [];
-            var inOnlineSupport = false;
-            var inItems = false;
-            var currentSupportItem = null;
-            for (var j = 0; j < lines.length; j++) {
-                var supportLine = lines[j];
-                if (/^\s*#/.test(supportLine)) continue;
-                if (/^  online_support:/.test(supportLine)) {
-                    inOnlineSupport = true;
-                    continue;
-                }
-                if (inOnlineSupport && /^    items:/.test(supportLine)) {
-                    if (/^    items:\s*\[\]/.test(supportLine)) {
-                        inOnlineSupport = false;
-                        continue;
-                    }
-                    inItems = true;
-                    continue;
-                }
-                if (inItems) {
-                    if (/^  [a-z_]+:/i.test(supportLine) && !/^  online_support/.test(supportLine) && !/^    /.test(supportLine)) {
-                        if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
-                        currentSupportItem = null;
-                        break;
-                    }
-                    if (supportLine.trim() === '' && j + 1 < lines.length) {
-                        var nextLine = lines[j + 1];
-                        if (/^  [a-z_]+:/i.test(nextLine) && !/^    /.test(nextLine)) {
-                            if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
-                            currentSupportItem = null;
-                            break;
-                        }
-                    }
-                    if (/^      - type:\s*(.*)/.test(supportLine)) {
-                        if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
-                        currentSupportItem = {
-                            _merge_key: String(onlineSupportItems.length),
-                            type: supportLine.match(/^      - type:\s*(.*)/)[1].trim()
-                        };
-                    } else if (currentSupportItem) {
-                        if (/^        url:\s*(.*)/.test(supportLine)) {
-                            currentSupportItem.url = supportLine.match(/^        url:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
-                        } else if (/^        description:\s*(.*)/.test(supportLine)) {
-                            currentSupportItem.description = supportLine.match(/^        description:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
-                        } else if (/^        website_id:\s*(.*)/.test(supportLine)) {
-                            currentSupportItem.website_id = supportLine.match(/^        website_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
-                        } else if (/^        (chatra_id|chatraId|ChatraID):\s*(.*)/.test(supportLine)) {
-                            currentSupportItem.chatra_id = supportLine.match(/^        (?:chatra_id|chatraId|ChatraID):\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
-                        } else if (/^        (widget_code|widgetCode):\s*(.*)/.test(supportLine)) {
-                            var widgetCodeValue = supportLine.match(/^        (?:widget_code|widgetCode):\s*(.*)/)[1].trim();
-                            if (widgetCodeValue === '' || /^[>|]/.test(widgetCodeValue)) {
-                                var widgetCodeLines = [];
-                                while (j + 1 < lines.length && /^          /.test(lines[j + 1])) {
-                                    widgetCodeLines.push(lines[j + 1].replace(/^          /, ''));
-                                    j++;
-                                }
-                                currentSupportItem.widget_code = widgetCodeLines.join('\n').trim();
-                            } else {
-                                currentSupportItem.widget_code = widgetCodeValue.replace(/^["']|["']$/g, '');
-                            }
-                        } else if (/^        widget_id:\s*(.*)/.test(supportLine)) {
-                            currentSupportItem.widget_id = supportLine.match(/^        widget_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
-                        } else if (/^        property_id:\s*(.*)/.test(supportLine)) {
-                            currentSupportItem.property_id = supportLine.match(/^        property_id:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
-                        } else if (/^        website_token:\s*(.*)/.test(supportLine)) {
-                            currentSupportItem.website_token = supportLine.match(/^        website_token:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
-                        } else if (/^        base_url:\s*(.*)/.test(supportLine)) {
-                            currentSupportItem.base_url = supportLine.match(/^        base_url:\s*(.*)/)[1].trim().replace(/^["']|["']$/g, '');
-                        }
-                    }
-                }
-            }
-            if (currentSupportItem) onlineSupportItems.push(normalizeSupportItem(currentSupportItem));
             renderSupportItems();
             syncAllCustomSelects(document);
-            renderHomePanelPreview();
             updateProviderConsistencyState({ source: 'basic' });
             syncRemoteConfigJsonPreview({ silentStatus: true });
         }
@@ -9765,8 +8485,12 @@
         function formToYaml() {
             collectSources();
             collectSupportItems();
-            renderHomePanelPreview();
             updateProviderConsistencyState();
+            var editor = document.getElementById('editor');
+            if (editor) {
+                currentProfileBaseYaml = cleanNexGenProfileYaml(editor.value || currentProfileBaseYaml || getDefaultYamlTemplate());
+                editor.value = currentProfileBaseYaml;
+            }
             syncRemoteConfigJsonPreview({ silentStatus: true });
         }
 

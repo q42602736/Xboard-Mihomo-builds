@@ -27,6 +27,9 @@ type Config struct {
 	BuildRepo           string
 	XrayBuildOwner      string
 	XrayBuildRepo       string
+	NexGenBuildOwner    string
+	NexGenBuildRepo     string
+	NexGenProfileBranch string
 	BuildEventToken     string
 	GitHubWebhookSecret string
 	JWTSecret           string
@@ -50,6 +53,9 @@ func loadConfig() {
 		BuildRepo:           getEnv("BUILD_REPO", ""),
 		XrayBuildOwner:      getEnv("XRAY_BUILD_OWNER", "q42602736"),
 		XrayBuildRepo:       getEnv("XRAY_BUILD_REPO", "NexGen-client-xray"),
+		NexGenBuildOwner:    getEnv("NEXGEN_BUILD_OWNER", "q42602736"),
+		NexGenBuildRepo:     getEnv("NEXGEN_BUILD_REPO", "NexGen-client-React"),
+		NexGenProfileBranch: getEnv("NEXGEN_PROFILE_BRANCH", "profiles"),
 		BuildEventToken:     getEnv("BUILD_EVENT_TOKEN", ""),
 		GitHubWebhookSecret: getEnv("GITHUB_WEBHOOK_SECRET", ""),
 		JWTSecret:           mustEnv("JWT_SECRET"),
@@ -66,8 +72,14 @@ func loadConfig() {
 	if cfg.XrayBuildOwner == "" {
 		cfg.XrayBuildOwner = cfg.BuildOwner
 	}
+	if cfg.NexGenBuildOwner == "" {
+		cfg.NexGenBuildOwner = cfg.BuildOwner
+	}
 	if cfg.GithubProfileBranch == "" {
 		cfg.GithubProfileBranch = cfg.GithubBranch
+	}
+	if cfg.NexGenProfileBranch == "" {
+		cfg.NexGenProfileBranch = cfg.GithubProfileBranch
 	}
 }
 
@@ -102,7 +114,13 @@ func main() {
 		cfg.GithubRepo,
 		cfg.GithubProfileBranch,
 	)
-	h := NewHandlers(gh, profileGH)
+	nexGenProfileGH := NewGitHubClient(
+		cfg.GithubToken,
+		cfg.NexGenBuildOwner,
+		cfg.NexGenBuildRepo,
+		cfg.NexGenProfileBranch,
+	)
+	h := NewHandlers(gh, profileGH, nexGenProfileGH)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -153,6 +171,7 @@ func main() {
 
 		r.Get("/api/admin/codes", h.ListCodes)
 		r.Post("/api/admin/codes", h.CreateCode)
+		r.Put("/api/admin/codes/batch/clients", h.BatchUpdateCodeClients)
 		r.Put("/api/admin/codes/{id}", h.UpdateCode)
 		r.Delete("/api/admin/codes/{id}", h.DeleteCode)
 		r.Put("/api/admin/profiles/{name}/rename", h.RenameProfile)

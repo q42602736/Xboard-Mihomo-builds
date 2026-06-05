@@ -16,6 +16,7 @@ type Claims struct {
 	CodeName        string   `json:"code_name"`
 	Permissions     string   `json:"permissions"`
 	AllowedProfiles []string `json:"allowed_profiles,omitempty"`
+	AllowedClients  []string `json:"allowed_clients,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -30,12 +31,13 @@ type contextKey string
 const claimsKey contextKey = "claims"
 const buildAssetDownloadTokenSubject = "build_asset_download"
 
-func generateJWT(codeID int, codeName, permissions string, allowedProfiles []string) (string, error) {
+func generateJWT(codeID int, codeName, permissions string, allowedProfiles []string, allowedClients []string) (string, error) {
 	claims := &Claims{
 		CodeID:          codeID,
 		CodeName:        codeName,
 		Permissions:     permissions,
 		AllowedProfiles: allowedProfiles,
+		AllowedClients:  allowedClients,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -154,6 +156,21 @@ func (c *Claims) canAccessProfile(name string) bool {
 	}
 	for _, p := range c.AllowedProfiles {
 		if p == name {
+			return true
+		}
+	}
+	return false
+}
+
+// canAccessClient 检查当前用户是否有权访问指定客户端
+// 管理员或 AllowedClients 为空（未限制）时允许所有访问
+func (c *Claims) canAccessClient(client string) bool {
+	if c.Permissions == "admin" || len(c.AllowedClients) == 0 {
+		return true
+	}
+	client = normalizeBuildClient(client)
+	for _, allowedClient := range c.AllowedClients {
+		if normalizeBuildClient(allowedClient) == client {
 			return true
 		}
 	}

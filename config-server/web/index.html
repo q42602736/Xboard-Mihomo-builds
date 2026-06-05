@@ -107,11 +107,60 @@
 
     <script>
         var SESSION_KEY = 'xboard_session';
+        var SELECTED_CLIENT_KEY = 'xboard_selected_client';
+        var PERSISTED_CLIENT_KEY = 'xboard_persisted_client';
+
+        function normalizeClient(client) {
+            client = String(client || '').trim();
+            if (client === 'nexgen' || client === 'nexgen-react') return 'nexgen_react';
+            if (client === 'legacy' || client === 'xboard') return 'xboard_mihomo_sub';
+            return client;
+        }
+
+        function isClientAllowed(session, client) {
+            client = normalizeClient(client);
+            var allowedClients = session && Array.isArray(session.allowed_clients) ? session.allowed_clients : [];
+            if (!client || allowedClients.length === 0) return true;
+            return allowedClients.map(normalizeClient).indexOf(client) !== -1;
+        }
+
+        function getSingleAllowedClient(session) {
+            var allowedClients = session && Array.isArray(session.allowed_clients) ? session.allowed_clients.map(normalizeClient).filter(Boolean) : [];
+            var unique = [];
+            allowedClients.forEach(function(client) {
+                if (unique.indexOf(client) === -1) unique.push(client);
+            });
+            return unique.length === 1 ? unique[0] : '';
+        }
+
+        function getSavedClient() {
+            return normalizeClient(localStorage.getItem(PERSISTED_CLIENT_KEY) || sessionStorage.getItem(SELECTED_CLIENT_KEY));
+        }
+
+        function getClientUrl(client) {
+            client = normalizeClient(client);
+            if (client === 'nexgen_react') return '/editor-nexgen.html';
+            if (client === 'xboard_mihomo_sub') return '/editor.html';
+            return '/clients.html';
+        }
+
+        function redirectAfterLogin() {
+            var session = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+            var client = getSingleAllowedClient(session) || getSavedClient();
+            if (client && isClientAllowed(session, client)) {
+                localStorage.setItem(PERSISTED_CLIENT_KEY, client);
+                sessionStorage.setItem(SELECTED_CLIENT_KEY, client);
+            } else {
+                client = '';
+                sessionStorage.removeItem(SELECTED_CLIENT_KEY);
+            }
+            window.location.href = getClientUrl(client);
+        }
 
         if (sessionStorage.getItem(SESSION_KEY)) {
             var session = JSON.parse(sessionStorage.getItem(SESSION_KEY));
             if (session && session.token) {
-                window.location.href = '/editor.html';
+                redirectAfterLogin();
             }
         }
 
@@ -145,10 +194,11 @@
                 sessionStorage.setItem(SESSION_KEY, JSON.stringify({
                     token: data.token,
                     name: data.name,
-                    permissions: data.permissions
+                    permissions: data.permissions,
+                    allowed_clients: Array.isArray(data.allowed_clients) ? data.allowed_clients : []
                 }));
 
-                window.location.href = '/editor.html';
+                redirectAfterLogin();
             } catch (e) {
                 errorEl.textContent = e.message;
                 errorEl.style.display = 'block';

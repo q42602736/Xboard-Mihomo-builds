@@ -124,11 +124,10 @@
         .code-text:hover { background: rgba(0,212,255,0.2); }
         .table-scroll {
             width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+            overflow-x: visible;
         }
         .codes-table {
-            min-width: 1180px;
+            width: 100%;
             table-layout: fixed;
         }
         .codes-table th,
@@ -138,15 +137,18 @@
         .codes-table th {
             white-space: nowrap;
         }
-        .codes-table .col-code { width: 210px; }
-        .codes-table .col-name { width: 120px; }
-        .codes-table .col-profile { width: 150px; }
-        .codes-table .col-platforms { width: 170px; }
-        .codes-table .col-usage { width: 100px; }
-        .codes-table .col-expire { width: 105px; }
-        .codes-table .col-created { width: 165px; }
-        .codes-table .col-actions { width: 130px; }
+        .codes-table .col-select { width: 34px; text-align: center; }
+        .codes-table .col-code { width: 15%; }
+        .codes-table .col-name { width: 10%; }
+        .codes-table .col-profile { width: 13%; }
+        .codes-table .col-clients { width: 11%; }
+        .codes-table .col-platforms { width: 12%; }
+        .codes-table .col-usage { width: 8%; }
+        .codes-table .col-expire { width: 9%; }
+        .codes-table .col-created { width: 11%; }
+        .codes-table .col-actions { width: 9%; }
         .codes-table .cell-code,
+        .codes-table .cell-select,
         .codes-table .cell-usage,
         .codes-table .cell-expire,
         .codes-table .cell-created,
@@ -155,6 +157,7 @@
         }
         .codes-table .cell-name,
         .codes-table .cell-profile,
+        .codes-table .cell-clients,
         .codes-table .cell-platforms {
             white-space: nowrap;
             overflow: hidden;
@@ -163,11 +166,96 @@
         .code-actions {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: nowrap;
         }
+        .batch-toolbar {
+            display: grid;
+            grid-template-columns: minmax(220px, 1fr) auto;
+            gap: 14px;
+            align-items: end;
+            margin: 12px 0 16px;
+            padding: 14px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .batch-toolbar-title {
+            color: #ddd;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .batch-toolbar .platform-permission-grid {
+            margin-top: 0;
+        }
+        .batch-toolbar-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .batch-selected-count {
+            color: #888;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        @media (max-width: 760px) {
+            .batch-toolbar {
+                grid-template-columns: 1fr;
+            }
+            .batch-toolbar-actions {
+                justify-content: flex-start;
+            }
+            .codes-table,
+            .codes-table thead,
+            .codes-table tbody,
+            .codes-table tr,
+            .codes-table td {
+                display: block;
+                width: 100%;
+            }
+            .codes-table thead {
+                display: none;
+            }
+            .codes-table tr {
+                margin-bottom: 14px;
+                padding: 12px;
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 10px;
+                background: rgba(255,255,255,0.035);
+            }
+            .codes-table td {
+                display: grid;
+                grid-template-columns: 86px minmax(0, 1fr);
+                gap: 10px;
+                padding: 7px 0;
+                border-bottom: none;
+                white-space: normal !important;
+            }
+            .codes-table td::before {
+                content: attr(data-label);
+                color: #788394;
+                font-size: 12px;
+            }
+            .codes-table .cell-select {
+                grid-template-columns: 1fr;
+            }
+            .codes-table .cell-select::before {
+                content: "";
+                display: none;
+            }
+            .codes-table .cell-name,
+            .codes-table .cell-profile,
+            .codes-table .cell-clients,
+            .codes-table .cell-platforms {
+                overflow: visible;
+                text-overflow: clip;
+                white-space: normal;
+            }
+        }
         .code-actions .btn {
-            padding: 6px 12px !important;
+            padding: 5px 8px !important;
             font-size: 12px !important;
             white-space: nowrap;
         }
@@ -533,6 +621,11 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>允许客户端（不选择表示全部客户端可访问）</label>
+                    <div id="codeAllowedClients" class="platform-permission-grid"></div>
+                    <div style="font-size:12px;color:#666;margin-top:5px;">可限制激活码只显示和访问老客户端或新客户端。</div>
+                </div>
+                <div class="form-group">
                     <label>允许打包平台（不选择表示全部平台可打包）</label>
                     <div id="codeAllowedPlatforms" class="platform-permission-grid"></div>
                     <div style="font-size:12px;color:#666;margin-top:5px;">平台选项与编辑器“软件打包”页面一致；老激活码为空时默认全平台可打包。</div>
@@ -583,6 +676,11 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>允许客户端（不选择表示全部客户端可访问）</label>
+                    <div id="editCodeAllowedClients" class="platform-permission-grid"></div>
+                    <div style="font-size:12px;color:#666;margin-top:5px;">保存为空时表示不限制，兼容旧激活码。</div>
+                </div>
+                <div class="form-group">
                     <label>允许打包平台（不选择表示全部平台可打包）</label>
                     <div id="editCodeAllowedPlatforms" class="platform-permission-grid"></div>
                     <div style="font-size:12px;color:#666;margin-top:5px;">保存为空时表示不限制，兼容旧激活码。</div>
@@ -595,13 +693,25 @@
 
             <div class="panel">
                 <h3>激活码列表</h3>
+                <div class="batch-toolbar">
+                    <div>
+                        <div class="batch-toolbar-title">批量设置允许客户端（不选择表示全部客户端可访问）</div>
+                        <div id="batchCodeAllowedClients" class="platform-permission-grid"></div>
+                    </div>
+                    <div class="batch-toolbar-actions">
+                        <span id="batchSelectedCount" class="batch-selected-count">已选择 0 个激活码</span>
+                        <button class="btn btn-primary" onclick="batchUpdateCodeClients()">批量应用客户端权限</button>
+                    </div>
+                </div>
                 <div class="table-scroll">
                     <table class="codes-table">
                         <thead>
                             <tr>
+                                <th class="col-select"><input type="checkbox" id="selectAllCodes" onchange="toggleSelectAllCodes(this.checked)"></th>
                                 <th class="col-code">激活码</th>
                                 <th class="col-name">备注</th>
                                 <th class="col-profile">绑定档案</th>
+                                <th class="col-clients">允许客户端</th>
                                 <th class="col-platforms">允许平台</th>
                                 <th class="col-usage">打包次数</th>
                                 <th class="col-expire">到期时间</th>
@@ -610,7 +720,7 @@
                             </tr>
                         </thead>
                         <tbody id="codesTable">
-                            <tr><td colspan="8" class="empty">加载中...</td></tr>
+                            <tr><td colspan="10" class="empty">加载中...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -840,6 +950,9 @@
             });
             bindProfilePicker('profileCheckboxes');
             bindProfilePicker('editProfileCheckboxes');
+            renderClientPermissionCheckboxes('codeAllowedClients', 'client-permission-cb', []);
+            renderClientPermissionCheckboxes('editCodeAllowedClients', 'edit-client-permission-cb', []);
+            renderClientPermissionCheckboxes('batchCodeAllowedClients', 'batch-client-permission-cb', []);
             renderPlatformPermissionCheckboxes('codeAllowedPlatforms', 'platform-permission-cb', []);
             renderPlatformPermissionCheckboxes('editCodeAllowedPlatforms', 'edit-platform-permission-cb', []);
             document.addEventListener('click', function(e) {
@@ -893,6 +1006,7 @@
         var codesCache = [];
         var editUnknownProfileKeys = [];
         var buildPlatformCatalog = [
+            { value: 'windows', label: 'Windows（新客户端）' },
             { value: 'windows-arm64', label: 'Windows ARM64' },
             { value: 'windows-amd64', label: 'Windows AMD64' },
             { value: 'android', label: 'Android（手机）' },
@@ -901,6 +1015,10 @@
             { value: 'linux-amd64', label: 'Linux AMD64' },
             { value: 'macos-arm64', label: 'macOS ARM64' },
             { value: 'macos-amd64', label: 'macOS AMD64' }
+        ];
+        var buildClientCatalog = [
+            { value: 'xboard_mihomo_sub', label: '老客户端 Xboard-Mihomo_sub', shortLabel: '老客户端' },
+            { value: 'nexgen_react', label: '新客户端 NexGen Client React', shortLabel: '新客户端' }
         ];
 
         function getProfileKey(profile) {
@@ -1367,7 +1485,7 @@
             var normalized = String(value).replace('T', ' ').replace(/Z$/, '').trim();
             var parts = normalized.split(/\s+/);
             if (parts.length < 2) return normalized;
-            return parts[0] + ' ' + parts[1].replace(/\.\d+$/, '');
+            return parts[0].slice(5) + ' ' + parts[1].replace(/\.\d+$/, '').slice(0, 5);
         }
 
         function renderPlatformPermissionCheckboxes(containerId, checkboxClass, selectedPlatforms) {
@@ -1413,6 +1531,86 @@
             return result;
         }
 
+        function normalizeBuildClient(client) {
+            client = String(client || '').trim();
+            if (client === 'legacy' || client === 'xboard') return 'xboard_mihomo_sub';
+            if (client === 'nexgen' || client === 'nexgen-react') return 'nexgen_react';
+            return client;
+        }
+
+        function renderClientPermissionCheckboxes(containerId, checkboxClass, selectedClients) {
+            var container = document.getElementById(containerId);
+            if (!container) return;
+
+            var selectedMap = {};
+            (selectedClients || []).forEach(function(client) {
+                client = normalizeBuildClient(client);
+                if (client) selectedMap[client] = true;
+            });
+
+            container.innerHTML = '';
+            buildClientCatalog.forEach(function(client) {
+                var label = document.createElement('label');
+                label.className = 'platform-permission-option';
+
+                var input = document.createElement('input');
+                input.type = 'checkbox';
+                input.className = checkboxClass;
+                input.value = client.value;
+                input.checked = !!selectedMap[client.value];
+
+                var text = document.createElement('span');
+                text.textContent = client.label;
+
+                label.appendChild(input);
+                label.appendChild(text);
+                container.appendChild(label);
+            });
+        }
+
+        function getSelectedClientPermissions(checkboxSelector) {
+            var result = [];
+            var seen = {};
+            document.querySelectorAll(checkboxSelector).forEach(function(cb) {
+                var value = normalizeBuildClient(cb.value);
+                if (cb.checked && value && !seen[value]) {
+                    result.push(value);
+                    seen[value] = true;
+                }
+            });
+            return result;
+        }
+
+        function getClientPermissionLabelMap(useShortLabel) {
+            var labelMap = {};
+            buildClientCatalog.forEach(function(client) {
+                labelMap[client.value] = useShortLabel ? client.shortLabel : client.label;
+            });
+            return labelMap;
+        }
+
+        function formatAllowedClientsDisplay(clients) {
+            if (!clients || clients.length === 0) {
+                return '<span style="color:#555">全部客户端</span>';
+            }
+            var labelMap = getClientPermissionLabelMap(false);
+            return clients.map(function(client) {
+                client = normalizeBuildClient(client);
+                return escapeHtml(labelMap[client] || client);
+            }).join(', ');
+        }
+
+        function formatAllowedClientsShort(clients) {
+            if (!clients || clients.length === 0) {
+                return '<span style="color:#555">全部客户端</span>';
+            }
+            var labelMap = getClientPermissionLabelMap(true);
+            return clients.map(function(client) {
+                client = normalizeBuildClient(client);
+                return escapeHtml(labelMap[client] || client);
+            }).join(', ');
+        }
+
         function formatAllowedPlatformsDisplay(platforms) {
             if (!platforms || platforms.length === 0) {
                 return '<span style="color:#555">全部平台</span>';
@@ -1431,6 +1629,7 @@
                 return '<span style="color:#555">全部平台</span>';
             }
             var shortLabelMap = {
+                'windows': 'Win',
                 'windows-arm64': 'Win ARM64',
                 'windows-amd64': 'Win AMD64',
                 'android': 'Android',
@@ -1451,6 +1650,7 @@
             document.getElementById('codeExpiresAt').value = '';
             document.getElementById('manualProfiles').value = '';
             renderProfileCheckboxes('profileCheckboxes', 'profile-cb', []);
+            renderClientPermissionCheckboxes('codeAllowedClients', 'client-permission-cb', []);
             renderPlatformPermissionCheckboxes('codeAllowedPlatforms', 'platform-permission-cb', []);
         }
 
@@ -1521,6 +1721,7 @@
             document.getElementById('editCodeExpiresAt').value = '';
             document.getElementById('editManualProfiles').value = '';
             renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', []);
+            renderClientPermissionCheckboxes('editCodeAllowedClients', 'edit-client-permission-cb', []);
             renderPlatformPermissionCheckboxes('editCodeAllowedPlatforms', 'edit-platform-permission-cb', []);
         }
 
@@ -1535,6 +1736,7 @@
             }
 
             var selectedProfiles = code.allowed_profiles || [];
+            var selectedClients = code.allowed_clients || [];
             var selectedPlatforms = code.allowed_platforms || [];
             var manualProfiles = selectedProfiles.filter(function(name) {
                 return allProfiles.indexOf(name) === -1;
@@ -1550,9 +1752,40 @@
             document.getElementById('editStatus').className = 'status-msg';
             document.getElementById('editStatus').textContent = '';
             renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', selectedProfiles);
+            renderClientPermissionCheckboxes('editCodeAllowedClients', 'edit-client-permission-cb', selectedClients);
             renderPlatformPermissionCheckboxes('editCodeAllowedPlatforms', 'edit-platform-permission-cb', selectedPlatforms);
             document.getElementById('editCodePanel').style.display = 'block';
             document.getElementById('editCodePanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function getSelectedCodeIds() {
+            var ids = [];
+            document.querySelectorAll('.code-select-cb:checked').forEach(function(cb) {
+                var id = parseInt(cb.value, 10);
+                if (id > 0) ids.push(id);
+            });
+            return ids;
+        }
+
+        function updateSelectedCodeCount() {
+            var selectedCount = getSelectedCodeIds().length;
+            var countEl = document.getElementById('batchSelectedCount');
+            if (countEl) {
+                countEl.textContent = '已选择 ' + selectedCount + ' 个激活码';
+            }
+            var selectAll = document.getElementById('selectAllCodes');
+            if (selectAll) {
+                var total = document.querySelectorAll('.code-select-cb').length;
+                selectAll.checked = total > 0 && selectedCount === total;
+                selectAll.indeterminate = selectedCount > 0 && selectedCount < total;
+            }
+        }
+
+        function toggleSelectAllCodes(checked) {
+            document.querySelectorAll('.code-select-cb').forEach(function(cb) {
+                cb.checked = checked;
+            });
+            updateSelectedCodeCount();
         }
 
         async function loadCodes() {
@@ -1564,7 +1797,8 @@
                 var tbody = document.getElementById('codesTable');
 
                 if (!codesCache.length) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="empty">暂无激活码</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无激活码</td></tr>';
+                    updateSelectedCodeCount();
                     return;
                 }
 
@@ -1573,8 +1807,12 @@
                     var maxUsesText = c.max_uses === -1 ? '无限' : c.max_uses;
 	                    var profileLabels = (c.allowed_profiles || []).map(formatProfileLabel);
 	                    var profilesText = profileLabels.length > 0
-	                        ? escapeHtml(profileLabels.join(', '))
-	                        : '<span style="color:#555">未绑定</span>';
+                        ? escapeHtml(profileLabels.join(', '))
+                        : '<span style="color:#555">未绑定</span>';
+                    var clientsText = formatAllowedClientsShort(c.allowed_clients || []);
+                    var clientsTitle = (c.allowed_clients && c.allowed_clients.length > 0)
+                        ? formatAllowedClientsDisplay(c.allowed_clients)
+                        : '全部客户端';
                     var platformsText = formatAllowedPlatformsShort(c.allowed_platforms || []);
                     var platformsTitle = (c.allowed_platforms && c.allowed_platforms.length > 0)
                         ? formatAllowedPlatformsDisplay(c.allowed_platforms)
@@ -1584,17 +1822,19 @@
 
                     var tr = document.createElement('tr');
                     tr.innerHTML =
-                        '<td class="cell-code"><span class="code-text" data-code="' + escapeHtml(c.code) + '" title="点击复制">' + escapeHtml(c.code) + '</span></td>' +
-                        '<td class="cell-name" title="' + escapeHtml(c.name || '-') + '">' + escapeHtml(c.name || '-') + '</td>' +
-	                        '<td class="cell-profile" title="' + escapeHtml(profileLabels.length > 0 ? profileLabels.join(', ') : '未绑定') + '" style="font-size:12px;">' + profilesText + '</td>' +
-                        '<td class="cell-platforms" title="' + escapeHtml(platformsTitle) + '" style="font-size:12px;">' + platformsText + '</td>' +
-                        '<td class="cell-usage">' + c.used_count + ' / ' + maxUsesText + '</td>' +
-                        '<td class="cell-expire" style="font-size:12px;color:#888;">' + expiresAtText + '</td>' +
-                        '<td class="cell-created" style="font-size:12px;color:#888;">' + escapeHtml(createdAtText) + '</td>' +
-                        '<td class="cell-actions">' +
+                        '<td class="cell-select" data-label="选择"><input type="checkbox" class="code-select-cb" value="' + c.id + '" onchange="updateSelectedCodeCount()"></td>' +
+                        '<td class="cell-code" data-label="激活码"><span class="code-text" data-code="' + escapeHtml(c.code) + '" title="点击复制">' + escapeHtml(c.code) + '</span></td>' +
+                        '<td class="cell-name" data-label="备注" title="' + escapeHtml(c.name || '-') + '">' + escapeHtml(c.name || '-') + '</td>' +
+	                        '<td class="cell-profile" data-label="绑定档案" title="' + escapeHtml(profileLabels.length > 0 ? profileLabels.join(', ') : '未绑定') + '" style="font-size:12px;">' + profilesText + '</td>' +
+                        '<td class="cell-clients" data-label="允许客户端" title="' + escapeHtml(clientsTitle) + '" style="font-size:12px;">' + clientsText + '</td>' +
+                        '<td class="cell-platforms" data-label="允许平台" title="' + escapeHtml(platformsTitle) + '" style="font-size:12px;">' + platformsText + '</td>' +
+                        '<td class="cell-usage" data-label="打包次数">' + c.used_count + ' / ' + maxUsesText + '</td>' +
+                        '<td class="cell-expire" data-label="到期时间" style="font-size:12px;color:#888;">' + expiresAtText + '</td>' +
+                        '<td class="cell-created" data-label="创建时间" style="font-size:12px;color:#888;">' + escapeHtml(createdAtText) + '</td>' +
+                        '<td class="cell-actions" data-label="操作">' +
                             '<div class="code-actions">' +
-                                '<button class="btn btn-primary" onclick="openEditCode(' + c.id + ')">编辑</button>' +
-                                '<button class="btn btn-danger" onclick="deleteCode(' + c.id + ')">删除</button>' +
+                                '<button class="btn btn-primary" title="编辑" onclick="openEditCode(' + c.id + ')">改</button>' +
+                                '<button class="btn btn-danger" title="删除" onclick="deleteCode(' + c.id + ')">删</button>' +
                             '</div>' +
                         '</td>';
                     var codeEl = tr.querySelector('.code-text');
@@ -1605,6 +1845,7 @@
                     }
                     tbody.appendChild(tr);
                 });
+                updateSelectedCodeCount();
             } catch (e) {
                 console.log('加载激活码失败:', e);
             }
@@ -1617,6 +1858,7 @@
             var selectedProfiles = getCheckedProfiles('.profile-cb:checked');
             var manualProfiles = getManualProfiles('manualProfiles');
             var profileLabels = selectedProfiles.concat(manualProfiles);
+            var selectedClients = getSelectedClientPermissions('.client-permission-cb:checked');
             var selectedPlatforms = getSelectedBuildPlatformPermissions('.platform-permission-cb:checked');
             var statusEl = document.getElementById('createStatus');
 
@@ -1632,6 +1874,7 @@
                     max_uses: maxUses,
                     allowed_profiles: selectedProfiles,
                     manual_profiles: manualProfiles,
+                    allowed_clients: selectedClients,
                     allowed_platforms: selectedPlatforms,
                     expires_at: expiresAt
                 });
@@ -1645,7 +1888,7 @@
                 }
 
                 statusEl.className = 'status-msg success';
-                statusEl.textContent = '激活码已创建: ' + data.code + ' (绑定: ' + profileLabels.join(', ') + '，平台: ' + (selectedPlatforms.length ? selectedPlatforms.join(', ') : '全部平台') + ')';
+                statusEl.textContent = '激活码已创建: ' + data.code + ' (绑定: ' + profileLabels.join(', ') + '，客户端: ' + (selectedClients.length ? selectedClients.join(', ') : '全部客户端') + '，平台: ' + (selectedPlatforms.length ? selectedPlatforms.join(', ') : '全部平台') + ')';
                 resetCreateForm();
                 await loadProfileList();
                 loadCodes();
@@ -1664,6 +1907,7 @@
             var selectedProfiles = mergeProfileValues(getCheckedProfiles('.edit-profile-cb:checked'), editUnknownProfileKeys);
             var manualProfiles = getManualProfiles('editManualProfiles');
             var profileLabels = selectedProfiles.concat(manualProfiles);
+            var selectedClients = getSelectedClientPermissions('.edit-client-permission-cb:checked');
             var selectedPlatforms = getSelectedBuildPlatformPermissions('.edit-platform-permission-cb:checked');
             var statusEl = document.getElementById('editStatus');
 
@@ -1690,6 +1934,7 @@
                     used_count: usedCount,
                     allowed_profiles: selectedProfiles,
                     manual_profiles: manualProfiles,
+                    allowed_clients: selectedClients,
                     allowed_platforms: selectedPlatforms,
                     expires_at: expiresAt
                 });
@@ -1708,6 +1953,35 @@
             } catch (e) {
                 statusEl.className = 'status-msg error';
                 statusEl.textContent = '更新失败: ' + e.message;
+            }
+        }
+
+        async function batchUpdateCodeClients() {
+            var ids = getSelectedCodeIds();
+            var selectedClients = getSelectedClientPermissions('.batch-client-permission-cb:checked');
+            if (ids.length === 0) {
+                showAppAlert('请先勾选要批量编辑的激活码', '提示');
+                return;
+            }
+            var clientText = selectedClients.length ? selectedClients.join(', ') : '全部客户端';
+            if (!await showAppConfirm('确定将 ' + ids.length + ' 个激活码的允许客户端设置为“' + clientText + '”吗？', '批量设置客户端权限', '确认批量设置')) {
+                return;
+            }
+            try {
+                var response = await api('PUT', '/admin/codes/batch/clients', {
+                    ids: ids,
+                    allowed_clients: selectedClients
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '批量更新失败');
+                }
+                showAppAlert('已更新 ' + (data.updated_count || ids.length) + ' 个激活码的客户端权限。', '批量更新成功');
+                renderClientPermissionCheckboxes('batchCodeAllowedClients', 'batch-client-permission-cb', []);
+                await loadCodes();
+            } catch (e) {
+                showAppAlert('批量更新失败: ' + e.message, '错误');
             }
         }
 

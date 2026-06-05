@@ -122,17 +122,19 @@ func buildProfileAssetStoragePath(codeID int, profileName, kind, contentType str
 	return fmt.Sprintf("%s/%d/%s/%s/%s-%s.%s", profileAssetsDir, codeID, profileSegment, kind, timestamp, randomProfileAssetSuffix(), ext)
 }
 
-func (h *Handlers) cleanupOverflowProfileAssets(codeID int, assetKind string) error {
-	overflowRecords, err := listOverflowProfileAssetHistoryRecords(codeID, assetKind, maxProfileAssetHistoryKeep)
+func (h *Handlers) cleanupOverflowProfileAssets(codeID int, client, assetKind string) error {
+	client = normalizeBuildClient(client)
+	overflowRecords, err := listOverflowProfileAssetHistoryRecords(codeID, client, assetKind, maxProfileAssetHistoryKeep)
 	if err != nil {
 		return err
 	}
 
 	for _, record := range overflowRecords {
 		if strings.TrimSpace(record.AssetPath) != "" {
-			_, sha, err := h.profileGH.GetFile(record.AssetPath)
+			profileGH := h.profileGitHubClient(record.Client)
+			_, sha, err := profileGH.GetFile(record.AssetPath)
 			if err == nil && strings.TrimSpace(sha) != "" {
-				if err := h.profileGH.DeleteFile(record.AssetPath, sha, "清理过期"+profileAssetLabels[assetKind]+": "+record.ProfileName); err != nil && !strings.Contains(err.Error(), "404") {
+				if err := profileGH.DeleteFile(record.AssetPath, sha, "清理过期"+profileAssetLabels[assetKind]+": "+record.ProfileName); err != nil && !strings.Contains(err.Error(), "404") {
 					return err
 				}
 			} else if err != nil && !strings.Contains(err.Error(), "404") {
@@ -152,7 +154,12 @@ func (h *Handlers) UploadProfileAsset(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(chi.URLParam(r, "name"))
 	kind := strings.TrimSpace(chi.URLParam(r, "kind"))
 	claims := getClaims(r)
+	client := normalizeBuildClient(r.URL.Query().Get("client"))
 
+	if ok, message := canAccessClientForClaims(claims, client); !ok {
+		jsonError(w, message, http.StatusForbidden)
+		return
+	}
 	if err := validateProfileAssetName(name); err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
@@ -192,12 +199,16 @@ func (h *Handlers) UploadProfileAsset(w http.ResponseWriter, r *http.Request) {
 
 	filePath := buildProfileAssetStoragePath(claims.CodeID, name, kind, contentType)
 	label := profileAssetLabels[kind]
-	if _, err := h.profileGH.SaveFile(filePath, string(data), "", "上传"+label+": "+name); err != nil {
+	if err := h.ensureProfileBranchForClient(client); err != nil {
+		jsonError(w, "准备配置分支失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if _, err := h.profileGitHubClient(client).SaveFile(filePath, string(data), "", "上传"+label+": "+name); err != nil {
 		jsonError(w, "上传资源失败: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	record, err := createProfileAssetHistoryRecord(claims.CodeID, claims.CodeName, name, kind, filePath, "", contentType)
+	record, err := createProfileAssetHistoryRecord(claims.CodeID, claims.CodeName, client, name, kind, filePath, "", contentType)
 	if err != nil {
 		jsonError(w, "保存图标历史失败: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -210,7 +221,7 @@ func (h *Handlers) UploadProfileAsset(w http.ResponseWriter, r *http.Request) {
 	}
 	record.AssetURL = assetURL
 
-	if err := h.cleanupOverflowProfileAssets(claims.CodeID, kind); err != nil {
+	if err := h.cleanupOverflowProfileAssets(claims.CodeID, client, kind); err != nil {
 		log.Printf("清理超额图标历史失败 code_id=%d kind=%s: %v", claims.CodeID, kind, err)
 	}
 
@@ -225,9 +236,14 @@ func (h *Handlers) UploadProfileAsset(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) ListProfileAssetHistory(w http.ResponseWriter, r *http.Request) {
 	claims := getClaims(r)
+	client := normalizeBuildClient(r.URL.Query().Get("client"))
 	kind := strings.TrimSpace(r.URL.Query().Get("kind"))
 	limit, _ := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("limit")))
 
+	if ok, message := canAccessClientForClaims(claims, client); !ok {
+		jsonError(w, message, http.StatusForbidden)
+		return
+	}
 	if err := validateProfileAssetKind(kind); err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
@@ -236,7 +252,7 @@ func (h *Handlers) ListProfileAssetHistory(w http.ResponseWriter, r *http.Reques
 		limit = maxProfileAssetHistoryKeep
 	}
 
-	records, err := listProfileAssetHistoryRecords(claims.CodeID, kind, limit)
+	records, err := listProfileAssetHistoryRecords(claims.CodeID, client, kind, limit)
 	if err != nil {
 		jsonError(w, "加载图标历史失败: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -265,11 +281,16 @@ func (h *Handlers) DeleteProfileAssetHistory(w http.ResponseWriter, r *http.Requ
 		jsonError(w, "无权删除该图标历史记录", http.StatusForbidden)
 		return
 	}
+	if ok, message := canAccessClientForClaims(claims, record.Client); !ok {
+		jsonError(w, message, http.StatusForbidden)
+		return
+	}
 
 	if strings.TrimSpace(record.AssetPath) != "" {
-		_, sha, err := h.profileGH.GetFile(record.AssetPath)
+		profileGH := h.profileGitHubClient(record.Client)
+		_, sha, err := profileGH.GetFile(record.AssetPath)
 		if err == nil && strings.TrimSpace(sha) != "" {
-			if err := h.profileGH.DeleteFile(record.AssetPath, sha, "删除"+profileAssetLabels[record.AssetKind]+": "+record.ProfileName); err != nil {
+			if err := profileGH.DeleteFile(record.AssetPath, sha, "删除"+profileAssetLabels[record.AssetKind]+": "+record.ProfileName); err != nil {
 				jsonError(w, "删除图标文件失败: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -302,7 +323,7 @@ func (h *Handlers) GetProfileAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content, _, err := h.profileGH.GetFile(record.AssetPath)
+	content, _, err := h.profileGitHubClient(record.Client).GetFile(record.AssetPath)
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
 			http.NotFound(w, r)

@@ -42,6 +42,7 @@ func initDB() {
 			used_count INTEGER DEFAULT 0,
 			allowed_profiles TEXT DEFAULT '[]',
 			allowed_platforms TEXT DEFAULT '[]',
+			allowed_clients TEXT DEFAULT '[]',
 			expires_at DATETIME,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			is_active BOOLEAN DEFAULT 1
@@ -62,6 +63,7 @@ func initDB() {
 				code_id INTEGER NOT NULL,
 				code_name TEXT NOT NULL,
 				request_id TEXT NOT NULL UNIQUE,
+				client TEXT NOT NULL DEFAULT 'xboard_mihomo_sub',
 				profile TEXT NOT NULL,
 				tag TEXT NOT NULL,
 				branch TEXT NOT NULL,
@@ -90,6 +92,7 @@ func initDB() {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			code_id INTEGER NOT NULL,
 			code_name TEXT NOT NULL,
+			client TEXT NOT NULL DEFAULT 'xboard_mihomo_sub',
 			profile_name TEXT NOT NULL DEFAULT '',
 			asset_kind TEXT NOT NULL,
 			asset_path TEXT NOT NULL UNIQUE,
@@ -107,7 +110,11 @@ func initDB() {
 	// 兼容旧表：如果 allowed_profiles 列不存在则添加
 	db.Exec("ALTER TABLE activation_codes ADD COLUMN allowed_profiles TEXT DEFAULT '[]'")
 	db.Exec("ALTER TABLE activation_codes ADD COLUMN allowed_platforms TEXT DEFAULT '[]'")
+	db.Exec("ALTER TABLE activation_codes ADD COLUMN allowed_clients TEXT DEFAULT '[]'")
+	db.Exec("ALTER TABLE profile_asset_history ADD COLUMN client TEXT NOT NULL DEFAULT 'xboard_mihomo_sub'")
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_profile_asset_history_code_client_kind_created_at ON profile_asset_history (code_id, client, asset_kind, created_at DESC, id DESC)")
 	ensureBuildRecordColumn("request_id", "TEXT DEFAULT ''")
+	ensureBuildRecordColumn("client", "TEXT DEFAULT 'xboard_mihomo_sub'")
 	ensureBuildRecordColumn("core", "TEXT DEFAULT 'mihomo'")
 	ensureBuildRecordColumn("run_url", "TEXT DEFAULT ''")
 	ensureBuildRecordColumn("release_tag", "TEXT DEFAULT ''")
@@ -136,6 +143,7 @@ type ActivationCode struct {
 	UsedCount        int      `json:"used_count"`
 	AllowedProfiles  []string `json:"allowed_profiles"`
 	AllowedPlatforms []string `json:"allowed_platforms"`
+	AllowedClients   []string `json:"allowed_clients"`
 	ExpiresAt        *string  `json:"expires_at"`
 	CreatedAt        string   `json:"created_at"`
 	IsActive         bool     `json:"is_active"`
@@ -152,6 +160,7 @@ type BuildRecord struct {
 	CodeID       int    `json:"code_id"`
 	CodeName     string `json:"code_name"`
 	RequestID    string `json:"request_id"`
+	Client       string `json:"client"`
 	Profile      string `json:"profile"`
 	Tag          string `json:"tag"`
 	Branch       string `json:"branch"`
@@ -174,6 +183,7 @@ type ProfileAssetHistoryRecord struct {
 	ID          int64  `json:"id"`
 	CodeID      int    `json:"code_id"`
 	CodeName    string `json:"code_name"`
+	Client      string `json:"client"`
 	ProfileName string `json:"profile_name"`
 	AssetKind   string `json:"asset_kind"`
 	AssetPath   string `json:"asset_path"`
@@ -182,12 +192,12 @@ type ProfileAssetHistoryRecord struct {
 	CreatedAt   string `json:"created_at"`
 }
 
-func createBuildRecord(codeID int, codeName, profile, tag, branch, core, platforms string) (*BuildRecord, error) {
+func createBuildRecord(codeID int, codeName, client, profile, tag, branch, core, platforms string) (*BuildRecord, error) {
 	requestID := generateBuildRequestID()
 	result, err := db.Exec(
-		`INSERT INTO build_records (code_id, code_name, request_id, profile, tag, branch, core, platforms, status, conclusion, status_source, last_sync_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'dispatching', '', 'server', CURRENT_TIMESTAMP)`,
-		codeID, codeName, requestID, profile, tag, branch, core, platforms,
+		`INSERT INTO build_records (code_id, code_name, request_id, client, profile, tag, branch, core, platforms, status, conclusion, status_source, last_sync_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'dispatching', '', 'server', CURRENT_TIMESTAMP)`,
+		codeID, codeName, requestID, client, profile, tag, branch, core, platforms,
 	)
 	if err != nil {
 		return nil, err
@@ -239,7 +249,7 @@ func updateBuildRecordStatusExt(recordID, runID int64, status, conclusion, statu
 func getBuildRecord(recordID int64) (*BuildRecord, error) {
 	var record BuildRecord
 	row := db.QueryRow(
-		`SELECT id, code_id, code_name, request_id, profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source,
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source,
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records WHERE id = ?`,
 		recordID,
@@ -249,6 +259,7 @@ func getBuildRecord(recordID int64) (*BuildRecord, error) {
 		&record.CodeID,
 		&record.CodeName,
 		&record.RequestID,
+		&record.Client,
 		&record.Profile,
 		&record.Tag,
 		&record.Branch,
@@ -277,7 +288,7 @@ func getBuildRecordByRequestID(requestID string) (*BuildRecord, error) {
 	}
 	var record BuildRecord
 	row := db.QueryRow(
-		`SELECT id, code_id, code_name, request_id, profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source,
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source,
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records WHERE request_id = ?`,
 		requestID,
@@ -287,6 +298,7 @@ func getBuildRecordByRequestID(requestID string) (*BuildRecord, error) {
 		&record.CodeID,
 		&record.CodeName,
 		&record.RequestID,
+		&record.Client,
 		&record.Profile,
 		&record.Tag,
 		&record.Branch,
@@ -310,17 +322,29 @@ func getBuildRecordByRequestID(requestID string) (*BuildRecord, error) {
 }
 
 func listBuildRecords(codeID int, isAdmin bool, limit int) ([]BuildRecord, error) {
+	return listBuildRecordsByClient(codeID, isAdmin, "", limit)
+}
+
+func listBuildRecordsByClient(codeID int, isAdmin bool, client string, limit int) ([]BuildRecord, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
 
-	query := `SELECT id, code_id, code_name, request_id, profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source,
+	query := `SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source,
 	                 COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		FROM build_records`
 	args := []interface{}{}
+	whereParts := []string{}
 	if !isAdmin {
-		query += ` WHERE code_id = ?`
+		whereParts = append(whereParts, `code_id = ?`)
 		args = append(args, codeID)
+	}
+	if strings.TrimSpace(client) != "" {
+		whereParts = append(whereParts, `COALESCE(client, 'xboard_mihomo_sub') = ?`)
+		args = append(args, client)
+	}
+	if len(whereParts) > 0 {
+		query += ` WHERE ` + strings.Join(whereParts, ` AND `)
 	}
 	query += ` ORDER BY created_at DESC, id DESC LIMIT ?`
 	args = append(args, limit)
@@ -339,6 +363,7 @@ func listBuildRecords(codeID int, isAdmin bool, limit int) ([]BuildRecord, error
 			&record.CodeID,
 			&record.CodeName,
 			&record.RequestID,
+			&record.Client,
 			&record.Profile,
 			&record.Tag,
 			&record.Branch,
@@ -364,18 +389,22 @@ func listBuildRecords(codeID int, isAdmin bool, limit int) ([]BuildRecord, error
 }
 
 func listOverflowBuildRecords(codeID int, keep int) ([]BuildRecord, error) {
+	return listOverflowBuildRecordsByClient(codeID, "", keep)
+}
+
+func listOverflowBuildRecordsByClient(codeID int, client string, keep int) ([]BuildRecord, error) {
 	if keep < 0 {
 		keep = 0
 	}
 
 	rows, err := db.Query(
-		`SELECT id, code_id, code_name, request_id, profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source,
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source,
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records
-		 WHERE code_id = ?
+		 WHERE code_id = ? AND (? = '' OR COALESCE(client, 'xboard_mihomo_sub') = ?)
 		 ORDER BY created_at DESC, id DESC
 		 LIMIT -1 OFFSET ?`,
-		codeID, keep,
+		codeID, client, client, keep,
 	)
 	if err != nil {
 		return nil, err
@@ -390,6 +419,7 @@ func listOverflowBuildRecords(codeID int, keep int) ([]BuildRecord, error) {
 			&record.CodeID,
 			&record.CodeName,
 			&record.RequestID,
+			&record.Client,
 			&record.Profile,
 			&record.Tag,
 			&record.Branch,
@@ -540,11 +570,12 @@ func appendAllowedProfileToCode(codeID int, profileName string) error {
 	return err
 }
 
-func createProfileAssetHistoryRecord(codeID int, codeName, profileName, assetKind, assetPath, assetURL, contentType string) (*ProfileAssetHistoryRecord, error) {
+func createProfileAssetHistoryRecord(codeID int, codeName, client, profileName, assetKind, assetPath, assetURL, contentType string) (*ProfileAssetHistoryRecord, error) {
+	client = normalizeBuildClient(client)
 	result, err := db.Exec(
-		`INSERT INTO profile_asset_history (code_id, code_name, profile_name, asset_kind, asset_path, asset_url, content_type)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		codeID, codeName, profileName, assetKind, assetPath, assetURL, contentType,
+		`INSERT INTO profile_asset_history (code_id, code_name, client, profile_name, asset_kind, asset_path, asset_url, content_type)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		codeID, codeName, client, profileName, assetKind, assetPath, assetURL, contentType,
 	)
 	if err != nil {
 		return nil, err
@@ -570,7 +601,7 @@ func updateProfileAssetHistoryURL(recordID int64, assetURL string) error {
 func getProfileAssetHistoryRecord(recordID int64) (*ProfileAssetHistoryRecord, error) {
 	var record ProfileAssetHistoryRecord
 	err := db.QueryRow(
-		`SELECT id, code_id, code_name, profile_name, asset_kind, asset_path, asset_url, content_type, created_at
+		`SELECT id, code_id, code_name, COALESCE(client, 'xboard_mihomo_sub'), profile_name, asset_kind, asset_path, asset_url, content_type, created_at
 		 FROM profile_asset_history
 		 WHERE id = ?`,
 		recordID,
@@ -578,6 +609,7 @@ func getProfileAssetHistoryRecord(recordID int64) (*ProfileAssetHistoryRecord, e
 		&record.ID,
 		&record.CodeID,
 		&record.CodeName,
+		&record.Client,
 		&record.ProfileName,
 		&record.AssetKind,
 		&record.AssetPath,
@@ -591,21 +623,23 @@ func getProfileAssetHistoryRecord(recordID int64) (*ProfileAssetHistoryRecord, e
 	if err != nil {
 		return nil, err
 	}
+	record.Client = normalizeBuildClient(record.Client)
 	return &record, nil
 }
 
-func listProfileAssetHistoryRecords(codeID int, assetKind string, limit int) ([]ProfileAssetHistoryRecord, error) {
+func listProfileAssetHistoryRecords(codeID int, client, assetKind string, limit int) ([]ProfileAssetHistoryRecord, error) {
 	if limit <= 0 || limit > 50 {
 		limit = 5
 	}
+	client = normalizeBuildClient(client)
 
 	rows, err := db.Query(
-		`SELECT id, code_id, code_name, profile_name, asset_kind, asset_path, asset_url, content_type, created_at
+		`SELECT id, code_id, code_name, COALESCE(client, 'xboard_mihomo_sub'), profile_name, asset_kind, asset_path, asset_url, content_type, created_at
 		 FROM profile_asset_history
-		 WHERE code_id = ? AND asset_kind = ?
+		 WHERE code_id = ? AND client = ? AND asset_kind = ?
 		 ORDER BY created_at DESC, id DESC
 		 LIMIT ?`,
-		codeID, assetKind, limit,
+		codeID, client, assetKind, limit,
 	)
 	if err != nil {
 		return nil, err
@@ -619,6 +653,7 @@ func listProfileAssetHistoryRecords(codeID int, assetKind string, limit int) ([]
 			&record.ID,
 			&record.CodeID,
 			&record.CodeName,
+			&record.Client,
 			&record.ProfileName,
 			&record.AssetKind,
 			&record.AssetPath,
@@ -628,23 +663,25 @@ func listProfileAssetHistoryRecords(codeID int, assetKind string, limit int) ([]
 		); err != nil {
 			continue
 		}
+		record.Client = normalizeBuildClient(record.Client)
 		records = append(records, record)
 	}
 	return records, nil
 }
 
-func listOverflowProfileAssetHistoryRecords(codeID int, assetKind string, keep int) ([]ProfileAssetHistoryRecord, error) {
+func listOverflowProfileAssetHistoryRecords(codeID int, client, assetKind string, keep int) ([]ProfileAssetHistoryRecord, error) {
 	if keep < 0 {
 		keep = 0
 	}
+	client = normalizeBuildClient(client)
 
 	rows, err := db.Query(
-		`SELECT id, code_id, code_name, profile_name, asset_kind, asset_path, asset_url, content_type, created_at
+		`SELECT id, code_id, code_name, COALESCE(client, 'xboard_mihomo_sub'), profile_name, asset_kind, asset_path, asset_url, content_type, created_at
 		 FROM profile_asset_history
-		 WHERE code_id = ? AND asset_kind = ?
+		 WHERE code_id = ? AND client = ? AND asset_kind = ?
 		 ORDER BY created_at DESC, id DESC
 		 LIMIT -1 OFFSET ?`,
-		codeID, assetKind, keep,
+		codeID, client, assetKind, keep,
 	)
 	if err != nil {
 		return nil, err
@@ -658,6 +695,7 @@ func listOverflowProfileAssetHistoryRecords(codeID int, assetKind string, keep i
 			&record.ID,
 			&record.CodeID,
 			&record.CodeName,
+			&record.Client,
 			&record.ProfileName,
 			&record.AssetKind,
 			&record.AssetPath,
@@ -667,6 +705,7 @@ func listOverflowProfileAssetHistoryRecords(codeID int, assetKind string, keep i
 		); err != nil {
 			continue
 		}
+		record.Client = normalizeBuildClient(record.Client)
 		records = append(records, record)
 	}
 	return records, nil
@@ -693,12 +732,13 @@ func getActivationCodeByID(id int) (*ActivationCode, error) {
 	var expiresAt sql.NullString
 	var allowedProfilesJSON string
 	var allowedPlatformsJSON string
+	var allowedClientsJSON string
 
 	err := db.QueryRow(
-		`SELECT id, code, name, permissions, max_uses, used_count, allowed_profiles, allowed_platforms, expires_at, created_at, is_active
+		`SELECT id, code, name, permissions, max_uses, used_count, allowed_profiles, allowed_platforms, allowed_clients, expires_at, created_at, is_active
 		 FROM activation_codes WHERE id = ?`,
 		id,
-	).Scan(&ac.ID, &ac.Code, &ac.Name, &ac.Permissions, &ac.MaxUses, &ac.UsedCount, &allowedProfilesJSON, &allowedPlatformsJSON, &expiresAt, &ac.CreatedAt, &ac.IsActive)
+	).Scan(&ac.ID, &ac.Code, &ac.Name, &ac.Permissions, &ac.MaxUses, &ac.UsedCount, &allowedProfilesJSON, &allowedPlatformsJSON, &allowedClientsJSON, &expiresAt, &ac.CreatedAt, &ac.IsActive)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("激活码无效")
 	}
@@ -713,6 +753,10 @@ func getActivationCodeByID(id int) (*ActivationCode, error) {
 	json.Unmarshal([]byte(allowedPlatformsJSON), &ac.AllowedPlatforms)
 	if ac.AllowedPlatforms == nil {
 		ac.AllowedPlatforms = []string{}
+	}
+	json.Unmarshal([]byte(allowedClientsJSON), &ac.AllowedClients)
+	if ac.AllowedClients == nil {
+		ac.AllowedClients = []string{}
 	}
 	if expiresAt.Valid {
 		ac.ExpiresAt = &expiresAt.String
@@ -769,12 +813,20 @@ func validateCode(code string) (*ActivationCode, error) {
 	var expiresAt sql.NullString
 	var allowedProfilesJSON string
 	var allowedPlatformsJSON string
+	var allowedClientsJSON string
 
 	err := db.QueryRow(
-		`SELECT id, code, name, permissions, max_uses, used_count, allowed_profiles, allowed_platforms, expires_at, created_at, is_active
+		`SELECT id, code, name, permissions, max_uses, used_count, allowed_profiles, allowed_platforms, allowed_clients, expires_at, created_at, is_active
 		 FROM activation_codes WHERE code = ? AND is_active = 1`,
 		code,
-	).Scan(&ac.ID, &ac.Code, &ac.Name, &ac.Permissions, &ac.MaxUses, &ac.UsedCount, &allowedProfilesJSON, &allowedPlatformsJSON, &expiresAt, &ac.CreatedAt, &ac.IsActive)
+	).Scan(&ac.ID, &ac.Code, &ac.Name, &ac.Permissions, &ac.MaxUses, &ac.UsedCount, &allowedProfilesJSON, &allowedPlatformsJSON, &allowedClientsJSON, &expiresAt, &ac.CreatedAt, &ac.IsActive)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("激活码无效")
+	}
+	if err != nil {
+		return nil, err
+	}
 
 	json.Unmarshal([]byte(allowedProfilesJSON), &ac.AllowedProfiles)
 	if ac.AllowedProfiles == nil {
@@ -784,12 +836,9 @@ func validateCode(code string) (*ActivationCode, error) {
 	if ac.AllowedPlatforms == nil {
 		ac.AllowedPlatforms = []string{}
 	}
-
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("激活码无效")
-	}
-	if err != nil {
-		return nil, err
+	json.Unmarshal([]byte(allowedClientsJSON), &ac.AllowedClients)
+	if ac.AllowedClients == nil {
+		ac.AllowedClients = []string{}
 	}
 
 	if expiresAt.Valid {
@@ -916,7 +965,7 @@ func normalizeExpiresAt(expiresAt string) (*string, error) {
 	return nil, fmt.Errorf("到期时间格式错误，支持如 2026-3-7、2026/3/7、2026.3.7")
 }
 
-func createCode(name string, maxUses int, allowedProfiles []string, allowedPlatforms []string, expiresAt string) (*ActivationCode, error) {
+func createCode(name string, maxUses int, allowedProfiles []string, allowedPlatforms []string, allowedClients []string, expiresAt string) (*ActivationCode, error) {
 	code := generateCode()
 	if allowedProfiles == nil {
 		allowedProfiles = []string{}
@@ -924,8 +973,12 @@ func createCode(name string, maxUses int, allowedProfiles []string, allowedPlatf
 	if allowedPlatforms == nil {
 		allowedPlatforms = []string{}
 	}
+	if allowedClients == nil {
+		allowedClients = []string{}
+	}
 	profilesJSON, _ := json.Marshal(allowedProfiles)
 	platformsJSON, _ := json.Marshal(allowedPlatforms)
+	clientsJSON, _ := json.Marshal(allowedClients)
 
 	normalizedExpiresAt, err := normalizeExpiresAt(expiresAt)
 	if err != nil {
@@ -938,8 +991,8 @@ func createCode(name string, maxUses int, allowedProfiles []string, allowedPlatf
 	}
 
 	_, err = db.Exec(
-		"INSERT INTO activation_codes (code, name, permissions, max_uses, allowed_profiles, allowed_platforms, expires_at) VALUES (?, ?, 'user', ?, ?, ?, ?)",
-		code, name, maxUses, string(profilesJSON), string(platformsJSON), expiresValue,
+		"INSERT INTO activation_codes (code, name, permissions, max_uses, allowed_profiles, allowed_platforms, allowed_clients, expires_at) VALUES (?, ?, 'user', ?, ?, ?, ?, ?)",
+		code, name, maxUses, string(profilesJSON), string(platformsJSON), string(clientsJSON), expiresValue,
 	)
 	if err != nil {
 		return nil, err
@@ -952,19 +1005,24 @@ func createCode(name string, maxUses int, allowedProfiles []string, allowedPlatf
 		MaxUses:          maxUses,
 		AllowedProfiles:  allowedProfiles,
 		AllowedPlatforms: allowedPlatforms,
+		AllowedClients:   allowedClients,
 		ExpiresAt:        normalizedExpiresAt,
 	}, nil
 }
 
-func updateCode(id int, name string, maxUses int, usedCount int, allowedProfiles []string, allowedPlatforms []string, expiresAt string) error {
+func updateCode(id int, name string, maxUses int, usedCount int, allowedProfiles []string, allowedPlatforms []string, allowedClients []string, expiresAt string) error {
 	if allowedProfiles == nil {
 		allowedProfiles = []string{}
 	}
 	if allowedPlatforms == nil {
 		allowedPlatforms = []string{}
 	}
+	if allowedClients == nil {
+		allowedClients = []string{}
+	}
 	profilesJSON, _ := json.Marshal(allowedProfiles)
 	platformsJSON, _ := json.Marshal(allowedPlatforms)
+	clientsJSON, _ := json.Marshal(allowedClients)
 
 	normalizedExpiresAt, err := normalizeExpiresAt(expiresAt)
 	if err != nil {
@@ -977,8 +1035,8 @@ func updateCode(id int, name string, maxUses int, usedCount int, allowedProfiles
 	}
 
 	result, err := db.Exec(
-		"UPDATE activation_codes SET name = ?, max_uses = ?, used_count = ?, allowed_profiles = ?, allowed_platforms = ?, expires_at = ? WHERE id = ?",
-		name, maxUses, usedCount, string(profilesJSON), string(platformsJSON), expiresValue, id,
+		"UPDATE activation_codes SET name = ?, max_uses = ?, used_count = ?, allowed_profiles = ?, allowed_platforms = ?, allowed_clients = ?, expires_at = ? WHERE id = ?",
+		name, maxUses, usedCount, string(profilesJSON), string(platformsJSON), string(clientsJSON), expiresValue, id,
 	)
 	if err != nil {
 		return err
@@ -995,9 +1053,57 @@ func updateCode(id int, name string, maxUses int, usedCount int, allowedProfiles
 	return nil
 }
 
+func updateCodesAllowedClients(ids []int, allowedClients []string) (int, error) {
+	if len(ids) == 0 {
+		return 0, fmt.Errorf("请选择要批量编辑的激活码")
+	}
+	if allowedClients == nil {
+		allowedClients = []string{}
+	}
+	clientsJSON, _ := json.Marshal(allowedClients)
+
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(`UPDATE activation_codes SET allowed_clients = ? WHERE id = ?`)
+	if err != nil {
+		return 0, err
+	}
+	defer stmt.Close()
+
+	updatedCount := 0
+	seen := map[int]struct{}{}
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+
+		result, err := stmt.Exec(string(clientsJSON), id)
+		if err != nil {
+			return 0, err
+		}
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+		updatedCount += int(rowsAffected)
+	}
+	if updatedCount == 0 {
+		return 0, fmt.Errorf("未找到可更新的激活码")
+	}
+	return updatedCount, tx.Commit()
+}
+
 func listCodes() ([]ActivationCode, error) {
 	rows, err := db.Query(
-		`SELECT id, code, name, permissions, max_uses, used_count, allowed_profiles, allowed_platforms, expires_at, created_at, is_active
+		`SELECT id, code, name, permissions, max_uses, used_count, allowed_profiles, allowed_platforms, allowed_clients, expires_at, created_at, is_active
 		 FROM activation_codes ORDER BY created_at DESC`,
 	)
 	if err != nil {
@@ -1011,7 +1117,8 @@ func listCodes() ([]ActivationCode, error) {
 		var expiresAt sql.NullString
 		var allowedProfilesJSON string
 		var allowedPlatformsJSON string
-		err := rows.Scan(&ac.ID, &ac.Code, &ac.Name, &ac.Permissions, &ac.MaxUses, &ac.UsedCount, &allowedProfilesJSON, &allowedPlatformsJSON, &expiresAt, &ac.CreatedAt, &ac.IsActive)
+		var allowedClientsJSON string
+		err := rows.Scan(&ac.ID, &ac.Code, &ac.Name, &ac.Permissions, &ac.MaxUses, &ac.UsedCount, &allowedProfilesJSON, &allowedPlatformsJSON, &allowedClientsJSON, &expiresAt, &ac.CreatedAt, &ac.IsActive)
 		if err != nil {
 			continue
 		}
@@ -1022,6 +1129,10 @@ func listCodes() ([]ActivationCode, error) {
 		json.Unmarshal([]byte(allowedPlatformsJSON), &ac.AllowedPlatforms)
 		if ac.AllowedPlatforms == nil {
 			ac.AllowedPlatforms = []string{}
+		}
+		json.Unmarshal([]byte(allowedClientsJSON), &ac.AllowedClients)
+		if ac.AllowedClients == nil {
+			ac.AllowedClients = []string{}
 		}
 		if expiresAt.Valid {
 			ac.ExpiresAt = &expiresAt.String

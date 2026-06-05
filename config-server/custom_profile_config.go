@@ -561,6 +561,7 @@ func (h *Handlers) verifyUIColorConfigAccess(r *http.Request, profileName, integ
 }
 
 func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.Request) {
+	client := normalizeBuildClient(r.URL.Query().Get("client"))
 	var req struct {
 		Profile         string `json:"profile"`
 		IntegrationCode string `json:"integration_code"`
@@ -582,7 +583,7 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	yamlContent, _, _, exists, err := h.getStoredProfile(profileName)
+	yamlContent, _, _, exists, err := h.getStoredProfileForClient(client, profileName)
 	if err != nil {
 		jsonError(w, "加载档案失败: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -632,6 +633,7 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 }
 
 func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.Request) {
+	client := normalizeBuildClient(r.URL.Query().Get("client"))
 	var req struct {
 		Profile                              string   `json:"profile"`
 		IntegrationCode                      string   `json:"integration_code"`
@@ -781,7 +783,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		}
 	}
 
-	yamlContent, _, _, exists, err := h.getStoredProfile(profileName)
+	yamlContent, _, _, exists, err := h.getStoredProfileForClient(client, profileName)
 	if err != nil {
 		jsonError(w, "加载档案失败: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -870,7 +872,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 
 	var updatedYaml string
 	var patchErr error
-	if err := h.profileGH.SaveFileWithRetry(filePath, func(existing string) string {
+	if err := h.profileGitHubClient(client).SaveFileWithRetry(filePath, func(existing string) string {
 		updated, updateErr := writeProfileUIColorCustomConfig(existing, targetConfig)
 		patchErr = updateErr
 		if updateErr != nil {
@@ -890,7 +892,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		jsonError(w, "保存公共配置失败: 未生成有效配置内容", http.StatusInternalServerError)
 		return
 	}
-	invalidateProfileCache()
+	invalidateProfileCacheForClient(client)
 	if err := validateYamlContent(updatedYaml); err != nil {
 		jsonError(w, "保存后的配置校验失败: "+err.Error(), http.StatusInternalServerError)
 		return
