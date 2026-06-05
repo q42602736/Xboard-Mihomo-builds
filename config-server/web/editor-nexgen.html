@@ -3778,9 +3778,8 @@
 	                                <label>选择打包平台</label>
 	                            <div class="platform-checkboxes">
 	                                <label class="platform-checkbox"><input type="checkbox" value="all" id="platformAll" checked><span class="platform-checkbox-label" id="platformAllLabel">全部平台</span></label>
-	                                <label class="platform-checkbox"><input type="checkbox" value="windows" class="platformItem" data-cores="nexgen"><span class="platform-checkbox-label">Windows</span></label>
-	                                <label class="platform-checkbox"><input type="checkbox" value="windows-arm64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">Windows ARM64</span></label>
-	                                <label class="platform-checkbox"><input type="checkbox" value="windows-amd64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">Windows AMD64</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="windows-arm64" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">Windows ARM64</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="windows-amd64" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">Windows AMD64</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">Android（手机）</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="android-tv" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Android TV</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="linux-arm64" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Linux ARM64</span></label>
@@ -4615,7 +4614,7 @@
 
 	        function getBuildPlatformCatalogValues() {
 	            if (isNexGenClient()) {
-	                return ['windows', 'android', 'macos-amd64', 'macos-arm64'];
+	                return ['windows-arm64', 'windows-amd64', 'android', 'macos-amd64', 'macos-arm64'];
 	            }
 	            return [
 	                'windows-arm64',
@@ -4676,8 +4675,11 @@
 	                    if (!token) return;
 	                    if (token === 'all') {
 	                        getBuildPlatformCatalogValues().forEach(add);
-	                    } else if (token === 'windows' || token === 'windows-amd64' || token === 'windows-arm64') {
-	                        add('windows');
+	                    } else if (token === 'windows') {
+	                        add('windows-arm64');
+	                        add('windows-amd64');
+	                    } else if (token === 'windows-amd64' || token === 'windows-arm64') {
+	                        add(token);
 	                    } else if (token === 'macos') {
 	                        add('macos-amd64');
 	                        add('macos-arm64');
@@ -4773,7 +4775,7 @@
 	            var help = document.getElementById('buildPlatformHelpText');
 	            if (!help) return;
 	            if (isNexGenClient()) {
-	                help.textContent = 'NexGen Client React 当前支持 Windows、Android、macOS AMD64、macOS ARM64。远程 OSS、远程配置源、订阅、客服和 UI 配置仍在左侧完整配置页维护。';
+	                help.textContent = 'NexGen Client React 当前支持 Windows ARM64/AMD64、Android、macOS AMD64、macOS ARM64。远程 OSS、远程配置源、订阅、客服和 UI 配置仍在左侧完整配置页维护。';
 	            } else if (getSelectedBuildCore() === 'xray') {
 	                help.textContent = 'Xray 内核当前只支持 Windows ARM64/AMD64、Android（手机）和 macOS ARM64/AMD64；Linux 与 Android TV 已自动隐藏。';
 	            } else {

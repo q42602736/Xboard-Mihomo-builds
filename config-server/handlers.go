@@ -879,7 +879,8 @@ var buildCorePlatformCatalog = map[string][]string{
 }
 
 var nexGenReactPlatformCatalog = []string{
-	"windows",
+	"windows-amd64",
+	"windows-arm64",
 	"android",
 	"macos-amd64",
 	"macos-arm64",
@@ -1313,8 +1314,11 @@ func normalizeAllowedNexGenBuildPlatforms(allowedPlatforms []string) ([]string, 
 				for _, item := range nexGenReactPlatformCatalog {
 					add(item)
 				}
-			case "windows", "windows-amd64", "windows-arm64":
-				add("windows")
+			case "windows":
+				add("windows-amd64")
+				add("windows-arm64")
+			case "windows-amd64", "windows-arm64":
+				add(token)
 			case "android":
 				add("android")
 			case "macos":

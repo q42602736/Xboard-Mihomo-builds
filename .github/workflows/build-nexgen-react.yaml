@@ -32,7 +32,7 @@ on:
         type: string
         default: 'nexgen'
       platforms:
-        description: '选择平台：all, windows, android, macos, macos-amd64, macos-arm64'
+        description: '选择平台：all, windows, windows-amd64, windows-arm64, android, macos, macos-amd64, macos-arm64'
         required: true
         type: string
         default: 'all'
@@ -205,52 +205,61 @@ jobs:
             -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
             -d "$PAYLOAD"
 
-  build:
-    needs: prepare-release
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows
-            os: windows-2022
-            family: windows
-          - platform: macos-amd64
-            os: macos-13
-            family: macos
-          - platform: macos-arm64
-            os: macos-14
-            family: macos
-          - platform: android
-            os: ubuntu-latest
-            family: android
-    runs-on: ${{ matrix.os }}
+  resolve-build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
-      - name: Check Platform Selection
-        id: check
+      - name: Resolve Selected Platforms
+        id: matrix
         shell: bash
         run: |
-          RAW="${{ github.event.inputs.platforms }}"
-          RAW="${RAW:-all}"
-          CURRENT="${{ matrix.platform }}"
-          FAMILY="${{ matrix.family }}"
-          SHOULD_RUN=false
-          IFS=',' read -ra ITEMS <<< "$RAW"
-          for ITEM in "${ITEMS[@]}"; do
-            ITEM="$(echo "$ITEM" | xargs | tr '[:upper:]' '[:lower:]')"
-            if [ "$ITEM" = "all" ] || [ "$ITEM" = "$CURRENT" ] || [ "$ITEM" = "$FAMILY" ]; then
-              SHOULD_RUN=true
-            fi
-          done
-          echo "should_run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
+          node - <<'NODE' >> "$GITHUB_OUTPUT"
+          const raw = `${{ github.event.inputs.platforms }}` || "all";
+          const catalog = [
+            { platform: "windows-amd64", os: "windows-2022", family: "windows", arch: "amd64" },
+            { platform: "windows-arm64", os: "windows-2022", family: "windows", arch: "arm64" },
+            { platform: "macos-amd64", os: "macos-13", family: "macos", arch: "amd64" },
+            { platform: "macos-arm64", os: "macos-14", family: "macos", arch: "arm64" },
+            { platform: "android", os: "ubuntu-latest", family: "android", arch: "" },
+          ];
+          const tokens = raw.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
+          const selected = new Set();
+          const addFamily = (family) => catalog.filter((item) => item.family === family).forEach((item) => selected.add(item.platform));
+          const addPlatform = (platform) => catalog.some((item) => item.platform === platform) && selected.add(platform);
 
+          for (const token of tokens.length ? tokens : ["all"]) {
+            if (token === "all") {
+              catalog.forEach((item) => selected.add(item.platform));
+              break;
+            }
+            if (token === "windows" || token === "macos") {
+              addFamily(token);
+              continue;
+            }
+            addPlatform(token);
+          }
+
+          const include = catalog.filter((item) => selected.has(item.platform));
+          if (include.length === 0) {
+            throw new Error(`无效的打包平台选择：${raw}`);
+          }
+          console.log(`matrix=${JSON.stringify({ include })}`);
+          NODE
+
+  build:
+    needs: [prepare-release, resolve-build-matrix]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve-build-matrix.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    steps:
       - name: Checkout Build Scripts
-        if: steps.check.outputs.should_run == 'true'
         uses: actions/checkout@v4
         with:
           path: build-server
 
       - name: Checkout NexGen Source
-        if: steps.check.outputs.should_run == 'true'
         uses: actions/checkout@v4
         with:
           repository: ${{ env.NEXGEN_SOURCE_REPO }}
@@ -259,7 +268,6 @@ jobs:
           path: source
 
       - name: Setup Node
-        if: steps.check.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -267,33 +275,40 @@ jobs:
           cache-dependency-path: source/package-lock.json
 
       - name: Setup Rust
-        if: steps.check.outputs.should_run == 'true'
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install Windows Rust Target
+        if: matrix.family == 'windows'
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "windows-arm64" ]; then
+            rustup target add aarch64-pc-windows-msvc
+          else
+            rustup target add x86_64-pc-windows-msvc
+          fi
+
       - name: Setup Java
-        if: steps.check.outputs.should_run == 'true' && matrix.family == 'android'
+        if: matrix.family == 'android'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Setup Android SDK
-        if: steps.check.outputs.should_run == 'true' && matrix.family == 'android'
+        if: matrix.family == 'android'
         uses: android-actions/setup-android@v3
 
       - name: Install Android Targets
-        if: steps.check.outputs.should_run == 'true' && matrix.family == 'android'
+        if: matrix.family == 'android'
         shell: bash
         run: |
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;28.0.13004108"
 
       - name: Install Dependencies
-        if: steps.check.outputs.should_run == 'true'
         working-directory: source
         run: npm ci
 
       - name: Apply Profile Config
-        if: steps.check.outputs.should_run == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
@@ -316,16 +331,25 @@ jobs:
           " > profile.yaml
           node build-server/.github/scripts/nexgen-profile-to-config.mjs profile.yaml source/nexgen.config.yaml source/nexgen.config.yaml
 
+      - name: Apply App Version
+        shell: bash
+        run: node build-server/.github/scripts/apply-nexgen-version.mjs source "${{ github.event.inputs.tag }}"
+
       - name: Build Windows Package
-        if: steps.check.outputs.should_run == 'true' && matrix.family == 'windows'
+        if: matrix.family == 'windows'
         working-directory: source
         shell: bash
         run: |
-          npm run desktop:core
-          npm run package:windows -- --bundles nsis
+          if [ "${{ matrix.platform }}" = "windows-arm64" ]; then
+            npm run desktop:core -- --target aarch64-pc-windows-msvc
+            npm run package:windows -- --targets arm64 --bundles nsis
+          else
+            npm run desktop:core -- --target x86_64-pc-windows-msvc
+            npm run package:windows -- --targets amd64 --bundles nsis
+          fi
 
       - name: Build macOS Package
-        if: steps.check.outputs.should_run == 'true' && matrix.family == 'macos'
+        if: matrix.family == 'macos'
         working-directory: source
         shell: bash
         run: |
@@ -337,7 +361,7 @@ jobs:
           fi
 
       - name: Build Android Package
-        if: steps.check.outputs.should_run == 'true' && matrix.family == 'android'
+        if: matrix.family == 'android'
         working-directory: source
         shell: bash
         run: |
@@ -347,7 +371,6 @@ jobs:
           find src-tauri/gen/android -type f -name "*.apk" -exec cp {} dist/ \;
 
       - name: Upload Release Assets
-        if: steps.check.outputs.should_run == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
