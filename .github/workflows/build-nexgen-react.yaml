@@ -51,6 +51,7 @@ env:
   PROFILE_REPO: q42602736/NexGen-client-React
   NEXGEN_SOURCE_REPO: q42602736/NexGen-client-React
   NODE_VERSION: '22'
+  GO_VERSION: '1.22'
 
 jobs:
   prepare-release:
@@ -276,6 +277,14 @@ jobs:
           cache: npm
           cache-dependency-path: source/package-lock.json
 
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            source/core/mihomo/go.sum
+            source/core/android-bridge/go.sum
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -309,6 +318,37 @@ jobs:
       - name: Install Dependencies
         working-directory: source
         run: npm ci
+
+      - name: Warm Go Module Cache
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          warm_go_module() {
+            local module_dir="$1"
+            if [ ! -f "$module_dir/go.mod" ]; then
+              echo "跳过 Go module 预热，未找到 $module_dir/go.mod"
+              return 0
+            fi
+
+            echo "=== Go module 预热：$module_dir ==="
+            (
+              cd "$module_dir"
+              go env GOVERSION GOMOD GOPROXY GOMODCACHE GOCACHE
+              for attempt in 1 2 3; do
+                if go mod download; then
+                  echo "Go module 预热完成：$module_dir"
+                  return 0
+                fi
+                echo "Go module 下载失败，准备重试：$module_dir attempt=$attempt"
+                sleep $((attempt * 10))
+              done
+              go mod download
+            )
+          }
+
+          warm_go_module source/core/mihomo
+          warm_go_module source/core/android-bridge
 
       - name: Apply Profile Config
         shell: bash
@@ -345,6 +385,9 @@ jobs:
         if: matrix.family == 'windows'
         working-directory: source
         shell: bash
+        env:
+          GOMAXPROCS: '2'
+          GOFLAGS: '-p=1'
         run: |
           if [ "${{ matrix.platform }}" = "windows-arm64" ]; then
             npm run desktop:core -- --target aarch64-pc-windows-msvc
@@ -358,6 +401,9 @@ jobs:
         if: matrix.family == 'macos'
         working-directory: source
         shell: bash
+        env:
+          GOMAXPROCS: '2'
+          GOFLAGS: '-p=1'
         run: |
           npm run desktop:core
           if [ "${{ matrix.platform }}" = "macos-arm64" ]; then
@@ -370,11 +416,47 @@ jobs:
         if: matrix.family == 'android'
         working-directory: source
         shell: bash
+        env:
+          GOMAXPROCS: '2'
+          GOFLAGS: '-p=1'
         run: |
           npm run android:core
           npm run tauri -- android build --apk --target aarch64 armv7 --split-per-abi
           mkdir -p dist
           find src-tauri/gen/android -type f -name "*.apk" -exec cp {} dist/ \;
+
+      - name: Diagnose NexGen Build Failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "=== Matrix ==="
+          echo "platform=${{ matrix.platform }}"
+          echo "family=${{ matrix.family }}"
+          echo "arch=${{ matrix.arch }}"
+          echo ""
+
+          echo "=== Tool Versions ==="
+          node --version || true
+          npm --version || true
+          rustc --version || true
+          cargo --version || true
+          go version || true
+          echo ""
+
+          echo "=== Go Env (mihomo) ==="
+          if [ -d source/core/mihomo ]; then
+            (cd source/core/mihomo && go env GOVERSION GOMOD GOPROXY GOMODCACHE GOCACHE GOOS GOARCH CGO_ENABLED) || true
+          else
+            echo "source/core/mihomo 不存在"
+          fi
+          echo ""
+
+          echo "=== Core Output Files ==="
+          find source/core -maxdepth 5 -type f \( -name "*.exe" -o -name "core-manifest.json" -o -name "*.so" -o -name "*.dylib" \) -print 2>/dev/null || true
+          echo ""
+
+          echo "=== Tauri / Dist Artifacts ==="
+          find source/dist source/src-tauri/target -maxdepth 6 -type f 2>/dev/null | tail -100 || true
 
       - name: Upload Release Assets
         shell: bash
