@@ -462,20 +462,43 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
           UPLOAD_URL: ${{ needs.prepare-release.outputs.upload_url }}
           APP_NAME: ${{ needs.prepare-release.outputs.app_name }}
           VERSION: ${{ github.event.inputs.tag }}
         run: |
-          shopt -s nullglob
-          files=(source/dist/*)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "::error::未找到打包产物"
+          if [ ! -d "source/dist" ]; then
+            echo "::error::未找到 source/dist 目录"
             exit 1
           fi
-          for file in "${files[@]}"; do
+
+          artifact_list="$(mktemp)"
+          find source/dist -maxdepth 1 -type f \( \
+            -name "*.zip" -o \
+            -name "*.dmg" -o \
+            -name "*.exe" -o \
+            -name "*.msi" -o \
+            -name "*.apk" \
+          \) | sort > "$artifact_list"
+          if [ "$(wc -l < "$artifact_list" | tr -d ' ')" = "0" ]; then
+            echo "::error::未找到打包产物"
+            find source/dist -maxdepth 2 -print 2>/dev/null || true
+            exit 1
+          fi
+
+          ASSETS_RESPONSE=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
+
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
             base="$(basename "$file")"
             safe_base="$(echo "$base" | tr ' ' '-')"
-            asset_name="${APP_NAME}-${VERSION}-${{ matrix.platform }}-${safe_base}"
+            expected_prefix="$(echo "${APP_NAME}-${VERSION}-${{ matrix.platform }}-" | tr ' ' '-')"
+            if [[ "$safe_base" == "$expected_prefix"* ]]; then
+              asset_name="$safe_base"
+            else
+              asset_name="${expected_prefix}${safe_base}"
+            fi
             content_type="application/octet-stream"
             case "$asset_name" in
               *.zip) content_type="application/zip" ;;
@@ -484,13 +507,41 @@ jobs:
               *.msi) content_type="application/x-msi" ;;
               *.apk) content_type="application/vnd.android.package-archive" ;;
             esac
+
+            existing_asset_id=$(printf '%s' "$ASSETS_RESPONSE" | node -e "
+              const fs = require('fs');
+              const assetName = process.argv[1];
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              const asset = (Array.isArray(data) ? data : []).find(item => item && item.name === assetName);
+              process.stdout.write(asset ? String(asset.id) : '');
+            " "$asset_name")
+            if [ -n "$existing_asset_id" ]; then
+              echo "Deleting existing release asset: $asset_name"
+              curl -sS --fail -X DELETE -H "Authorization: token $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/releases/assets/${existing_asset_id}" > /dev/null
+            fi
+
             encoded_name="$(node -e 'console.log(encodeURIComponent(process.argv[1]))' "$asset_name")"
-            curl -fsS -X POST \
+            echo "Uploading release asset: $asset_name"
+            upload_response=$(curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: $content_type" \
+              -H "Expect:" \
               --data-binary @"$file" \
-              "${UPLOAD_URL}?name=${encoded_name}"
-          done
+              "${UPLOAD_URL}?name=${encoded_name}")
+
+            uploaded_asset_state=$(printf '%s' "$upload_response" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              process.stdout.write(data && data.state ? String(data.state) : '');
+            ")
+            if [ "$uploaded_asset_state" != "uploaded" ]; then
+              echo "::error::Release asset upload verification failed: $asset_name"
+              echo "$upload_response"
+              exit 1
+            fi
+          done < "$artifact_list"
+          rm -f "$artifact_list"
 
   notify-build-complete:
     runs-on: ubuntu-latest
