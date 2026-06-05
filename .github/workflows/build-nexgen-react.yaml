@@ -91,6 +91,7 @@ jobs:
           repository: ${{ env.NEXGEN_SOURCE_REPO }}
           ref: ${{ github.event.inputs.branch || 'main' }}
           token: ${{ secrets.WORKFLOW_TOKEN }}
+          submodules: recursive
           path: source
 
       - name: Read And Convert Profile
@@ -265,6 +266,7 @@ jobs:
           repository: ${{ env.NEXGEN_SOURCE_REPO }}
           ref: ${{ github.event.inputs.branch || 'main' }}
           token: ${{ secrets.WORKFLOW_TOKEN }}
+          submodules: recursive
           path: source
 
       - name: Setup Node
@@ -334,6 +336,10 @@ jobs:
       - name: Apply App Version
         shell: bash
         run: node build-server/.github/scripts/apply-nexgen-version.mjs source "${{ github.event.inputs.tag }}"
+
+      - name: Apply App Icon
+        shell: bash
+        run: node build-server/.github/scripts/apply-nexgen-icon.mjs source
 
       - name: Build Windows Package
         if: matrix.family == 'windows'
