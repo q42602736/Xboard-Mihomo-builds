@@ -420,8 +420,33 @@ jobs:
           GOMAXPROCS: '2'
           GOFLAGS: '-p=1'
           NEXGEN_SKIP_DESKTOP_CORE_RESOURCE: '1'
+          NEXGEN_ANDROID_SIGNING_BUNDLE: ${{ secrets.NEXGEN_ANDROID_SIGNING_BUNDLE }}
         run: |
           set -o pipefail
+
+          configure_android_signing() {
+            if [ -z "${NEXGEN_ANDROID_SIGNING_BUNDLE:-}" ]; then
+              echo "::error::未配置 NEXGEN_ANDROID_SIGNING_BUNDLE，无法生成固定签名 Android APK。"
+              exit 1
+            fi
+
+            local signing_dir
+            signing_dir="$(mktemp -d)"
+            printf '%s' "$NEXGEN_ANDROID_SIGNING_BUNDLE" | base64 --decode > "$signing_dir/signing.tar.gz"
+            tar -xzf "$signing_dir/signing.tar.gz" -C "$signing_dir"
+
+            if [ ! -f "$signing_dir/keystore.jks" ] || [ ! -f "$signing_dir/local.properties" ]; then
+              echo "::error::NEXGEN_ANDROID_SIGNING_BUNDLE 内容不完整。"
+              exit 1
+            fi
+
+            mkdir -p src-tauri/gen/android/app
+            cp "$signing_dir/keystore.jks" src-tauri/gen/android/app/keystore.jks
+            cp "$signing_dir/local.properties" src-tauri/gen/android/local.properties
+            chmod 600 src-tauri/gen/android/app/keystore.jks src-tauri/gen/android/local.properties
+            rm -rf "$signing_dir"
+            echo "已配置 NexGen Android 固定签名。"
+          }
 
           print_android_diagnostics() {
             echo ""
@@ -452,6 +477,7 @@ jobs:
           if [ ! -d src-tauri/gen/android/app ]; then
             npm run tauri -- android init
           fi
+          configure_android_signing
           mkdir -p dist
           rm -f dist/*.apk
           ANDROID_APK_STAGE_DIR="$(pwd)/.android-apk-artifacts"
@@ -515,6 +541,24 @@ jobs:
             esac
           }
 
+          assert_android_apk_signed() {
+            local apk_file="$1"
+            local sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+            local apksigner=""
+            if [ -n "$sdk_root" ] && [ -d "$sdk_root/build-tools" ]; then
+              apksigner="$(find "$sdk_root/build-tools" -type f -name apksigner | sort -V | tail -1 || true)"
+            fi
+            if [ -z "$apksigner" ]; then
+              echo "::warning::未找到 apksigner，跳过 APK 签名验证：$apk_file"
+              return 0
+            fi
+            if ! "$apksigner" verify --verbose "$apk_file" > apksigner.log 2>&1; then
+              cat apksigner.log
+              echo "::error::Android APK 未通过签名验证：$apk_file"
+              exit 1
+            fi
+          }
+
           build_android_apk() {
             local target="$1"
             local output_name="$2"
@@ -543,6 +587,7 @@ jobs:
             fi
 
             assert_android_apk_abi "$apk_file" "$abi"
+            assert_android_apk_signed "$apk_file"
             cp "$apk_file" "$ANDROID_APK_STAGE_DIR/$output_name"
           }
 
