@@ -420,6 +420,9 @@ jobs:
           GOMAXPROCS: '2'
           GOFLAGS: '-p=1'
         run: |
+          if [ ! -d src-tauri/gen/android/app ]; then
+            npm run tauri -- android init
+          fi
           npm run android:core
           npm run tauri -- android build --apk --target aarch64 armv7 --split-per-abi
           mkdir -p dist
