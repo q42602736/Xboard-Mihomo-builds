@@ -455,6 +455,10 @@ jobs:
           npm run android:core
           mkdir -p dist
           rm -f dist/*.apk
+          ANDROID_APK_STAGE_DIR="$(pwd)/.android-apk-artifacts"
+          rm -rf "$ANDROID_APK_STAGE_DIR"
+          mkdir -p "$ANDROID_APK_STAGE_DIR"
+          trap 'rm -rf "$ANDROID_APK_STAGE_DIR"' EXIT
 
           copy_android_split_apks() {
             local arm64_apk=""
@@ -478,8 +482,8 @@ jobs:
               exit 1
             fi
 
-            cp "$arm64_apk" dist/arm64-v8a-release-unsigned.apk
-            cp "$armv7_apk" dist/armeabi-v7a-release-unsigned.apk
+            cp "$arm64_apk" "$ANDROID_APK_STAGE_DIR/arm64-v8a.apk"
+            cp "$armv7_apk" "$ANDROID_APK_STAGE_DIR/armeabi-v7a.apk"
           }
 
           copy_android_universal_apk() {
@@ -502,7 +506,7 @@ jobs:
               exit 1
             fi
 
-            cp "$universal_apk" dist/universal-release-unsigned.apk
+            cp "$universal_apk" "$ANDROID_APK_STAGE_DIR/universal.apk"
           }
 
           npm run tauri -- android build --apk --target aarch64 armv7 --split-per-abi 2>&1 | tee build.log
@@ -522,6 +526,18 @@ jobs:
             exit "$BUILD_EXIT_CODE"
           fi
           copy_android_universal_apk
+
+          rm -f dist/*.apk
+          cp "$ANDROID_APK_STAGE_DIR"/*.apk dist/
+          apk_count="$(find dist -maxdepth 1 -type f -name "*.apk" | wc -l | tr -d ' ')"
+          if [ "$apk_count" != "3" ]; then
+            echo "::error::Android APK 产物数量异常，预期 3 个，实际 $apk_count 个。"
+            find dist "$ANDROID_APK_STAGE_DIR" -maxdepth 1 -type f -name "*.apk" -print 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "=== Android APK artifacts ==="
+          ls -lh dist/*.apk
 
       - name: Diagnose NexGen Build Failure
         if: failure()
