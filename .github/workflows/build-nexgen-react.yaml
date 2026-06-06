@@ -453,6 +453,58 @@ jobs:
             npm run tauri -- android init
           fi
           npm run android:core
+          mkdir -p dist
+          rm -f dist/*.apk
+
+          copy_android_split_apks() {
+            local arm64_apk=""
+            local armv7_apk=""
+            while IFS= read -r apk_file; do
+              local apk_base
+              apk_base="$(basename "$apk_file")"
+              case "$apk_base" in
+                *arm64*|*aarch64*)
+                  arm64_apk="$apk_file"
+                  ;;
+                *armeabi*|*armv7*|*arm-release*|*arm-*)
+                  armv7_apk="$apk_file"
+                  ;;
+              esac
+            done < <(find src-tauri/gen/android -type f -name "*.apk" | sort)
+
+            if [ -z "$arm64_apk" ] || [ -z "$armv7_apk" ]; then
+              echo "::error::未找到完整 Android ABI 分包 APK"
+              find src-tauri/gen/android -type f -name "*.apk" -print 2>/dev/null || true
+              exit 1
+            fi
+
+            cp "$arm64_apk" dist/arm64-v8a-release-unsigned.apk
+            cp "$armv7_apk" dist/armeabi-v7a-release-unsigned.apk
+          }
+
+          copy_android_universal_apk() {
+            local universal_apk=""
+            while IFS= read -r apk_file; do
+              local apk_base
+              apk_base="$(basename "$apk_file")"
+              case "$apk_base" in
+                *arm64*|*aarch64*|*armeabi*|*armv7*|*arm-release*|*arm-*)
+                  ;;
+                *)
+                  universal_apk="$apk_file"
+                  ;;
+              esac
+            done < <(find src-tauri/gen/android -type f -name "*.apk" | sort)
+
+            if [ -z "$universal_apk" ]; then
+              echo "::error::未找到 Android universal 通用 APK"
+              find src-tauri/gen/android -type f -name "*.apk" -print 2>/dev/null || true
+              exit 1
+            fi
+
+            cp "$universal_apk" dist/universal-release-unsigned.apk
+          }
+
           npm run tauri -- android build --apk --target aarch64 armv7 --split-per-abi 2>&1 | tee build.log
           BUILD_EXIT_CODE=${PIPESTATUS[0]}
           if [ "$BUILD_EXIT_CODE" -ne 0 ]; then
@@ -460,8 +512,16 @@ jobs:
             print_android_diagnostics
             exit "$BUILD_EXIT_CODE"
           fi
-          mkdir -p dist
-          find src-tauri/gen/android -type f -name "*.apk" -exec cp {} dist/ \;
+          copy_android_split_apks
+
+          npm run tauri -- android build --apk --target aarch64 armv7 2>&1 | tee -a build.log
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
+          if [ "$BUILD_EXIT_CODE" -ne 0 ]; then
+            echo "::error::NexGen Android 通用 APK 打包失败，下面输出完整诊断日志。"
+            print_android_diagnostics
+            exit "$BUILD_EXIT_CODE"
+          fi
+          copy_android_universal_apk
 
       - name: Diagnose NexGen Build Failure
         if: failure()
