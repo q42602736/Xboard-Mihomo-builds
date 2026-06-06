@@ -420,11 +420,45 @@ jobs:
           GOMAXPROCS: '2'
           GOFLAGS: '-p=1'
         run: |
+          set -o pipefail
+
+          print_android_diagnostics() {
+            echo ""
+            echo "=== Android Build Debug: build.log last 300 lines ==="
+            tail -300 build.log 2>/dev/null || echo "No build.log"
+            echo ""
+
+            echo "=== Android Build Debug: dist files ==="
+            find dist -maxdepth 3 -type f -print 2>/dev/null || echo "No dist files"
+            echo ""
+
+            echo "=== Android Build Debug: generated project files ==="
+            find src-tauri/gen/android -maxdepth 5 -type f -print 2>/dev/null | tail -120 || echo "No Android generated project files"
+            echo ""
+
+            echo "=== Android Build Debug: recent Gradle and build logs ==="
+            find src-tauri/gen/android src-tauri/target -type f \( -name "*.log" -o -name "*.txt" \) 2>/dev/null | while read -r log_file; do
+              echo ""
+              echo "--- $log_file ---"
+              tail -160 "$log_file" || true
+            done || true
+            echo ""
+
+            echo "=== Android Build Debug: APK candidates ==="
+            find src-tauri/gen/android src-tauri/target -type f -name "*.apk" -print 2>/dev/null || echo "No APK files"
+          }
+
           if [ ! -d src-tauri/gen/android/app ]; then
             npm run tauri -- android init
           fi
           npm run android:core
-          npm run tauri -- android build --apk --target aarch64 armv7 --split-per-abi
+          npm run tauri -- android build --apk --target aarch64 armv7 --split-per-abi 2>&1 | tee build.log
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
+          if [ "$BUILD_EXIT_CODE" -ne 0 ]; then
+            echo "::error::NexGen Android 打包失败，下面输出完整诊断日志。"
+            print_android_diagnostics
+            exit "$BUILD_EXIT_CODE"
+          fi
           mkdir -p dist
           find src-tauri/gen/android -type f -name "*.apk" -exec cp {} dist/ \;
 
