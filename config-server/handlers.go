@@ -234,6 +234,14 @@ func writeDownloadLinkStatusPage(w http.ResponseWriter, statusCode int, title, m
 }
 
 func bindProfileTitle(yamlContent, profileName string) string {
+	return bindProfileTitleForRoot(yamlContent, profileName, "xboard")
+}
+
+func bindNexGenProfileTitle(yamlContent, profileName string) string {
+	return bindProfileTitleForRoot(yamlContent, profileName, "nexgen")
+}
+
+func bindProfileTitleForRoot(yamlContent, profileName, rootKey string) string {
 	if yamlContent == "" || profileName == "" {
 		return yamlContent
 	}
@@ -244,9 +252,9 @@ func bindProfileTitle(yamlContent, profileName string) string {
 	}
 
 	root := ensureDocumentMappingNode(doc)
-	xboard := ensureMapValueNode(root, "xboard")
-	app := ensureMapValueNode(xboard, "app")
-	setMapStringValue(xboard, "title", strings.TrimSpace(profileName))
+	profileRoot := ensureMapValueNode(root, rootKey)
+	app := ensureMapValueNode(profileRoot, "app")
+	setMapStringValue(profileRoot, "title", strings.TrimSpace(profileName))
 	setMapStringValue(app, "title", strings.TrimSpace(profileName))
 
 	var buf bytes.Buffer
@@ -345,12 +353,12 @@ func stripNexGenProfileUnsupportedConfig(yamlContent string) string {
 		return yamlContent
 	}
 	root := ensureDocumentMappingNode(doc)
-	xboard := getMapValueNode(root, "xboard")
-	if xboard == nil {
+	nexgen := getMapValueNode(root, "nexgen")
+	if nexgen == nil {
 		return yamlContent
 	}
-	removeMapKeys(xboard, "online_support", "cloud_dispatch", "cloudDispatch")
-	app := getMapValueNode(xboard, "app")
+	removeMapKeys(nexgen, "online_support", "cloud_dispatch", "cloudDispatch")
+	app := getMapValueNode(nexgen, "app")
 	if app != nil {
 		logo := getMapValueNode(app, "logo")
 		if logo != nil {
@@ -358,7 +366,7 @@ func stripNexGenProfileUnsupportedConfig(yamlContent string) string {
 			removeMapKeys(logo, "image_url", "imageUrl")
 		}
 	}
-	ui := getMapValueNode(xboard, "ui")
+	ui := getMapValueNode(nexgen, "ui")
 	if ui != nil {
 		removeMapKeys(ui, "online_support", "home_panel_default_layout", "custom_colors", "customColors", "subscription_status_popup", "subscriptionStatusPopup", "show_ip_info", "showIpInfo")
 	}
@@ -370,6 +378,96 @@ func stripNexGenProfileUnsupportedConfig(yamlContent string) string {
 	}
 	_ = encoder.Close()
 	return strings.TrimRight(buf.String(), "\n")
+}
+
+func normalizeNexGenProfileConfig(yamlContent string) string {
+	if strings.TrimSpace(yamlContent) == "" {
+		return yamlContent
+	}
+
+	doc, err := parseProfileYamlDocument(yamlContent)
+	if err != nil {
+		return yamlContent
+	}
+
+	root := ensureDocumentMappingNode(doc)
+	nexgen := getMapValueNode(root, "nexgen")
+	if nexgen == nil {
+		xboard := getMapValueNode(root, "xboard")
+		if xboard == nil {
+			nexgen = ensureMapValueNode(root, "nexgen")
+		} else {
+			nexgen = cloneYamlNode(xboard)
+			removeMapKeys(root, "xboard")
+			setMapNodeValue(root, "nexgen", nexgen)
+		}
+	} else {
+		removeMapKeys(root, "xboard")
+	}
+
+	subscription := ensureMapValueNode(nexgen, "subscription")
+
+	var preferEncrypt, useExclusiveMode bool
+	var sspanelNodePageParseEnabled bool
+	var decryptKey, subscriptionUserAgent, subscriptionExclusiveUserAgent, subscriptionCustomQuerySuffix string
+	var hasLegacyPreferEncrypt bool
+	var hasLegacyUseExclusiveMode bool
+	var hasLegacySSPanelNodePageParse bool
+	var hasLegacyDecryptKey bool
+	var hasLegacySubscriptionUserAgent bool
+	var hasLegacySubscriptionExclusiveUserAgent bool
+	var hasLegacySubscriptionCustomQuerySuffix bool
+
+	preferEncrypt, hasLegacyPreferEncrypt = readLegacyBool(nexgen, "prefer_encrypt", false)
+	useExclusiveMode, hasLegacyUseExclusiveMode = readLegacyBool(nexgen, "use_exclusive_mode", false)
+	sspanelNodePageParseEnabled, hasLegacySSPanelNodePageParse = readLegacyBool(nexgen, "sspanel_node_page_parse_enabled", false)
+	decryptKey, hasLegacyDecryptKey = readLegacyString(nexgen, "decrypt_key", false)
+	subscriptionUserAgent, hasLegacySubscriptionUserAgent = readLegacyString(nexgen, "user_agent", false)
+	subscriptionExclusiveUserAgent, hasLegacySubscriptionExclusiveUserAgent = readLegacyString(nexgen, "exclusive_user_agent", false)
+	subscriptionCustomQuerySuffix, hasLegacySubscriptionCustomQuerySuffix = readLegacyString(nexgen, "custom_query_suffix", false)
+
+	hasLegacy := hasLegacyPreferEncrypt ||
+		hasLegacyUseExclusiveMode ||
+		hasLegacySSPanelNodePageParse ||
+		hasLegacyDecryptKey ||
+		hasLegacySubscriptionUserAgent ||
+		hasLegacySubscriptionExclusiveUserAgent ||
+		hasLegacySubscriptionCustomQuerySuffix
+
+	if hasLegacy {
+		removeMapKeys(nexgen, "prefer_encrypt", "use_exclusive_mode", "sspanel_node_page_parse_enabled", "decrypt_key", "user_agent", "exclusive_user_agent", "custom_query_suffix")
+		if hasLegacyPreferEncrypt {
+			setMapBoolValue(subscription, "prefer_encrypt", preferEncrypt)
+		}
+		if hasLegacyUseExclusiveMode {
+			setMapBoolValue(subscription, "use_exclusive_mode", useExclusiveMode)
+		}
+		if hasLegacySSPanelNodePageParse {
+			setMapBoolValue(subscription, "sspanel_node_page_parse_enabled", sspanelNodePageParseEnabled)
+		}
+		if hasLegacyDecryptKey && strings.TrimSpace(decryptKey) != "" {
+			setMapStringValue(subscription, "decrypt_key", decryptKey)
+		}
+		if hasLegacySubscriptionUserAgent && strings.TrimSpace(subscriptionUserAgent) != "" {
+			setMapStringValue(subscription, "user_agent", strings.TrimSpace(subscriptionUserAgent))
+		}
+		if hasLegacySubscriptionExclusiveUserAgent && strings.TrimSpace(subscriptionExclusiveUserAgent) != "" {
+			setMapStringValue(subscription, "exclusive_user_agent", strings.TrimSpace(subscriptionExclusiveUserAgent))
+		}
+		if hasLegacySubscriptionCustomQuerySuffix && strings.TrimSpace(subscriptionCustomQuerySuffix) != "" {
+			setMapStringValue(subscription, "custom_query_suffix", strings.TrimSpace(subscriptionCustomQuerySuffix))
+		}
+	}
+
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(doc); err != nil {
+		return yamlContent
+	}
+	_ = encoder.Close()
+
+	return stripNexGenProfileUnsupportedConfig(strings.TrimRight(buf.String(), "\n"))
 }
 
 func mergeProfileKeys(existing []string, additions ...string) []string {
@@ -641,18 +739,29 @@ func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 	}{YamlContent: content, LastUpdated: lastUpdated, DisplayName: profileDisplayNameFromYaml(content, name)}
 
 	if payload.YamlContent != "" {
-		cleaned := normalizeSubscriptionConfig(payload.YamlContent)
 		if client == buildClientNexGenReact {
-			cleaned = stripNexGenProfileUnsupportedConfig(cleaned)
-		}
-		if cleaned != payload.YamlContent {
-			payload.YamlContent = cleaned
-			filePath, err := profileFilePath(name)
-			if err == nil {
-				_ = h.profileGitHubClient(client).SaveFileWithRetry(filePath, func(_ string) string {
-					return cleaned
-				}, "修复配置档案: "+name, 3)
-				invalidateProfileCacheForClient(client)
+			cleaned := normalizeNexGenProfileConfig(payload.YamlContent)
+			if cleaned != payload.YamlContent {
+				payload.YamlContent = cleaned
+				filePath, err := profileFilePath(name)
+				if err == nil {
+					_ = h.profileGitHubClient(client).SaveFileWithRetry(filePath, func(_ string) string {
+						return cleaned
+					}, "修复配置档案: "+name, 3)
+					invalidateProfileCacheForClient(client)
+				}
+			}
+		} else {
+			cleaned := normalizeSubscriptionConfig(payload.YamlContent)
+			if cleaned != payload.YamlContent {
+				payload.YamlContent = cleaned
+				filePath, err := profileFilePath(name)
+				if err == nil {
+					_ = h.profileGitHubClient(client).SaveFileWithRetry(filePath, func(_ string) string {
+						return cleaned
+					}, "修复配置档案: "+name, 3)
+					invalidateProfileCacheForClient(client)
+				}
 			}
 		}
 	}
@@ -696,16 +805,23 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		if strings.TrimSpace(baseYamlContent) == "" {
 			baseYamlContent = req.YamlContent
 		}
-		mergedYamlContent, err := mergeProfileYamlWithForm(baseYamlContent, *req.FormState)
+		var mergedYamlContent string
+		var err error
+		if client == buildClientNexGenReact {
+			mergedYamlContent, err = mergeNexGenProfileYamlWithForm(normalizeNexGenProfileConfig(baseYamlContent), *req.FormState)
+		} else {
+			mergedYamlContent, err = mergeProfileYamlWithForm(baseYamlContent, *req.FormState)
+		}
 		if err != nil {
 			jsonError(w, "合并配置失败: "+err.Error(), 400)
 			return
 		}
 		req.YamlContent = mergedYamlContent
 	}
-	req.YamlContent = normalizeSubscriptionConfig(req.YamlContent)
 	if client == buildClientNexGenReact {
-		req.YamlContent = stripNexGenProfileUnsupportedConfig(req.YamlContent)
+		req.YamlContent = normalizeNexGenProfileConfig(req.YamlContent)
+	} else {
+		req.YamlContent = normalizeSubscriptionConfig(req.YamlContent)
 	}
 	if err := validateYamlContent(req.YamlContent); err != nil {
 		jsonError(w, "配置格式错误: "+err.Error(), 400)
@@ -764,7 +880,11 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if claims.Permissions != "admin" || isNewProfile {
-		req.YamlContent = bindProfileTitle(req.YamlContent, displayName)
+		if client == buildClientNexGenReact {
+			req.YamlContent = bindNexGenProfileTitle(req.YamlContent, displayName)
+		} else {
+			req.YamlContent = bindProfileTitle(req.YamlContent, displayName)
+		}
 	}
 
 	_, err = profileGH.SaveFile(filePath, req.YamlContent, sha, "保存配置档案: "+name)
@@ -2685,10 +2805,21 @@ func (h *Handlers) validateProfileYamlForClient(client, profileName string) erro
 	if !exists {
 		return fmt.Errorf("未找到档案")
 	}
-	cleaned := normalizeSubscriptionConfig(content)
 	if client == buildClientNexGenReact {
-		cleaned = stripNexGenProfileUnsupportedConfig(cleaned)
+		cleaned := normalizeNexGenProfileConfig(content)
+		if cleaned != content {
+			filePath, err := profileFilePath(profileName)
+			if err != nil {
+				return fmt.Errorf("修复档案失败")
+			}
+			_ = h.profileGitHubClient(client).SaveFileWithRetry(filePath, func(_ string) string {
+				return cleaned
+			}, "修复配置档案: "+profileName, 3)
+			invalidateProfileCacheForClient(client)
+		}
+		return validateYamlContent(cleaned)
 	}
+	cleaned := normalizeSubscriptionConfig(content)
 	if cleaned != content {
 		filePath, err := profileFilePath(profileName)
 		if err != nil {
@@ -2697,6 +2828,7 @@ func (h *Handlers) validateProfileYamlForClient(client, profileName string) erro
 		_ = h.profileGitHubClient(client).SaveFileWithRetry(filePath, func(_ string) string {
 			return cleaned
 		}, "修复配置档案: "+profileName, 3)
+		invalidateProfileCacheForClient(client)
 	}
 	return validateYamlContent(cleaned)
 }
@@ -3988,6 +4120,9 @@ func (h *Handlers) RenameProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	renamedContent := bindProfileTitle(content, newName)
+	if client == buildClientNexGenReact {
+		renamedContent = bindNexGenProfileTitle(normalizeNexGenProfileConfig(content), newName)
+	}
 	profileGH := h.profileGitHubClient(client)
 	if _, err := profileGH.SaveFile(newPath, renamedContent, "", "重命名配置档案: "+oldName+" -> "+newName); err != nil {
 		jsonError(w, "创建新档案失败: "+err.Error(), 500)

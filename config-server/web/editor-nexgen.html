@@ -5521,7 +5521,7 @@
 
         function getDefaultYamlTemplate() {
             var lines = [
-                'xboard:',
+                'nexgen:',
                 '  provider: ""',
                 '  app:',
                 '    title: ""',
@@ -5627,7 +5627,10 @@
         }
 
         function cleanNexGenProfileYaml(yamlContent) {
-            var lines = String(yamlContent || '').replace(/config_cache:/g, 'subscription_cache:').split('\n');
+            var lines = String(yamlContent || '')
+                .replace(/config_cache:/g, 'subscription_cache:')
+                .replace(/^xboard:\s*$/m, 'nexgen:')
+                .split('\n');
             for (var i = 0; i < lines.length; i++) {
                 var line = lines[i];
                 var trimmed = line.trim();
@@ -8340,7 +8343,7 @@
             var getSubscriptionBool = function(key) {
                 return getSubscriptionValue(key) === 'true';
             };
-            var providerMatch = yaml.match(/xboard:\s*\n(?:\s*#[^\n]*\n)*\s*provider:[^\S\n]*(.*)/);
+            var providerMatch = yaml.match(/(?:nexgen|xboard):\s*\n(?:\s*#[^\n]*\n)*\s*provider:[^\S\n]*(.*)/);
             if (providerMatch) {
                 document.getElementById('provider').value = providerMatch[1].trim().replace(/^["']|["']$/g, '');
             } else {

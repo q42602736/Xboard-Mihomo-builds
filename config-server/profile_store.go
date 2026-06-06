@@ -45,14 +45,17 @@ func profileDisplayNameFromYaml(yamlContent, fallback string) string {
 		return displayName
 	}
 	root := ensureDocumentMappingNode(doc)
-	xboard := getMapValueNode(root, "xboard")
-	if xboard == nil {
+	profileRoot := getMapValueNode(root, "nexgen")
+	if profileRoot == nil {
+		profileRoot = getMapValueNode(root, "xboard")
+	}
+	if profileRoot == nil {
 		return displayName
 	}
-	if title := strings.TrimSpace(readMapStringValue(xboard, "title")); title != "" {
+	if title := strings.TrimSpace(readMapStringValue(profileRoot, "title")); title != "" {
 		return title
 	}
-	app := getMapValueNode(xboard, "app")
+	app := getMapValueNode(profileRoot, "app")
 	if app != nil {
 		if title := strings.TrimSpace(readMapStringValue(app, "title")); title != "" {
 			return title
@@ -215,9 +218,11 @@ func (h *Handlers) createManualProfileForClient(client, displayName string) (Sto
 	if err != nil {
 		return StoredProfile{}, err
 	}
-	yamlContent := normalizeSubscriptionConfig(defaultProfileYaml(displayName))
+	var yamlContent string
 	if client == buildClientNexGenReact {
-		yamlContent = stripNexGenProfileUnsupportedConfig(yamlContent)
+		yamlContent = normalizeNexGenProfileConfig(defaultProfileYaml(displayName))
+	} else {
+		yamlContent = normalizeSubscriptionConfig(defaultProfileYaml(displayName))
 	}
 	if err := validateYamlContent(yamlContent); err != nil {
 		return StoredProfile{}, err

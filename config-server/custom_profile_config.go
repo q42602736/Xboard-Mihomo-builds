@@ -344,6 +344,20 @@ func setOrRemoveMapStringValue(mapNode *yaml.Node, key, value string, legacyKeys
 	}
 }
 
+func getProfileConfigRootNode(root *yaml.Node) *yaml.Node {
+	if profileRoot := getMapValueNode(root, "nexgen"); profileRoot != nil {
+		return profileRoot
+	}
+	return getMapValueNode(root, "xboard")
+}
+
+func writableProfileConfigRootKey(root *yaml.Node) string {
+	if getMapValueNode(root, "nexgen") != nil && getMapValueNode(root, "xboard") == nil {
+		return "nexgen"
+	}
+	return "xboard"
+}
+
 func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, error) {
 	var result UIColorCustomConfig
 	if strings.TrimSpace(yamlContent) == "" {
@@ -356,8 +370,8 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 	}
 
 	root := ensureDocumentMappingNode(doc)
-	xboard := getMapValueNode(root, "xboard")
-	subscription := getMapValueNode(xboard, "subscription")
+	profileRoot := getProfileConfigRootNode(root)
+	subscription := getMapValueNode(profileRoot, "subscription")
 	if subscription != nil {
 		if enabledNode := getMapValueNode(subscription, "sspanel_node_page_parse_enabled"); enabledNode != nil {
 			result.SSPanelNodePageParseEnabled = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
@@ -365,7 +379,7 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 			result.SSPanelNodePageParseEnabled = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
 		}
 	}
-	ui := getMapValueNode(xboard, "ui")
+	ui := getMapValueNode(profileRoot, "ui")
 	subscriptionUsage := getMapValueNode(ui, "subscription_usage")
 	if subscriptionUsage == nil {
 		subscriptionUsage = getMapValueNode(ui, "subscriptionUsage")
@@ -427,9 +441,9 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 		}
 	}
 
-	cloudDispatch := getMapValueNode(xboard, "cloud_dispatch")
+	cloudDispatch := getMapValueNode(profileRoot, "cloud_dispatch")
 	if cloudDispatch == nil {
-		cloudDispatch = getMapValueNode(xboard, "cloudDispatch")
+		cloudDispatch = getMapValueNode(profileRoot, "cloudDispatch")
 	}
 	if cloudDispatch != nil {
 		if enabledNode := getMapValueNode(cloudDispatch, "enabled"); enabledNode != nil {
@@ -477,14 +491,14 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	}
 
 	root := ensureDocumentMappingNode(doc)
-	xboard := ensureMapValueNode(root, "xboard")
-	subscription := ensureMapValueNode(xboard, "subscription")
-	ui := ensureMapValueNode(xboard, "ui")
+	profileRoot := ensureMapValueNode(root, writableProfileConfigRootKey(root))
+	subscription := ensureMapValueNode(profileRoot, "subscription")
+	ui := ensureMapValueNode(profileRoot, "ui")
 	subscriptionUsage := ensureMapValueNode(ui, "subscription_usage")
 	customColors := ensureMapValueNode(ui, "custom_colors")
 	subscriptionStatusPopup := ensureMapValueNode(ui, "subscription_status_popup")
 	proxyGroups := ensureMapValueNode(ui, "proxy_groups")
-	cloudDispatch := ensureMapValueNode(xboard, "cloud_dispatch")
+	cloudDispatch := ensureMapValueNode(profileRoot, "cloud_dispatch")
 	cloudDispatchAuto := ensureMapValueNode(cloudDispatch, "auto")
 
 	setMapBoolValue(subscriptionUsage, "traffic_bar_color_enabled", config.TrafficBarEnabled)
@@ -522,7 +536,7 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	setMapIntValue(cloudDispatchAuto, "interval_minutes", normalizeCloudDispatchInterval(config.CloudDispatchAutoIntervalMinutes))
 	removeMapKeys(cloudDispatchAuto, "intervalMinutes")
 	removeMapKeys(cloudDispatch, "target_host", "target_hosts", "queryUrl", "querySecret", "fallbackRetryMinutes", "targetHost", "targetHosts")
-	removeMapKeys(xboard, "cloudDispatch")
+	removeMapKeys(profileRoot, "cloudDispatch")
 	setMapBoolValue(subscription, "sspanel_node_page_parse_enabled", config.SSPanelNodePageParseEnabled)
 	removeMapKeys(subscription, "sspanelNodePageParseEnabled")
 
@@ -873,7 +887,13 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	var updatedYaml string
 	var patchErr error
 	if err := h.profileGitHubClient(client).SaveFileWithRetry(filePath, func(existing string) string {
+		if client == buildClientNexGenReact {
+			existing = normalizeNexGenProfileConfig(existing)
+		}
 		updated, updateErr := writeProfileUIColorCustomConfig(existing, targetConfig)
+		if updateErr == nil && client == buildClientNexGenReact {
+			updated = normalizeNexGenProfileConfig(updated)
+		}
 		patchErr = updateErr
 		if updateErr != nil {
 			return existing

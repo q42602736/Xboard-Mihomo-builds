@@ -71,6 +71,14 @@ type ProfileSupportFormState struct {
 }
 
 func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, error) {
+	return mergeProfileYamlWithFormForRoot(baseYaml, form, "xboard")
+}
+
+func mergeNexGenProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, error) {
+	return mergeProfileYamlWithFormForRoot(baseYaml, form, "nexgen")
+}
+
+func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, rootKey string) (string, error) {
 	baseYaml = strings.ReplaceAll(baseYaml, "config_cache:", "subscription_cache:")
 
 	doc, err := parseProfileYamlDocument(baseYaml)
@@ -79,17 +87,17 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	}
 
 	root := ensureDocumentMappingNode(doc)
-	xboard := ensureMapValueNode(root, "xboard")
-	app := ensureMapValueNode(xboard, "app")
+	profileRoot := ensureMapValueNode(root, rootKey)
+	app := ensureMapValueNode(profileRoot, "app")
 	logo := ensureMapValueNode(app, "logo")
 	appIcon := ensureMapValueNode(app, "app_icon")
 	authBackground := ensureMapValueNode(app, "auth_background")
-	subscription := ensureMapValueNode(xboard, "subscription")
-	autoOffline := ensureMapValueNode(xboard, "auto_offline")
-	cloudDispatch := ensureMapValueNode(xboard, "cloud_dispatch")
+	subscription := ensureMapValueNode(profileRoot, "subscription")
+	autoOffline := ensureMapValueNode(profileRoot, "auto_offline")
+	cloudDispatch := ensureMapValueNode(profileRoot, "cloud_dispatch")
 	cloudDispatchAuto := ensureMapValueNode(cloudDispatch, "auto")
-	subscriptionCache := ensureMapValueNode(xboard, "subscription_cache")
-	ui := ensureMapValueNode(xboard, "ui")
+	subscriptionCache := ensureMapValueNode(profileRoot, "subscription_cache")
+	ui := ensureMapValueNode(profileRoot, "ui")
 	latencyReduction := ensureMapValueNode(ui, "latency_reduction")
 	notice := ensureMapValueNode(ui, "notice")
 	checkin := ensureMapValueNode(ui, "checkin")
@@ -97,11 +105,11 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	proxyGroups := ensureMapValueNode(ui, "proxy_groups")
 	uiOnlineSupport := ensureMapValueNode(ui, "online_support")
 	authPages := ensureMapValueNode(uiOnlineSupport, "auth_pages")
-	remoteConfig := ensureMapValueNode(xboard, "remote_config")
-	onlineSupport := ensureMapValueNode(xboard, "online_support")
+	remoteConfig := ensureMapValueNode(profileRoot, "remote_config")
+	onlineSupport := ensureMapValueNode(profileRoot, "online_support")
 
-	setMapStringValue(xboard, "provider", strings.TrimSpace(form.Provider))
-	setMapStringValue(xboard, "title", strings.TrimSpace(form.AppTitle))
+	setMapStringValue(profileRoot, "provider", strings.TrimSpace(form.Provider))
+	setMapStringValue(profileRoot, "title", strings.TrimSpace(form.AppTitle))
 	setMapStringValue(app, "title", strings.TrimSpace(form.AppTitle))
 	setMapStringValue(logo, "type", strings.TrimSpace(form.LogoType))
 	setMapStringValue(logo, "image_url", strings.TrimSpace(form.LogoImageURL))
@@ -139,7 +147,7 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	setMapIntValue(cloudDispatchAuto, "interval_minutes", normalizeCloudDispatchIntervalValue(form.CloudDispatchAutoInterval))
 	removeMapKeys(cloudDispatch, "target_host", "target_hosts", "queryUrl", "querySecret", "fallbackRetryMinutes", "targetHost", "targetHosts")
 	removeMapKeys(cloudDispatchAuto, "intervalMinutes")
-	removeMapKeys(xboard, "cloudDispatch")
+	removeMapKeys(profileRoot, "cloudDispatch")
 	setMapBoolValue(subscriptionCache, "enabled", form.SubscriptionCacheEnabled)
 	setMapIntValue(subscriptionCache, "ttl_hours", form.SubscriptionCacheTTL)
 	setMapBoolValue(ui, "hide_traffic_details", form.HideTrafficDetails)
@@ -161,7 +169,7 @@ func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, e
 	setMapBoolValue(giftCard, "show_button", form.GiftCardShowButton)
 	setMapBoolValue(proxyGroups, "show_custom_rule_entry", form.ShowCustomRuleEntry)
 	setMapBoolValue(authPages, "show_button", form.AuthPagesSupportShowButton)
-	removeMapKeys(xboard, "proxy_groups", "proxyGroups")
+	removeMapKeys(profileRoot, "proxy_groups", "proxyGroups")
 	removeMapKeys(onlineSupport, "auth_pages", "authPages")
 
 	setMapNodeValue(remoteConfig, "sources", mergeProfileSources(getSequenceValueNode(remoteConfig, "sources"), form.Sources))

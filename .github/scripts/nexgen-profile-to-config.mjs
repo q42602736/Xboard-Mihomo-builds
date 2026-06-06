@@ -11,10 +11,18 @@ if (!profilePath || !defaultConfigPath || !outputPath) {
 
 const profile = parseSimpleYaml(fs.readFileSync(profilePath, "utf8"));
 const defaultConfig = parseSimpleYaml(fs.readFileSync(defaultConfigPath, "utf8"));
-const xboard = record(profile.xboard);
-const nexgen = deepMerge(record(defaultConfig.nexgen), convertXboardToNexgen(xboard));
+const profileConfig = record(profile.nexgen);
+const legacyXboard = record(profile.xboard);
+const nexgen = deepMerge(
+  record(defaultConfig.nexgen),
+  Object.keys(profileConfig).length > 0 ? convertNexgenProfile(profileConfig) : convertXboardToNexgen(legacyXboard),
+);
 
 fs.writeFileSync(outputPath, toYaml({ nexgen }));
+
+function convertNexgenProfile(nexgen) {
+  return pruneEmpty(record(nexgen));
+}
 
 function convertXboardToNexgen(xboard) {
   const app = record(xboard.app);
