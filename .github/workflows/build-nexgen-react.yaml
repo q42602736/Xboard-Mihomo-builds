@@ -419,6 +419,7 @@ jobs:
         env:
           GOMAXPROCS: '2'
           GOFLAGS: '-p=1'
+          NEXGEN_SKIP_DESKTOP_CORE_RESOURCE: '1'
         run: |
           set -o pipefail
 
