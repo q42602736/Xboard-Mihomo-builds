@@ -391,10 +391,10 @@ jobs:
         run: |
           if [ "${{ matrix.platform }}" = "windows-arm64" ]; then
             npm run desktop:core -- --target aarch64-pc-windows-msvc
-            npm run package:windows -- --targets arm64 --bundles nsis
+            npm run package:windows -- --targets arm64 --bundles nsis,msi
           else
             npm run desktop:core -- --target x86_64-pc-windows-msvc
-            npm run package:windows -- --targets amd64 --bundles nsis
+            npm run package:windows -- --targets amd64 --bundles nsis,msi
           fi
 
       - name: Build macOS Package
