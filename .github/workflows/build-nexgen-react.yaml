@@ -221,7 +221,7 @@ jobs:
           const catalog = [
             { platform: "windows-amd64", os: "windows-2022", family: "windows", arch: "amd64" },
             { platform: "windows-arm64", os: "windows-2022", family: "windows", arch: "arm64" },
-            { platform: "macos-amd64", os: "macos-13", family: "macos", arch: "amd64" },
+            { platform: "macos-amd64", os: "macos-15-intel", family: "macos", arch: "amd64" },
             { platform: "macos-arm64", os: "macos-14", family: "macos", arch: "arm64" },
             { platform: "android", os: "ubuntu-latest", family: "android", arch: "" },
           ];
