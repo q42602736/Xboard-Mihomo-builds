@@ -32,6 +32,9 @@ type ProfileFormState struct {
 	CloudDispatchAutoEnabled       bool                      `json:"cloud_dispatch_auto_enabled"`
 	CloudDispatchAutoInterval      int                       `json:"cloud_dispatch_auto_interval_minutes"`
 	CloudDispatchFallbackRetry     int                       `json:"cloud_dispatch_fallback_retry_minutes"`
+	RegistrationInviteEnabled      bool                      `json:"registration_invite_enabled"`
+	RegistrationInviteMode         string                    `json:"registration_invite_mode"`
+	RegistrationInviteCode         string                    `json:"registration_invite_code"`
 	SubscriptionCacheEnabled       bool                      `json:"subscription_cache_enabled"`
 	SubscriptionCacheTTL           int                       `json:"subscription_cache_ttl"`
 	HideTrafficDetails             bool                      `json:"hide_traffic_details"`
@@ -96,6 +99,7 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	autoOffline := ensureMapValueNode(profileRoot, "auto_offline")
 	cloudDispatch := ensureMapValueNode(profileRoot, "cloud_dispatch")
 	cloudDispatchAuto := ensureMapValueNode(cloudDispatch, "auto")
+	registrationInvite := ensureMapValueNode(profileRoot, "registration_invite")
 	subscriptionCache := ensureMapValueNode(profileRoot, "subscription_cache")
 	ui := ensureMapValueNode(profileRoot, "ui")
 	latencyReduction := ensureMapValueNode(ui, "latency_reduction")
@@ -148,6 +152,22 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	removeMapKeys(cloudDispatch, "target_host", "target_hosts", "queryUrl", "querySecret", "fallbackRetryMinutes", "targetHost", "targetHosts")
 	removeMapKeys(cloudDispatchAuto, "intervalMinutes")
 	removeMapKeys(profileRoot, "cloudDispatch")
+	normalizedRegistrationInviteCode, err := normalizeRegistrationInviteCode(form.RegistrationInviteCode)
+	if err != nil {
+		return "", err
+	}
+	if form.RegistrationInviteEnabled && normalizedRegistrationInviteCode == "" {
+		return "", fmt.Errorf("开启注册邀请绑定时必须填写邀请码")
+	}
+	setMapBoolValue(registrationInvite, "enabled", form.RegistrationInviteEnabled)
+	setMapStringValue(registrationInvite, "mode", normalizeRegistrationInviteMode(form.RegistrationInviteMode))
+	if normalizedRegistrationInviteCode == "" {
+		removeMapKeys(registrationInvite, "invite_code")
+	} else {
+		setMapStringValue(registrationInvite, "invite_code", normalizedRegistrationInviteCode)
+	}
+	removeMapKeys(registrationInvite, "inviteCode", "invite_link", "inviteLink")
+	removeMapKeys(profileRoot, "registrationInvite")
 	setMapBoolValue(subscriptionCache, "enabled", form.SubscriptionCacheEnabled)
 	setMapIntValue(subscriptionCache, "ttl_hours", form.SubscriptionCacheTTL)
 	setMapBoolValue(ui, "hide_traffic_details", form.HideTrafficDetails)

@@ -40,6 +40,9 @@ type UIColorCustomConfig struct {
 	CloudDispatchAutoIntervalMinutes     int      `json:"cloud_dispatch_auto_interval_minutes"`
 	CloudDispatchFallbackRetryMinutes    int      `json:"cloud_dispatch_fallback_retry_minutes"`
 	SSPanelNodePageParseEnabled          bool     `json:"sspanel_node_page_parse_enabled"`
+	RegistrationInviteEnabled            bool     `json:"registration_invite_enabled"`
+	RegistrationInviteMode               string   `json:"registration_invite_mode"`
+	RegistrationInviteCode               string   `json:"registration_invite_code"`
 }
 
 const (
@@ -61,6 +64,9 @@ const (
 	customFeatureMainPolicyNodesOnly                  = "main_policy_nodes_only"
 	customFeatureCloudDispatch                        = "cloud_dispatch"
 	customFeatureSSPanelNodePageParse                 = "sspanel_node_page_parse"
+	customFeatureRegistrationInvite                   = "registration_invite"
+	registrationInviteModeDefaultWhenEmpty            = "default_when_empty"
+	registrationInviteModeForceOverride               = "force_override"
 )
 
 var (
@@ -84,6 +90,7 @@ var (
 		customFeatureMainPolicyNodesOnly,
 		customFeatureCloudDispatch,
 		customFeatureSSPanelNodePageParse,
+		customFeatureRegistrationInvite,
 	}
 )
 
@@ -116,6 +123,25 @@ func normalizeOptionalHTTPURL(value string) (string, error) {
 	scheme := strings.ToLower(strings.TrimSpace(parsedURL.Scheme))
 	if (scheme != "http" && scheme != "https") || strings.TrimSpace(parsedURL.Host) == "" {
 		return "", fmt.Errorf("官网跳转网址格式错误，仅支持 http:// 或 https://")
+	}
+	return value, nil
+}
+
+func normalizeRegistrationInviteMode(value string) string {
+	value = strings.TrimSpace(value)
+	if value == registrationInviteModeForceOverride {
+		return registrationInviteModeForceOverride
+	}
+	return registrationInviteModeDefaultWhenEmpty
+}
+
+func normalizeRegistrationInviteCode(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	if strings.ContainsAny(value, " \t\r\n") {
+		return "", fmt.Errorf("注册邀请邀请码不能包含空白字符")
 	}
 	return value, nil
 }
@@ -310,6 +336,22 @@ func filterAllowedUIColorFeatureKeys(featureKeys []string) []string {
 	return result
 }
 
+func filterAllowedUIColorFeatureKeysForClient(featureKeys []string, client string) []string {
+	client = normalizeBuildClient(client)
+	allowed := filterAllowedUIColorFeatureKeys(featureKeys)
+	if client == buildClientLegacy {
+		return allowed
+	}
+	result := allowed[:0]
+	for _, featureKey := range allowed {
+		if featureKey == customFeatureRegistrationInvite {
+			continue
+		}
+		result = append(result, featureKey)
+	}
+	return result
+}
+
 func isUIColorFeatureAllowed(featureKeys []string, target string) bool {
 	target = strings.TrimSpace(target)
 	if target == "" {
@@ -477,6 +519,21 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 	result.CloudDispatchAutoIntervalMinutes = normalizeCloudDispatchInterval(result.CloudDispatchAutoIntervalMinutes)
 	result.CloudDispatchFallbackRetryMinutes = normalizeCloudDispatchFallbackRetryMinutes(result.CloudDispatchFallbackRetryMinutes)
 
+	registrationInvite := getMapValueNode(profileRoot, "registration_invite")
+	if registrationInvite == nil {
+		registrationInvite = getMapValueNode(profileRoot, "registrationInvite")
+	}
+	if registrationInvite != nil {
+		if enabledNode := getMapValueNode(registrationInvite, "enabled"); enabledNode != nil {
+			result.RegistrationInviteEnabled = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
+		result.RegistrationInviteMode = normalizeRegistrationInviteMode(readMapStringValue(registrationInvite, "mode"))
+		result.RegistrationInviteCode = readMapStringValue(registrationInvite, "invite_code", "inviteCode")
+	}
+	if strings.TrimSpace(result.RegistrationInviteMode) == "" {
+		result.RegistrationInviteMode = registrationInviteModeDefaultWhenEmpty
+	}
+
 	return result, nil
 }
 
@@ -500,6 +557,7 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	proxyGroups := ensureMapValueNode(ui, "proxy_groups")
 	cloudDispatch := ensureMapValueNode(profileRoot, "cloud_dispatch")
 	cloudDispatchAuto := ensureMapValueNode(cloudDispatch, "auto")
+	registrationInvite := ensureMapValueNode(profileRoot, "registration_invite")
 
 	setMapBoolValue(subscriptionUsage, "traffic_bar_color_enabled", config.TrafficBarEnabled)
 	removeMapKeys(subscriptionUsage, "trafficBarColorEnabled")
@@ -539,6 +597,11 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	removeMapKeys(profileRoot, "cloudDispatch")
 	setMapBoolValue(subscription, "sspanel_node_page_parse_enabled", config.SSPanelNodePageParseEnabled)
 	removeMapKeys(subscription, "sspanelNodePageParseEnabled")
+	setMapBoolValue(registrationInvite, "enabled", config.RegistrationInviteEnabled)
+	setMapStringValue(registrationInvite, "mode", normalizeRegistrationInviteMode(config.RegistrationInviteMode))
+	setOrRemoveMapStringValue(registrationInvite, "invite_code", config.RegistrationInviteCode, "inviteCode")
+	removeMapKeys(registrationInvite, "invite_link", "inviteLink")
+	removeMapKeys(profileRoot, "registrationInvite")
 
 	var buf bytes.Buffer
 	encoder := yaml.NewEncoder(&buf)
@@ -551,13 +614,13 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	return strings.TrimRight(buf.String(), "\n"), nil
 }
 
-func (h *Handlers) verifyUIColorConfigAccess(r *http.Request, profileName, integrationCode string) ([]string, error) {
+func (h *Handlers) verifyUIColorConfigAccess(r *http.Request, profileName, integrationCode, client string) ([]string, error) {
 	claims := getClaims(r)
 	if !claims.canAccessProfile(profileName) {
 		return nil, fmt.Errorf("无权操作该档案")
 	}
 	if claims.Permissions == "admin" {
-		return append([]string{}, uiColorFeatureKeys...), nil
+		return filterAllowedUIColorFeatureKeysForClient(uiColorFeatureKeys, client), nil
 	}
 
 	group := findCustomFeatureGroupByCode(integrationCode, "")
@@ -567,7 +630,7 @@ func (h *Handlers) verifyUIColorConfigAccess(r *http.Request, profileName, integ
 		}
 		return nil, fmt.Errorf("对接码不正确")
 	}
-	allowed := filterAllowedUIColorFeatureKeys(group.FeatureKeys)
+	allowed := filterAllowedUIColorFeatureKeysForClient(group.FeatureKeys, client)
 	if len(allowed) == 0 {
 		return nil, fmt.Errorf("该对接码未绑定任何可用的自定义功能")
 	}
@@ -591,7 +654,7 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	allowedFeatureKeys, err := h.verifyUIColorConfigAccess(r, profileName, req.IntegrationCode)
+	allowedFeatureKeys, err := h.verifyUIColorConfigAccess(r, profileName, req.IntegrationCode, client)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusForbidden)
 		return
@@ -643,6 +706,9 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"cloud_dispatch_auto_interval_minutes":     config.CloudDispatchAutoIntervalMinutes,
 		"cloud_dispatch_fallback_retry_minutes":    config.CloudDispatchFallbackRetryMinutes,
 		"sspanel_node_page_parse_enabled":          config.SSPanelNodePageParseEnabled,
+		"registration_invite_enabled":              config.RegistrationInviteEnabled,
+		"registration_invite_mode":                 config.RegistrationInviteMode,
+		"registration_invite_code":                 config.RegistrationInviteCode,
 	})
 }
 
@@ -678,6 +744,9 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		CloudDispatchAutoIntervalMinutes     int      `json:"cloud_dispatch_auto_interval_minutes"`
 		CloudDispatchFallbackRetryMinutes    int      `json:"cloud_dispatch_fallback_retry_minutes"`
 		SSPanelNodePageParseEnabled          bool     `json:"sspanel_node_page_parse_enabled"`
+		RegistrationInviteEnabled            bool     `json:"registration_invite_enabled"`
+		RegistrationInviteMode               string   `json:"registration_invite_mode"`
+		RegistrationInviteCode               string   `json:"registration_invite_code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", http.StatusBadRequest)
@@ -690,7 +759,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		return
 	}
 
-	allowedFeatureKeys, err := h.verifyUIColorConfigAccess(r, profileName, req.IntegrationCode)
+	allowedFeatureKeys, err := h.verifyUIColorConfigAccess(r, profileName, req.IntegrationCode, client)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusForbidden)
 		return
@@ -778,6 +847,12 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	}
 	normalizedCloudDispatchAutoIntervalMinutes := normalizeCloudDispatchInterval(req.CloudDispatchAutoIntervalMinutes)
 	normalizedCloudDispatchFallbackRetryMinutes := normalizeCloudDispatchFallbackRetryMinutes(req.CloudDispatchFallbackRetryMinutes)
+	normalizedRegistrationInviteMode := normalizeRegistrationInviteMode(req.RegistrationInviteMode)
+	normalizedRegistrationInviteCode, err := normalizeRegistrationInviteCode(req.RegistrationInviteCode)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureTrafficBarColor) && req.TrafficBarEnabled && normalizedTrafficBarColor == "" {
 		jsonError(w, "开启自定义颜色时必须填写颜色值", http.StatusBadRequest)
 		return
@@ -793,6 +868,12 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		}
 		if strings.TrimSpace(req.CloudDispatchQuerySecret) == "" {
 			jsonError(w, "开启云端调度时必须填写查询密钥", http.StatusBadRequest)
+			return
+		}
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureRegistrationInvite) && req.RegistrationInviteEnabled {
+		if normalizedRegistrationInviteCode == "" {
+			jsonError(w, "开启注册邀请绑定时必须填写邀请码", http.StatusBadRequest)
 			return
 		}
 	}
@@ -883,6 +964,11 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureSSPanelNodePageParse) {
 		targetConfig.SSPanelNodePageParseEnabled = req.SSPanelNodePageParseEnabled
 	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureRegistrationInvite) {
+		targetConfig.RegistrationInviteEnabled = req.RegistrationInviteEnabled
+		targetConfig.RegistrationInviteMode = normalizedRegistrationInviteMode
+		targetConfig.RegistrationInviteCode = normalizedRegistrationInviteCode
+	}
 
 	var updatedYaml string
 	var patchErr error
@@ -952,5 +1038,8 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"cloud_dispatch_auto_interval_minutes":     targetConfig.CloudDispatchAutoIntervalMinutes,
 		"cloud_dispatch_fallback_retry_minutes":    targetConfig.CloudDispatchFallbackRetryMinutes,
 		"sspanel_node_page_parse_enabled":          targetConfig.SSPanelNodePageParseEnabled,
+		"registration_invite_enabled":              targetConfig.RegistrationInviteEnabled,
+		"registration_invite_mode":                 targetConfig.RegistrationInviteMode,
+		"registration_invite_code":                 targetConfig.RegistrationInviteCode,
 	})
 }

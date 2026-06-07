@@ -140,6 +140,10 @@ func defaultProfileYaml(displayName string) string {
     auto:
       enabled: false
       interval_minutes: 5
+  registration_invite:
+    enabled: false
+    mode: default_when_empty
+    invite_code: ""
   remote_config:
     sources:
       - name: redirect

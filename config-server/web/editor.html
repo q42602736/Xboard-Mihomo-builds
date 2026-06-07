@@ -3766,6 +3766,31 @@
                                     </div>
                                     <div class="help-text">开启后客户端节点列表改从 SSPanel 的 /user/node 页面解析节点卡片；关闭时继续使用默认 API 接口。</div>
                                 </div>
+                                <div class="switch-card" data-custom-feature-key="registration_invite" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">注册邀请绑定</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="registrationInviteEnabled"><span class="slider"></span></label>
+                                            <span id="registrationInviteEnabledLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="switch-card-extra" style="margin-top:12px;">
+                                        <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+                                            <div class="form-group">
+                                                <label>绑定模式</label>
+                                                <select id="registrationInviteMode">
+                                                    <option value="default_when_empty">用户未填时使用默认邀请码</option>
+                                                    <option value="force_override">强制使用默认邀请码</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>邀请码</label>
+                                                <input type="text" id="registrationInviteCode" placeholder="填写默认注册邀请码">
+                                            </div>
+                                        </div>
+                                        <div class="help-text">开启后，App 注册时会按当前模式自动使用这里配置的邀请码。</div>
+                                    </div>
+                                </div>
                                 <div class="switch-card" data-custom-feature-key="cloud_dispatch" style="margin-top:16px;">
                                     <div class="switch-card-header">
                                         <span class="switch-card-label">云端调度</span>
@@ -5843,11 +5868,20 @@
             setCustomFeatureSwitchValue('subscriptionStatusPopupEnabled', !!data.subscription_status_popup_enabled);
             setCustomFeatureSwitchValue('proxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
             setCustomFeatureSwitchValue('sspanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
+            setCustomFeatureSwitchValue('registrationInviteEnabled', !!data.registration_invite_enabled);
             setCustomFeatureSwitchValue('cloudDispatchEnabled', !!data.cloud_dispatch_enabled);
             setCustomFeatureSwitchValue('cloudDispatchAutoEnabled', !!data.cloud_dispatch_auto_enabled);
             var subscriptionStatusOfficialUrl = document.getElementById('subscriptionStatusOfficialUrl');
             if (subscriptionStatusOfficialUrl) {
                 subscriptionStatusOfficialUrl.value = data.subscription_status_official_url || '';
+            }
+            var registrationInviteMode = document.getElementById('registrationInviteMode');
+            if (registrationInviteMode) {
+                registrationInviteMode.value = data.registration_invite_mode || 'default_when_empty';
+            }
+            var registrationInviteCode = document.getElementById('registrationInviteCode');
+            if (registrationInviteCode) {
+                registrationInviteCode.value = data.registration_invite_code || '';
             }
             var cloudDispatchQueryUrl = document.getElementById('cloudDispatchQueryUrl');
             if (cloudDispatchQueryUrl) {
@@ -5956,6 +5990,7 @@
                 'subscriptionStatusPopupEnabled',
                 'proxyGroupsMainPolicyNodesOnly',
                 'sspanelNodePageParseEnabled',
+                'registrationInviteEnabled',
                 'cloudDispatchEnabled',
                 'cloudDispatchAutoEnabled'
             ].forEach(function(id) {
@@ -6086,6 +6121,9 @@
             var subscriptionStatusOfficialUrl = String(document.getElementById('subscriptionStatusOfficialUrl').value || '').trim();
             var proxyGroupsMainPolicyNodesOnly = !!document.getElementById('proxyGroupsMainPolicyNodesOnly').checked;
             var sspanelNodePageParseEnabled = !!document.getElementById('sspanelNodePageParseEnabled').checked;
+            var registrationInviteEnabled = !!document.getElementById('registrationInviteEnabled').checked;
+            var registrationInviteMode = String(document.getElementById('registrationInviteMode').value || 'default_when_empty').trim();
+            var registrationInviteCode = String(document.getElementById('registrationInviteCode').value || '').trim();
             var cloudDispatchEnabled = !!document.getElementById('cloudDispatchEnabled').checked;
             var cloudDispatchQueryUrl = String(document.getElementById('cloudDispatchQueryUrl').value || '').trim();
             var cloudDispatchQuerySecret = String(document.getElementById('cloudDispatchQuerySecret').value || '').trim();
@@ -6131,6 +6169,12 @@
                     return;
                 }
             }
+            if (isCustomUIColorFeatureVisible('registration_invite') && registrationInviteEnabled) {
+                if (!registrationInviteCode) {
+                    setCustomTrafficBarStatus('开启注册邀请绑定时，请填写邀请码', 'error');
+                    return;
+                }
+            }
 
             setCustomTrafficBarStatus('正在写入公共配置...', 'info');
             try {
@@ -6156,6 +6200,9 @@
                     subscription_status_official_url: subscriptionStatusOfficialUrl,
                     proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly,
                     sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
+                    registration_invite_enabled: registrationInviteEnabled,
+                    registration_invite_mode: registrationInviteMode,
+                    registration_invite_code: registrationInviteCode,
                     cloud_dispatch_enabled: cloudDispatchEnabled,
                     cloud_dispatch_query_url: cloudDispatchQueryUrl,
                     cloud_dispatch_query_secret: cloudDispatchQuerySecret,
@@ -6210,6 +6257,7 @@
             'subscription_status_popup',
             'main_policy_nodes_only',
             'sspanel_node_page_parse',
+            'registration_invite',
             'cloud_dispatch'
         ];
         var CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY = 'nexgen_custom_traffic_bar_code_v1';
@@ -6899,6 +6947,10 @@
                 '    auto:',
                 '      enabled: false',
                 '      interval_minutes: 5',
+                '  registration_invite:',
+                '    enabled: false',
+                '    mode: default_when_empty',
+                '    invite_code: ""',
                 '  remote_config:',
                 '    sources:',
                 '      - name: redirect',
@@ -7107,6 +7159,9 @@
                 cloud_dispatch_auto_enabled: document.getElementById('cloudDispatchAutoEnabled') ? document.getElementById('cloudDispatchAutoEnabled').checked : false,
                 cloud_dispatch_auto_interval_minutes: document.getElementById('cloudDispatchAutoIntervalMinutes') ? (parseInt(document.getElementById('cloudDispatchAutoIntervalMinutes').value || '5', 10) || 5) : 5,
                 cloud_dispatch_fallback_retry_minutes: document.getElementById('cloudDispatchFallbackRetryMinutes') ? (parseInt(document.getElementById('cloudDispatchFallbackRetryMinutes').value || '5', 10) || 5) : 5,
+                registration_invite_enabled: document.getElementById('registrationInviteEnabled') ? document.getElementById('registrationInviteEnabled').checked : false,
+                registration_invite_mode: document.getElementById('registrationInviteMode') ? document.getElementById('registrationInviteMode').value : 'default_when_empty',
+                registration_invite_code: document.getElementById('registrationInviteCode') ? document.getElementById('registrationInviteCode').value.trim() : '',
                 subscription_cache_enabled: document.getElementById('subscriptionCacheEnabled').checked,
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
@@ -9550,6 +9605,22 @@
             }
             if (document.getElementById('cloudDispatchFallbackRetryMinutes')) {
                 document.getElementById('cloudDispatchFallbackRetryMinutes').value = cloudDispatchFallbackRetryMatch ? parseInt(cloudDispatchFallbackRetryMatch[1], 10) : 5;
+            }
+            var registrationInviteEnabledMatch =
+                yaml.match(/registration_invite:\s*\n(?:[\s\S]*?)^\s{4}enabled:\s*(true|false)/m) ||
+                yaml.match(/registrationInvite:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);
+            var registrationInviteModeMatch =
+                yaml.match(/registration_invite:\s*\n(?:[\s\S]*?)^\s{4}mode:[^\S\n]*(.*)/m) ||
+                yaml.match(/registrationInvite:\s*\n(?:[\s\S]*?)mode:[^\S\n]*(.*)/);
+            var registrationInviteCodeMatch =
+                yaml.match(/registration_invite:\s*\n(?:[\s\S]*?)^\s{4}invite_code:[^\S\n]*(.*)/m) ||
+                yaml.match(/registrationInvite:\s*\n(?:[\s\S]*?)inviteCode:[^\S\n]*(.*)/);
+            setCustomFeatureSwitchValue('registrationInviteEnabled', registrationInviteEnabledMatch ? registrationInviteEnabledMatch[1] === 'true' : false);
+            if (document.getElementById('registrationInviteMode')) {
+                document.getElementById('registrationInviteMode').value = registrationInviteModeMatch ? registrationInviteModeMatch[1].trim().replace(/^["']|["']$/g, '') : 'default_when_empty';
+            }
+            if (document.getElementById('registrationInviteCode')) {
+                document.getElementById('registrationInviteCode').value = registrationInviteCodeMatch ? registrationInviteCodeMatch[1].trim().replace(/^["']|["']$/g, '') : '';
             }
             var subCacheEnabledMatch = yaml.match(/subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var subCacheEnabled = subCacheEnabledMatch ? subCacheEnabledMatch[1] === 'true' : false;
