@@ -614,13 +614,13 @@ func (h *Handlers) GetCurrentUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	canBuild, statusText := getBuildAvailability(ac)
+	canBuild, statusText := getBuildSubmissionAvailability(ac)
 	jsonResponse(w, map[string]interface{}{
 		"name":                        ac.Name,
 		"permissions":                 "user",
 		"max_uses":                    ac.MaxUses,
 		"used_count":                  ac.UsedCount,
-		"remaining_uses":              getRemainingBuildUses(ac),
+		"remaining_uses":              getRemainingBuildSubmissions(ac),
 		"can_build":                   canBuild,
 		"build_status_text":           statusText,
 		"expires_at":                  ac.ExpiresAt,
@@ -2148,6 +2148,9 @@ func (h *Handlers) applyWorkflowRunToBuildRecord(record *BuildRecord, run *Workf
 	if err := updateBuildRecordStatusExt(record.ID, run.ID, status, conclusion, "github", runURL, releaseTag); err != nil {
 		return
 	}
+	if err := consumeBuildUsageForCompletedRecord(record.ID); err != nil {
+		log.Printf("记录打包成功次数失败: record_id=%d code_id=%d err=%v", record.ID, record.CodeID, err)
+	}
 	record.RunID = run.ID
 	if runURL != "" {
 		record.RunURL = runURL
@@ -2413,6 +2416,10 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, err.Error(), 403)
 			return
 		}
+		if ok, message := getBuildSubmissionAvailability(ac); !ok {
+			jsonError(w, message, 400)
+			return
+		}
 		if ok, message := canUseBuildPlatformsForClient(req.Client, ac.AllowedPlatforms, req.Core, req.Platforms); !ok {
 			jsonError(w, message, 403)
 			return
@@ -2425,30 +2432,22 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usageConsumed := false
-	if claims.Permissions != "admin" {
-		if err := consumeBuildUsage(claims.CodeID); err != nil {
-			jsonError(w, err.Error(), 400)
-			return
-		}
-		usageConsumed = true
-	}
-
 	if err := h.validateProfileYamlForClient(req.Client, req.Profile); err != nil {
-		if usageConsumed {
-			_ = rollbackBuildUsage(claims.CodeID)
-		}
 		jsonError(w, "配置档案无效: "+err.Error(), 400)
 		return
 	}
 
 	record, err := createBuildRecord(claims.CodeID, claims.CodeName, req.Client, req.Profile, req.Tag, req.Branch, req.Core, req.Platforms)
 	if err != nil {
-		if usageConsumed {
-			_ = rollbackBuildUsage(claims.CodeID)
-		}
 		jsonError(w, "创建打包记录失败", 500)
 		return
+	}
+	if claims.Permissions != "admin" {
+		if err := ensureBuildRecordSubmissionSlot(record); err != nil {
+			_ = deleteBuildRecord(record.ID)
+			jsonError(w, err.Error(), 400)
+			return
+		}
 	}
 
 	requestID := buildRecordRequestID(record)
@@ -2465,9 +2464,6 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 
 	err = h.gh.TriggerWorkflow(cfg.BuildOwner, cfg.BuildRepo, clientConfig.WorkflowFile, inputs)
 	if err != nil {
-		if usageConsumed {
-			_ = rollbackBuildUsage(claims.CodeID)
-		}
 		_ = updateBuildRecordStatusExt(record.ID, 0, "completed", "trigger_failed", "server", "", "")
 		jsonError(w, err.Error(), 500)
 		return
@@ -2554,6 +2550,9 @@ func (h *Handlers) persistBuildRecordEvent(record *BuildRecord, runID int64, sta
 	releaseTag = buildReleaseTagForRun(record, runID, releaseTag)
 
 	if err := updateBuildRecordStatusExt(record.ID, runID, status, conclusion, statusSource, runURL, releaseTag); err != nil {
+		return nil, err
+	}
+	if err := consumeBuildUsageForCompletedRecord(record.ID); err != nil {
 		return nil, err
 	}
 

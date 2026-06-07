@@ -75,6 +75,7 @@ func initDB() {
 				status TEXT NOT NULL DEFAULT 'queued',
 				conclusion TEXT DEFAULT '',
 				status_source TEXT DEFAULT '',
+				usage_counted INTEGER DEFAULT 0,
 				bound_at DATETIME,
 				finished_at DATETIME,
 				last_sync_at DATETIME,
@@ -119,6 +120,10 @@ func initDB() {
 	ensureBuildRecordColumn("run_url", "TEXT DEFAULT ''")
 	ensureBuildRecordColumn("release_tag", "TEXT DEFAULT ''")
 	ensureBuildRecordColumn("status_source", "TEXT DEFAULT ''")
+	usageCountedColumnAdded := ensureBuildRecordColumn("usage_counted", "INTEGER DEFAULT 0")
+	if usageCountedColumnAdded {
+		db.Exec("UPDATE build_records SET usage_counted = 1")
+	}
 	ensureBuildRecordColumn("bound_at", "DATETIME")
 	ensureBuildRecordColumn("finished_at", "DATETIME")
 	ensureBuildRecordColumn("last_sync_at", "DATETIME")
@@ -130,8 +135,9 @@ func initDB() {
 	}
 }
 
-func ensureBuildRecordColumn(columnName, definition string) {
-	_, _ = db.Exec(fmt.Sprintf("ALTER TABLE build_records ADD COLUMN %s %s", columnName, definition))
+func ensureBuildRecordColumn(columnName, definition string) bool {
+	_, err := db.Exec(fmt.Sprintf("ALTER TABLE build_records ADD COLUMN %s %s", columnName, definition))
+	return err == nil
 }
 
 type ActivationCode struct {
@@ -172,6 +178,7 @@ type BuildRecord struct {
 	Status       string `json:"status"`
 	Conclusion   string `json:"conclusion"`
 	StatusSource string `json:"status_source"`
+	UsageCounted int    `json:"usage_counted"`
 	BoundAt      string `json:"bound_at"`
 	FinishedAt   string `json:"finished_at"`
 	LastSyncAt   string `json:"last_sync_at"`
@@ -195,8 +202,8 @@ type ProfileAssetHistoryRecord struct {
 func createBuildRecord(codeID int, codeName, client, profile, tag, branch, core, platforms string) (*BuildRecord, error) {
 	requestID := generateBuildRequestID()
 	result, err := db.Exec(
-		`INSERT INTO build_records (code_id, code_name, request_id, client, profile, tag, branch, core, platforms, status, conclusion, status_source, last_sync_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'dispatching', '', 'server', CURRENT_TIMESTAMP)`,
+		`INSERT INTO build_records (code_id, code_name, request_id, client, profile, tag, branch, core, platforms, status, conclusion, status_source, usage_counted, last_sync_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'dispatching', '', 'server', 0, CURRENT_TIMESTAMP)`,
 		codeID, codeName, requestID, client, profile, tag, branch, core, platforms,
 	)
 	if err != nil {
@@ -249,7 +256,7 @@ func updateBuildRecordStatusExt(recordID, runID int64, status, conclusion, statu
 func getBuildRecord(recordID int64) (*BuildRecord, error) {
 	var record BuildRecord
 	row := db.QueryRow(
-		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source,
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(usage_counted, 0),
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records WHERE id = ?`,
 		recordID,
@@ -271,6 +278,7 @@ func getBuildRecord(recordID int64) (*BuildRecord, error) {
 		&record.Status,
 		&record.Conclusion,
 		&record.StatusSource,
+		&record.UsageCounted,
 		&record.BoundAt,
 		&record.FinishedAt,
 		&record.LastSyncAt,
@@ -288,7 +296,7 @@ func getBuildRecordByRequestID(requestID string) (*BuildRecord, error) {
 	}
 	var record BuildRecord
 	row := db.QueryRow(
-		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source,
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(usage_counted, 0),
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records WHERE request_id = ?`,
 		requestID,
@@ -310,6 +318,7 @@ func getBuildRecordByRequestID(requestID string) (*BuildRecord, error) {
 		&record.Status,
 		&record.Conclusion,
 		&record.StatusSource,
+		&record.UsageCounted,
 		&record.BoundAt,
 		&record.FinishedAt,
 		&record.LastSyncAt,
@@ -330,7 +339,7 @@ func listBuildRecordsByClient(codeID int, isAdmin bool, client string, limit int
 		limit = 20
 	}
 
-	query := `SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source,
+	query := `SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(usage_counted, 0),
 	                 COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		FROM build_records`
 	args := []interface{}{}
@@ -375,6 +384,7 @@ func listBuildRecordsByClient(codeID int, isAdmin bool, client string, limit int
 			&record.Status,
 			&record.Conclusion,
 			&record.StatusSource,
+			&record.UsageCounted,
 			&record.BoundAt,
 			&record.FinishedAt,
 			&record.LastSyncAt,
@@ -398,7 +408,7 @@ func listOverflowBuildRecordsByClient(codeID int, client string, keep int) ([]Bu
 	}
 
 	rows, err := db.Query(
-		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source,
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(usage_counted, 0),
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records
 		 WHERE code_id = ? AND (? = '' OR COALESCE(client, 'xboard_mihomo_sub') = ?)
@@ -431,6 +441,7 @@ func listOverflowBuildRecordsByClient(codeID int, client string, keep int) ([]Bu
 			&record.Status,
 			&record.Conclusion,
 			&record.StatusSource,
+			&record.UsageCounted,
 			&record.BoundAt,
 			&record.FinishedAt,
 			&record.LastSyncAt,
@@ -797,11 +808,107 @@ func getBuildAvailability(ac *ActivationCode) (bool, string) {
 	return true, "可打包"
 }
 
+func countPendingBuildUsage(codeID int) (int, error) {
+	if codeID <= 0 {
+		return 0, nil
+	}
+
+	var count int
+	err := db.QueryRow(
+		`SELECT COUNT(*)
+		 FROM build_records
+		 WHERE code_id = ?
+		   AND COALESCE(usage_counted, 0) = 0
+		   AND status != 'completed'
+		   AND COALESCE(conclusion, '') != 'trigger_failed'`,
+		codeID,
+	).Scan(&count)
+	return count, err
+}
+
+func getBuildSubmissionAvailability(ac *ActivationCode) (bool, string) {
+	canBuild, statusText := getBuildAvailability(ac)
+	if !canBuild {
+		return false, statusText
+	}
+	if ac == nil || ac.MaxUses < 0 {
+		return true, statusText
+	}
+
+	pendingCount, err := countPendingBuildUsage(ac.ID)
+	if err != nil {
+		return false, "查询待完成打包次数失败"
+	}
+	if ac.UsedCount+pendingCount >= ac.MaxUses {
+		return false, "激活码已达最大打包次数"
+	}
+	return true, statusText
+}
+
+func ensureBuildRecordSubmissionSlot(record *BuildRecord) error {
+	if record == nil || record.CodeID <= 0 {
+		return nil
+	}
+
+	var maxUses int
+	var usedCount int
+	err := db.QueryRow(
+		`SELECT max_uses, used_count
+		 FROM activation_codes
+		 WHERE id = ?`,
+		record.CodeID,
+	).Scan(&maxUses, &usedCount)
+	if err == sql.ErrNoRows {
+		return fmt.Errorf("激活码无效")
+	}
+	if err != nil {
+		return err
+	}
+	if maxUses < 0 {
+		return nil
+	}
+
+	var pendingBeforeOrAtRecord int
+	err = db.QueryRow(
+		`SELECT COUNT(*)
+		 FROM build_records
+		 WHERE code_id = ?
+		   AND id <= ?
+		   AND COALESCE(usage_counted, 0) = 0
+		   AND status != 'completed'
+		   AND COALESCE(conclusion, '') != 'trigger_failed'`,
+		record.CodeID,
+		record.ID,
+	).Scan(&pendingBeforeOrAtRecord)
+	if err != nil {
+		return err
+	}
+	if usedCount+pendingBeforeOrAtRecord > maxUses {
+		return fmt.Errorf("激活码已达最大打包次数")
+	}
+	return nil
+}
+
 func getRemainingBuildUses(ac *ActivationCode) int {
 	if ac == nil || ac.MaxUses < 0 {
 		return -1
 	}
 	remaining := ac.MaxUses - ac.UsedCount
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
+}
+
+func getRemainingBuildSubmissions(ac *ActivationCode) int {
+	if ac == nil || ac.MaxUses < 0 {
+		return -1
+	}
+	pendingCount, err := countPendingBuildUsage(ac.ID)
+	if err != nil {
+		return getRemainingBuildUses(ac)
+	}
+	remaining := ac.MaxUses - ac.UsedCount - pendingCount
 	if remaining < 0 {
 		return 0
 	}
@@ -852,18 +959,15 @@ func validateCode(code string) (*ActivationCode, error) {
 	return ac, nil
 }
 
-func consumeBuildUsage(codeID int) error {
+func recordCompletedBuildUsageTx(tx *sql.Tx, codeID int) error {
 	if codeID <= 0 {
 		return nil
 	}
 
-	result, err := db.Exec(
+	result, err := tx.Exec(
 		`UPDATE activation_codes
 		 SET used_count = used_count + 1
-		 WHERE id = ?
-		   AND is_active = 1
-		   AND (expires_at IS NULL OR expires_at = '' OR datetime(expires_at) > datetime('now', 'localtime'))
-		   AND (max_uses < 0 OR used_count < max_uses)`,
+		 WHERE id = ?`,
 		codeID,
 	)
 	if err != nil {
@@ -878,30 +982,52 @@ func consumeBuildUsage(codeID int) error {
 		return nil
 	}
 
-	ac, err := getActivationCodeByID(codeID)
-	if err != nil {
-		return err
-	}
-	canBuild, statusText := getBuildAvailability(ac)
-	if !canBuild {
-		return fmt.Errorf("%s", statusText)
-	}
-
-	return fmt.Errorf("激活码不可用")
+	return nil
 }
 
-func rollbackBuildUsage(codeID int) error {
-	if codeID <= 0 {
+func consumeBuildUsageForCompletedRecord(recordID int64) error {
+	if recordID <= 0 {
 		return nil
 	}
 
-	_, err := db.Exec(
-		`UPDATE activation_codes
-		 SET used_count = CASE WHEN used_count > 0 THEN used_count - 1 ELSE 0 END
-		 WHERE id = ?`,
-		codeID,
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(
+		`UPDATE build_records
+		 SET usage_counted = 1
+		 WHERE id = ?
+		   AND COALESCE(usage_counted, 0) = 0
+		   AND status = 'completed'
+		   AND conclusion = 'success'`,
+		recordID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return nil
+	}
+
+	var codeID int
+	err = tx.QueryRow(`SELECT code_id FROM build_records WHERE id = ?`, recordID).Scan(&codeID)
+	if err == sql.ErrNoRows {
+		return fmt.Errorf("打包记录不存在")
+	}
+	if err != nil {
+		return err
+	}
+	if err := recordCompletedBuildUsageTx(tx, codeID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func generateCode() string {
