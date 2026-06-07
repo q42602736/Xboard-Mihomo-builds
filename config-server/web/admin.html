@@ -565,7 +565,15 @@
             <div class="panel">
                 <h3>配置档案管理</h3>
                 <div id="profileManageStatus" class="status-msg"></div>
-                <div class="form-row" style="grid-template-columns: 1fr 1fr 180px; align-items:end;">
+                <div class="form-row" style="grid-template-columns: 220px 1fr 1fr 180px; align-items:end;">
+                    <div class="form-group">
+                        <label>作用项目</label>
+                        <select id="renameProfileClient" onchange="renderRenameProfileSelect()">
+                            <option value="all">全部项目</option>
+                            <option value="xboard_mihomo_sub">旧版客户端</option>
+                            <option value="nexgen_react">NexGen 客户端</option>
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label>当前档案</label>
                         <select id="renameProfileSelect">
@@ -580,7 +588,7 @@
                         <button class="btn btn-warn" style="width:100%;" onclick="renameProfileFromAdmin()">重命名档案</button>
                     </div>
                 </div>
-                <div style="font-size:12px;color:#666;margin-top:-8px;">重命名后会同步更新激活码绑定、打包记录和档案资源历史。</div>
+                <div style="font-size:12px;color:#666;margin-top:-8px;">选择“全部项目”会同步重命名新旧客户端中存在的同名档案；选择单个项目则只重命名对应项目档案。绑定关系、打包记录和档案资源历史会同步更新。</div>
             </div>
 
             <div class="panel">
@@ -1003,6 +1011,8 @@
 
         var allProfiles = [];
         var allProfileItems = [];
+        var profileItemsByClient = {};
+        var profileKeysByClient = {};
         var codesCache = [];
         var editUnknownProfileKeys = [];
         var buildPlatformCatalog = [
@@ -1042,6 +1052,38 @@
             var item = findProfileItemByKey(key);
             var displayName = getProfileDisplayName(item) || key;
             return displayName && key && displayName !== key ? displayName + ' [' + key + ']' : displayName;
+        }
+
+        function getRenameProfileClient() {
+            var select = document.getElementById('renameProfileClient');
+            return String((select && select.value) || 'all').trim() || 'all';
+        }
+
+        function profileItemsForRenameClient() {
+            var client = getRenameProfileClient();
+            if (client === 'all') {
+                return allProfileItems;
+            }
+            return profileItemsByClient[client] || [];
+        }
+
+        function profileKeysForRenameClient() {
+            return profileItemsForRenameClient().map(function(p) { return getProfileKey(p); }).filter(Boolean);
+        }
+
+        function formatRenameProfileLabel(key) {
+            var client = getRenameProfileClient();
+            if (client === 'all') {
+                return formatProfileLabel(key);
+            }
+            var items = profileItemsByClient[client] || [];
+            for (var i = 0; i < items.length; i++) {
+                if (getProfileKey(items[i]) === key) {
+                    var displayName = getProfileDisplayName(items[i]) || key;
+                    return displayName && key && displayName !== key ? displayName + ' [' + key + ']' : displayName;
+                }
+            }
+            return formatProfileLabel(key);
         }
         var customFeatureGroupsCache = [];
         var customFeatureOptionCatalog = [
@@ -1212,9 +1254,17 @@
 
         async function loadProfileList() {
             try {
+                profileItemsByClient = {};
+                profileKeysByClient = {};
                 var profileLists = await Promise.all(buildClientCatalog.map(function(client) {
-                    return loadProfilesForClient(client.value).catch(function(e) {
+                    return loadProfilesForClient(client.value).then(function(profiles) {
+                        profileItemsByClient[client.value] = profiles || [];
+                        profileKeysByClient[client.value] = profileItemsByClient[client.value].map(function(p) { return getProfileKey(p); }).filter(Boolean);
+                        return profileItemsByClient[client.value];
+                    }).catch(function(e) {
                         console.log('加载' + client.shortLabel + '档案列表失败:', e);
+                        profileItemsByClient[client.value] = [];
+                        profileKeysByClient[client.value] = [];
                         return [];
                     });
                 }));
@@ -1248,8 +1298,9 @@
             var select = document.getElementById('renameProfileSelect');
             if (!select) return;
             var currentValue = select.value;
+            var renameProfiles = profileKeysForRenameClient();
             select.innerHTML = '';
-            if (!allProfiles.length) {
+            if (!renameProfiles.length) {
                 var emptyOption = document.createElement('option');
                 emptyOption.value = '';
                 emptyOption.textContent = '暂无已有档案';
@@ -1260,13 +1311,13 @@
             placeholder.value = '';
             placeholder.textContent = '请选择要重命名的档案';
             select.appendChild(placeholder);
-	            allProfiles.forEach(function(name) {
-	                var option = document.createElement('option');
-	                option.value = name;
-	                option.textContent = formatProfileLabel(name);
-	                select.appendChild(option);
-	            });
-            if (currentValue && allProfiles.indexOf(currentValue) !== -1) {
+            renameProfiles.forEach(function(name) {
+                var option = document.createElement('option');
+                option.value = name;
+                option.textContent = formatRenameProfileLabel(name);
+                select.appendChild(option);
+            });
+            if (currentValue && renameProfiles.indexOf(currentValue) !== -1) {
                 select.value = currentValue;
             }
         }
@@ -1618,6 +1669,12 @@
             return labelMap;
         }
 
+        function getClientShortLabel(client) {
+            var labelMap = getClientPermissionLabelMap(true);
+            client = normalizeBuildClient(client);
+            return labelMap[client] || client;
+        }
+
         function formatAllowedClientsDisplay(clients) {
             if (!clients || clients.length === 0) {
                 return '<span style="color:#555">全部客户端</span>';
@@ -1684,9 +1741,12 @@
         }
 
         async function renameProfileFromAdmin() {
-	            var oldName = String(document.getElementById('renameProfileSelect').value || '').trim();
-	            var newName = String(document.getElementById('renameProfileName').value || '').trim();
-	            var oldLabel = formatProfileLabel(oldName) || oldName;
+            var renameClient = getRenameProfileClient();
+            var renameProfiles = profileKeysForRenameClient();
+            var renameClientLabel = renameClient === 'all' ? '全部项目' : getClientShortLabel(renameClient);
+            var oldName = String(document.getElementById('renameProfileSelect').value || '').trim();
+            var newName = String(document.getElementById('renameProfileName').value || '').trim();
+            var oldLabel = formatRenameProfileLabel(oldName) || oldName;
             var statusEl = document.getElementById('profileManageStatus');
             statusEl.className = 'status-msg';
             statusEl.textContent = '';
@@ -1706,19 +1766,20 @@
                 statusEl.textContent = '新档案名称不能与原名称相同';
                 return;
             }
-            if (allProfiles.indexOf(newName) !== -1) {
+            if (renameProfiles.indexOf(newName) !== -1) {
                 statusEl.className = 'status-msg error';
                 statusEl.textContent = '新档案名称已存在';
                 return;
             }
-	            if (!await showAppConfirm('确定将档案 "' + oldLabel + '" 重命名为 "' + newName + '" 吗？绑定关系和历史记录会同步更新。', '重命名档案', '确认重命名')) {
+            if (!await showAppConfirm('确定在“' + renameClientLabel + '”中将档案 "' + oldLabel + '" 重命名为 "' + newName + '" 吗？绑定关系和历史记录会同步更新。', '重命名档案', '确认重命名')) {
                 return;
             }
 
             statusEl.className = 'status-msg success';
             statusEl.textContent = '正在重命名...';
             try {
-                var response = await api('PUT', '/admin/profiles/' + encodeURIComponent(oldName) + '/rename', {
+                var renamePath = '/admin/profiles/' + encodeURIComponent(oldName) + '/rename?client=' + encodeURIComponent(renameClient);
+                var response = await api('PUT', renamePath, {
                     new_name: newName
                 });
                 if (!response) return;
@@ -1731,7 +1792,7 @@
                 document.getElementById('renameProfileSelect').value = newName;
                 await loadCodes();
                 statusEl.className = 'status-msg success';
-	                statusEl.textContent = '已重命名: ' + oldLabel + ' -> ' + newName;
+                statusEl.textContent = '已重命名（' + renameClientLabel + '）: ' + oldLabel + ' -> ' + newName;
             } catch (e) {
                 statusEl.className = 'status-msg error';
                 statusEl.textContent = '重命名失败: ' + e.message;

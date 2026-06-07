@@ -4079,6 +4079,11 @@ type profileRenamePlan struct {
 	SHA     string
 }
 
+func isRenameAllClients(clientParam string) bool {
+	clientParam = strings.TrimSpace(clientParam)
+	return clientParam == "" || strings.EqualFold(clientParam, "all")
+}
+
 func profileGitHubTargetKey(gh *GitHubClient) string {
 	if gh == nil {
 		return ""
@@ -4137,9 +4142,32 @@ func renamedProfileContentForClient(client, content, newName string) string {
 	return bindProfileTitle(content, newName)
 }
 
+func otherBuildClient(client string) string {
+	if normalizeBuildClient(client) == buildClientNexGenReact {
+		return buildClientLegacy
+	}
+	return buildClientNexGenReact
+}
+
+func (h *Handlers) guardSingleClientProfileRename(client, oldName string) error {
+	otherClient := otherBuildClient(client)
+	if profileGitHubTargetKey(h.profileGitHubClient(client)) == profileGitHubTargetKey(h.profileGitHubClient(otherClient)) {
+		return nil
+	}
+	_, _, _, exists, err := h.getStoredProfileForClient(otherClient, oldName)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return fmt.Errorf("另一个项目也存在同名档案，请选择“全部项目”同步重命名，避免激活码绑定断开")
+	}
+	return nil
+}
+
 func (h *Handlers) RenameProfile(w http.ResponseWriter, r *http.Request) {
 	oldName := strings.TrimSpace(chi.URLParam(r, "name"))
-	targets, err := h.profileRenameTargets(r.URL.Query().Get("client"))
+	clientParam := r.URL.Query().Get("client")
+	targets, err := h.profileRenameTargets(clientParam)
 	if err != nil {
 		jsonError(w, err.Error(), 400)
 		return
@@ -4170,6 +4198,13 @@ func (h *Handlers) RenameProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		jsonError(w, err.Error(), 400)
 		return
+	}
+
+	if !isRenameAllClients(clientParam) && len(targets) == 1 {
+		if err := h.guardSingleClientProfileRename(targets[0].Client, oldName); err != nil {
+			jsonError(w, err.Error(), 409)
+			return
+		}
 	}
 
 	plans := []profileRenamePlan{}
