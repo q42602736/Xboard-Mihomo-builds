@@ -3151,7 +3151,7 @@
             </div>
 
             <div class="sidebar-footer">
-                <a href="/clients.html" class="btn-admin">切换客户端</a>
+                <a href="/clients.html" class="btn-admin" id="clientSwitchLink" style="display:none;">切换客户端</a>
                 <a href="/admin.html" class="btn-admin" id="adminLink" style="display:none;">管理后台</a>
                 <button class="btn-logout" onclick="logout()">退出登录</button>
             </div>
@@ -4399,6 +4399,7 @@
         var SELECTED_CLIENT_KEY = 'xboard_selected_client';
         var PERSISTED_CLIENT_KEY = 'xboard_persisted_client';
         var BUILD_CLIENT_LEGACY = 'xboard_mihomo_sub';
+        var BUILD_CLIENT_NEXGEN_REACT = 'nexgen_react';
         var BUILD_CLIENT = BUILD_CLIENT_LEGACY;
 
         function appendBuildClientQuery(path) {
@@ -4424,6 +4425,24 @@
         function isKnownBuildClient(client) {
             client = normalizeClient(client);
             return client === BUILD_CLIENT_LEGACY;
+        }
+
+        function getSwitchableClientCount(session) {
+            var allowedClients = session && Array.isArray(session.allowed_clients) ? session.allowed_clients : [];
+            if (allowedClients.length === 0) return 2;
+            var unique = [];
+            allowedClients.map(normalizeClient).forEach(function(client) {
+                if ((client === BUILD_CLIENT_LEGACY || client === BUILD_CLIENT_NEXGEN_REACT) && unique.indexOf(client) === -1) {
+                    unique.push(client);
+                }
+            });
+            return unique.length;
+        }
+
+        function syncClientSwitcherVisibility(session) {
+            var link = document.getElementById('clientSwitchLink');
+            if (!link) return;
+            link.style.display = getSwitchableClientCount(session || getSession()) > 1 ? '' : 'none';
         }
 
         function resolveCurrentBuildClient() {
@@ -4469,6 +4488,7 @@
             session.permissions = data.permissions || session.permissions;
             session.allowed_clients = Array.isArray(data.allowed_clients) ? data.allowed_clients : [];
             saveSession(session);
+            syncClientSwitcherVisibility(session);
         }
 
         function ensureCurrentClientAllowed() {
@@ -4484,6 +4504,7 @@
             }
             localStorage.setItem(PERSISTED_CLIENT_KEY, BUILD_CLIENT);
             sessionStorage.setItem(SELECTED_CLIENT_KEY, BUILD_CLIENT);
+            syncClientSwitcherVisibility(session);
             return true;
         }
 

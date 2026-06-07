@@ -676,8 +676,11 @@ jobs:
             [ -n "$file" ] || continue
             base="$(basename "$file")"
             safe_base="$(echo "$base" | tr ' ' '-')"
-            expected_prefix="$(echo "${APP_NAME}-${VERSION}-${{ matrix.platform }}-" | tr ' ' '-')"
-            if [[ "$safe_base" == "$expected_prefix"* ]]; then
+            expected_stem="$(echo "${APP_NAME}-${VERSION}-${{ matrix.platform }}" | tr ' ' '-')"
+            expected_prefix="${expected_stem}-"
+            if [[ "${{ matrix.family }}" = "macos" && "$safe_base" == *.pkg ]]; then
+              asset_name="${expected_stem}.pkg"
+            elif [[ "$safe_base" == "$expected_prefix"* ]]; then
               asset_name="$safe_base"
             else
               asset_name="${expected_prefix}${safe_base}"
