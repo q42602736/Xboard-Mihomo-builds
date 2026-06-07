@@ -4068,9 +4068,82 @@ func (h *Handlers) DeleteCode(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, map[string]string{"message": "删除成功"})
 }
 
+type profileRenameTarget struct {
+	Client string
+	GH     *GitHubClient
+}
+
+type profileRenamePlan struct {
+	Target  profileRenameTarget
+	Content string
+	SHA     string
+}
+
+func profileGitHubTargetKey(gh *GitHubClient) string {
+	if gh == nil {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(gh.Owner)) + "/" + strings.ToLower(strings.TrimSpace(gh.Repo)) + "#" + strings.TrimSpace(gh.Branch)
+}
+
+func (h *Handlers) profileRenameTargets(clientParam string) ([]profileRenameTarget, error) {
+	clientParam = strings.TrimSpace(clientParam)
+	clients := []string{}
+	if clientParam == "" || strings.EqualFold(clientParam, "all") {
+		clients = []string{buildClientLegacy, buildClientNexGenReact}
+	} else {
+		client := normalizeBuildClient(clientParam)
+		switch client {
+		case buildClientLegacy, buildClientNexGenReact:
+			clients = []string{client}
+		default:
+			return nil, fmt.Errorf("无效的客户端：%s", clientParam)
+		}
+	}
+
+	targets := []profileRenameTarget{}
+	seenTargets := map[string]struct{}{}
+	for _, client := range clients {
+		gh := h.profileGitHubClient(client)
+		key := profileGitHubTargetKey(gh)
+		if key == "" {
+			return nil, fmt.Errorf("配置档案仓库未初始化")
+		}
+		if _, ok := seenTargets[key]; ok {
+			continue
+		}
+		seenTargets[key] = struct{}{}
+		targets = append(targets, profileRenameTarget{
+			Client: client,
+			GH:     gh,
+		})
+	}
+	return targets, nil
+}
+
+func profileContentUsesNexGenRoot(content string) bool {
+	doc, err := parseProfileYamlDocument(content)
+	if err != nil {
+		return false
+	}
+	root := ensureDocumentMappingNode(doc)
+	return getMapValueNode(root, "nexgen") != nil
+}
+
+func renamedProfileContentForClient(client, content, newName string) string {
+	if normalizeBuildClient(client) == buildClientNexGenReact || profileContentUsesNexGenRoot(content) {
+		return bindNexGenProfileTitle(normalizeNexGenProfileConfig(content), newName)
+	}
+	return bindProfileTitle(content, newName)
+}
+
 func (h *Handlers) RenameProfile(w http.ResponseWriter, r *http.Request) {
 	oldName := strings.TrimSpace(chi.URLParam(r, "name"))
-	client := normalizeBuildClient(r.URL.Query().Get("client"))
+	targets, err := h.profileRenameTargets(r.URL.Query().Get("client"))
+	if err != nil {
+		jsonError(w, err.Error(), 400)
+		return
+	}
 	var req struct {
 		NewName string `json:"new_name"`
 	}
@@ -4099,54 +4172,72 @@ func (h *Handlers) RenameProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content, sha, _, exists, err := h.getStoredProfileForClient(client, oldName)
-	if err != nil {
-		jsonError(w, "读取原档案失败: "+err.Error(), 500)
-		return
+	plans := []profileRenamePlan{}
+	for _, target := range targets {
+		_, _, _, newExists, err := h.getStoredProfileForClient(target.Client, newName)
+		if err != nil {
+			jsonError(w, "检查新档案名称失败: "+err.Error(), 500)
+			return
+		}
+		if newExists {
+			jsonError(w, "新档案名称已存在", 409)
+			return
+		}
+
+		content, sha, _, exists, err := h.getStoredProfileForClient(target.Client, oldName)
+		if err != nil {
+			jsonError(w, "读取原档案失败: "+err.Error(), 500)
+			return
+		}
+		if !exists {
+			continue
+		}
+		plans = append(plans, profileRenamePlan{
+			Target:  target,
+			Content: content,
+			SHA:     sha,
+		})
 	}
-	if !exists {
+	if len(plans) == 0 {
 		jsonError(w, "原档案不存在", 404)
 		return
 	}
-	_, _, _, newExists, err := h.getStoredProfileForClient(client, newName)
-	if err != nil {
-		jsonError(w, "检查新档案名称失败: "+err.Error(), 500)
-		return
+
+	renamedClients := []string{}
+	createdFiles := []profileRenamePlan{}
+	for _, plan := range plans {
+		renamedContent := renamedProfileContentForClient(plan.Target.Client, plan.Content, newName)
+		if _, err := plan.Target.GH.SaveFile(newPath, renamedContent, "", "重命名配置档案: "+oldName+" -> "+newName); err != nil {
+			jsonError(w, "创建新档案失败: "+err.Error(), 500)
+			return
+		}
+		createdFiles = append(createdFiles, plan)
 	}
-	if newExists {
-		jsonError(w, "新档案名称已存在", 409)
-		return
+	for _, plan := range createdFiles {
+		if err := plan.Target.GH.DeleteFile(oldPath, plan.SHA, "删除重命名前旧档案: "+oldName); err != nil {
+			jsonError(w, "删除旧档案失败，新档案已创建，请稍后手动清理旧档案: "+err.Error(), 500)
+			return
+		}
+		renamedClients = append(renamedClients, plan.Target.Client)
 	}
 
-	renamedContent := bindProfileTitle(content, newName)
-	if client == buildClientNexGenReact {
-		renamedContent = bindNexGenProfileTitle(normalizeNexGenProfileConfig(content), newName)
-	}
-	profileGH := h.profileGitHubClient(client)
-	if _, err := profileGH.SaveFile(newPath, renamedContent, "", "重命名配置档案: "+oldName+" -> "+newName); err != nil {
-		jsonError(w, "创建新档案失败: "+err.Error(), 500)
-		return
-	}
-	if err := profileGH.DeleteFile(oldPath, sha, "删除重命名前旧档案: "+oldName); err != nil {
-		jsonError(w, "删除旧档案失败，新档案已创建，请稍后手动清理旧档案: "+err.Error(), 500)
-		return
-	}
 	if err := renameProfileReferences(oldName, newName); err != nil {
 		jsonError(w, "同步档案引用失败: "+err.Error(), 500)
 		return
 	}
 
-	invalidateProfileCacheForClient(client)
+	invalidateProfileCache()
 	buildStatusCache.clear()
 	buildQueueSnapshotCache.clear()
 
 	claims := getClaims(r)
-	logAudit(claims.CodeID, claims.CodeName, "rename_profile", fmt.Sprintf("%s -> %s", oldName, newName), r.RemoteAddr)
+	logAudit(claims.CodeID, claims.CodeName, "rename_profile", fmt.Sprintf("%s -> %s clients=%v", oldName, newName, renamedClients), r.RemoteAddr)
 
-	jsonResponse(w, map[string]string{
-		"message":  "重命名成功",
-		"old_name": oldName,
-		"new_name": newName,
+	jsonResponse(w, map[string]interface{}{
+		"message":         "重命名成功",
+		"old_name":        oldName,
+		"new_name":        newName,
+		"renamed_clients": renamedClients,
 	})
 }
 

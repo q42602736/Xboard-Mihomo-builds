@@ -1200,14 +1200,43 @@
             return '';
         }
 
+        async function loadProfilesForClient(client) {
+            var response = await api('GET', '/profiles?client=' + encodeURIComponent(client));
+            if (!response) return [];
+            var data = await response.json();
+            if (!response.ok) {
+                throw new Error((data && data.error) || '加载档案列表失败');
+            }
+            return data.profiles || [];
+        }
+
         async function loadProfileList() {
             try {
-	                var response = await api('GET', '/profiles');
-	                if (!response) return;
-	                var data = await response.json();
-	                allProfileItems = data.profiles || [];
-	                allProfiles = allProfileItems.map(function(p) { return getProfileKey(p); }).filter(Boolean);
-	                renderRenameProfileSelect();
+                var profileLists = await Promise.all(buildClientCatalog.map(function(client) {
+                    return loadProfilesForClient(client.value).catch(function(e) {
+                        console.log('加载' + client.shortLabel + '档案列表失败:', e);
+                        return [];
+                    });
+                }));
+                var profileMap = {};
+                profileLists.forEach(function(list) {
+                    (list || []).forEach(function(profile) {
+                        var key = getProfileKey(profile);
+                        if (!key) return;
+                        if (!profileMap[key]) {
+                            profileMap[key] = profile;
+                            return;
+                        }
+                        if (!getProfileDisplayName(profileMap[key]) && getProfileDisplayName(profile)) {
+                            profileMap[key] = profile;
+                        }
+                    });
+                });
+                allProfileItems = Object.keys(profileMap).sort().map(function(key) {
+                    return profileMap[key];
+                });
+                allProfiles = allProfileItems.map(function(p) { return getProfileKey(p); }).filter(Boolean);
+                renderRenameProfileSelect();
                 renderProfileCheckboxes('profileCheckboxes', 'profile-cb', getSelectedProfiles('.profile-cb:checked', 'manualProfiles'));
                 renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', getSelectedProfiles('.edit-profile-cb:checked', 'editManualProfiles'));
             } catch (e) {
