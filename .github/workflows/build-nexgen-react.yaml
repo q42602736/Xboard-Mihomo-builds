@@ -407,9 +407,9 @@ jobs:
         run: |
           npm run desktop:core
           if [ "${{ matrix.platform }}" = "macos-arm64" ]; then
-            npm run package:macos -- --targets arm64 --bundles dmg
+            npm run package:macos -- --targets arm64 --bundles app
           else
-            npm run package:macos -- --targets amd64 --bundles dmg
+            npm run package:macos -- --targets amd64 --bundles app
           fi
 
       - name: Build Android Package
@@ -658,7 +658,7 @@ jobs:
           artifact_list="$(mktemp)"
           find source/dist -maxdepth 1 -type f \( \
             -name "*.zip" -o \
-            -name "*.dmg" -o \
+            -name "*.pkg" -o \
             -name "*.exe" -o \
             -name "*.msi" -o \
             -name "*.apk" \
@@ -685,7 +685,7 @@ jobs:
             content_type="application/octet-stream"
             case "$asset_name" in
               *.zip) content_type="application/zip" ;;
-              *.dmg) content_type="application/x-apple-diskimage" ;;
+              *.pkg) content_type="application/octet-stream" ;;
               *.exe) content_type="application/vnd.microsoft.portable-executable" ;;
               *.msi) content_type="application/x-msi" ;;
               *.apk) content_type="application/vnd.android.package-archive" ;;
