@@ -825,55 +825,103 @@ jobs:
           PACKAGE_NAME="${{ steps.package.outputs.package_name }}"
           ASSETS_RESPONSE=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
-          EXISTING_BUNDLE_ID=$(printf '%s' "$ASSETS_RESPONSE" | node -e "
+          printf '%s' "$ASSETS_RESPONSE" | node -e "
             const fs = require('fs');
             const packageName = process.argv[1];
             const data = JSON.parse(fs.readFileSync(0, 'utf8'));
-            const asset = (Array.isArray(data) ? data : []).find(item => item && item.name === packageName);
-            process.stdout.write(asset ? String(asset.id) : '');
-          " "$PACKAGE_NAME")
-
-          if [ -n "$EXISTING_BUNDLE_ID" ]; then
-            echo "Deleting existing bundle asset: $PACKAGE_NAME"
+            const assets = (Array.isArray(data) ? data : []).filter(item => {
+              const name = String((item && item.name) || '');
+              return item && item.id && (
+                name === packageName ||
+                name === `${packageName}.sha256` ||
+                name === `${packageName}.manifest.txt` ||
+                name.startsWith(`${packageName}.part-`)
+              );
+            });
+            for (const asset of assets) {
+              process.stdout.write(String(asset.id) + '\t' + asset.name + '\n');
+            }
+          " "$PACKAGE_NAME" | while IFS=$'\t' read -r asset_id asset_name; do
+            [ -n "$asset_id" ] || continue
+            echo "Deleting existing bundle asset: $asset_name"
             curl -sS --fail -X DELETE -H "Authorization: token $GH_TOKEN" \
-              "https://api.github.com/repos/${{ github.repository }}/releases/assets/${EXISTING_BUNDLE_ID}" > /dev/null
-          fi
+              "https://api.github.com/repos/${{ github.repository }}/releases/assets/${asset_id}" > /dev/null
+          done
 
           cd ./release
+          MAX_RELEASE_ASSET_BYTES=$((1900 * 1024 * 1024))
+          FILE_BYTES=$(wc -c < "$PACKAGE_NAME" | tr -d ' ')
           FILESIZE=$(du -h "$PACKAGE_NAME" | cut -f1)
-          ENCODED_FILENAME=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$PACKAGE_NAME")
+          UPLOAD_DIR="./upload"
+          rm -rf "$UPLOAD_DIR"
+          mkdir -p "$UPLOAD_DIR"
 
-          echo "Uploading merged bundle: $PACKAGE_NAME ($FILESIZE)"
-          UPLOAD_RESPONSE=$(curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
-            -H "Authorization: token $GH_TOKEN" \
-            -H "Content-Type: application/zip" \
-            -H "Expect:" \
-            --data-binary @"$PACKAGE_NAME" \
-            "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}")
-
-          UPLOADED_ASSET_ID=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
-            const fs = require('fs');
-            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
-            process.stdout.write(data && data.id ? String(data.id) : '');
-          ")
-          UPLOADED_ASSET_NAME=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
-            const fs = require('fs');
-            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
-            process.stdout.write(data && data.name ? String(data.name) : '');
-          ")
-          UPLOADED_ASSET_STATE=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
-            const fs = require('fs');
-            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
-            process.stdout.write(data && data.state ? String(data.state) : '');
-          ")
-
-          if [ -z "$UPLOADED_ASSET_ID" ] || [ "$UPLOADED_ASSET_NAME" != "$PACKAGE_NAME" ] || [ "$UPLOADED_ASSET_STATE" != "uploaded" ]; then
-            echo "::error::Merged bundle upload verification failed: $PACKAGE_NAME"
-            echo "$UPLOAD_RESPONSE"
-            exit 1
+          if [ "$FILE_BYTES" -gt "$MAX_RELEASE_ASSET_BYTES" ]; then
+            echo "::warning::合集包 $PACKAGE_NAME 大小为 $FILESIZE，超过安全阈值 1900 MiB，将自动分片上传。"
+            sha256sum "$PACKAGE_NAME" > "$UPLOAD_DIR/${PACKAGE_NAME}.sha256"
+            split -b "$MAX_RELEASE_ASSET_BYTES" -d -a 3 "$PACKAGE_NAME" "$UPLOAD_DIR/${PACKAGE_NAME}.part-"
+            {
+              printf '%s 已按 GitHub Release 单文件 2 GiB 限制自动分片。\n\n' "$PACKAGE_NAME"
+              printf '合并命令:\n'
+              printf 'cat %s.part-* > %s\n' "$PACKAGE_NAME" "$PACKAGE_NAME"
+              printf 'sha256sum -c %s.sha256\n' "$PACKAGE_NAME"
+            } > "$UPLOAD_DIR/${PACKAGE_NAME}.manifest.txt"
+          else
+            cp "$PACKAGE_NAME" "$UPLOAD_DIR/$PACKAGE_NAME"
           fi
 
-          echo "Uploaded merged bundle verified: id=$UPLOADED_ASSET_ID state=$UPLOADED_ASSET_STATE name=$UPLOADED_ASSET_NAME"
+          upload_release_asset() {
+            local file_path="$1"
+            local asset_name
+            asset_name="$(basename "$file_path")"
+            local content_type="application/octet-stream"
+            case "$asset_name" in
+              *.zip) content_type="application/zip" ;;
+              *.txt|*.sha256) content_type="text/plain; charset=utf-8" ;;
+            esac
+            local filesize
+            filesize=$(du -h "$file_path" | cut -f1)
+            local encoded_name
+            encoded_name=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$asset_name")
+
+            echo "Uploading merged bundle asset: $asset_name ($filesize)"
+            local upload_response
+            upload_response=$(curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: $content_type" \
+              -H "Expect:" \
+              --data-binary @"$file_path" \
+              "${RELEASE_UPLOAD_URL}?name=${encoded_name}")
+
+            local uploaded_asset_id uploaded_asset_name uploaded_asset_state
+            uploaded_asset_id=$(printf '%s' "$upload_response" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              process.stdout.write(data && data.id ? String(data.id) : '');
+            ")
+            uploaded_asset_name=$(printf '%s' "$upload_response" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              process.stdout.write(data && data.name ? String(data.name) : '');
+            ")
+            uploaded_asset_state=$(printf '%s' "$upload_response" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              process.stdout.write(data && data.state ? String(data.state) : '');
+            ")
+
+            if [ -z "$uploaded_asset_id" ] || [ "$uploaded_asset_name" != "$asset_name" ] || [ "$uploaded_asset_state" != "uploaded" ]; then
+              echo "::error::Merged bundle upload verification failed: $asset_name"
+              echo "$upload_response"
+              exit 1
+            fi
+            echo "Uploaded merged bundle asset verified: id=$uploaded_asset_id state=$uploaded_asset_state name=$uploaded_asset_name"
+          }
+
+          while IFS= read -r upload_file; do
+            [ -n "$upload_file" ] || continue
+            upload_release_asset "$upload_file"
+          done < <(find "$UPLOAD_DIR" -maxdepth 1 -type f | sort)
 
           echo "=== Release assets after merged bundle upload ==="
           curl -sS --fail -H "Authorization: token $GH_TOKEN" \
