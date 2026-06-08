@@ -3397,12 +3397,12 @@
                                 <input type="text" id="decryptKey" placeholder="your_secret_decrypt_key_here">
                             </div>
                         </div>
-                        <div class="section" id="sspanelMetronConfigSection" style="display:none;">
+                        <div class="section" id="sspanelMetronConfigSection">
                             <div class="section-title">SSPanel-Metron 专属配置</div>
                             <div class="form-group">
                                 <label>自定义订阅查询后缀</label>
                                 <input type="text" id="subscriptionCustomQuerySuffix" placeholder="留空时默认使用 clash=1">
-                                <div class="help-text">按需填写。留空时默认使用 <code>clash=1</code>，且不会额外写入该配置；如需 Clash Meta，可填写 <code>clashmeta=1</code>。</div>
+                                <div class="help-text">SSPanel-Metron 的 Clash/Mihomo 订阅通常需要 <code>clash=1</code>。留空时客户端默认使用 <code>clash=1</code>，也可填写 <code>clashmeta=1</code> 或其他面板需要的查询参数。</div>
                             </div>
                         </div>
                         <div class="section">
@@ -5557,6 +5557,7 @@
                 '    user_agent: Clash Meta',
                 '    exclusive_user_agent: XBoardMihomo/1.0',
                 '    use_exclusive_mode: false',
+                '    custom_query_suffix: clash=1',
                 '    sspanel_node_page_parse_enabled: false',
                 '    decrypt_key: ""',
                 '  auto_offline:',
