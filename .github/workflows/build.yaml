@@ -3,6 +3,11 @@ name: build
 on:
   workflow_dispatch:
     inputs:
+      client:
+        description: '客户端类型'
+        required: false
+        type: string
+        default: 'xboard_mihomo_sub'
       profile:
         description: '配置档案名称（对应配置分支 profiles 目录中的 YAML 档案名）'
         required: true
