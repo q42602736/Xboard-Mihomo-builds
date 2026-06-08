@@ -779,7 +779,7 @@ jobs:
                 }
                 name = name.replace(/[^A-Za-z0-9_-]+/g, "");
                 process.stdout.write(name || "app");
-              ' "$FILENAME" "$VERSION")
+              ' -- "$FILENAME" "$VERSION")
               echo "profile_name_safe=$PROFILE_NAME_SAFE" >> "$GITHUB_OUTPUT"
               echo "Extracted safe bundle name: $PROFILE_NAME_SAFE"
             else
