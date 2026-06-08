@@ -61,6 +61,7 @@ jobs:
       upload_url: ${{ steps.release.outputs.upload_url }}
       release_tag: ${{ steps.release.outputs.release_tag }}
       app_name: ${{ steps.config.outputs.app_name }}
+      safe_app_name: ${{ steps.config.outputs.safe_app_name }}
     steps:
       - name: Validate Config Server Callback
         env:
@@ -95,6 +96,17 @@ jobs:
           submodules: recursive
           path: source
 
+      - name: Setup Node For NexGen Name
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+
+      - name: Install NexGen Name Dependencies
+        working-directory: source
+        run: npm ci --omit=dev --ignore-scripts
+
       - name: Read And Convert Profile
         id: config
         env:
@@ -125,8 +137,13 @@ jobs:
             const raw = match ? match[1].replace(/^['\\\"]|['\\\"]$/g, '').trim() : '${PROFILE_NAME}';
             process.stdout.write((raw || '${PROFILE_NAME}').replace(/[\\r\\n]+/g, ' ').trim());
           ")
+          SAFE_APP_NAME=$(node --input-type=module -e '
+            const { toSafeWindowsName } = await import("./source/scripts/name-utils.mjs");
+            process.stdout.write(toSafeWindowsName(process.argv[1], "NexGen"));
+          ' -- "$APP_NAME")
           echo "app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
-          echo "已生成 nexgen.config.yaml，应用名称：$APP_NAME"
+          echo "safe_app_name=$SAFE_APP_NAME" >> "$GITHUB_OUTPUT"
+          echo "已生成 nexgen.config.yaml，应用名称：$APP_NAME，安全产物名：$SAFE_APP_NAME"
 
       - name: Prepare Draft Release
         id: release
@@ -596,10 +613,7 @@ jobs:
           build_android_apk "armv7" "armeabi-v7a.apk" "armeabi-v7a" '/arm/release/.*\.apk$|app-arm-release.*\.apk$|armeabi.*\.apk$' "1"
           build_android_apk "universal" "universal.apk" "universal" '/universal/release/.*\.apk$|app-universal-release.*\.apk$' "0"
 
-          SAFE_APP_NAME=$(node --input-type=module -e '
-            const { toSafeWindowsName } = await import("./scripts/name-utils.mjs");
-            process.stdout.write(toSafeWindowsName(process.argv[1], "NexGen"));
-          ' -- "${{ needs.prepare-release.outputs.app_name }}")
+          SAFE_APP_NAME="${{ needs.prepare-release.outputs.safe_app_name }}"
 
           rm -f dist/*.apk
           cp "$ANDROID_APK_STAGE_DIR/arm64-v8a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-arm64-v8a.apk"
@@ -655,6 +669,7 @@ jobs:
           RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
           UPLOAD_URL: ${{ needs.prepare-release.outputs.upload_url }}
           APP_NAME: ${{ needs.prepare-release.outputs.app_name }}
+          SAFE_APP_NAME: ${{ needs.prepare-release.outputs.safe_app_name }}
           VERSION: ${{ github.event.inputs.tag }}
         run: |
           if [ ! -d "source/dist" ]; then
@@ -662,19 +677,16 @@ jobs:
             exit 1
           fi
 
-          SAFE_APP_NAME=$(cd source && node --input-type=module -e '
-            const { toSafeWindowsName } = await import("./scripts/name-utils.mjs");
-            process.stdout.write(toSafeWindowsName(process.argv[1], "NexGen"));
-          ' -- "$APP_NAME")
+          if [ -z "$SAFE_APP_NAME" ]; then
+            echo "::error::未能解析 NexGen 安全产物名：$APP_NAME"
+            exit 1
+          fi
 
           normalize_nexgen_artifact_names() {
             local file base normalized suffix
             for file in source/dist/*.pkg source/dist/*.apk; do
               [ -f "$file" ] || continue
               base="$(basename "$file")"
-              case "$base" in
-                "${SAFE_APP_NAME}-${VERSION}-"*) continue ;;
-              esac
               case "$base" in
                 *macos-amd64*.pkg) suffix="macos-amd64.pkg" ;;
                 *macos-arm64*.pkg) suffix="macos-arm64.pkg" ;;
@@ -800,29 +812,13 @@ jobs:
             echo "Found artifacts:"
             ls -la ./dist/
 
-            VERSION="${{ github.event.inputs.tag }}"
-            FIRST_FILE=$(find ./dist -type f \( -iname "*.apk" -o -iname "*.exe" -o -iname "*.msi" -o -iname "*.pkg" -o -iname "*.zip" \) ! -name "*-bundle.zip" | sort | head -1)
-            if [ -n "$FIRST_FILE" ]; then
-              FILENAME=$(basename "$FIRST_FILE")
-              PROFILE_NAME_SAFE=$(node -e '
-                const [filename, version] = process.argv.slice(1);
-                let name = String(filename || "");
-                const marker = version ? `-${version}-` : "";
-                const markerIndex = marker ? name.indexOf(marker) : -1;
-                if (markerIndex > 0) {
-                  name = name.slice(0, markerIndex);
-                } else {
-                  name = name.replace(/-.*/, "");
-                }
-                name = name.replace(/[^A-Za-z0-9_-]+/g, "");
-                process.stdout.write(name || "app");
-              ' -- "$FILENAME" "$VERSION")
-              echo "profile_name_safe=$PROFILE_NAME_SAFE" >> "$GITHUB_OUTPUT"
-              echo "Extracted safe bundle name: $PROFILE_NAME_SAFE"
-            else
-              echo "profile_name_safe=app" >> "$GITHUB_OUTPUT"
-              echo "No suitable file found, using default name"
+            PROFILE_NAME_SAFE="${{ needs.prepare-release.outputs.safe_app_name }}"
+            if [ -z "$PROFILE_NAME_SAFE" ]; then
+              echo "::error::未能解析 NexGen 合集包安全产物名。"
+              exit 1
             fi
+            echo "profile_name_safe=$PROFILE_NAME_SAFE" >> "$GITHUB_OUTPUT"
+            echo "使用 NexGen 合集包安全产物名：$PROFILE_NAME_SAFE"
           else
             echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
             echo "No artifacts found"
