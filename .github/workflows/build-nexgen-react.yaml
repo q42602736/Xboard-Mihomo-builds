@@ -596,8 +596,15 @@ jobs:
           build_android_apk "armv7" "armeabi-v7a.apk" "armeabi-v7a" '/arm/release/.*\.apk$|app-arm-release.*\.apk$|armeabi.*\.apk$' "1"
           build_android_apk "universal" "universal.apk" "universal" '/universal/release/.*\.apk$|app-universal-release.*\.apk$' "0"
 
+          SAFE_APP_NAME=$(node --input-type=module -e '
+            const { toSafeWindowsName } = await import("./scripts/name-utils.mjs");
+            process.stdout.write(toSafeWindowsName(process.argv[1], "NexGen"));
+          ' -- "${{ needs.prepare-release.outputs.app_name }}")
+
           rm -f dist/*.apk
-          cp "$ANDROID_APK_STAGE_DIR"/*.apk dist/
+          cp "$ANDROID_APK_STAGE_DIR/arm64-v8a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-arm64-v8a.apk"
+          cp "$ANDROID_APK_STAGE_DIR/armeabi-v7a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-armeabi-v7a.apk"
+          cp "$ANDROID_APK_STAGE_DIR/universal.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-universal.apk"
           apk_count="$(find dist -maxdepth 1 -type f -name "*.apk" | wc -l | tr -d ' ')"
           if [ "$apk_count" != "3" ]; then
             echo "::error::Android APK 产物数量异常，预期 3 个，实际 $apk_count 个。"
@@ -654,6 +661,36 @@ jobs:
             echo "::error::未找到 source/dist 目录"
             exit 1
           fi
+
+          SAFE_APP_NAME=$(cd source && node --input-type=module -e '
+            const { toSafeWindowsName } = await import("./scripts/name-utils.mjs");
+            process.stdout.write(toSafeWindowsName(process.argv[1], "NexGen"));
+          ' -- "$APP_NAME")
+
+          normalize_nexgen_artifact_names() {
+            local file base normalized suffix
+            for file in source/dist/*.pkg source/dist/*.apk; do
+              [ -f "$file" ] || continue
+              base="$(basename "$file")"
+              case "$base" in
+                "${SAFE_APP_NAME}-${VERSION}-"*) continue ;;
+              esac
+              case "$base" in
+                *macos-amd64*.pkg) suffix="macos-amd64.pkg" ;;
+                *macos-arm64*.pkg) suffix="macos-arm64.pkg" ;;
+                *android-arm64-v8a*.apk|*arm64-v8a*.apk) suffix="android-arm64-v8a.apk" ;;
+                *android-armeabi-v7a*.apk|*armeabi-v7a*.apk) suffix="android-armeabi-v7a.apk" ;;
+                *android-universal*.apk|*universal*.apk) suffix="android-universal.apk" ;;
+                *) continue ;;
+              esac
+              normalized="source/dist/${SAFE_APP_NAME}-${VERSION}-${suffix}"
+              if [ "$file" != "$normalized" ]; then
+                echo "Renaming release artifact: $base -> $(basename "$normalized")"
+                mv -f "$file" "$normalized"
+              fi
+            done
+          }
+          normalize_nexgen_artifact_names
 
           artifact_list="$(mktemp)"
           find source/dist -maxdepth 1 -type f \( \
