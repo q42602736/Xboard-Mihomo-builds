@@ -721,9 +721,177 @@ jobs:
           done < "$artifact_list"
           rm -f "$artifact_list"
 
-  notify-build-complete:
+  # 从 Draft Release 汇总所有平台产物并回传合集包
+  merge-artifacts:
     runs-on: ubuntu-latest
     needs: [prepare-release, build]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    steps:
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+        run: |
+          mkdir -p ./dist
+
+          ASSETS_RESPONSE=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
+
+          printf '%s' "$ASSETS_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            const assets = (Array.isArray(data) ? data : [])
+              .filter(item => item && item.id && item.name && !String(item.name).endsWith('-bundle.zip'));
+            for (const asset of assets) {
+              process.stdout.write(String(asset.id) + '\t' + asset.name + '\n');
+            }
+          " | while IFS=$'\t' read -r asset_id asset_name; do
+            [ -n "$asset_id" ] || continue
+            echo "Downloading release asset: $asset_name"
+            curl -L -sS --fail \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/octet-stream" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/assets/${asset_id}" \
+              -o "./dist/${asset_name}"
+          done
+
+      - name: Check artifacts
+        id: check
+        run: |
+          if [ -d "./dist" ] && [ "$(ls -A ./dist 2>/dev/null)" ]; then
+            echo "has_artifacts=true" >> "$GITHUB_OUTPUT"
+            echo "Found artifacts:"
+            ls -la ./dist/
+
+            VERSION="${{ github.event.inputs.tag }}"
+            FIRST_FILE=$(find ./dist -type f \( -iname "*.apk" -o -iname "*.exe" -o -iname "*.msi" -o -iname "*.pkg" -o -iname "*.zip" \) ! -name "*-bundle.zip" | sort | head -1)
+            if [ -n "$FIRST_FILE" ]; then
+              FILENAME=$(basename "$FIRST_FILE")
+              PROFILE_NAME_SAFE=$(node -e '
+                const [filename, version] = process.argv.slice(1);
+                let name = String(filename || "");
+                const marker = version ? `-${version}-` : "";
+                const markerIndex = marker ? name.indexOf(marker) : -1;
+                if (markerIndex > 0) {
+                  name = name.slice(0, markerIndex);
+                } else {
+                  name = name.replace(/-.*/, "");
+                }
+                name = name.replace(/[^A-Za-z0-9_-]+/g, "");
+                process.stdout.write(name || "app");
+              ' "$FILENAME" "$VERSION")
+              echo "profile_name_safe=$PROFILE_NAME_SAFE" >> "$GITHUB_OUTPUT"
+              echo "Extracted safe bundle name: $PROFILE_NAME_SAFE"
+            else
+              echo "profile_name_safe=app" >> "$GITHUB_OUTPUT"
+              echo "No suitable file found, using default name"
+            fi
+          else
+            echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
+            echo "No artifacts found"
+          fi
+
+      - name: Generate sha256
+        if: steps.check.outputs.has_artifacts == 'true'
+        run: |
+          cd ./dist
+          find . -type f -not -name "*.sha256" -print0 | while IFS= read -r -d '' file; do
+            sha256sum "$file" > "${file}.sha256"
+          done
+
+      - name: Package merged bundle
+        if: steps.check.outputs.has_artifacts == 'true'
+        id: package
+        run: |
+          PROFILE_NAME_SAFE="${{ steps.check.outputs.profile_name_safe }}"
+          VERSION="${{ github.event.inputs.tag }}"
+          PACKAGE_NAME="${PROFILE_NAME_SAFE}-${VERSION}-bundle.zip"
+
+          mkdir -p ./release
+          cd ./dist
+          zip -r "../release/${PACKAGE_NAME}" . -x "*.DS_Store"
+
+          echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "package_path=./release/${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Created bundle: ./release/${PACKAGE_NAME}"
+
+      - name: Upload merged bundle to Draft Release
+        if: steps.check.outputs.has_artifacts == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+          RELEASE_UPLOAD_URL: ${{ needs.prepare-release.outputs.upload_url }}
+        run: |
+          PACKAGE_NAME="${{ steps.package.outputs.package_name }}"
+          ASSETS_RESPONSE=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
+          EXISTING_BUNDLE_ID=$(printf '%s' "$ASSETS_RESPONSE" | node -e "
+            const fs = require('fs');
+            const packageName = process.argv[1];
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            const asset = (Array.isArray(data) ? data : []).find(item => item && item.name === packageName);
+            process.stdout.write(asset ? String(asset.id) : '');
+          " "$PACKAGE_NAME")
+
+          if [ -n "$EXISTING_BUNDLE_ID" ]; then
+            echo "Deleting existing bundle asset: $PACKAGE_NAME"
+            curl -sS --fail -X DELETE -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/assets/${EXISTING_BUNDLE_ID}" > /dev/null
+          fi
+
+          cd ./release
+          FILESIZE=$(du -h "$PACKAGE_NAME" | cut -f1)
+          ENCODED_FILENAME=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$PACKAGE_NAME")
+
+          echo "Uploading merged bundle: $PACKAGE_NAME ($FILESIZE)"
+          UPLOAD_RESPONSE=$(curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/zip" \
+            -H "Expect:" \
+            --data-binary @"$PACKAGE_NAME" \
+            "${RELEASE_UPLOAD_URL}?name=${ENCODED_FILENAME}")
+
+          UPLOADED_ASSET_ID=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(data && data.id ? String(data.id) : '');
+          ")
+          UPLOADED_ASSET_NAME=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(data && data.name ? String(data.name) : '');
+          ")
+          UPLOADED_ASSET_STATE=$(printf '%s' "$UPLOAD_RESPONSE" | node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            process.stdout.write(data && data.state ? String(data.state) : '');
+          ")
+
+          if [ -z "$UPLOADED_ASSET_ID" ] || [ "$UPLOADED_ASSET_NAME" != "$PACKAGE_NAME" ] || [ "$UPLOADED_ASSET_STATE" != "uploaded" ]; then
+            echo "::error::Merged bundle upload verification failed: $PACKAGE_NAME"
+            echo "$UPLOAD_RESPONSE"
+            exit 1
+          fi
+
+          echo "Uploaded merged bundle verified: id=$UPLOADED_ASSET_ID state=$UPLOADED_ASSET_STATE name=$UPLOADED_ASSET_NAME"
+
+          echo "=== Release assets after merged bundle upload ==="
+          curl -sS --fail -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              const assets = Array.isArray(data) ? data : [];
+              for (const asset of assets) {
+                console.log([asset.id, asset.name, asset.state, asset.size].join('\t'));
+              }
+            "
+
+          echo "Draft release updated successfully!"
+          echo "View at: https://github.com/${{ github.repository }}/releases"
+
+  notify-build-complete:
+    runs-on: ubuntu-latest
+    needs: [prepare-release, build, merge-artifacts]
     if: ${{ always() }}
     steps:
       - name: Complete Build Record
@@ -736,15 +904,16 @@ jobs:
           RELEASE_TAG: ${{ needs.prepare-release.outputs.release_tag }}
           PREPARE_RESULT: ${{ needs.prepare-release.result }}
           BUILD_RESULT: ${{ needs.build.result }}
+          MERGE_RESULT: ${{ needs.merge-artifacts.result }}
         run: |
           if [ -z "$REQUEST_ID" ] || [ -z "$CONFIG_SERVER_URL" ] || [ -z "$CONFIG_SERVER_EVENT_TOKEN" ]; then
             echo "::error::缺少回写配置，无法同步打包完成状态。"
             exit 1
           fi
           CONCLUSION="success"
-          if [ "$PREPARE_RESULT" = "failure" ] || [ "$BUILD_RESULT" = "failure" ]; then
+          if [ "$PREPARE_RESULT" = "failure" ] || [ "$BUILD_RESULT" = "failure" ] || [ "$MERGE_RESULT" = "failure" ]; then
             CONCLUSION="failure"
-          elif [ "$PREPARE_RESULT" = "cancelled" ] || [ "$BUILD_RESULT" = "cancelled" ]; then
+          elif [ "$PREPARE_RESULT" = "cancelled" ] || [ "$BUILD_RESULT" = "cancelled" ] || [ "$MERGE_RESULT" = "cancelled" ]; then
             CONCLUSION="cancelled"
           fi
           CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/complete"
