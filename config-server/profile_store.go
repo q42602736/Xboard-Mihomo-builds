@@ -14,6 +14,7 @@ type StoredProfile struct {
 	Key         string `json:"key"`
 	DisplayName string `json:"display_name"`
 	LastUpdated string `json:"last_updated,omitempty"`
+	Exists      bool   `json:"exists"`
 }
 
 func profileFilePath(name string) (string, error) {
@@ -242,6 +243,7 @@ func (h *Handlers) createManualProfileForClient(client, displayName string) (Sto
 		Name:        key,
 		Key:         key,
 		DisplayName: displayName,
+		Exists:      true,
 	}, nil
 }
 
@@ -288,9 +290,46 @@ func (h *Handlers) listStoredProfilesForClient(client string) (map[string]Stored
 			Key:         name,
 			DisplayName: displayName,
 			LastUpdated: lastUpdated,
+			Exists:      true,
 		}
 	}
 	storedProfilesCache.set(client, cloneStoredProfileMap(profiles), profileListCacheTTL)
+	return profiles, nil
+}
+
+func (h *Handlers) listStoredProfileKeysForClient(client string) (map[string]StoredProfile, error) {
+	client = normalizeBuildClient(client)
+	if cached, ok := storedProfileKeysCache.get(client); ok {
+		return cloneStoredProfileMap(cached), nil
+	}
+
+	if err := h.ensureProfileBranchForClient(client); err != nil {
+		return nil, err
+	}
+	profileGH := h.profileGitHubClient(client)
+	items, err := profileGH.ListDirectory(profilesDir)
+	if err != nil {
+		if strings.Contains(err.Error(), "404") {
+			return map[string]StoredProfile{}, nil
+		}
+		return nil, err
+	}
+
+	profiles := make(map[string]StoredProfile)
+	for _, item := range items {
+		if item.Type != "file" || !strings.HasSuffix(item.Name, ".yaml") {
+			continue
+		}
+
+		name := strings.TrimSuffix(item.Name, ".yaml")
+		profiles[name] = StoredProfile{
+			Name:        name,
+			Key:         name,
+			DisplayName: name,
+			Exists:      true,
+		}
+	}
+	storedProfileKeysCache.set(client, cloneStoredProfileMap(profiles), profileListCacheTTL)
 	return profiles, nil
 }
 

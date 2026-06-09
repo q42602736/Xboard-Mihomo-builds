@@ -215,7 +215,10 @@ jobs:
               run_id: Number(process.env.RUN_ID || 0),
               run_url: process.env.RUN_URL || "",
               status: "in_progress",
-              release_tag: process.env.RELEASE_TAG || ""
+              release_tag: process.env.RELEASE_TAG || "",
+              progress_percent: 15,
+              progress_stage: "release",
+              progress_text: "GitHub Actions 已接收，正在准备 NexGen 构建环境"
             };
             process.stdout.write(JSON.stringify(payload));
           ')
@@ -273,6 +276,34 @@ jobs:
       matrix: ${{ fromJson(needs.resolve-build-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Report Build Started
+        env:
+          CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+          CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PLATFORM_LABEL: ${{ matrix.platform }}
+        shell: bash
+        run: |
+          CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/progress"
+          PAYLOAD=$(node -e '
+            const payload = {
+              request_id: process.env.REQUEST_ID,
+              run_id: Number(process.env.RUN_ID || 0),
+              run_url: process.env.RUN_URL || "",
+              status: "in_progress",
+              progress_percent: 35,
+              progress_stage: "build",
+              progress_text: `正在编译 NexGen ${process.env.PLATFORM_LABEL || "客户端"} 安装包`
+            };
+            process.stdout.write(JSON.stringify(payload));
+          ')
+          curl -fsS -X POST "$CALLBACK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+            -d "$PAYLOAD" || true
+
       - name: Checkout Build Scripts
         uses: actions/checkout@v4
         with:
@@ -671,7 +702,31 @@ jobs:
           APP_NAME: ${{ needs.prepare-release.outputs.app_name }}
           SAFE_APP_NAME: ${{ needs.prepare-release.outputs.safe_app_name }}
           VERSION: ${{ github.event.inputs.tag }}
+          CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+          CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PLATFORM_LABEL: ${{ matrix.platform }}
         run: |
+          CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/progress"
+          PAYLOAD=$(node -e '
+            const payload = {
+              request_id: process.env.REQUEST_ID,
+              run_id: Number(process.env.RUN_ID || 0),
+              run_url: process.env.RUN_URL || "",
+              status: "in_progress",
+              progress_percent: 75,
+              progress_stage: "upload",
+              progress_text: `正在上传 NexGen ${process.env.PLATFORM_LABEL || "客户端"} 构建产物`
+            };
+            process.stdout.write(JSON.stringify(payload));
+          ')
+          curl -fsS -X POST "$CALLBACK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+            -d "$PAYLOAD" || true
+
           if [ ! -d "source/dist" ]; then
             echo "::error::未找到 source/dist 目录"
             exit 1
@@ -776,6 +831,32 @@ jobs:
     needs: [prepare-release, build]
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     steps:
+      - name: Report Bundle Started
+        env:
+          CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+          CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/progress"
+          PAYLOAD=$(node -e '
+            const payload = {
+              request_id: process.env.REQUEST_ID,
+              run_id: Number(process.env.RUN_ID || 0),
+              run_url: process.env.RUN_URL || "",
+              status: "in_progress",
+              progress_percent: 85,
+              progress_stage: "bundle",
+              progress_text: "正在整理 NexGen 合集包并更新 Release 产物"
+            };
+            process.stdout.write(JSON.stringify(payload));
+          ')
+          curl -fsS -X POST "$CALLBACK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+            -d "$PAYLOAD" || true
+
       - name: Download release assets
         env:
           GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
@@ -1000,7 +1081,10 @@ jobs:
               run_url: process.env.RUN_URL || "",
               status: "completed",
               conclusion: process.env.CONCLUSION || "",
-              release_tag: process.env.RELEASE_TAG || ""
+              release_tag: process.env.RELEASE_TAG || "",
+              progress_percent: 100,
+              progress_stage: "completed",
+              progress_text: process.env.CONCLUSION === "success" ? "NexGen 打包完成，产物已上传" : "NexGen 打包已结束，请查看 GitHub Actions 日志"
             };
             process.stdout.write(JSON.stringify(payload));
           ')

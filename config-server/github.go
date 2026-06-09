@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -29,6 +32,7 @@ const (
 	githubReleaseCacheTTL            = 30 * time.Second
 	githubReleaseMissCacheTTL        = 8 * time.Second
 	githubCommitsCacheTTL            = 2 * time.Minute
+	githubRateLimitFallbackCooldown  = 2 * time.Minute
 )
 
 var (
@@ -39,7 +43,42 @@ var (
 	githubWorkflowJobsCache       keyedTTLCache[[]WorkflowJob]
 	githubReleaseCache            keyedTTLCache[releaseCacheValue]
 	githubCommitsCache            keyedTTLCache[[]CommitInfo]
+	githubBranchExistsCache       keyedTTLCache[bool]
+	githubLatestCommitTimeCache   keyedTTLCache[string]
 )
+
+type GitHubAPICallStat struct {
+	Key               string `json:"key"`
+	Method            string `json:"method"`
+	Path              string `json:"path"`
+	Status            int    `json:"status"`
+	Count             int64  `json:"count"`
+	LastAt            string `json:"last_at"`
+	LastAtUnix        int64  `json:"last_at_unix"`
+	LastAtUnixNano    int64  `json:"last_at_unix_nano"`
+	RateLimit         string `json:"rate_limit,omitempty"`
+	RateRemaining     string `json:"rate_remaining,omitempty"`
+	RateUsed          string `json:"rate_used,omitempty"`
+	RateReset         string `json:"rate_reset,omitempty"`
+	RateResetLocal    string `json:"rate_reset_local,omitempty"`
+	RateResource      string `json:"rate_resource,omitempty"`
+	LastError         string `json:"last_error,omitempty"`
+	LastRequestID     string `json:"last_request_id,omitempty"`
+	LastContentLength int64  `json:"last_content_length,omitempty"`
+}
+
+var githubAPICallStats = struct {
+	mu    sync.Mutex
+	items map[string]GitHubAPICallStat
+}{items: map[string]GitHubAPICallStat{}}
+
+var githubRateLimitCooldown = struct {
+	mu        sync.RWMutex
+	until     time.Time
+	message   string
+	resource  string
+	requestID string
+}{}
 
 type workflowRunCacheValue struct {
 	Run    *WorkflowRun
@@ -54,8 +93,121 @@ func githubReleaseCacheKey(buildOwner, buildRepo, tag string) string {
 	return fmt.Sprintf("%s/%s|%s", buildOwner, buildRepo, tag)
 }
 
+func githubLatestCommitTimeCacheKey(owner, repo, branch, filePath string) string {
+	return fmt.Sprintf("%s/%s|%s|%s", owner, repo, branch, filePath)
+}
+
 func NewGitHubClient(token, owner, repo, branch string) *GitHubClient {
 	return &GitHubClient{Token: token, Owner: owner, Repo: repo, Branch: branch}
+}
+
+func normalizeGitHubAPIStatPath(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	path := parsed.Path
+	if strings.TrimSpace(parsed.RawQuery) == "" {
+		return path
+	}
+
+	values, err := url.ParseQuery(parsed.RawQuery)
+	if err != nil {
+		return path
+	}
+	parts := make([]string, 0, len(values))
+	for key, value := range values {
+		if len(value) == 0 {
+			parts = append(parts, key)
+			continue
+		}
+		parts = append(parts, key+"="+strings.Join(value, ","))
+	}
+	sort.Strings(parts)
+	return path + "?" + strings.Join(parts, "&")
+}
+
+func recordGitHubAPICall(method, rawURL string, resp *http.Response, err error) {
+	now := time.Now()
+	path := normalizeGitHubAPIStatPath(rawURL)
+	status := 0
+	contentLength := int64(0)
+	rateLimit := ""
+	rateRemaining := ""
+	rateUsed := ""
+	rateReset := ""
+	rateResetLocal := ""
+	rateResource := ""
+	requestID := ""
+	if resp != nil {
+		status = resp.StatusCode
+		contentLength = resp.ContentLength
+		rateLimit = strings.TrimSpace(resp.Header.Get("X-RateLimit-Limit"))
+		rateRemaining = strings.TrimSpace(resp.Header.Get("X-RateLimit-Remaining"))
+		rateUsed = strings.TrimSpace(resp.Header.Get("X-RateLimit-Used"))
+		rateReset = strings.TrimSpace(resp.Header.Get("X-RateLimit-Reset"))
+		rateResource = strings.TrimSpace(resp.Header.Get("X-RateLimit-Resource"))
+		requestID = strings.TrimSpace(resp.Header.Get("X-GitHub-Request-Id"))
+		if resetUnix, parseErr := strconv.ParseInt(rateReset, 10, 64); parseErr == nil && resetUnix > 0 {
+			rateResetLocal = time.Unix(resetUnix, 0).Local().Format("2006-01-02 15:04:05 MST")
+		}
+	}
+	errorText := ""
+	if err != nil {
+		errorText = err.Error()
+	}
+
+	key := method + " " + path + " " + strconv.Itoa(status)
+	githubAPICallStats.mu.Lock()
+	item := githubAPICallStats.items[key]
+	item.Key = key
+	item.Method = method
+	item.Path = path
+	item.Status = status
+	item.Count++
+	item.LastAt = now.Local().Format("2006-01-02 15:04:05 MST")
+	item.LastAtUnix = now.Unix()
+	item.LastAtUnixNano = now.UnixNano()
+	item.RateLimit = rateLimit
+	item.RateRemaining = rateRemaining
+	item.RateUsed = rateUsed
+	item.RateReset = rateReset
+	item.RateResetLocal = rateResetLocal
+	item.RateResource = rateResource
+	item.LastError = errorText
+	item.LastRequestID = requestID
+	item.LastContentLength = contentLength
+	githubAPICallStats.items[key] = item
+	githubAPICallStats.mu.Unlock()
+
+	remainingValue, _ := strconv.Atoi(rateRemaining)
+	if err != nil || (rateRemaining != "" && remainingValue < 1000) || status >= 400 {
+		log.Printf("GitHub API 调用: method=%s path=%s status=%d remaining=%s used=%s reset=%s request_id=%s err=%s",
+			method, path, status, rateRemaining, rateUsed, rateResetLocal, requestID, errorText)
+	}
+
+	if resp != nil {
+		updateGitHubRateLimitCooldown(resp, errorText)
+	}
+}
+
+func snapshotGitHubAPICallStats() []GitHubAPICallStat {
+	githubAPICallStats.mu.Lock()
+	items := make([]GitHubAPICallStat, 0, len(githubAPICallStats.items))
+	for _, item := range githubAPICallStats.items {
+		items = append(items, item)
+	}
+	githubAPICallStats.mu.Unlock()
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Count == items[j].Count {
+			if items[i].LastAtUnixNano == items[j].LastAtUnixNano {
+				return items[i].Key < items[j].Key
+			}
+			return items[i].LastAtUnixNano > items[j].LastAtUnixNano
+		}
+		return items[i].Count > items[j].Count
+	})
+	return items
 }
 
 func (g *GitHubClient) apiURL(path string) string {
@@ -75,6 +227,10 @@ func escapeGitHubRefName(refName string) string {
 }
 
 func (g *GitHubClient) doRequest(method, url string, body interface{}) (*http.Response, error) {
+	if err := currentGitHubRateLimitCooldownError(); err != nil {
+		return nil, err
+	}
+
 	var bodyReader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -96,7 +252,9 @@ func (g *GitHubClient) doRequest(method, url string, body interface{}) (*http.Re
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	return http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
+	recordGitHubAPICall(method, url, resp, err)
+	return resp, err
 }
 
 func githubAPIError(resp *http.Response, respBody []byte, action string) error {
@@ -120,6 +278,59 @@ func githubAPIError(resp *http.Response, respBody []byte, action string) error {
 		bodyText = http.StatusText(resp.StatusCode)
 	}
 	return fmt.Errorf("%s (%d): %s", action, resp.StatusCode, bodyText)
+}
+
+func currentGitHubRateLimitCooldownError() error {
+	githubRateLimitCooldown.mu.RLock()
+	until := githubRateLimitCooldown.until
+	message := githubRateLimitCooldown.message
+	githubRateLimitCooldown.mu.RUnlock()
+
+	if until.IsZero() || time.Now().After(until) {
+		return nil
+	}
+	if message == "" {
+		message = "GitHub API 额度暂时不可用"
+	}
+	return fmt.Errorf("%s", message)
+}
+
+func updateGitHubRateLimitCooldown(resp *http.Response, errorText string) {
+	if resp == nil {
+		return
+	}
+
+	remaining := strings.TrimSpace(resp.Header.Get("X-RateLimit-Remaining"))
+	if remaining != "0" {
+		return
+	}
+	if resp.StatusCode != http.StatusForbidden && resp.StatusCode != http.StatusTooManyRequests && !strings.Contains(strings.ToLower(errorText), "rate limit") {
+		return
+	}
+
+	resetRaw := strings.TrimSpace(resp.Header.Get("X-RateLimit-Reset"))
+	resetAt := time.Now().Add(githubRateLimitFallbackCooldown)
+	if resetUnix, err := strconv.ParseInt(resetRaw, 10, 64); err == nil && resetUnix > 0 {
+		parsed := time.Unix(resetUnix, 0)
+		if parsed.After(time.Now()) {
+			resetAt = parsed
+		}
+	}
+
+	bodyMessage := githubRateLimitMessage(resp, errorText)
+	if bodyMessage == "" {
+		localText := resetAt.Local().Format("2006-01-02 15:04:05 MST")
+		bodyMessage = "GitHub API 额度已用完，预计 " + localText + " 恢复。请先暂停刷新或重复操作，等额度恢复后再加载。"
+	}
+
+	githubRateLimitCooldown.mu.Lock()
+	if resetAt.After(githubRateLimitCooldown.until) || githubRateLimitCooldown.message == "" {
+		githubRateLimitCooldown.until = resetAt
+		githubRateLimitCooldown.message = bodyMessage
+		githubRateLimitCooldown.resource = strings.TrimSpace(resp.Header.Get("X-RateLimit-Resource"))
+		githubRateLimitCooldown.requestID = strings.TrimSpace(resp.Header.Get("X-GitHub-Request-Id"))
+	}
+	githubRateLimitCooldown.mu.Unlock()
 }
 
 func githubRateLimitMessage(resp *http.Response, bodyText string) string {
@@ -191,6 +402,10 @@ type ghRefResponse struct {
 }
 
 func (g *GitHubClient) doRawGet(url string) ([]byte, error) {
+	if err := currentGitHubRateLimitCooldownError(); err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -201,6 +416,7 @@ func (g *GitHubClient) doRawGet(url string) ([]byte, error) {
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
 	resp, err := http.DefaultClient.Do(req)
+	recordGitHubAPICall("GET", url, resp, err)
 	if err != nil {
 		return nil, err
 	}
@@ -266,6 +482,11 @@ func (g *GitHubClient) EnsureBranchFromDefault() error {
 		return fmt.Errorf("目标分支不能为空")
 	}
 
+	cacheKey := fmt.Sprintf("%s/%s|%s", g.Owner, g.Repo, targetBranch)
+	if _, ok := githubBranchExistsCache.get(cacheKey); ok {
+		return nil
+	}
+
 	refURL := g.apiURL("git/ref/heads/" + escapeGitHubRefName(targetBranch))
 	resp, err := g.doRequest("GET", refURL, nil)
 	if err != nil {
@@ -273,6 +494,7 @@ func (g *GitHubClient) EnsureBranchFromDefault() error {
 	}
 	if resp.StatusCode == http.StatusOK {
 		resp.Body.Close()
+		githubBranchExistsCache.set(cacheKey, true, githubBranchesCacheTTL)
 		return nil
 	}
 	if resp.StatusCode != http.StatusNotFound {
@@ -335,6 +557,7 @@ func (g *GitHubClient) EnsureBranchFromDefault() error {
 		return githubAPIError(createResp, respBody, "创建分支失败")
 	}
 	githubBranchesCache.delete(fmt.Sprintf("%s/%s", g.Owner, g.Repo))
+	githubBranchExistsCache.set(cacheKey, true, githubBranchesCacheTTL)
 	return nil
 }
 
@@ -369,6 +592,7 @@ func (g *GitHubClient) SaveFile(path, content, sha, message string) (string, err
 		} `json:"content"`
 	}
 	json.NewDecoder(resp.Body).Decode(&result)
+	githubLatestCommitTimeCache.delete(githubLatestCommitTimeCacheKey(g.Owner, g.Repo, g.Branch, path))
 
 	return result.Content.SHA, nil
 }
@@ -392,6 +616,7 @@ func (g *GitHubClient) DeleteFile(path, sha, message string) error {
 		return githubAPIError(resp, respBody, "删除 GitHub 文件失败")
 	}
 
+	githubLatestCommitTimeCache.delete(githubLatestCommitTimeCacheKey(g.Owner, g.Repo, g.Branch, path))
 	return nil
 }
 
@@ -423,6 +648,11 @@ func (g *GitHubClient) ListDirectory(dirPath string) ([]GitHubContentItem, error
 }
 
 func (g *GitHubClient) GetLatestCommitTime(filePath string) (string, error) {
+	cacheKey := githubLatestCommitTimeCacheKey(g.Owner, g.Repo, g.Branch, filePath)
+	if cached, ok := githubLatestCommitTimeCache.get(cacheKey); ok {
+		return cached, nil
+	}
+
 	apiURL := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/commits?sha=%s&path=%s&per_page=1",
 		g.Owner,
@@ -452,14 +682,19 @@ func (g *GitHubClient) GetLatestCommitTime(filePath string) (string, error) {
 		return "", err
 	}
 	if len(commits) == 0 || commits[0].Commit.Committer.Date == "" {
+		githubLatestCommitTimeCache.set(cacheKey, "", githubCommitsCacheTTL)
 		return "", nil
 	}
 
 	t, err := time.Parse(time.RFC3339, commits[0].Commit.Committer.Date)
 	if err != nil {
-		return commits[0].Commit.Committer.Date, nil
+		value := commits[0].Commit.Committer.Date
+		githubLatestCommitTimeCache.set(cacheKey, value, githubCommitsCacheTTL)
+		return value, nil
 	}
-	return t.In(time.FixedZone("CST", 8*3600)).Format("2006/1/2 15:04:05"), nil
+	value := t.In(time.FixedZone("CST", 8*3600)).Format("2006/1/2 15:04:05")
+	githubLatestCommitTimeCache.set(cacheKey, value, githubCommitsCacheTTL)
+	return value, nil
 }
 
 // TriggerWorkflow 触发 GitHub Actions 工作流
@@ -624,40 +859,38 @@ func (g *GitHubClient) GetActiveWorkflowRuns(buildOwner, buildRepo, workflow str
 	}
 
 	activeStatuses := []string{"in_progress", "queued", "waiting", "pending", "requested"}
-	runMap := make(map[int64]WorkflowRun)
-
+	activeStatusSet := map[string]struct{}{}
 	for _, status := range activeStatuses {
-		url := fmt.Sprintf(
-			"https://api.github.com/repos/%s/%s/actions/workflows/%s/runs?status=%s&per_page=100&event=workflow_dispatch",
-			buildOwner, buildRepo, workflow, status,
-		)
-		resp, err := g.doRequest("GET", url, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
-			continue
-		}
-
-		var result struct {
-			WorkflowRuns []WorkflowRun `json:"workflow_runs"`
-		}
-		err = json.NewDecoder(resp.Body).Decode(&result)
-		resp.Body.Close()
-		if err != nil {
-			return nil, err
-		}
-
-		for _, run := range result.WorkflowRuns {
-			runMap[run.ID] = run
-		}
+		activeStatusSet[status] = struct{}{}
 	}
 
-	runs := make([]WorkflowRun, 0, len(runMap))
-	for _, run := range runMap {
-		runs = append(runs, run)
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/actions/workflows/%s/runs?per_page=100&event=workflow_dispatch",
+		buildOwner, buildRepo, workflow,
+	)
+	resp, err := g.doRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, githubAPIError(resp, respBody, "获取活动工作流运行失败")
+	}
+
+	var result struct {
+		WorkflowRuns []WorkflowRun `json:"workflow_runs"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	runs := make([]WorkflowRun, 0, len(result.WorkflowRuns))
+	for _, run := range result.WorkflowRuns {
+		if _, ok := activeStatusSet[run.Status]; ok {
+			runs = append(runs, run)
+		}
 	}
 	githubActiveWorkflowRunsCache.set(cacheKey, runs, githubActiveWorkflowRunsCacheTTL)
 	return runs, nil
@@ -977,6 +1210,10 @@ func (g *GitHubClient) DeleteReleaseByTag(buildOwner, buildRepo, tag string) err
 }
 
 func (g *GitHubClient) DownloadReleaseAsset(buildOwner, buildRepo string, assetID int64) (*http.Response, error) {
+	if err := currentGitHubRateLimitCooldownError(); err != nil {
+		return nil, err
+	}
+
 	url := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/releases/assets/%d",
 		buildOwner, buildRepo, assetID,
@@ -989,6 +1226,7 @@ func (g *GitHubClient) DownloadReleaseAsset(buildOwner, buildRepo string, assetI
 	req.Header.Set("Accept", "application/octet-stream")
 
 	resp, err := http.DefaultClient.Do(req)
+	recordGitHubAPICall("GET", url, resp, err)
 	if err != nil {
 		return nil, err
 	}

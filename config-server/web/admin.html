@@ -285,6 +285,31 @@
         .empty { color: #555; text-align: center; padding: 30px; }
         .log-action { font-weight: 500; color: #00d4ff; }
         .log-time { color: #666; font-size: 12px; }
+        .github-api-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin: 12px 0;
+        }
+        .github-api-card {
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.22);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .github-api-card-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+        .github-api-card-value { font-size: 18px; color: #00d4ff; font-weight: 700; word-break: break-all; }
+        .github-api-card-value.is-path { font-size: 12px; line-height: 1.45; font-family: Monaco, monospace; }
+        .github-api-table td,
+        .github-api-table th { vertical-align: top; }
+        .github-api-path {
+            max-width: 520px;
+            word-break: break-all;
+            color: #dbeafe;
+            font-family: Monaco, monospace;
+            font-size: 12px;
+        }
+        .github-api-muted { color: #777; font-size: 12px; }
         .custom-feature-group-item {
             padding: 14px 16px;
             border: 1px solid rgba(255,255,255,0.08);
@@ -772,6 +797,51 @@
                 <div style="margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.08);">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
                         <div>
+                            <div style="color:#00d4ff;font-size:14px;font-weight:600;">GitHub API 调用统计</div>
+                            <div style="font-size:12px;color:#666;margin-top:4px;">用于排查 GitHub API 额度快速下降。统计从服务启动后开始累计；额度只在明细行展示为“该接口最后一次调用时”的响应头快照，不代表当前实时总额度，也不记录 Token。</div>
+                        </div>
+                        <button class="btn btn-primary" type="button" onclick="loadGitHubApiStats()" style="padding:8px 14px;font-size:12px;">刷新统计</button>
+                    </div>
+                    <div id="githubApiStatsStatus" class="status-msg"></div>
+                    <div id="githubApiStatsSummary" class="github-api-summary">
+                        <div class="github-api-card">
+                            <div class="github-api-card-label">累计调用</div>
+                            <div class="github-api-card-value">-</div>
+                        </div>
+                        <div class="github-api-card">
+                            <div class="github-api-card-label">接口数量</div>
+                            <div class="github-api-card-value">-</div>
+                        </div>
+                        <div class="github-api-card">
+                            <div class="github-api-card-label">最近记录</div>
+                            <div class="github-api-card-value">-</div>
+                        </div>
+                        <div class="github-api-card">
+                            <div class="github-api-card-label">最高频接口</div>
+                            <div class="github-api-card-value is-path">-</div>
+                        </div>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="github-api-table">
+                            <thead>
+                                <tr>
+                                    <th>次数</th>
+                                    <th>方法</th>
+                                    <th>状态</th>
+                                    <th>GitHub API 路径</th>
+                                    <th>最近调用</th>
+                                    <th>额度快照</th>
+                                </tr>
+                            </thead>
+                            <tbody id="githubApiStatsTable">
+                                <tr><td colspan="6" class="empty">点击“刷新统计”查看调用明细</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div style="margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+                        <div>
                             <div style="color:#00d4ff;font-size:14px;font-weight:600;">自定义功能绑定</div>
                             <div style="font-size:12px;color:#666;margin-top:4px;">给“自定义功能1 / 2 / 3 ...”设置对接码，并勾选它能开启哪些具体功能。每个功能都可以单独勾选，后续继续新增也不影响现有对接码。</div>
                         </div>
@@ -998,7 +1068,10 @@
             document.getElementById(name + 'Tab').classList.add('active');
             event.target.classList.add('active');
             if (name === 'logs') loadLogs();
-            if (name === 'settings') loadSettings();
+            if (name === 'settings') {
+                loadSettings();
+                loadGitHubApiStats();
+            }
         }
 
         function copyCode(code) {
@@ -1243,7 +1316,7 @@
         }
 
         async function loadProfilesForClient(client) {
-            var response = await api('GET', '/profiles?client=' + encodeURIComponent(client));
+            var response = await api('GET', '/profiles?light=1&client=' + encodeURIComponent(client));
             if (!response) return [];
             var data = await response.json();
             if (!response.ok) {
@@ -2135,6 +2208,102 @@
             }
         }
 
+
+        function renderGitHubApiStatsSummary(items) {
+            var container = document.getElementById('githubApiStatsSummary');
+            if (!container) return;
+            items = Array.isArray(items) ? items : [];
+            var cards = container.querySelectorAll('.github-api-card-value');
+            var total = 0;
+            var latest = null;
+            var busiest = null;
+            items.forEach(function(item) {
+                var count = Number(item.count || 0);
+                total += count;
+                if (!latest || Number(item.last_at_unix_nano || item.last_at_unix || 0) > Number(latest.last_at_unix_nano || latest.last_at_unix || 0)) {
+                    latest = item;
+                }
+                if (!busiest || count > Number(busiest.count || 0)) {
+                    busiest = item;
+                }
+            });
+
+            var latestText = '-';
+            if (latest) {
+                latestText = latest.last_at || '-';
+            }
+
+            var busiestText = '-';
+            if (busiest) {
+                busiestText = (busiest.count || 0) + ' 次 · ' + [busiest.method || 'GET', busiest.path || ''].filter(Boolean).join(' ');
+            }
+            if (cards[0]) cards[0].textContent = total || '-';
+            if (cards[1]) cards[1].textContent = items.length || '-';
+            if (cards[2]) cards[2].textContent = latestText;
+            if (cards[3]) {
+                cards[3].textContent = busiestText;
+                cards[3].title = busiestText;
+            }
+        }
+
+        function renderGitHubApiStatsTable(items) {
+            var tbody = document.getElementById('githubApiStatsTable');
+            if (!tbody) return;
+            items = Array.isArray(items) ? items : [];
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无 GitHub API 调用记录。统计从服务启动后开始累计。</td></tr>';
+                return;
+            }
+            tbody.innerHTML = '';
+            items.slice(0, 80).forEach(function(item) {
+                var tr = document.createElement('tr');
+                var rateParts = [];
+                rateParts.push('剩余 ' + (item.rate_remaining || '-'));
+                rateParts.push('已用 ' + (item.rate_used || '-'));
+                if (item.rate_limit) {
+                    rateParts.push('上限 ' + item.rate_limit);
+                }
+                var rateText = rateParts.join(' / ');
+                var pathHtml = '<div class="github-api-path">' + escapeHtml(item.path || '-') + '</div>';
+                if (item.last_request_id) {
+                    pathHtml += '<div class="github-api-muted">Request ID: ' + escapeHtml(item.last_request_id) + '</div>';
+                }
+                if (item.last_error) {
+                    pathHtml += '<div style="color:#ff6b6b;font-size:12px;margin-top:4px;">' + escapeHtml(item.last_error) + '</div>';
+                }
+                tr.innerHTML =
+                    '<td>' + (item.count || 0) + '</td>' +
+                    '<td>' + escapeHtml(item.method || '-') + '</td>' +
+                    '<td>' + (item.status || 0) + '</td>' +
+                    '<td>' + pathHtml + '</td>' +
+                    '<td><div>' + escapeHtml(item.last_at || '-') + '</div><div class="github-api-muted">' + escapeHtml(item.rate_resource || '') + '</div></td>' +
+                    '<td><div>' + escapeHtml(rateText) + '</div><div class="github-api-muted">该接口最后调用时 · 恢复：' + escapeHtml(item.rate_reset_local || item.rate_reset || '-') + '</div></td>';
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadGitHubApiStats() {
+            var statusEl = document.getElementById('githubApiStatsStatus');
+            if (statusEl) {
+                statusEl.className = 'status-msg';
+                statusEl.textContent = '';
+            }
+            try {
+                var response = await api('GET', '/admin/github/api-stats');
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '加载 GitHub API 统计失败');
+                }
+                renderGitHubApiStatsSummary(data.items || []);
+                renderGitHubApiStatsTable(data.items || []);
+            } catch (e) {
+                if (statusEl) {
+                    statusEl.className = 'status-msg error';
+                    statusEl.textContent = '加载 GitHub API 统计失败: ' + e.message;
+                }
+            }
+        }
 
         async function loadSettings() {
             var statusEl = document.getElementById('settingsStatus');

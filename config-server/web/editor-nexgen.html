@@ -1381,10 +1381,47 @@
             font-size: 12px;
             color: #666;
         }
+        .build-progress-meter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: -2px 0 12px;
+        }
+        .build-progress-track {
+            position: relative;
+            flex: 1;
+            height: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+        }
+        .build-progress-bar {
+            width: 0%;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            transition: width 0.35s ease;
+        }
+        .build-progress-percent {
+            min-width: 46px;
+            text-align: right;
+            font-size: 12px;
+            color: #00d4ff;
+            font-weight: 700;
+        }
         .build-jobs-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 8px;
+            display: block;
+            min-height: 0;
+        }
+        .build-progress-note {
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(0,212,255,0.08);
+            border: 1px solid rgba(0,212,255,0.14);
+            color: #9fb5c8;
+            font-size: 12px;
+            line-height: 1.5;
         }
         .build-job-item {
             padding: 10px 12px;
@@ -3831,6 +3868,12 @@
                             <span id="buildProgressText">查询中...</span>
                             <span id="buildProgressTime" class="build-progress-time"></span>
                         </div>
+                        <div class="build-progress-meter">
+                            <div class="build-progress-track">
+                                <div id="buildProgressBar" class="build-progress-bar"></div>
+                            </div>
+                            <span id="buildProgressPercent" class="build-progress-percent">0%</span>
+                        </div>
                         <div id="buildJobsList" class="build-jobs-list"></div>
                     </div>
                     <div class="page-footer">
@@ -5389,6 +5432,26 @@
             return null;
         }
 
+        function upsertProfileMetadataFromLoad(key, data) {
+            key = String(key || '').trim();
+            if (!key || !data) return;
+            var profile = findProfileByKey(key);
+            if (!profile) {
+                profile = { name: key, key: key };
+                profilesCache.push(profile);
+            }
+            if (data.display_name) {
+                profile.display_name = data.display_name;
+            }
+            if (data.last_updated) {
+                profile.last_updated = data.last_updated;
+            }
+            profile.exists = !data.is_new;
+            renderProfileSelect();
+            document.getElementById('profileSelect').value = key;
+            syncAllCustomSelects(document.getElementById('profileSelect'));
+        }
+
         function getSelectedProfileKey() {
             return String(document.getElementById('profileSelect').value || '').trim();
         }
@@ -5705,7 +5768,7 @@
 	                var key = getProfileKey(p);
 	                var option = document.createElement('option');
 	                option.value = key;
-	                option.textContent = formatProfileOptionLabel(p) + (p.last_updated ? ' (' + p.last_updated + ')' : ' (未创建)');
+	                option.textContent = formatProfileOptionLabel(p) + (p.exists === false ? ' (未创建)' : (p.last_updated ? ' (' + p.last_updated + ')' : ''));
 	                select.appendChild(option);
 	            });
             if (currentValue) {
@@ -5730,6 +5793,7 @@
                     throw new Error(err.error || '加载失败');
                 }
                 var data = await response.json();
+                upsertProfileMetadataFromLoad(name, data);
                 if (data.is_new || !data.yaml_content) {
                     currentProfileBaseYaml = getDefaultYamlTemplate();
                     document.getElementById('editor').value = currentProfileBaseYaml;
@@ -6471,7 +6535,8 @@
                 requestId: record.request_id || String(record.id),
                 buildRecordId: record.id,
                 status: record.status || '',
-                conclusion: record.conclusion || ''
+                conclusion: record.conclusion || '',
+                lastGitHubSyncAt: 0
             };
         }
 
@@ -6500,6 +6565,10 @@
                 run_url: record.run_url || '',
                 status: record.status || '',
                 conclusion: record.conclusion || '',
+                progress: record.progress_percent || record.progress || 0,
+                progress_percent: record.progress_percent || record.progress || 0,
+                progress_text: record.progress_text || '',
+                progress_stage: record.progress_stage || '',
                 created_at: record.created_at || '',
                 updated_at: record.updated_at || '',
                 inputs: {
@@ -8533,6 +8602,7 @@
         var buildCancelInFlightRecordId = 0;
         var buildNotFoundCount = 0;
         var maxNotFoundRetries = 12;
+        var buildStatusGitHubSyncIntervalMs = 3 * 60 * 1000;
 
         function getBuildPollKey() {
             var session = getSession();
@@ -8555,7 +8625,8 @@
                     requestId: '',
                     buildRecordId: 0,
                     status: '',
-                    conclusion: ''
+                    conclusion: '',
+                    lastGitHubSyncAt: 0
                 };
             }
             if (!context.profile) return null;
@@ -8568,7 +8639,8 @@
                 requestId: context.requestId || context.request_id || '',
                 buildRecordId: context.buildRecordId || context.build_record_id || 0,
                 status: context.status || '',
-                conclusion: context.conclusion || ''
+                conclusion: context.conclusion || '',
+                lastGitHubSyncAt: Number(context.lastGitHubSyncAt || context.last_github_sync_at || 0)
             };
         }
 
@@ -8689,6 +8761,9 @@
             if (!normalized) return;
 
             stopBuildPolling();
+            if (!normalized.lastGitHubSyncAt) {
+                normalized.lastGitHubSyncAt = Date.now();
+            }
             buildPollContext = normalized;
             buildNotFoundCount = 0;
             saveBuildingProfile(normalized);
@@ -8739,9 +8814,19 @@
                 if (buildPollContext.buildRecordId) {
                     query += '&record_id=' + encodeURIComponent(buildPollContext.buildRecordId);
                 }
+                var now = Date.now();
+                var shouldSyncWithGitHub = buildPollContext.buildRecordId && (!buildPollContext.lastGitHubSyncAt || now - buildPollContext.lastGitHubSyncAt >= buildStatusGitHubSyncIntervalMs);
+                if (shouldSyncWithGitHub) {
+                    query += '&sync=1';
+                    buildPollContext.lastGitHubSyncAt = now;
+                    saveBuildingProfile(buildPollContext);
+                }
                 var response = await api('GET', query);
                 if (!response) return;
                 var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '查询构建状态失败');
+                }
                 if (data.request_id && buildPollContext.requestId !== data.request_id) {
                     buildPollContext.requestId = data.request_id;
                     saveBuildingProfile(buildPollContext);
@@ -8862,6 +8947,37 @@
             return '已运行 ' + secs + '秒';
         }
 
+        function normalizeBuildProgressPercent(data) {
+            var value = data && (data.progress_percent !== undefined ? data.progress_percent : data.progress);
+            value = Number(value || 0);
+            if (!isFinite(value)) value = 0;
+            if (data && data.status === 'completed') value = 100;
+            if (value < 0) value = 0;
+            if (value > 100) value = 100;
+            return Math.round(value);
+        }
+
+        function updateBuildProgressMeter(percent) {
+            var bar = document.getElementById('buildProgressBar');
+            var label = document.getElementById('buildProgressPercent');
+            if (bar) bar.style.width = percent + '%';
+            if (label) label.textContent = percent + '%';
+        }
+
+        function buildProgressNoteHtml(data) {
+            if (!data || !data.found) return '';
+            var details = [];
+            if (data.last_sync_at) details.push('最后更新：' + escapeHtml(formatClientUpdateTime(data.last_sync_at)));
+            var note = '打包任务正在处理中，请保持页面打开或稍后回来查看。';
+            if (!isBuildTerminalStatus(data.status)) {
+                note += ' 状态更新可能会有短暂延迟。';
+            }
+            if (details.length > 0) {
+                note += '<br>' + details.join(' · ');
+            }
+            return '<div class="build-progress-note">' + note + '</div>';
+        }
+
         function getStepIcon(status, conclusion) {
             if (status === 'completed') {
                 if (conclusion === 'success') return '✓';
@@ -8901,13 +9017,14 @@
             if (!data.found) {
                 document.getElementById('buildProgressIcon').className = 'build-progress-status-icon queued';
                 document.getElementById('buildProgressText').textContent = '未找到对应打包记录';
+                updateBuildProgressMeter(normalizeBuildProgressPercent(data));
                 var waitingDetails = [];
                 if (data.record_id || (buildPollContext && buildPollContext.buildRecordId)) waitingDetails.push('记录ID: ' + (data.record_id || buildPollContext.buildRecordId));
                 if (data.request_id || (buildPollContext && buildPollContext.requestId)) waitingDetails.push('请求ID: ' + (data.request_id || buildPollContext.requestId));
                 if (data.record_status) waitingDetails.push('记录状态: ' + data.record_status);
                 if (data.pending_detected) waitingDetails.push('已恢复排队上下文');
                 document.getElementById('buildProgressTime').textContent = waitingDetails.join(' · ');
-                jobsListEl.innerHTML = '';
+                jobsListEl.innerHTML = data.progress_text ? '<div class="build-progress-note">' + escapeHtml(data.progress_text) + '</div>' : '';
                 updateBuildProgressCancelAction({
                     record_id: data.record_id || (buildPollContext && buildPollContext.buildRecordId),
                     status: data.record_status || 'dispatching'
@@ -8917,9 +9034,11 @@
 
             var statusClass = getStatusClass(data.status, data.conclusion);
             var statusText = getStatusText(data.status, data.conclusion);
+            var progressPercent = normalizeBuildProgressPercent(data);
 
             document.getElementById('buildProgressIcon').className = 'build-progress-status-icon ' + statusClass;
-            document.getElementById('buildProgressText').textContent = statusText;
+            document.getElementById('buildProgressText').textContent = data.progress_text || statusText;
+            updateBuildProgressMeter(progressPercent);
             updateBuildProgressCancelAction(data);
 
             if (!isBuildTerminalStatus(data.status)) {
@@ -8928,54 +9047,7 @@
                 document.getElementById('buildProgressTime').textContent = '';
             }
 
-            var jobsHtml = '';
-            var hasIncomingJobs = !!(data.jobs && data.jobs.length > 0);
-            if (hasIncomingJobs) {
-                data.jobs.forEach(function(job) {
-                    var jobClass = getStatusClass(job.status, job.conclusion);
-                    var jobIcon = getStatusIcon(job.status, job.conclusion);
-                    var jobName = job.name.replace(/^build\s*\(/, '').replace(/\)$/, '');
-
-                    var currentStep = getCurrentStepName(job.steps);
-                    var stepHint = '';
-                    if (job.status === 'in_progress' && currentStep) {
-                        stepHint = '<span class="build-job-step-hint">' + currentStep + '</span>';
-                    } else if (job.status === 'completed' && job.conclusion === 'success') {
-                        stepHint = '<span class="build-job-step-hint">已完成</span>';
-                    } else if (job.status === 'completed' && job.conclusion === 'failure') {
-                        stepHint = '<span class="build-job-step-hint">失败</span>';
-                    }
-
-                    jobsHtml += '<div class="build-job-item ' + jobClass + '">';
-                    jobsHtml += '<div class="build-job-header">';
-                    jobsHtml += '<span class="build-job-icon">' + jobIcon + '</span>';
-                    jobsHtml += '<span class="build-job-name">' + jobName + '</span>';
-                    jobsHtml += stepHint;
-                    jobsHtml += '</div>';
-
-                    // 对正在运行或失败的 job 展示 steps 详情
-                    if (job.steps && job.steps.length > 0 && (job.status === 'in_progress' || (job.status === 'completed' && job.conclusion === 'failure'))) {
-                        jobsHtml += '<div class="build-job-steps">';
-                        job.steps.forEach(function(step) {
-                            if (step.name === 'Set up job' || step.name === 'Post Setup SSH' || step.name === 'Complete job') return;
-                            var stepClass = getStepClass(step.status, step.conclusion);
-                            var stepIcon = getStepIcon(step.status, step.conclusion);
-                            jobsHtml += '<div class="build-step-item ' + stepClass + '">';
-                            jobsHtml += '<span class="build-step-icon">' + stepIcon + '</span>';
-                            jobsHtml += '<span>' + step.name + '</span>';
-                            jobsHtml += '</div>';
-                        });
-                        jobsHtml += '</div>';
-                    }
-
-                    jobsHtml += '</div>';
-                });
-            }
-
-            // GitHub 轮询偶发拿不到 jobs 时，保留上一帧进度，避免界面闪烁消失。
-            if (hasIncomingJobs || isBuildTerminalStatus(data.status) || !jobsListEl.innerHTML.trim()) {
-                jobsListEl.innerHTML = jobsHtml;
-            }
+            jobsListEl.innerHTML = buildProgressNoteHtml(data);
         }
 
         // 页面加载时恢复构建进度追踪

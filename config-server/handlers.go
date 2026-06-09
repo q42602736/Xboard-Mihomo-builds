@@ -30,14 +30,16 @@ const buildAssetDownloadLinkTTL = 10 * time.Minute
 var buildRequestIDPattern = regexp.MustCompile(`BR-[0-9a-fA-F]{24}`)
 
 const (
-	profileListCacheTTL       = 90 * time.Second
-	buildQueueSnapshotTTL     = 15 * time.Second
-	buildStatusActiveCacheTTL = 8 * time.Second
-	buildStatusDoneCacheTTL   = 2 * time.Minute
+	profileListCacheTTL              = 5 * time.Minute
+	buildQueueSnapshotTTL            = 15 * time.Second
+	buildStatusActiveCacheTTL        = 8 * time.Second
+	buildStatusDoneCacheTTL          = 2 * time.Minute
+	buildStatusGitHubSyncMinInterval = 3 * time.Minute
 )
 
 var (
 	storedProfilesCache     keyedTTLCache[map[string]StoredProfile]
+	storedProfileKeysCache  keyedTTLCache[map[string]StoredProfile]
 	buildQueueSnapshotCache keyedTTLCache[BuildQueueSnapshot]
 	buildStatusCache        keyedTTLCache[map[string]interface{}]
 	buildCacheMu            sync.Mutex
@@ -56,10 +58,13 @@ func cloneInterfaceMap(src map[string]interface{}) map[string]interface{} {
 
 func invalidateProfileCache() {
 	storedProfilesCache.clear()
+	storedProfileKeysCache.clear()
 }
 
 func invalidateProfileCacheForClient(client string) {
-	storedProfilesCache.delete(normalizeBuildClient(client))
+	client = normalizeBuildClient(client)
+	storedProfilesCache.delete(client)
+	storedProfileKeysCache.delete(client)
 }
 
 func invalidateBuildCachesForRecord(record *BuildRecord) {
@@ -669,7 +674,19 @@ func (h *Handlers) ListProfiles(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, message, 403)
 		return
 	}
-	profiles, err := h.listStoredProfilesForClient(client)
+
+	loadKeysOnly := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("light")), "1") ||
+		strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("summary")), "keys")
+	loadFullProfiles := claims.Permissions == "admin" && !loadKeysOnly
+	var profiles map[string]StoredProfile
+	var err error
+	if loadFullProfiles {
+		profiles, err = h.listStoredProfilesForClient(client)
+	} else if len(claims.AllowedProfiles) > 0 {
+		profiles = map[string]StoredProfile{}
+	} else {
+		profiles, err = h.listStoredProfileKeysForClient(client)
+	}
 	if err != nil {
 		jsonError(w, "加载档案列表失败: "+err.Error(), 500)
 		return
@@ -677,7 +694,7 @@ func (h *Handlers) ListProfiles(w http.ResponseWriter, r *http.Request) {
 
 	list := []StoredProfile{}
 
-	if claims.Permissions == "admin" || len(claims.AllowedProfiles) == 0 {
+	if loadFullProfiles || len(claims.AllowedProfiles) == 0 {
 		names := make([]string, 0, len(profiles))
 		for name := range profiles {
 			names = append(names, name)
@@ -700,6 +717,7 @@ func (h *Handlers) ListProfiles(w http.ResponseWriter, r *http.Request) {
 				Name:        name,
 				Key:         name,
 				DisplayName: name,
+				Exists:      true,
 			})
 		}
 	}
@@ -909,6 +927,7 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 			Name:        name,
 			Key:         name,
 			DisplayName: displayName,
+			Exists:      true,
 		},
 	})
 }
@@ -956,7 +975,7 @@ func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 const maxConcurrentBuildJobs = 20
 const maxConcurrentMacOSBuildJobs = 5
 
-const recentWorkflowRunsSearchLimit = 100
+const recentWorkflowRunsSearchLimit = 30
 const fastWorkflowRunsSearchLimit = 20
 
 const (
@@ -1881,29 +1900,33 @@ func canAccessBuildRecord(claims *Claims, record *BuildRecord) bool {
 func buildRecordResponse(record BuildRecord) map[string]interface{} {
 	releaseTag := buildReleaseTag(&record)
 	return map[string]interface{}{
-		"id":             record.ID,
-		"code_id":        record.CodeID,
-		"code_name":      record.CodeName,
-		"request_id":     buildRecordRequestID(&record),
-		"client":         normalizeBuildClient(record.Client),
-		"client_label":   buildClientLabel(record.Client),
-		"profile":        record.Profile,
-		"tag":            record.Tag,
-		"branch":         record.Branch,
-		"core":           normalizeBuildCore(record.Core),
-		"platforms":      record.Platforms,
-		"run_id":         record.RunID,
-		"run_url":        record.RunURL,
-		"status":         record.Status,
-		"conclusion":     record.Conclusion,
-		"status_source":  record.StatusSource,
-		"bound_at":       record.BoundAt,
-		"finished_at":    record.FinishedAt,
-		"last_sync_at":   record.LastSyncAt,
-		"created_at":     record.CreatedAt,
-		"updated_at":     record.UpdatedAt,
-		"release_tag":    releaseTag,
-		"download_ready": releaseTag != "" && record.Status == "completed" && record.Conclusion == "success",
+		"id":               record.ID,
+		"code_id":          record.CodeID,
+		"code_name":        record.CodeName,
+		"request_id":       buildRecordRequestID(&record),
+		"client":           normalizeBuildClient(record.Client),
+		"client_label":     buildClientLabel(record.Client),
+		"profile":          record.Profile,
+		"tag":              record.Tag,
+		"branch":           record.Branch,
+		"core":             normalizeBuildCore(record.Core),
+		"platforms":        record.Platforms,
+		"run_id":           record.RunID,
+		"run_url":          record.RunURL,
+		"status":           record.Status,
+		"conclusion":       record.Conclusion,
+		"status_source":    record.StatusSource,
+		"progress":         normalizeBuildProgress(&record),
+		"progress_percent": normalizeBuildProgress(&record),
+		"progress_text":    record.ProgressText,
+		"progress_stage":   record.ProgressStage,
+		"bound_at":         record.BoundAt,
+		"finished_at":      record.FinishedAt,
+		"last_sync_at":     record.LastSyncAt,
+		"created_at":       record.CreatedAt,
+		"updated_at":       record.UpdatedAt,
+		"release_tag":      releaseTag,
+		"download_ready":   releaseTag != "" && record.Status == "completed" && record.Conclusion == "success",
 	}
 }
 
@@ -1927,22 +1950,26 @@ func buildStatusResponseFromRecord(record *BuildRecord) map[string]interface{} {
 		return map[string]interface{}{"found": false}
 	}
 	return map[string]interface{}{
-		"found":         true,
-		"record_id":     record.ID,
-		"run_id":        record.RunID,
-		"run_url":       record.RunURL,
-		"status":        record.Status,
-		"conclusion":    record.Conclusion,
-		"status_source": record.StatusSource,
-		"bound_at":      record.BoundAt,
-		"finished_at":   record.FinishedAt,
-		"last_sync_at":  record.LastSyncAt,
-		"created_at":    record.CreatedAt,
-		"updated_at":    record.UpdatedAt,
-		"release_tag":   buildReleaseTag(record),
-		"request_id":    buildRecordRequestID(record),
-		"client":        normalizeBuildClient(record.Client),
-		"inputs":        buildRecordInputs(record),
+		"found":            true,
+		"record_id":        record.ID,
+		"run_id":           record.RunID,
+		"run_url":          record.RunURL,
+		"status":           record.Status,
+		"conclusion":       record.Conclusion,
+		"status_source":    record.StatusSource,
+		"bound_at":         record.BoundAt,
+		"finished_at":      record.FinishedAt,
+		"last_sync_at":     record.LastSyncAt,
+		"progress":         normalizeBuildProgress(record),
+		"progress_percent": normalizeBuildProgress(record),
+		"progress_text":    record.ProgressText,
+		"progress_stage":   record.ProgressStage,
+		"created_at":       record.CreatedAt,
+		"updated_at":       record.UpdatedAt,
+		"release_tag":      buildReleaseTag(record),
+		"request_id":       buildRecordRequestID(record),
+		"client":           normalizeBuildClient(record.Client),
+		"inputs":           buildRecordInputs(record),
 	}
 }
 
@@ -1954,6 +1981,148 @@ func shouldUseLocalBuildStatus(record *BuildRecord) bool {
 		return true
 	}
 	return record.Status == "completed" && record.Conclusion != ""
+}
+
+func shouldSyncBuildStatusWithGitHub(r *http.Request, record *BuildRecord) bool {
+	if record == nil {
+		return true
+	}
+	if shouldUseLocalBuildStatus(record) {
+		return false
+	}
+	query := r.URL.Query()
+	forceSync := strings.EqualFold(strings.TrimSpace(query.Get("sync")), "1") ||
+		strings.EqualFold(strings.TrimSpace(query.Get("force_sync")), "1")
+	if !forceSync && record.RunID > 0 {
+		return false
+	}
+	if record.LastSyncAt == "" {
+		return forceSync
+	}
+	lastSyncAt, ok := parseDBTimestamp(record.LastSyncAt)
+	if !ok {
+		return forceSync
+	}
+	return forceSync && time.Since(lastSyncAt) >= buildStatusGitHubSyncMinInterval
+}
+
+func isBuildStatusSyncRequested(r *http.Request) bool {
+	query := r.URL.Query()
+	return strings.EqualFold(strings.TrimSpace(query.Get("sync")), "1") ||
+		strings.EqualFold(strings.TrimSpace(query.Get("force_sync")), "1")
+}
+
+func buildStatusNextSyncAt(record *BuildRecord) string {
+	if record == nil || record.LastSyncAt == "" {
+		return ""
+	}
+	lastSyncAt, ok := parseDBTimestamp(record.LastSyncAt)
+	if !ok {
+		return ""
+	}
+	return lastSyncAt.Add(buildStatusGitHubSyncMinInterval).Local().Format("2006-01-02 15:04:05 MST")
+}
+
+func applyBuildStatusSyncHints(result map[string]interface{}, record *BuildRecord, syncRequested, syncWithGitHub bool) {
+	if result == nil || record == nil {
+		return
+	}
+	result["github_sync_interval_seconds"] = int(buildStatusGitHubSyncMinInterval.Seconds())
+	if !syncRequested {
+		result["local_status"] = true
+		return
+	}
+	result["sync_requested"] = true
+	if syncWithGitHub {
+		result["sync_skipped"] = false
+		return
+	}
+	result["sync_skipped"] = true
+	if nextSyncAt := buildStatusNextSyncAt(record); nextSyncAt != "" {
+		result["sync_available_at"] = nextSyncAt
+	}
+}
+
+func shouldIncludeBuildJobs(r *http.Request) bool {
+	return strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("include_jobs")), "1")
+}
+
+func normalizeBuildProgress(record *BuildRecord) int {
+	if record == nil {
+		return 0
+	}
+	progress := record.Progress
+	if progress < 0 {
+		progress = 0
+	}
+	if record.Status == "completed" {
+		progress = 100
+	}
+	if record.Status == "cancel_requested" && progress < 90 {
+		progress = 90
+	}
+	if progress > 100 {
+		progress = 100
+	}
+	return progress
+}
+
+func buildProgressForEvent(status, conclusion string, progress int, progressText, progressStage string) (int, string, string) {
+	status = strings.TrimSpace(status)
+	conclusion = strings.TrimSpace(conclusion)
+	progressText = strings.TrimSpace(progressText)
+	progressStage = strings.TrimSpace(progressStage)
+	if progress < 0 {
+		progress = -1
+	}
+	if status == "completed" {
+		progress = 100
+		if progressStage == "" {
+			progressStage = "completed"
+		}
+		if progressText == "" {
+			if conclusion == "success" {
+				progressText = "打包完成，产物已上传"
+			} else if conclusion != "" {
+				progressText = "打包已结束：" + conclusion
+			} else {
+				progressText = "打包已结束"
+			}
+		}
+		return progress, progressText, progressStage
+	}
+	if progress < 0 {
+		switch status {
+		case "dispatching":
+			progress = 5
+		case "queued", "waiting", "pending", "requested":
+			progress = 12
+		case "in_progress":
+			progress = 30
+		case "cancel_requested":
+			progress = 90
+		default:
+			progress = 10
+		}
+	}
+	if progressText == "" {
+		switch status {
+		case "dispatching":
+			progressText = "已提交打包请求，等待 GitHub Actions 接收"
+		case "queued", "waiting", "pending", "requested":
+			progressText = "已进入 GitHub Actions 队列"
+		case "in_progress":
+			progressText = "正在打包，请稍候"
+		case "cancel_requested":
+			progressText = "正在停止打包"
+		default:
+			progressText = "正在处理打包任务"
+		}
+	}
+	if progressStage == "" {
+		progressStage = status
+	}
+	return progress, progressText, progressStage
 }
 
 func buildPendingMatchesRecordTime(record *BuildRecord, pending PendingBuild) bool {
@@ -2037,15 +2206,21 @@ func (h *Handlers) findWorkflowRunByRequestIDForClient(client, requestID string,
 				continue
 			}
 			if extracted := extractBuildRequestIDFromText(run.Name); extracted == requestID {
-				inputs, _ := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+				inputs := map[string]string{"request_id": requestID}
 				return run, inputs, nil
 			}
-			inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
-			if err != nil {
+			if extractBuildRequestIDFromText(run.Name) != "" {
 				continue
 			}
-			if strings.TrimSpace(inputs["request_id"]) == requestID {
-				return run, inputs, nil
+			// 新工作流 run-name 已包含 request_id；没有标记的旧完成记录不再逐个翻详情，避免快速耗尽 GitHub API 额度。
+			if index == 0 && isActiveWorkflowStatus(run.Status) {
+				inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+				if err != nil {
+					continue
+				}
+				if strings.TrimSpace(inputs["request_id"]) == requestID {
+					return run, inputs, nil
+				}
 			}
 		}
 	}
@@ -2101,6 +2276,36 @@ func workflowRunConclusion(run *WorkflowRun) string {
 	return *run.Conclusion
 }
 
+func buildWorkflowJobStatusList(jobs []WorkflowJob) []map[string]interface{} {
+	jobList := []map[string]interface{}{}
+	for _, job := range jobs {
+		jobConclusion := ""
+		if job.Conclusion != nil {
+			jobConclusion = *job.Conclusion
+		}
+		stepList := []map[string]interface{}{}
+		for _, step := range job.Steps {
+			stepConclusion := ""
+			if step.Conclusion != nil {
+				stepConclusion = *step.Conclusion
+			}
+			stepList = append(stepList, map[string]interface{}{
+				"name":       step.Name,
+				"status":     step.Status,
+				"conclusion": stepConclusion,
+				"number":     step.Number,
+			})
+		}
+		jobList = append(jobList, map[string]interface{}{
+			"name":       job.Name,
+			"status":     job.Status,
+			"conclusion": jobConclusion,
+			"steps":      stepList,
+		})
+	}
+	return jobList
+}
+
 func isWorkflowRunCompleted(run *WorkflowRun) bool {
 	return run != nil && run.Status == "completed"
 }
@@ -2145,11 +2350,16 @@ func (h *Handlers) applyWorkflowRunToBuildRecord(record *BuildRecord, run *Workf
 		runURL = buildWorkflowRunURL(run.ID)
 	}
 	releaseTag := buildReleaseTag(record)
-	if err := updateBuildRecordStatusExt(record.ID, run.ID, status, conclusion, "github", runURL, releaseTag); err != nil {
+	progress, progressText, progressStage := buildProgressForEvent(status, conclusion, -1, "", "")
+	if err := updateBuildRecordStatusProgressExt(record.ID, run.ID, status, conclusion, "github", runURL, releaseTag, progress, progressText, progressStage); err != nil {
 		return
 	}
 	if err := consumeBuildUsageForCompletedRecord(record.ID); err != nil {
 		log.Printf("记录打包成功次数失败: record_id=%d code_id=%d err=%v", record.ID, record.CodeID, err)
+	}
+	if updatedRecord, err := getBuildRecord(record.ID); err == nil && updatedRecord != nil {
+		*record = *updatedRecord
+		return
 	}
 	record.RunID = run.ID
 	if runURL != "" {
@@ -2161,6 +2371,9 @@ func (h *Handlers) applyWorkflowRunToBuildRecord(record *BuildRecord, run *Workf
 	record.Status = status
 	record.Conclusion = conclusion
 	record.StatusSource = "github"
+	record.Progress = progress
+	record.ProgressText = progressText
+	record.ProgressStage = progressStage
 	if run.CreatedAt != "" {
 		record.CreatedAt = run.CreatedAt
 	}
@@ -2237,13 +2450,39 @@ func (h *Handlers) reconcileBuildRecords(records []BuildRecord, deep bool) []Bui
 
 		for i := range runs {
 			run := &runs[i]
-			inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+			extractedRequestID := extractBuildRequestIDFromText(run.Name)
+			var inputs map[string]string
+			var inputsErr error
+			if extractedRequestID == "" {
+				shouldReadInputs := false
+				for _, item := range items {
+					if _, ok := resolved[item.index]; ok {
+						continue
+					}
+					if run.Status != "completed" && item.hasPending && matchRunByPendingBuild(run, item.pending) {
+						shouldReadInputs = true
+						break
+					}
+				}
+				if shouldReadInputs {
+					inputs, inputsErr = h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+				} else {
+					inputsErr = fmt.Errorf("跳过无 request_id 的非候选运行")
+				}
+			} else {
+				inputs = map[string]string{"request_id": extractedRequestID}
+			}
 			for _, item := range items {
 				if _, ok := resolved[item.index]; ok {
 					continue
 				}
 				record := &records[item.index]
-				matchesByInputs := err == nil && buildRequestMatchesForClient(inputs, record.Client, record.Profile, item.requestID, record.Tag, record.Branch, record.Core, record.Platforms)
+				matchesByInputs := false
+				if item.requestID != "" && extractedRequestID == item.requestID {
+					matchesByInputs = true
+				} else {
+					matchesByInputs = inputsErr == nil && buildRequestMatchesForClient(inputs, record.Client, record.Profile, item.requestID, record.Tag, record.Branch, record.Core, record.Platforms)
+				}
 				matchesByPending := item.requestID == "" && run.Status != "completed" && item.hasPending && matchRunByPendingBuild(run, item.pending)
 				if !matchesByInputs && !matchesByPending {
 					continue
@@ -2464,7 +2703,8 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 
 	err = h.gh.TriggerWorkflow(cfg.BuildOwner, cfg.BuildRepo, clientConfig.WorkflowFile, inputs)
 	if err != nil {
-		_ = updateBuildRecordStatusExt(record.ID, 0, "completed", "trigger_failed", "server", "", "")
+		progressText := "触发打包失败：" + err.Error()
+		_ = updateBuildRecordStatusProgressExt(record.ID, 0, "completed", "trigger_failed", "server", "", "", 100, progressText, "trigger_failed")
 		jsonError(w, err.Error(), 500)
 		return
 	}
@@ -2531,12 +2771,19 @@ func buildReleaseTagForRun(record *BuildRecord, runID int64, releaseTag string) 
 }
 
 func (h *Handlers) persistBuildRecordEvent(record *BuildRecord, runID int64, status, conclusion, statusSource, runURL, releaseTag string) (*BuildRecord, error) {
+	return h.persistBuildRecordProgressEvent(record, runID, status, conclusion, statusSource, runURL, releaseTag, -1, "", "")
+}
+
+func (h *Handlers) persistBuildRecordProgressEvent(record *BuildRecord, runID int64, status, conclusion, statusSource, runURL, releaseTag string, progress int, progressText, progressStage string) (*BuildRecord, error) {
 	if record == nil {
 		return nil, fmt.Errorf("打包记录不存在")
 	}
 
 	status = strings.TrimSpace(status)
 	if status == "" {
+		status = record.Status
+	}
+	if record.Status == "completed" && status != "completed" {
 		status = record.Status
 	}
 	conclusion = strings.TrimSpace(conclusion)
@@ -2548,8 +2795,9 @@ func (h *Handlers) persistBuildRecordEvent(record *BuildRecord, runID int64, sta
 		runURL = buildWorkflowRunURL(runID)
 	}
 	releaseTag = buildReleaseTagForRun(record, runID, releaseTag)
+	progress, progressText, progressStage = buildProgressForEvent(status, conclusion, progress, progressText, progressStage)
 
-	if err := updateBuildRecordStatusExt(record.ID, runID, status, conclusion, statusSource, runURL, releaseTag); err != nil {
+	if err := updateBuildRecordStatusProgressExt(record.ID, runID, status, conclusion, statusSource, runURL, releaseTag, progress, progressText, progressStage); err != nil {
 		return nil, err
 	}
 	if err := consumeBuildUsageForCompletedRecord(record.ID); err != nil {
@@ -2579,12 +2827,15 @@ func (h *Handlers) InternalBindBuildRun(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var req struct {
-		RequestID  string `json:"request_id"`
-		RunID      int64  `json:"run_id"`
-		RunURL     string `json:"run_url"`
-		Status     string `json:"status"`
-		Conclusion string `json:"conclusion"`
-		ReleaseTag string `json:"release_tag"`
+		RequestID     string `json:"request_id"`
+		RunID         int64  `json:"run_id"`
+		RunURL        string `json:"run_url"`
+		Status        string `json:"status"`
+		Conclusion    string `json:"conclusion"`
+		ReleaseTag    string `json:"release_tag"`
+		Progress      int    `json:"progress_percent"`
+		ProgressText  string `json:"progress_text"`
+		ProgressStage string `json:"progress_stage"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
@@ -2607,7 +2858,7 @@ func (h *Handlers) InternalBindBuildRun(w http.ResponseWriter, r *http.Request) 
 	if status == "" || status == "dispatching" {
 		status = "in_progress"
 	}
-	record, err = h.persistBuildRecordEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag)
+	record, err = h.persistBuildRecordProgressEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag, req.Progress, req.ProgressText, req.ProgressStage)
 	if err != nil {
 		jsonError(w, "绑定打包运行失败", 500)
 		return
@@ -2626,12 +2877,15 @@ func (h *Handlers) InternalCompleteBuildRun(w http.ResponseWriter, r *http.Reque
 	}
 
 	var req struct {
-		RequestID  string `json:"request_id"`
-		RunID      int64  `json:"run_id"`
-		RunURL     string `json:"run_url"`
-		Status     string `json:"status"`
-		Conclusion string `json:"conclusion"`
-		ReleaseTag string `json:"release_tag"`
+		RequestID     string `json:"request_id"`
+		RunID         int64  `json:"run_id"`
+		RunURL        string `json:"run_url"`
+		Status        string `json:"status"`
+		Conclusion    string `json:"conclusion"`
+		ReleaseTag    string `json:"release_tag"`
+		Progress      int    `json:"progress_percent"`
+		ProgressText  string `json:"progress_text"`
+		ProgressStage string `json:"progress_stage"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
@@ -2657,7 +2911,7 @@ func (h *Handlers) InternalCompleteBuildRun(w http.ResponseWriter, r *http.Reque
 	if status == "" {
 		status = "completed"
 	}
-	record, err = h.persistBuildRecordEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag)
+	record, err = h.persistBuildRecordProgressEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag, req.Progress, req.ProgressText, req.ProgressStage)
 	if err != nil {
 		jsonError(w, "更新打包完成状态失败", 500)
 		return
@@ -2665,6 +2919,58 @@ func (h *Handlers) InternalCompleteBuildRun(w http.ResponseWriter, r *http.Reque
 
 	jsonResponse(w, map[string]interface{}{
 		"message": "回写成功",
+		"record":  buildRecordResponse(*record),
+	})
+}
+
+func (h *Handlers) InternalUpdateBuildProgress(w http.ResponseWriter, r *http.Request) {
+	if !authorizeBuildEventRequest(r) {
+		jsonError(w, "未授权的内部回调请求", 401)
+		return
+	}
+
+	var req struct {
+		RequestID     string `json:"request_id"`
+		RunID         int64  `json:"run_id"`
+		RunURL        string `json:"run_url"`
+		Status        string `json:"status"`
+		Conclusion    string `json:"conclusion"`
+		ReleaseTag    string `json:"release_tag"`
+		Progress      int    `json:"progress_percent"`
+		ProgressText  string `json:"progress_text"`
+		ProgressStage string `json:"progress_stage"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonError(w, "请求格式错误", 400)
+		return
+	}
+
+	req.RequestID = strings.TrimSpace(req.RequestID)
+	if req.RequestID == "" {
+		jsonError(w, "缺少 request_id", 400)
+		return
+	}
+
+	record, err := getBuildRecordByRequestID(req.RequestID)
+	if err != nil {
+		jsonError(w, "打包记录不存在", 404)
+		return
+	}
+	if req.RunID <= 0 {
+		req.RunID = record.RunID
+	}
+	status := strings.TrimSpace(req.Status)
+	if status == "" {
+		status = "in_progress"
+	}
+	record, err = h.persistBuildRecordProgressEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag, req.Progress, req.ProgressText, req.ProgressStage)
+	if err != nil {
+		jsonError(w, "更新打包进度失败", 500)
+		return
+	}
+
+	jsonResponse(w, map[string]interface{}{
+		"message": "进度已更新",
 		"record":  buildRecordResponse(*record),
 	})
 }
@@ -3056,13 +3362,54 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	cacheKey := buildRunCacheKeyForClient(pendingCodeID, client, profile, requestID, tag, branch, core, platforms)
 	statusCacheKey = buildStatusCacheKey(record, pendingCodeID, client, profile, requestID, tag, branch, core, platforms)
-	if cached, ok := buildStatusCache.get(statusCacheKey); ok {
-		jsonResponse(w, cloneInterfaceMap(cached))
+	syncRequested := isBuildStatusSyncRequested(r)
+	includeJobs := shouldIncludeBuildJobs(r)
+	responseCacheKey := statusCacheKey
+	if syncRequested || includeJobs {
+		responseCacheKey = ""
+	}
+	if !syncRequested && !includeJobs {
+		if cached, ok := buildStatusCache.get(statusCacheKey); ok {
+			jsonResponse(w, cloneInterfaceMap(cached))
+			return
+		}
+	}
+
+	syncWithGitHub := shouldSyncBuildStatusWithGitHub(r, record)
+	if record != nil && !syncWithGitHub {
+		result := buildStatusResponseFromRecord(record)
+		if hasPendingBuild {
+			result["pending_detected"] = true
+		}
+		applyBuildStatusSyncHints(result, record, syncRequested, syncWithGitHub)
+		writeBuildStatusResponse(w, responseCacheKey, result)
 		return
 	}
 
 	var matchedRun *WorkflowRun
 	var matchedInputs map[string]string
+
+	if record == nil && !syncRequested {
+		result := map[string]interface{}{
+			"found": false,
+		}
+		if recordID > 0 {
+			result["record_id"] = recordID
+		}
+		if requestID != "" {
+			result["request_id"] = requestID
+		}
+		if hasPendingBuild {
+			result["pending_detected"] = true
+		}
+		result["sync_required"] = true
+		result["progress"] = 5
+		result["progress_percent"] = 5
+		result["progress_text"] = "已提交打包请求，等待 GitHub Actions 回传运行信息"
+		result["progress_stage"] = "dispatching"
+		writeBuildStatusResponse(w, responseCacheKey, result)
+		return
+	}
 
 	if record != nil {
 		if record.RunID > 0 {
@@ -3077,7 +3424,8 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				result := buildStatusResponseFromRecord(record)
 				result["sync_error"] = true
-				writeBuildStatusResponse(w, statusCacheKey, result)
+				applyBuildStatusSyncHints(result, record, syncRequested, syncWithGitHub)
+				writeBuildStatusResponse(w, responseCacheKey, result)
 				return
 			}
 			if run != nil {
@@ -3090,12 +3438,14 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			if hasPendingBuild {
 				result["pending_detected"] = true
 			}
-			writeBuildStatusResponse(w, statusCacheKey, result)
+			applyBuildStatusSyncHints(result, record, syncRequested, syncWithGitHub)
+			writeBuildStatusResponse(w, responseCacheKey, result)
 			return
 		}
 
 		h.applyWorkflowRunToBuildRecord(record, matchedRun)
 		result := buildStatusResponseFromRecord(record)
+		applyBuildStatusSyncHints(result, record, syncRequested, syncWithGitHub)
 		if matchedInputs != nil && len(matchedInputs) > 0 {
 			result["inputs"] = matchedInputs
 			if strings.TrimSpace(matchedInputs["request_id"]) != "" {
@@ -3109,38 +3459,14 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 			result["pending_detected"] = true
 		}
 
-		jobs, err := h.gh.GetWorkflowRunJobs(cfg.BuildOwner, cfg.BuildRepo, matchedRun.ID)
-		if err == nil {
-			jobList := []map[string]interface{}{}
-			for _, job := range jobs {
-				jobConclusion := ""
-				if job.Conclusion != nil {
-					jobConclusion = *job.Conclusion
-				}
-				stepList := []map[string]interface{}{}
-				for _, step := range job.Steps {
-					stepConclusion := ""
-					if step.Conclusion != nil {
-						stepConclusion = *step.Conclusion
-					}
-					stepList = append(stepList, map[string]interface{}{
-						"name":       step.Name,
-						"status":     step.Status,
-						"conclusion": stepConclusion,
-						"number":     step.Number,
-					})
-				}
-				jobList = append(jobList, map[string]interface{}{
-					"name":       job.Name,
-					"status":     job.Status,
-					"conclusion": jobConclusion,
-					"steps":      stepList,
-				})
+		if includeJobs {
+			jobs, err := h.gh.GetWorkflowRunJobs(cfg.BuildOwner, cfg.BuildRepo, matchedRun.ID)
+			if err == nil {
+				result["jobs"] = buildWorkflowJobStatusList(jobs)
 			}
-			result["jobs"] = jobList
 		}
 
-		writeBuildStatusResponse(w, statusCacheKey, result)
+		writeBuildStatusResponse(w, responseCacheKey, result)
 		return
 	}
 
@@ -3190,36 +3516,24 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 				if !isActiveWorkflowStatus(run.Status) {
 					continue
 				}
-				inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
-				matchesByInputs := err == nil && buildRequestMatchesForClient(inputs, client, profile, requestID, tag, branch, core, platforms)
 				matchesByPending := hasPendingBuild && matchRunByPendingBuild(run, pendingBuild)
-				if matchesByInputs || matchesByPending {
+				if !matchesByPending && requestID == "" {
+					continue
+				}
+				if matchesByPending && requestID == "" {
 					matchedRun = run
-					if err == nil {
-						matchedInputs = inputs
-					}
 					setCachedProfileRunID(cacheKey, run.ID)
 					break
 				}
-			}
-
-			if matchedRun == nil {
-				for i := range runs {
-					run := &runs[i]
-					if run.Status != "completed" {
-						continue
-					}
-					inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
-					matchesByInputs := err == nil && buildRequestMatchesForClient(inputs, client, profile, requestID, tag, branch, core, platforms)
-					if matchesByInputs {
-						matchedRun = run
-						if err == nil {
-							matchedInputs = inputs
-						}
-						clearPendingBuildForClient(pendingCodeID, client, profile, tag, branch, core, platforms)
-						break
-					}
+				inputs, err := h.gh.GetWorkflowRunInputs(cfg.BuildOwner, cfg.BuildRepo, run.ID)
+				matchesByInputs := err == nil && buildRequestMatchesForClient(inputs, client, profile, requestID, tag, branch, core, platforms)
+				if !matchesByInputs {
+					continue
 				}
+				matchedRun = run
+				matchedInputs = inputs
+				setCachedProfileRunID(cacheKey, run.ID)
+				break
 			}
 		}
 	}
@@ -3237,7 +3551,7 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		if hasPendingBuild {
 			result["pending_detected"] = true
 		}
-		writeBuildStatusResponse(w, statusCacheKey, result)
+		writeBuildStatusResponse(w, responseCacheKey, result)
 		return
 	}
 
@@ -3245,15 +3559,20 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 	if matchedRun.Conclusion != nil {
 		conclusion = *matchedRun.Conclusion
 	}
+	progress, progressText, progressStage := buildProgressForEvent(matchedRun.Status, conclusion, -1, "", "")
 	result := map[string]interface{}{
-		"found":      true,
-		"record_id":  recordID,
-		"run_id":     matchedRun.ID,
-		"run_url":    matchedRun.HTMLURL,
-		"status":     matchedRun.Status,
-		"conclusion": conclusion,
-		"created_at": matchedRun.CreatedAt,
-		"updated_at": matchedRun.UpdatedAt,
+		"found":            true,
+		"record_id":        recordID,
+		"run_id":           matchedRun.ID,
+		"run_url":          matchedRun.HTMLURL,
+		"status":           matchedRun.Status,
+		"conclusion":       conclusion,
+		"progress":         progress,
+		"progress_percent": progress,
+		"progress_text":    progressText,
+		"progress_stage":   progressStage,
+		"created_at":       matchedRun.CreatedAt,
+		"updated_at":       matchedRun.UpdatedAt,
 		"inputs": map[string]string{
 			"client":     client,
 			"profile":    profile,
@@ -3280,38 +3599,14 @@ func (h *Handlers) GetBuildStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	jobs, err := h.gh.GetWorkflowRunJobs(cfg.BuildOwner, cfg.BuildRepo, matchedRun.ID)
-	if err == nil {
-		jobList := []map[string]interface{}{}
-		for _, job := range jobs {
-			jobConclusion := ""
-			if job.Conclusion != nil {
-				jobConclusion = *job.Conclusion
-			}
-			stepList := []map[string]interface{}{}
-			for _, step := range job.Steps {
-				stepConclusion := ""
-				if step.Conclusion != nil {
-					stepConclusion = *step.Conclusion
-				}
-				stepList = append(stepList, map[string]interface{}{
-					"name":       step.Name,
-					"status":     step.Status,
-					"conclusion": stepConclusion,
-					"number":     step.Number,
-				})
-			}
-			jobList = append(jobList, map[string]interface{}{
-				"name":       job.Name,
-				"status":     job.Status,
-				"conclusion": jobConclusion,
-				"steps":      stepList,
-			})
+	if includeJobs {
+		jobs, err := h.gh.GetWorkflowRunJobs(cfg.BuildOwner, cfg.BuildRepo, matchedRun.ID)
+		if err == nil {
+			result["jobs"] = buildWorkflowJobStatusList(jobs)
 		}
-		result["jobs"] = jobList
 	}
 
-	writeBuildStatusResponse(w, statusCacheKey, result)
+	writeBuildStatusResponse(w, responseCacheKey, result)
 }
 
 func (h *Handlers) CancelBuildRecord(w http.ResponseWriter, r *http.Request) {
@@ -3865,6 +4160,40 @@ func (h *Handlers) ListCodes(w http.ResponseWriter, r *http.Request) {
 		codes = []ActivationCode{}
 	}
 	jsonResponse(w, codes)
+}
+
+func (h *Handlers) GetGitHubAPIStats(w http.ResponseWriter, r *http.Request) {
+	items := snapshotGitHubAPICallStats()
+	latest := map[string]string{}
+	var latestItem *GitHubAPICallStat
+	for _, item := range items {
+		if item.RateRemaining == "" && item.RateReset == "" && item.RateUsed == "" {
+			continue
+		}
+		if latestItem == nil || item.LastAtUnixNano > latestItem.LastAtUnixNano {
+			itemCopy := item
+			latestItem = &itemCopy
+		}
+	}
+	if latestItem != nil {
+		latest = map[string]string{
+			"method":           latestItem.Method,
+			"path":             latestItem.Path,
+			"status":           strconv.Itoa(latestItem.Status),
+			"rate_limit":       latestItem.RateLimit,
+			"rate_remaining":   latestItem.RateRemaining,
+			"rate_used":        latestItem.RateUsed,
+			"rate_reset":       latestItem.RateReset,
+			"rate_reset_local": latestItem.RateResetLocal,
+			"rate_resource":    latestItem.RateResource,
+			"last_at":          latestItem.LastAt,
+			"last_request_id":  latestItem.LastRequestID,
+		}
+	}
+	jsonResponse(w, map[string]interface{}{
+		"latest": latest,
+		"items":  items,
+	})
 }
 
 func (h *Handlers) CreateCode(w http.ResponseWriter, r *http.Request) {

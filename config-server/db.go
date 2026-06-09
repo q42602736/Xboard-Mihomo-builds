@@ -75,6 +75,9 @@ func initDB() {
 				status TEXT NOT NULL DEFAULT 'queued',
 				conclusion TEXT DEFAULT '',
 				status_source TEXT DEFAULT '',
+				progress_percent INTEGER DEFAULT 0,
+				progress_text TEXT DEFAULT '',
+				progress_stage TEXT DEFAULT '',
 				usage_counted INTEGER DEFAULT 0,
 				bound_at DATETIME,
 				finished_at DATETIME,
@@ -120,6 +123,9 @@ func initDB() {
 	ensureBuildRecordColumn("run_url", "TEXT DEFAULT ''")
 	ensureBuildRecordColumn("release_tag", "TEXT DEFAULT ''")
 	ensureBuildRecordColumn("status_source", "TEXT DEFAULT ''")
+	ensureBuildRecordColumn("progress_percent", "INTEGER DEFAULT 0")
+	ensureBuildRecordColumn("progress_text", "TEXT DEFAULT ''")
+	ensureBuildRecordColumn("progress_stage", "TEXT DEFAULT ''")
 	usageCountedColumnAdded := ensureBuildRecordColumn("usage_counted", "INTEGER DEFAULT 0")
 	if usageCountedColumnAdded {
 		db.Exec("UPDATE build_records SET usage_counted = 1")
@@ -162,28 +168,31 @@ type CustomFeatureGroup struct {
 }
 
 type BuildRecord struct {
-	ID           int64  `json:"id"`
-	CodeID       int    `json:"code_id"`
-	CodeName     string `json:"code_name"`
-	RequestID    string `json:"request_id"`
-	Client       string `json:"client"`
-	Profile      string `json:"profile"`
-	Tag          string `json:"tag"`
-	Branch       string `json:"branch"`
-	Core         string `json:"core"`
-	Platforms    string `json:"platforms"`
-	RunID        int64  `json:"run_id"`
-	RunURL       string `json:"run_url"`
-	ReleaseTag   string `json:"release_tag"`
-	Status       string `json:"status"`
-	Conclusion   string `json:"conclusion"`
-	StatusSource string `json:"status_source"`
-	UsageCounted int    `json:"usage_counted"`
-	BoundAt      string `json:"bound_at"`
-	FinishedAt   string `json:"finished_at"`
-	LastSyncAt   string `json:"last_sync_at"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	ID            int64  `json:"id"`
+	CodeID        int    `json:"code_id"`
+	CodeName      string `json:"code_name"`
+	RequestID     string `json:"request_id"`
+	Client        string `json:"client"`
+	Profile       string `json:"profile"`
+	Tag           string `json:"tag"`
+	Branch        string `json:"branch"`
+	Core          string `json:"core"`
+	Platforms     string `json:"platforms"`
+	RunID         int64  `json:"run_id"`
+	RunURL        string `json:"run_url"`
+	ReleaseTag    string `json:"release_tag"`
+	Status        string `json:"status"`
+	Conclusion    string `json:"conclusion"`
+	StatusSource  string `json:"status_source"`
+	Progress      int    `json:"progress_percent"`
+	ProgressText  string `json:"progress_text"`
+	ProgressStage string `json:"progress_stage"`
+	UsageCounted  int    `json:"usage_counted"`
+	BoundAt       string `json:"bound_at"`
+	FinishedAt    string `json:"finished_at"`
+	LastSyncAt    string `json:"last_sync_at"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 }
 
 type ProfileAssetHistoryRecord struct {
@@ -202,8 +211,8 @@ type ProfileAssetHistoryRecord struct {
 func createBuildRecord(codeID int, codeName, client, profile, tag, branch, core, platforms string) (*BuildRecord, error) {
 	requestID := generateBuildRequestID()
 	result, err := db.Exec(
-		`INSERT INTO build_records (code_id, code_name, request_id, client, profile, tag, branch, core, platforms, status, conclusion, status_source, usage_counted, last_sync_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'dispatching', '', 'server', 0, CURRENT_TIMESTAMP)`,
+		`INSERT INTO build_records (code_id, code_name, request_id, client, profile, tag, branch, core, platforms, status, conclusion, status_source, progress_percent, progress_text, progress_stage, usage_counted, last_sync_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'dispatching', '', 'server', 5, '已提交打包请求，等待 GitHub Actions 接收', 'dispatching', 0, CURRENT_TIMESTAMP)`,
 		codeID, codeName, requestID, client, profile, tag, branch, core, platforms,
 	)
 	if err != nil {
@@ -223,8 +232,15 @@ func updateBuildRecordStatus(recordID, runID int64, status, conclusion string) e
 }
 
 func updateBuildRecordStatusExt(recordID, runID int64, status, conclusion, statusSource, runURL, releaseTag string) error {
+	return updateBuildRecordStatusProgressExt(recordID, runID, status, conclusion, statusSource, runURL, releaseTag, -1, "", "")
+}
+
+func updateBuildRecordStatusProgressExt(recordID, runID int64, status, conclusion, statusSource, runURL, releaseTag string, progress int, progressText, progressStage string) error {
 	if recordID <= 0 {
 		return nil
+	}
+	if progress > 100 {
+		progress = 100
 	}
 
 	_, err := db.Exec(
@@ -235,6 +251,9 @@ func updateBuildRecordStatusExt(recordID, runID int64, status, conclusion, statu
 		     status = CASE WHEN ? != '' THEN ? ELSE status END,
 		     conclusion = ?,
 		     status_source = CASE WHEN ? != '' THEN ? ELSE status_source END,
+		     progress_percent = CASE WHEN ? >= 0 AND ? >= COALESCE(progress_percent, 0) THEN ? ELSE progress_percent END,
+		     progress_text = CASE WHEN ? != '' AND (? < 0 OR ? >= COALESCE(progress_percent, 0)) THEN ? ELSE progress_text END,
+		     progress_stage = CASE WHEN ? != '' AND (? < 0 OR ? >= COALESCE(progress_percent, 0)) THEN ? ELSE progress_stage END,
 		     bound_at = CASE WHEN ? > 0 AND (bound_at IS NULL OR bound_at = '') THEN CURRENT_TIMESTAMP ELSE bound_at END,
 		     finished_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE finished_at END,
 		     last_sync_at = CURRENT_TIMESTAMP,
@@ -246,6 +265,9 @@ func updateBuildRecordStatusExt(recordID, runID int64, status, conclusion, statu
 		status, status,
 		conclusion,
 		statusSource, statusSource,
+		progress, progress, progress,
+		progressText, progress, progress, progressText,
+		progressStage, progress, progress, progressStage,
 		runID,
 		status,
 		recordID,
@@ -256,7 +278,7 @@ func updateBuildRecordStatusExt(recordID, runID int64, status, conclusion, statu
 func getBuildRecord(recordID int64) (*BuildRecord, error) {
 	var record BuildRecord
 	row := db.QueryRow(
-		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(usage_counted, 0),
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(usage_counted, 0),
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records WHERE id = ?`,
 		recordID,
@@ -278,6 +300,9 @@ func getBuildRecord(recordID int64) (*BuildRecord, error) {
 		&record.Status,
 		&record.Conclusion,
 		&record.StatusSource,
+		&record.Progress,
+		&record.ProgressText,
+		&record.ProgressStage,
 		&record.UsageCounted,
 		&record.BoundAt,
 		&record.FinishedAt,
@@ -296,7 +321,7 @@ func getBuildRecordByRequestID(requestID string) (*BuildRecord, error) {
 	}
 	var record BuildRecord
 	row := db.QueryRow(
-		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(usage_counted, 0),
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(usage_counted, 0),
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records WHERE request_id = ?`,
 		requestID,
@@ -318,6 +343,9 @@ func getBuildRecordByRequestID(requestID string) (*BuildRecord, error) {
 		&record.Status,
 		&record.Conclusion,
 		&record.StatusSource,
+		&record.Progress,
+		&record.ProgressText,
+		&record.ProgressStage,
 		&record.UsageCounted,
 		&record.BoundAt,
 		&record.FinishedAt,
@@ -339,7 +367,7 @@ func listBuildRecordsByClient(codeID int, isAdmin bool, client string, limit int
 		limit = 20
 	}
 
-	query := `SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(usage_counted, 0),
+	query := `SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(usage_counted, 0),
 	                 COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		FROM build_records`
 	args := []interface{}{}
@@ -384,6 +412,9 @@ func listBuildRecordsByClient(codeID int, isAdmin bool, client string, limit int
 			&record.Status,
 			&record.Conclusion,
 			&record.StatusSource,
+			&record.Progress,
+			&record.ProgressText,
+			&record.ProgressStage,
 			&record.UsageCounted,
 			&record.BoundAt,
 			&record.FinishedAt,
@@ -408,7 +439,7 @@ func listOverflowBuildRecordsByClient(codeID int, client string, keep int) ([]Bu
 	}
 
 	rows, err := db.Query(
-		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(usage_counted, 0),
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(usage_counted, 0),
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records
 		 WHERE code_id = ? AND (? = '' OR COALESCE(client, 'xboard_mihomo_sub') = ?)
@@ -441,6 +472,9 @@ func listOverflowBuildRecordsByClient(codeID int, client string, keep int) ([]Bu
 			&record.Status,
 			&record.Conclusion,
 			&record.StatusSource,
+			&record.Progress,
+			&record.ProgressText,
+			&record.ProgressStage,
 			&record.UsageCounted,
 			&record.BoundAt,
 			&record.FinishedAt,
