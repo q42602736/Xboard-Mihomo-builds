@@ -31,7 +31,7 @@ var buildRequestIDPattern = regexp.MustCompile(`BR-[0-9a-fA-F]{24}`)
 
 const (
 	profileListCacheTTL              = 5 * time.Minute
-	buildQueueSnapshotTTL            = 15 * time.Second
+	buildQueueSnapshotTTL            = 60 * time.Second
 	buildStatusActiveCacheTTL        = 8 * time.Second
 	buildStatusDoneCacheTTL          = 2 * time.Minute
 	buildStatusGitHubSyncMinInterval = 3 * time.Minute
@@ -974,6 +974,9 @@ func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 
 const maxConcurrentBuildJobs = 20
 const maxConcurrentMacOSBuildJobs = 5
+const buildQueueLocalActiveWindow = 6 * time.Hour
+const buildQueueStaleDispatchWindow = 30 * time.Minute
+const buildQueueStaleProgressWindow = 2 * time.Hour
 
 const recentWorkflowRunsSearchLimit = 30
 const fastWorkflowRunsSearchLimit = 20
@@ -1627,8 +1630,104 @@ func formatBuildQueueExceededMessage(activeJobs, activeMacOSJobs int, demand Bui
 	return base + "，超过并发限制，请稍后再试"
 }
 
+func fillBuildQueueAvailability(snapshot *BuildQueueSnapshot) {
+	if snapshot == nil {
+		return
+	}
+	snapshot.RemainingJobs = maxConcurrentBuildJobs - snapshot.ActiveJobs
+	if snapshot.RemainingJobs < 0 {
+		snapshot.RemainingJobs = 0
+	}
+	snapshot.RemainingMacOSJobs = maxConcurrentMacOSBuildJobs - snapshot.ActiveMacOSJobs
+	if snapshot.RemainingMacOSJobs < 0 {
+		snapshot.RemainingMacOSJobs = 0
+	}
+	snapshot.Available = snapshot.ActiveJobs < maxConcurrentBuildJobs &&
+		snapshot.ActiveMacOSJobs < maxConcurrentMacOSBuildJobs
+}
+
+func shouldCountBuildRecordInQueue(record BuildRecord, now time.Time) bool {
+	status := strings.TrimSpace(record.Status)
+	if status == "" || status == "completed" {
+		return false
+	}
+	if strings.TrimSpace(record.Conclusion) == "trigger_failed" {
+		return false
+	}
+	createdAt, createdOK := parseDBTimestamp(record.CreatedAt)
+	updatedAt, updatedOK := parseDBTimestamp(record.UpdatedAt)
+	lastSyncAt, lastSyncOK := parseDBTimestamp(record.LastSyncAt)
+	lastActivity := updatedAt
+	if !updatedOK || (lastSyncOK && lastSyncAt.After(lastActivity)) {
+		lastActivity = lastSyncAt
+	}
+	if !updatedOK && !lastSyncOK && createdOK {
+		lastActivity = createdAt
+	}
+	if status == "dispatching" && createdOK && now.Sub(createdAt) > buildQueueStaleDispatchWindow {
+		return false
+	}
+	if !lastActivity.IsZero() && now.Sub(lastActivity) > buildQueueStaleProgressWindow {
+		return false
+	}
+	return true
+}
+
+func buildJobDemandFromProgressDetails(record BuildRecord) BuildJobDemand {
+	details := parseBuildProgressDetails(record.ProgressDetails)
+	if len(details) == 0 {
+		return estimateBuildJobDemandForClient(record.Client, record.Core, record.Platforms)
+	}
+	demand := BuildJobDemand{}
+	seen := map[string]struct{}{}
+	for _, detail := range details {
+		key := strings.TrimSpace(detail.Key)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		if detail.Status == "completed" {
+			continue
+		}
+		demand.Total++
+		if strings.HasPrefix(strings.ToLower(key), "macos-") {
+			demand.MacOS++
+		}
+	}
+	if demand.Total == 0 && strings.TrimSpace(record.Status) != "completed" {
+		return BuildJobDemand{Total: 1}
+	}
+	return demand
+}
+
 func (h *Handlers) getActiveBuildJobUsage() (BuildQueueSnapshot, error) {
 	return h.getActiveBuildJobUsageForClient(buildClientLegacy)
+}
+
+func (h *Handlers) getLocalActiveBuildJobUsageForClient(client string) (BuildQueueSnapshot, error) {
+	snapshot := BuildQueueSnapshot{
+		MaxJobs:      maxConcurrentBuildJobs,
+		MaxMacOSJobs: maxConcurrentMacOSBuildJobs,
+	}
+	now := time.Now()
+	records, err := listActiveBuildRecordsForQueue(client, now.Add(-buildQueueLocalActiveWindow), 200)
+	if err != nil {
+		return snapshot, err
+	}
+	for _, record := range records {
+		if !shouldCountBuildRecordInQueue(record, now) {
+			continue
+		}
+		snapshot.ActiveRuns++
+		demand := buildJobDemandFromProgressDetails(record)
+		snapshot.ActiveJobs += demand.Total
+		snapshot.ActiveMacOSJobs += demand.MacOS
+	}
+	fillBuildQueueAvailability(&snapshot)
+	return snapshot, nil
 }
 
 func (h *Handlers) getActiveBuildJobUsageForClient(client string) (BuildQueueSnapshot, error) {
@@ -1677,16 +1776,7 @@ func (h *Handlers) getActiveBuildJobUsageForClient(client string) (BuildQueueSna
 		snapshot.ActiveMacOSJobs += demand.MacOS
 	}
 
-	snapshot.RemainingJobs = maxConcurrentBuildJobs - snapshot.ActiveJobs
-	if snapshot.RemainingJobs < 0 {
-		snapshot.RemainingJobs = 0
-	}
-	snapshot.RemainingMacOSJobs = maxConcurrentMacOSBuildJobs - snapshot.ActiveMacOSJobs
-	if snapshot.RemainingMacOSJobs < 0 {
-		snapshot.RemainingMacOSJobs = 0
-	}
-	snapshot.Available = snapshot.ActiveJobs < maxConcurrentBuildJobs &&
-		snapshot.ActiveMacOSJobs < maxConcurrentMacOSBuildJobs
+	fillBuildQueueAvailability(&snapshot)
 
 	return snapshot, nil
 }
@@ -1712,7 +1802,7 @@ func (h *Handlers) getBuildQueueSnapshotForClient(client, core, platforms string
 		return cached, nil
 	}
 
-	snapshot, err := h.getActiveBuildJobUsageForClient(client)
+	snapshot, err := h.getLocalActiveBuildJobUsageForClient(client)
 	if err != nil {
 		return snapshot, err
 	}

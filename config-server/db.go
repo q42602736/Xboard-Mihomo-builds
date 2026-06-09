@@ -441,6 +441,68 @@ func listBuildRecordsByClient(codeID int, isAdmin bool, client string, limit int
 	return records, nil
 }
 
+func listActiveBuildRecordsForQueue(client string, since time.Time, limit int) ([]BuildRecord, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 100
+	}
+	client = strings.TrimSpace(client)
+	rows, err := db.Query(
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(progress_details, ''), COALESCE(usage_counted, 0),
+		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
+		 FROM build_records
+		 WHERE status != 'completed'
+		   AND COALESCE(conclusion, '') != 'trigger_failed'
+		   AND datetime(COALESCE(updated_at, created_at)) >= datetime(?)
+		   AND (? = '' OR COALESCE(client, 'xboard_mihomo_sub') = ?)
+		 ORDER BY created_at DESC, id DESC
+		 LIMIT ?`,
+		since.Format("2006-01-02 15:04:05"),
+		client, client,
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	records := []BuildRecord{}
+	for rows.Next() {
+		var record BuildRecord
+		if err := rows.Scan(
+			&record.ID,
+			&record.CodeID,
+			&record.CodeName,
+			&record.RequestID,
+			&record.Client,
+			&record.Profile,
+			&record.Tag,
+			&record.Branch,
+			&record.Core,
+			&record.Platforms,
+			&record.RunID,
+			&record.RunURL,
+			&record.ReleaseTag,
+			&record.Status,
+			&record.Conclusion,
+			&record.StatusSource,
+			&record.Progress,
+			&record.ProgressText,
+			&record.ProgressStage,
+			&record.ProgressDetails,
+			&record.UsageCounted,
+			&record.BoundAt,
+			&record.FinishedAt,
+			&record.LastSyncAt,
+			&record.CreatedAt,
+			&record.UpdatedAt,
+		); err != nil {
+			continue
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}
+
 func listOverflowBuildRecords(codeID int, keep int) ([]BuildRecord, error) {
 	return listOverflowBuildRecordsByClient(codeID, "", keep)
 }
