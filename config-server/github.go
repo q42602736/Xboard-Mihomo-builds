@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -98,6 +99,84 @@ func (g *GitHubClient) doRequest(method, url string, body interface{}) (*http.Re
 	return http.DefaultClient.Do(req)
 }
 
+func githubAPIError(resp *http.Response, respBody []byte, action string) error {
+	action = strings.TrimSpace(action)
+	if action == "" {
+		action = "GitHub API 错误"
+	}
+
+	bodyText := strings.TrimSpace(string(respBody))
+	if message := githubRateLimitMessage(resp, bodyText); message != "" {
+		return fmt.Errorf("%s: %s", action, message)
+	}
+
+	if resp == nil {
+		if bodyText == "" {
+			bodyText = "请求失败"
+		}
+		return fmt.Errorf("%s: %s", action, bodyText)
+	}
+	if bodyText == "" {
+		bodyText = http.StatusText(resp.StatusCode)
+	}
+	return fmt.Errorf("%s (%d): %s", action, resp.StatusCode, bodyText)
+}
+
+func githubRateLimitMessage(resp *http.Response, bodyText string) string {
+	if resp == nil {
+		return ""
+	}
+	if resp.StatusCode != http.StatusForbidden && resp.StatusCode != http.StatusTooManyRequests {
+		return ""
+	}
+
+	lowerBody := strings.ToLower(bodyText)
+	remaining := strings.TrimSpace(resp.Header.Get("X-RateLimit-Remaining"))
+	if remaining != "0" && !strings.Contains(lowerBody, "rate limit") {
+		return ""
+	}
+
+	limit := strings.TrimSpace(resp.Header.Get("X-RateLimit-Limit"))
+	resource := strings.TrimSpace(resp.Header.Get("X-RateLimit-Resource"))
+	resetRaw := strings.TrimSpace(resp.Header.Get("X-RateLimit-Reset"))
+
+	message := "GitHub API 额度已用完"
+	if strings.Contains(lowerBody, "secondary rate limit") {
+		message = "GitHub API 触发二级限流"
+	}
+
+	details := []string{}
+	if resource != "" {
+		details = append(details, "资源类型 "+resource)
+	}
+	if limit != "" {
+		details = append(details, "每小时额度 "+limit+" 次")
+	}
+	if remaining != "" {
+		details = append(details, "剩余额度 "+remaining+" 次")
+	}
+	if len(details) > 0 {
+		message += "（" + strings.Join(details, "，") + "）"
+	}
+
+	if resetUnix, err := strconv.ParseInt(resetRaw, 10, 64); err == nil && resetUnix > 0 {
+		resetAt := time.Unix(resetUnix, 0)
+		localText := resetAt.Local().Format("2006-01-02 15:04:05 MST")
+		utcText := resetAt.UTC().Format("2006-01-02 15:04:05 UTC")
+		wait := time.Until(resetAt)
+		if wait > 0 {
+			waitMinutes := int64((wait + time.Minute - time.Nanosecond) / time.Minute)
+			message += fmt.Sprintf("，预计 %s 恢复（约 %d 分钟后，UTC %s）", localText, waitMinutes, utcText)
+		} else {
+			message += fmt.Sprintf("，预计 %s 恢复（UTC %s，可现在重试）", localText, utcText)
+		}
+	} else {
+		message += "，请稍后再试"
+	}
+
+	return message + "。请先暂停刷新或重复操作，等额度恢复后再加载。"
+}
+
 type ghFileResponse struct {
 	Content     string `json:"content"`
 	SHA         string `json:"sha"`
@@ -129,7 +208,7 @@ func (g *GitHubClient) doRawGet(url string) ([]byte, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("GitHub API 错误 (%d): %s", resp.StatusCode, string(respBody))
+		return nil, githubAPIError(resp, respBody, "读取 GitHub 文件失败")
 	}
 
 	return io.ReadAll(resp.Body)
@@ -145,7 +224,7 @@ func (g *GitHubClient) GetFileBytes(path string) (content []byte, sha string, er
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, "", fmt.Errorf("GitHub API 错误 (%d): %s", resp.StatusCode, string(respBody))
+		return nil, "", githubAPIError(resp, respBody, "读取 GitHub 文件失败")
 	}
 
 	var fc ghFileResponse
@@ -199,7 +278,7 @@ func (g *GitHubClient) EnsureBranchFromDefault() error {
 	if resp.StatusCode != http.StatusNotFound {
 		respBody, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		return fmt.Errorf("检查分支失败 (%d): %s", resp.StatusCode, string(respBody))
+		return githubAPIError(resp, respBody, "检查分支失败")
 	}
 	resp.Body.Close()
 
@@ -229,7 +308,7 @@ func (g *GitHubClient) EnsureBranchFromDefault() error {
 	defer sourceResp.Body.Close()
 	if sourceResp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(sourceResp.Body)
-		return fmt.Errorf("读取默认分支失败 (%d): %s", sourceResp.StatusCode, string(respBody))
+		return githubAPIError(sourceResp, respBody, "读取默认分支失败")
 	}
 	var sourceRef ghRefResponse
 	if err := json.NewDecoder(sourceResp.Body).Decode(&sourceRef); err != nil {
@@ -253,7 +332,7 @@ func (g *GitHubClient) EnsureBranchFromDefault() error {
 		if createResp.StatusCode == http.StatusUnprocessableEntity && strings.Contains(string(respBody), "Reference already exists") {
 			return nil
 		}
-		return fmt.Errorf("创建分支失败 (%d): %s", createResp.StatusCode, string(respBody))
+		return githubAPIError(createResp, respBody, "创建分支失败")
 	}
 	githubBranchesCache.delete(fmt.Sprintf("%s/%s", g.Owner, g.Repo))
 	return nil
@@ -281,7 +360,7 @@ func (g *GitHubClient) SaveFile(path, content, sha, message string) (string, err
 
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
 		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("GitHub API 错误 (%d): %s", resp.StatusCode, string(respBody))
+		return "", githubAPIError(resp, respBody, "保存 GitHub 文件失败")
 	}
 
 	var result struct {
@@ -310,7 +389,7 @@ func (g *GitHubClient) DeleteFile(path, sha, message string) error {
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("GitHub API 错误 (%d): %s", resp.StatusCode, string(respBody))
+		return githubAPIError(resp, respBody, "删除 GitHub 文件失败")
 	}
 
 	return nil
@@ -333,7 +412,7 @@ func (g *GitHubClient) ListDirectory(dirPath string) ([]GitHubContentItem, error
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("GitHub API 错误 (%d): %s", resp.StatusCode, string(respBody))
+		return nil, githubAPIError(resp, respBody, "读取 GitHub 目录失败")
 	}
 
 	var items []GitHubContentItem
@@ -359,7 +438,7 @@ func (g *GitHubClient) GetLatestCommitTime(filePath string) (string, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("GitHub API 错误 (%d): %s", resp.StatusCode, string(respBody))
+		return "", githubAPIError(resp, respBody, "读取 GitHub 提交时间失败")
 	}
 
 	var commits []struct {
@@ -401,7 +480,7 @@ func (g *GitHubClient) TriggerWorkflow(buildOwner, buildRepo, workflow string, i
 
 	if resp.StatusCode != 204 {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("触发构建失败 (%d): %s", resp.StatusCode, string(respBody))
+		return githubAPIError(resp, respBody, "触发构建失败")
 	}
 
 	return nil
@@ -448,7 +527,8 @@ func (g *GitHubClient) ListBranchesForRepo(owner, repo string) ([]Branch, error)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("获取分支列表失败")
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, githubAPIError(resp, respBody, "获取分支列表失败")
 	}
 
 	var branches []Branch
@@ -601,7 +681,8 @@ func (g *GitHubClient) GetRecentWorkflowRuns(buildOwner, buildRepo, workflow str
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("获取工作流运行列表失败 (%d)", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, githubAPIError(resp, respBody, "获取工作流运行列表失败")
 	}
 
 	var result struct {
@@ -632,7 +713,8 @@ func (g *GitHubClient) GetWorkflowRun(buildOwner, buildRepo string, runID int64)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, nil, fmt.Errorf("获取运行详情失败 (%d)", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, nil, githubAPIError(resp, respBody, "获取运行详情失败")
 	}
 
 	bodyBytes, _ := io.ReadAll(resp.Body)
@@ -673,7 +755,8 @@ func (g *GitHubClient) GetWorkflowRunJobs(buildOwner, buildRepo string, runID in
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("获取 job 列表失败 (%d)", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, githubAPIError(resp, respBody, "获取 job 列表失败")
 	}
 
 	var result struct {
@@ -700,7 +783,7 @@ func (g *GitHubClient) DeleteWorkflowRun(buildOwner, buildRepo string, runID int
 	}
 
 	respBody, _ := io.ReadAll(resp.Body)
-	return fmt.Errorf("删除 workflow 运行失败 (%d): %s", resp.StatusCode, string(respBody))
+	return githubAPIError(resp, respBody, "删除 workflow 运行失败")
 }
 
 func (g *GitHubClient) forceCancelWorkflowRun(buildOwner, buildRepo string, runID int64) error {
@@ -719,7 +802,7 @@ func (g *GitHubClient) forceCancelWorkflowRun(buildOwner, buildRepo string, runI
 	}
 
 	respBody, _ := io.ReadAll(resp.Body)
-	return fmt.Errorf("强制停止 workflow 运行失败 (%d): %s", resp.StatusCode, string(respBody))
+	return githubAPIError(resp, respBody, "强制停止 workflow 运行失败")
 }
 
 func (g *GitHubClient) CancelWorkflowRun(buildOwner, buildRepo string, runID int64) error {
@@ -741,7 +824,7 @@ func (g *GitHubClient) CancelWorkflowRun(buildOwner, buildRepo string, runID int
 	}
 
 	respBody, _ := io.ReadAll(resp.Body)
-	return fmt.Errorf("停止 workflow 运行失败 (%d): %s", resp.StatusCode, string(respBody))
+	return githubAPIError(resp, respBody, "停止 workflow 运行失败")
 }
 
 // GetWorkflowRunInputs 获取单个 run 的 workflow_dispatch 输入参数
@@ -763,7 +846,8 @@ func (g *GitHubClient) GetWorkflowRunInputs(buildOwner, buildRepo string, runID 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("获取运行详情失败 (%d)", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, githubAPIError(resp, respBody, "获取运行详情失败")
 	}
 
 	bodyBytes, _ := io.ReadAll(resp.Body)
@@ -825,7 +909,7 @@ func (g *GitHubClient) GetReleaseByTag(buildOwner, buildRepo, tag string) (*Rele
 
 	if resp.StatusCode != http.StatusNotFound {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("获取 Release 失败 (%d): %s", resp.StatusCode, string(respBody))
+		return nil, githubAPIError(resp, respBody, "获取 Release 失败")
 	}
 
 	listURL := fmt.Sprintf(
@@ -840,7 +924,7 @@ func (g *GitHubClient) GetReleaseByTag(buildOwner, buildRepo, tag string) (*Rele
 
 	if listResp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(listResp.Body)
-		return nil, fmt.Errorf("获取 Release 列表失败 (%d): %s", listResp.StatusCode, string(respBody))
+		return nil, githubAPIError(listResp, respBody, "获取 Release 列表失败")
 	}
 
 	var releases []Release
@@ -873,7 +957,7 @@ func (g *GitHubClient) DeleteRelease(buildOwner, buildRepo string, releaseID int
 	}
 
 	respBody, _ := io.ReadAll(resp.Body)
-	return fmt.Errorf("删除 Release 失败 (%d): %s", resp.StatusCode, string(respBody))
+	return githubAPIError(resp, respBody, "删除 Release 失败")
 }
 
 func (g *GitHubClient) DeleteReleaseByTag(buildOwner, buildRepo, tag string) error {
@@ -914,7 +998,7 @@ func (g *GitHubClient) DownloadReleaseAsset(buildOwner, buildRepo string, assetI
 		}
 		defer resp.Body.Close()
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("下载 Release 资源失败 (%d): %s", resp.StatusCode, string(respBody))
+		return nil, githubAPIError(resp, respBody, "下载 Release 资源失败")
 	}
 	return resp, nil
 }
@@ -986,7 +1070,7 @@ func (g *GitHubClient) ListRecentCommitsForRepo(owner, repo, branch string, coun
 		if resp.StatusCode != http.StatusOK {
 			respBody, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			return nil, fmt.Errorf("获取提交记录失败 (%d): %s", resp.StatusCode, string(respBody))
+			return nil, githubAPIError(resp, respBody, "获取提交记录失败")
 		}
 
 		var rawCommits []struct {

@@ -5678,6 +5678,9 @@
                 var response = await api('GET', appendBuildClientQuery('/profiles'));
                 if (!response) return;
                 var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '加载档案列表失败');
+                }
                 profilesCache = data.profiles || [];
                 renderProfileSelect();
 	                syncProfileBoundAppTitle();
@@ -5688,6 +5691,9 @@
 	                }
             } catch (e) {
                 console.log('加载档案列表失败:', e.message);
+                profilesCache = [];
+                renderProfileSelect();
+                setStatus('加载档案列表失败: ' + e.message, 'error');
             }
         }
 
