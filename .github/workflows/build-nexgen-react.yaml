@@ -858,12 +858,12 @@ jobs:
           PACKAGE_NAME="${{ steps.package.outputs.package_name }}"
           ASSETS_RESPONSE=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
-          printf '%s' "$ASSETS_RESPONSE" | node -e "
-            const fs = require('fs');
+          printf '%s' "$ASSETS_RESPONSE" | node -e '
+            const fs = require("fs");
             const packageName = process.argv[1];
-            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
-            const assets = (Array.isArray(data) ? data : []).filter(item => {
-              const name = String((item && item.name) || '');
+            const data = JSON.parse(fs.readFileSync(0, "utf8"));
+            const assets = (Array.isArray(data) ? data : []).filter((item) => {
+              const name = String((item && item.name) || "");
               return item && item.id && (
                 name === packageName ||
                 name === `${packageName}.sha256` ||
@@ -872,9 +872,9 @@ jobs:
               );
             });
             for (const asset of assets) {
-              process.stdout.write(String(asset.id) + '\t' + asset.name + '\n');
+              process.stdout.write(`${asset.id}\t${asset.name}\n`);
             }
-          " "$PACKAGE_NAME" | while IFS=$'\t' read -r asset_id asset_name; do
+          ' "$PACKAGE_NAME" | while IFS=$'\t' read -r asset_id asset_name; do
             [ -n "$asset_id" ] || continue
             echo "Deleting existing bundle asset: $asset_name"
             curl -sS --fail -X DELETE -H "Authorization: token $GH_TOKEN" \
@@ -882,7 +882,7 @@ jobs:
           done
 
           cd ./release
-          MAX_RELEASE_ASSET_BYTES=$((1900 * 1024 * 1024))
+          MAX_RELEASE_ASSET_BYTES=$((800 * 1024 * 1024))
           FILE_BYTES=$(wc -c < "$PACKAGE_NAME" | tr -d ' ')
           FILESIZE=$(du -h "$PACKAGE_NAME" | cut -f1)
           UPLOAD_DIR="./upload"
@@ -890,7 +890,7 @@ jobs:
           mkdir -p "$UPLOAD_DIR"
 
           if [ "$FILE_BYTES" -gt "$MAX_RELEASE_ASSET_BYTES" ]; then
-            echo "::warning::合集包 $PACKAGE_NAME 大小为 $FILESIZE，超过安全阈值 1900 MiB，将自动分片上传。"
+            echo "::warning::合集包 $PACKAGE_NAME 大小为 $FILESIZE，超过安全阈值 800 MiB，将自动分片上传。"
             sha256sum "$PACKAGE_NAME" > "$UPLOAD_DIR/${PACKAGE_NAME}.sha256"
             split -b "$MAX_RELEASE_ASSET_BYTES" -d -a 3 "$PACKAGE_NAME" "$UPLOAD_DIR/${PACKAGE_NAME}.part-"
             {
