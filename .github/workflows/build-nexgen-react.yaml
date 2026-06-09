@@ -882,7 +882,7 @@ jobs:
           done
 
           cd ./release
-          MAX_RELEASE_ASSET_BYTES=$((800 * 1024 * 1024))
+          MAX_RELEASE_ASSET_BYTES=$((1536 * 1024 * 1024))
           FILE_BYTES=$(wc -c < "$PACKAGE_NAME" | tr -d ' ')
           FILESIZE=$(du -h "$PACKAGE_NAME" | cut -f1)
           UPLOAD_DIR="./upload"
@@ -890,7 +890,7 @@ jobs:
           mkdir -p "$UPLOAD_DIR"
 
           if [ "$FILE_BYTES" -gt "$MAX_RELEASE_ASSET_BYTES" ]; then
-            echo "::warning::合集包 $PACKAGE_NAME 大小为 $FILESIZE，超过安全阈值 800 MiB，将自动分片上传。"
+            echo "::warning::合集包 $PACKAGE_NAME 大小为 $FILESIZE，超过安全阈值 1.5 GiB，将自动分片上传。"
             sha256sum "$PACKAGE_NAME" > "$UPLOAD_DIR/${PACKAGE_NAME}.sha256"
             split -b "$MAX_RELEASE_ASSET_BYTES" -d -a 3 "$PACKAGE_NAME" "$UPLOAD_DIR/${PACKAGE_NAME}.part-"
             {
