@@ -6350,6 +6350,7 @@
         var buildQueuePendingPlatforms = '';
         var buildQueueLastSnapshot = null;
         var buildQueueAvailable = false;
+        var buildProgressRecordId = 0;
         var buildQueueStatusMessage = '正在加载打包队列...';
         var buildPermissionAvailable = false;
         var buildPermissionStatusMessage = '正在加载软件打包状态...';
@@ -7729,6 +7730,9 @@
                     throw new Error(data.error || '删除打包记录失败');
                 }
                 delete buildAssetCache[recordId];
+                if (Number(recordId) === Number(buildProgressRecordId || 0) || (buildPollContext && Number(recordId) === Number(buildPollContext.buildRecordId || 0))) {
+                    dismissBuildProgress();
+                }
                 setBuildStatus('打包记录已删除', 'success');
                 refreshMyBuildRecordsIfNeeded(false);
             } catch (e) {
@@ -7952,6 +7956,7 @@
                 progress_percent: record.progress_percent || record.progress || 0,
                 progress_text: record.progress_text || '',
                 progress_stage: record.progress_stage || '',
+                progress_details: Array.isArray(record.progress_details) ? record.progress_details : [],
                 created_at: record.created_at || '',
                 updated_at: record.updated_at || '',
                 inputs: {
@@ -8024,6 +8029,9 @@
                 myBuildRecordsCache = data.records || [];
                 renderMyBuildRecords(myBuildRecordsCache);
                 syncBuildProgressWithRecords(myBuildRecordsCache);
+                if (buildProgressRecordId && !findBuildRecordByPollContext(myBuildRecordsCache, { buildRecordId: buildProgressRecordId })) {
+                    dismissBuildProgress();
+                }
                 return myBuildRecordsCache;
             } catch (e) {
                 myBuildRecordsCache = [];
@@ -10048,6 +10056,7 @@
         function dismissBuildProgress() {
             stopBuildPolling();
             buildPollContext = null;
+            buildProgressRecordId = 0;
             buildCancelInFlightRecordId = 0;
             buildNotFoundCount = 0;
             saveBuildingProfile(null);
@@ -10332,6 +10341,61 @@
             return 'queued';
         }
 
+        function isMojibakePlaceholder(value) {
+            value = String(value || '').trim();
+            return value !== '' && /\?/.test(value) && value.replace(/\?/g, '').trim().length <= value.length / 2;
+        }
+
+        function formatBuildProgressPlatformLabel(key, label) {
+            label = String(label || '').trim();
+            var normalizedKey = String(key || '').toLowerCase();
+            var normalizedLabel = label.toLowerCase().replace(/[\s_]+/g, '-');
+            if (label && normalizedLabel !== normalizedKey && !isMojibakePlaceholder(label)) return label;
+            switch (normalizedKey) {
+                case 'windows':
+                    return 'Windows';
+                case 'windows-amd64':
+                    return 'Windows x64';
+                case 'windows-arm64':
+                    return 'Windows ARM64';
+                case 'android':
+                    return 'Android';
+                case 'android-tv':
+                    return 'Android TV';
+                case 'linux-amd64':
+                    return 'Linux x64';
+                case 'linux-arm64':
+                    return 'Linux ARM64';
+                case 'macos-amd64':
+                    return 'macOS Intel';
+                case 'macos-arm64':
+                    return 'macOS Apple Silicon';
+                default:
+                    return label || key || '平台';
+            }
+        }
+
+        function formatBuildProgressDetailHint(detail) {
+            var hint = String((detail && (detail.text || detail.stage)) || '').trim();
+            if (hint && !isMojibakePlaceholder(hint) && !/^(build|upload|bundle|queued|completed)$/.test(hint)) {
+                return hint;
+            }
+            var stage = String((detail && detail.stage) || '').trim();
+            var status = String((detail && detail.status) || '').trim();
+            var conclusion = String((detail && detail.conclusion) || '').trim();
+            if (status === 'completed') {
+                if (conclusion === 'success') return '已完成';
+                if (conclusion === 'failure' || conclusion === 'trigger_failed') return '打包失败';
+                if (conclusion === 'cancelled') return '已取消';
+                return '已结束';
+            }
+            if (stage === 'build') return '正在编译';
+            if (stage === 'upload') return '正在上传';
+            if (stage === 'bundle') return '正在整理合集包';
+            if (stage === 'queued' || !stage) return '等待开始';
+            return stage;
+        }
+
         function renderBuildProgressDetails(data) {
             var html = buildProgressNoteHtml(data);
             var details = Array.isArray(data && data.progress_details) ? data.progress_details : [];
@@ -10341,11 +10405,8 @@
             details.forEach(function(detail) {
                 var statusClass = normalizeBuildDetailStatusClass(detail);
                 var icon = getStatusIcon(detail.status || 'queued', detail.conclusion || '');
-                var label = detail.label || detail.key || '平台';
-                var hint = detail.text || detail.stage || '';
-                if (detail.status === 'completed' && detail.conclusion === 'success' && !hint) {
-                    hint = '已完成';
-                }
+                var label = formatBuildProgressPlatformLabel(detail.key || '', detail.label || '');
+                var hint = formatBuildProgressDetailHint(detail);
                 html += '<div class="build-job-item ' + statusClass + '">' +
                     '<div class="build-job-header">' +
                         '<span class="build-job-icon">' + escapeHtml(icon) + '</span>' +
@@ -10390,6 +10451,7 @@
             var panel = document.getElementById('buildProgressPanel');
             var jobsListEl = document.getElementById('buildJobsList');
             panel.style.display = 'block';
+            buildProgressRecordId = Number((data && data.record_id) || (buildPollContext && buildPollContext.buildRecordId) || buildProgressRecordId || 0);
 
             renderBuildProgressParams(data);
 

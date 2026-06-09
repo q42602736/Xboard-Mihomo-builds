@@ -329,13 +329,13 @@ jobs:
               status: "in_progress",
               progress_percent: 35,
               progress_stage: "build",
-              progress_text: `正在编译 ${label} 安装包`,
+              progress_text: "",
               progress_detail: {
                 key: process.env.PLATFORM_KEY || label,
                 label,
                 status: "in_progress",
                 stage: "build",
-                text: "正在编译"
+                text: ""
               }
             };
             process.stdout.write(JSON.stringify(payload));
@@ -806,13 +806,13 @@ jobs:
               status: "in_progress",
               progress_percent: 35,
               progress_stage: "build",
-              progress_text: `正在编译 ${label} 安装包`,
+              progress_text: "",
               progress_detail: {
                 key: process.env.PLATFORM_KEY || label,
                 label,
                 status: "in_progress",
                 stage: "build",
-                text: "正在编译"
+                text: ""
               }
             };
             process.stdout.write(JSON.stringify(payload));
@@ -1024,14 +1024,14 @@ jobs:
               status: "in_progress",
               progress_percent: 80,
               progress_stage: "build",
-              progress_text: `${label} 打包失败`,
+              progress_text: "",
               progress_detail: {
                 key: process.env.PLATFORM_KEY || label,
                 label,
                 status: "completed",
                 conclusion: "failure",
                 stage: "completed",
-                text: "打包失败"
+                text: ""
               }
             };
             process.stdout.write(JSON.stringify(payload));
@@ -1071,7 +1071,7 @@ jobs:
                 status: "in_progress",
                 progress_percent: Number(process.env.OVERALL_PROGRESS || 75),
                 progress_stage: process.env.DETAIL_STAGE || "upload",
-                progress_text: process.env.DETAIL_TEXT ? `${label} ${process.env.DETAIL_TEXT}` : `正在处理 ${label} 构建产物`,
+                progress_text: "",
                 progress_detail: {
                   key: process.env.PLATFORM_KEY || label,
                   label,
@@ -1089,8 +1089,8 @@ jobs:
               -d "$PAYLOAD" || true
           }
 
-          trap 'report_build_progress "completed" "completed" "打包失败" "failure" "80"' ERR
-          report_build_progress "in_progress" "upload" "正在上传构建产物" "" "75"
+          trap 'report_build_progress "completed" "completed" "" "failure" "80"' ERR
+          report_build_progress "in_progress" "upload" "" "" "75"
 
           if [ ! -d "./source/dist" ]; then
             echo "source/dist not found"
@@ -1158,7 +1158,7 @@ jobs:
 
             echo "Uploaded asset verified: id=$UPLOADED_ASSET_ID state=$UPLOADED_ASSET_STATE name=$UPLOADED_ASSET_NAME"
           done
-          report_build_progress "completed" "completed" "已上传" "success" "80"
+          report_build_progress "completed" "completed" "" "success" "80"
 
           echo "=== Release assets after upload ==="
           FINAL_ASSET_COUNT=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
@@ -1281,13 +1281,13 @@ jobs:
               status: "in_progress",
               progress_percent: 35,
               progress_stage: "build",
-              progress_text: `正在编译 ${label} 安装包`,
+              progress_text: "",
               progress_detail: {
                 key: process.env.PLATFORM_KEY || label,
                 label,
                 status: "in_progress",
                 stage: "build",
-                text: "正在编译"
+                text: ""
               }
             };
             process.stdout.write(JSON.stringify(payload));
@@ -1579,14 +1579,14 @@ jobs:
               status: "in_progress",
               progress_percent: 80,
               progress_stage: "build",
-              progress_text: `${label} 打包失败`,
+              progress_text: "",
               progress_detail: {
                 key: process.env.PLATFORM_KEY || label,
                 label,
                 status: "completed",
                 conclusion: "failure",
                 stage: "completed",
-                text: "打包失败"
+                text: ""
               }
             };
             process.stdout.write(JSON.stringify(payload));
@@ -1626,7 +1626,7 @@ jobs:
                 status: "in_progress",
                 progress_percent: Number(process.env.OVERALL_PROGRESS || 75),
                 progress_stage: process.env.DETAIL_STAGE || "upload",
-                progress_text: process.env.DETAIL_TEXT ? `${label} ${process.env.DETAIL_TEXT}` : `正在处理 ${label} 构建产物`,
+                progress_text: "",
                 progress_detail: {
                   key: process.env.PLATFORM_KEY || label,
                   label,
@@ -1644,8 +1644,8 @@ jobs:
               -d "$PAYLOAD" || true
           }
 
-          trap 'report_build_progress "completed" "completed" "打包失败" "failure" "80"' ERR
-          report_build_progress "in_progress" "upload" "正在上传构建产物" "" "75"
+          trap 'report_build_progress "completed" "completed" "" "failure" "80"' ERR
+          report_build_progress "in_progress" "upload" "" "" "75"
 
           if [ ! -d "./source/dist" ]; then
             echo "source/dist not found"
@@ -1713,7 +1713,7 @@ jobs:
 
             echo "Uploaded asset verified: id=$UPLOADED_ASSET_ID state=$UPLOADED_ASSET_STATE name=$UPLOADED_ASSET_NAME"
           done
-          report_build_progress "completed" "completed" "已上传" "success" "80"
+          report_build_progress "completed" "completed" "" "success" "80"
 
           echo "=== Release assets after upload ==="
           FINAL_ASSET_COUNT=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
@@ -2010,7 +2010,7 @@ jobs:
               release_tag: process.env.RELEASE_TAG || "",
               progress_percent: 100,
               progress_stage: "completed",
-              progress_text: process.env.CONCLUSION === "success" ? "打包完成，产物已上传" : "打包已结束，请查看 GitHub Actions 日志"
+              progress_text: ""
             };
             process.stdout.write(JSON.stringify(payload));
           ')

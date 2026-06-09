@@ -1160,6 +1160,84 @@ func buildPlatformProgressLabel(platform string) string {
 	}
 }
 
+func shouldUseCanonicalBuildPlatformLabel(key, label string) bool {
+	key = strings.TrimSpace(strings.ToLower(key))
+	label = strings.TrimSpace(strings.ToLower(label))
+	if label == "" || isMojibakePlaceholder(label) {
+		return true
+	}
+	normalizedLabel := strings.NewReplacer(" ", "-", "_", "-").Replace(label)
+	return key != "" && (label == key || normalizedLabel == key)
+}
+
+func isMojibakePlaceholder(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	if strings.Contains(value, "??") {
+		return true
+	}
+	questionCount := strings.Count(value, "?")
+	return questionCount > 0 && questionCount*2 >= len([]rune(value))
+}
+
+func isGenericBuildProgressText(value string) bool {
+	switch strings.TrimSpace(value) {
+	case "", "正在打包，请稍候", "正在处理打包任务":
+		return true
+	default:
+		return false
+	}
+}
+
+func buildProgressDetailText(stage, status, conclusion, text string) string {
+	text = strings.TrimSpace(text)
+	if text != "" && !isMojibakePlaceholder(text) {
+		switch text {
+		case "building":
+			return "正在编译"
+		case "uploading":
+			return "正在上传"
+		case "uploaded":
+			return "已上传"
+		case "build_failed":
+			return "打包失败"
+		}
+		return text
+	}
+	stage = strings.TrimSpace(stage)
+	status = strings.TrimSpace(status)
+	conclusion = strings.TrimSpace(conclusion)
+	if status == "completed" {
+		switch conclusion {
+		case "success":
+			return "已完成"
+		case "failure", "trigger_failed":
+			return "打包失败"
+		case "cancelled":
+			return "已取消"
+		}
+	}
+	switch stage {
+	case "build":
+		return "正在编译"
+	case "upload":
+		return "正在上传"
+	case "bundle":
+		return "正在整理合集包"
+	case "completed":
+		if conclusion == "success" {
+			return "已完成"
+		}
+		return "已结束"
+	case "queued", "":
+		return "等待开始"
+	default:
+		return stage
+	}
+}
+
 func isPlatformInCatalog(platform string, catalog []string) bool {
 	for _, item := range catalog {
 		if platform == item {
@@ -1946,7 +2024,7 @@ func buildRecordResponse(record BuildRecord) map[string]interface{} {
 		"status_source":    record.StatusSource,
 		"progress":         normalizeBuildProgress(&record),
 		"progress_percent": normalizeBuildProgress(&record),
-		"progress_text":    record.ProgressText,
+		"progress_text":    buildProgressTextForResponse(&record),
 		"progress_stage":   record.ProgressStage,
 		"progress_details": buildProgressDetailsForResponse(&record),
 		"bound_at":         record.BoundAt,
@@ -1991,7 +2069,7 @@ func buildStatusResponseFromRecord(record *BuildRecord) map[string]interface{} {
 		"last_sync_at":     record.LastSyncAt,
 		"progress":         normalizeBuildProgress(record),
 		"progress_percent": normalizeBuildProgress(record),
-		"progress_text":    record.ProgressText,
+		"progress_text":    buildProgressTextForResponse(record),
 		"progress_stage":   record.ProgressStage,
 		"progress_details": buildProgressDetailsForResponse(record),
 		"created_at":       record.CreatedAt,
@@ -2154,6 +2232,12 @@ func buildProgressDetailsForResponse(record *BuildRecord) []BuildProgressDetail 
 	if len(details) == 0 {
 		return []BuildProgressDetail{}
 	}
+	for i := range details {
+		if shouldUseCanonicalBuildPlatformLabel(details[i].Key, details[i].Label) {
+			details[i].Label = buildPlatformProgressLabel(details[i].Key)
+		}
+		details[i].Text = buildProgressDetailText(details[i].Stage, details[i].Status, details[i].Conclusion, details[i].Text)
+	}
 	if record.Status == "completed" && record.Conclusion == "success" {
 		for i := range details {
 			if details[i].Status != "completed" || details[i].Conclusion == "" {
@@ -2171,6 +2255,59 @@ func buildProgressDetailsForResponse(record *BuildRecord) []BuildProgressDetail 
 	return details
 }
 
+func buildProgressTextForResponse(record *BuildRecord) string {
+	if record == nil {
+		return ""
+	}
+	progressText := strings.TrimSpace(record.ProgressText)
+	if progressText != "" && !isMojibakePlaceholder(progressText) && !isGenericBuildProgressText(progressText) {
+		switch progressText {
+		case "build completed", "NexGen build completed":
+			return "打包完成，产物已上传"
+		case "build finished", "NexGen build finished":
+			return "打包已结束，请查看 GitHub Actions 日志"
+		}
+		return progressText
+	}
+
+	clientPrefix := ""
+	if normalizeBuildClient(record.Client) == buildClientNexGenReact {
+		clientPrefix = "NexGen "
+	}
+	for _, detail := range buildProgressDetailsForResponse(record) {
+		if detail.Status == "completed" && detail.Conclusion == "failure" {
+			label := detail.Label
+			if label == "" || isMojibakePlaceholder(label) {
+				label = buildPlatformProgressLabel(detail.Key)
+			}
+			return clientPrefix + label + " 打包失败"
+		}
+		if detail.Status != "in_progress" {
+			continue
+		}
+		label := detail.Label
+		if label == "" || isMojibakePlaceholder(label) {
+			label = buildPlatformProgressLabel(detail.Key)
+		}
+		switch detail.Stage {
+		case "build":
+			return "正在编译 " + clientPrefix + label + " 安装包"
+		case "upload":
+			return "正在上传 " + clientPrefix + label + " 构建产物"
+		}
+		text := buildProgressDetailText(detail.Stage, detail.Status, detail.Conclusion, detail.Text)
+		if text != "" {
+			return clientPrefix + label + " " + text
+		}
+	}
+
+	_, fallbackText, _ := buildProgressForEvent(record.Status, record.Conclusion, normalizeBuildProgress(record), "", record.ProgressStage)
+	if normalizeBuildClient(record.Client) == buildClientNexGenReact && record.Status == "completed" && record.Conclusion != "success" {
+		return "NexGen 打包已结束，请查看 GitHub Actions 日志"
+	}
+	return fallbackText
+}
+
 func mergeBuildProgressDetail(record *BuildRecord, detail BuildProgressDetail) string {
 	if record == nil {
 		return ""
@@ -2180,8 +2317,8 @@ func mergeBuildProgressDetail(record *BuildRecord, detail BuildProgressDetail) s
 		return record.ProgressDetails
 	}
 	detail.Label = strings.TrimSpace(detail.Label)
-	if detail.Label == "" {
-		detail.Label = detail.Key
+	if shouldUseCanonicalBuildPlatformLabel(detail.Key, detail.Label) {
+		detail.Label = buildPlatformProgressLabel(detail.Key)
 	}
 	detail.Status = strings.TrimSpace(detail.Status)
 	if detail.Status == "" {
@@ -2189,7 +2326,7 @@ func mergeBuildProgressDetail(record *BuildRecord, detail BuildProgressDetail) s
 	}
 	detail.Stage = strings.TrimSpace(detail.Stage)
 	detail.Conclusion = strings.TrimSpace(detail.Conclusion)
-	detail.Text = strings.TrimSpace(detail.Text)
+	detail.Text = buildProgressDetailText(detail.Stage, detail.Status, detail.Conclusion, detail.Text)
 	detail.UpdatedAt = time.Now().Local().Format("2006-01-02 15:04:05 MST")
 
 	details := parseBuildProgressDetails(record.ProgressDetails)
