@@ -3355,12 +3355,17 @@ func (h *Handlers) InternalCompleteBuildRun(w http.ResponseWriter, r *http.Reque
 	if status == "" {
 		status = "completed"
 	}
+	req.Conclusion = strings.TrimSpace(req.Conclusion)
+	if status == "completed" && req.Conclusion == "" {
+		req.Conclusion = "success"
+	}
 	var progressDetail *BuildProgressDetail
 	if strings.TrimSpace(req.ProgressDetail.Key) != "" {
 		progressDetail = &req.ProgressDetail
 	}
 	record, err = h.persistBuildRecordProgressEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag, req.Progress, req.ProgressText, req.ProgressStage, progressDetail)
 	if err != nil {
+		log.Printf("更新打包完成状态失败: request_id=%s run_id=%d status=%s conclusion=%s err=%v", req.RequestID, req.RunID, status, req.Conclusion, err)
 		jsonError(w, "更新打包完成状态失败", 500)
 		return
 	}

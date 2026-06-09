@@ -1143,7 +1143,7 @@ jobs:
             CONCLUSION="cancelled"
           fi
           CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/complete"
-          PAYLOAD=$(node -e '
+          PAYLOAD=$(CONCLUSION="$CONCLUSION" node -e '
             const payload = {
               request_id: process.env.REQUEST_ID,
               run_id: Number(process.env.RUN_ID || 0),
@@ -1157,7 +1157,13 @@ jobs:
             };
             process.stdout.write(JSON.stringify(payload));
           ')
-          curl -fsS -X POST "$CALLBACK_URL" \
+          RESPONSE_FILE="$(mktemp)"
+          HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" -X POST "$CALLBACK_URL" \
             -H "Content-Type: application/json" \
             -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
-            -d "$PAYLOAD"
+            -d "$PAYLOAD")
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::同步打包完成状态失败，HTTP $HTTP_CODE"
+            cat "$RESPONSE_FILE"
+            exit 1
+          fi
