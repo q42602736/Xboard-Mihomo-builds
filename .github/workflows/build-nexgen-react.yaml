@@ -882,26 +882,21 @@ jobs:
           done
 
           cd ./release
-          MAX_RELEASE_ASSET_BYTES=$((1536 * 1024 * 1024))
-          FILE_BYTES=$(wc -c < "$PACKAGE_NAME" | tr -d ' ')
+          BUNDLE_PART_BYTES=$((512 * 1024 * 1024))
           FILESIZE=$(du -h "$PACKAGE_NAME" | cut -f1)
           UPLOAD_DIR="./upload"
           rm -rf "$UPLOAD_DIR"
           mkdir -p "$UPLOAD_DIR"
 
-          if [ "$FILE_BYTES" -gt "$MAX_RELEASE_ASSET_BYTES" ]; then
-            echo "::warning::合集包 $PACKAGE_NAME 大小为 $FILESIZE，超过安全阈值 1.5 GiB，将自动分片上传。"
-            sha256sum "$PACKAGE_NAME" > "$UPLOAD_DIR/${PACKAGE_NAME}.sha256"
-            split -b "$MAX_RELEASE_ASSET_BYTES" -d -a 3 "$PACKAGE_NAME" "$UPLOAD_DIR/${PACKAGE_NAME}.part-"
-            {
-              printf '%s 已按 GitHub Release 单文件 2 GiB 限制自动分片。\n\n' "$PACKAGE_NAME"
-              printf '合并命令:\n'
-              printf 'cat %s.part-* > %s\n' "$PACKAGE_NAME" "$PACKAGE_NAME"
-              printf 'sha256sum -c %s.sha256\n' "$PACKAGE_NAME"
-            } > "$UPLOAD_DIR/${PACKAGE_NAME}.manifest.txt"
-          else
-            cp "$PACKAGE_NAME" "$UPLOAD_DIR/$PACKAGE_NAME"
-          fi
+          echo "::notice::合集包 $PACKAGE_NAME 大小为 $FILESIZE，将按 512 MiB 固定分片上传，避免大文件 curl 上传内存不足。"
+          sha256sum "$PACKAGE_NAME" > "$UPLOAD_DIR/${PACKAGE_NAME}.sha256"
+          split -b "$BUNDLE_PART_BYTES" -d -a 3 "$PACKAGE_NAME" "$UPLOAD_DIR/${PACKAGE_NAME}.part-"
+          {
+            printf '%s 已按 512 MiB 固定分片上传，避免 GitHub Actions curl 大文件上传内存不足。\n\n' "$PACKAGE_NAME"
+            printf '合并命令:\n'
+            printf 'cat %s.part-* > %s\n' "$PACKAGE_NAME" "$PACKAGE_NAME"
+            printf 'sha256sum -c %s.sha256\n' "$PACKAGE_NAME"
+          } > "$UPLOAD_DIR/${PACKAGE_NAME}.manifest.txt"
 
           upload_release_asset() {
             local file_path="$1"
