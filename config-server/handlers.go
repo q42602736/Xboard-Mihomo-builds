@@ -1132,6 +1132,34 @@ func buildCoreLabel(core string) string {
 	}
 }
 
+func buildPlatformProgressLabel(platform string) string {
+	switch strings.TrimSpace(strings.ToLower(platform)) {
+	case "windows":
+		return "Windows"
+	case "windows-amd64":
+		return "Windows x64"
+	case "windows-arm64":
+		return "Windows ARM64"
+	case "android":
+		return "Android"
+	case "android-tv":
+		return "Android TV"
+	case "linux-amd64":
+		return "Linux x64"
+	case "linux-arm64":
+		return "Linux ARM64"
+	case "macos-amd64":
+		return "macOS Intel"
+	case "macos-arm64":
+		return "macOS Apple Silicon"
+	default:
+		if strings.TrimSpace(platform) == "" {
+			return "客户端"
+		}
+		return platform
+	}
+}
+
 func isPlatformInCatalog(platform string, catalog []string) bool {
 	for _, item := range catalog {
 		if platform == item {
@@ -1920,6 +1948,7 @@ func buildRecordResponse(record BuildRecord) map[string]interface{} {
 		"progress_percent": normalizeBuildProgress(&record),
 		"progress_text":    record.ProgressText,
 		"progress_stage":   record.ProgressStage,
+		"progress_details": buildProgressDetailsForResponse(&record),
 		"bound_at":         record.BoundAt,
 		"finished_at":      record.FinishedAt,
 		"last_sync_at":     record.LastSyncAt,
@@ -1964,6 +1993,7 @@ func buildStatusResponseFromRecord(record *BuildRecord) map[string]interface{} {
 		"progress_percent": normalizeBuildProgress(record),
 		"progress_text":    record.ProgressText,
 		"progress_stage":   record.ProgressStage,
+		"progress_details": buildProgressDetailsForResponse(record),
 		"created_at":       record.CreatedAt,
 		"updated_at":       record.UpdatedAt,
 		"release_tag":      buildReleaseTag(record),
@@ -2065,6 +2095,174 @@ func normalizeBuildProgress(record *BuildRecord) int {
 		progress = 100
 	}
 	return progress
+}
+
+type BuildProgressDetail struct {
+	Key        string `json:"key"`
+	Label      string `json:"label"`
+	Status     string `json:"status"`
+	Conclusion string `json:"conclusion,omitempty"`
+	Stage      string `json:"stage,omitempty"`
+	Text       string `json:"text,omitempty"`
+	UpdatedAt  string `json:"updated_at,omitempty"`
+	Order      int    `json:"order,omitempty"`
+}
+
+func parseBuildProgressDetails(raw string) []BuildProgressDetail {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return []BuildProgressDetail{}
+	}
+	var details []BuildProgressDetail
+	if err := json.Unmarshal([]byte(raw), &details); err != nil {
+		return []BuildProgressDetail{}
+	}
+	for i := range details {
+		details[i].Key = strings.TrimSpace(details[i].Key)
+		details[i].Label = strings.TrimSpace(details[i].Label)
+		details[i].Status = strings.TrimSpace(details[i].Status)
+		details[i].Conclusion = strings.TrimSpace(details[i].Conclusion)
+		details[i].Stage = strings.TrimSpace(details[i].Stage)
+		details[i].Text = strings.TrimSpace(details[i].Text)
+		details[i].UpdatedAt = strings.TrimSpace(details[i].UpdatedAt)
+	}
+	return details
+}
+
+func encodeBuildProgressDetails(details []BuildProgressDetail) string {
+	if len(details) == 0 {
+		return ""
+	}
+	sort.SliceStable(details, func(i, j int) bool {
+		if details[i].Order == details[j].Order {
+			return details[i].Key < details[j].Key
+		}
+		return details[i].Order < details[j].Order
+	})
+	data, err := json.Marshal(details)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func buildProgressDetailsForResponse(record *BuildRecord) []BuildProgressDetail {
+	if record == nil {
+		return []BuildProgressDetail{}
+	}
+	details := parseBuildProgressDetails(record.ProgressDetails)
+	if len(details) == 0 {
+		return []BuildProgressDetail{}
+	}
+	if record.Status == "completed" && record.Conclusion == "success" {
+		for i := range details {
+			if details[i].Status != "completed" || details[i].Conclusion == "" {
+				details[i].Status = "completed"
+				details[i].Conclusion = "success"
+				if details[i].Stage == "" {
+					details[i].Stage = "completed"
+				}
+				if details[i].Text == "" {
+					details[i].Text = "已完成"
+				}
+			}
+		}
+	}
+	return details
+}
+
+func mergeBuildProgressDetail(record *BuildRecord, detail BuildProgressDetail) string {
+	if record == nil {
+		return ""
+	}
+	detail.Key = strings.TrimSpace(detail.Key)
+	if detail.Key == "" {
+		return record.ProgressDetails
+	}
+	detail.Label = strings.TrimSpace(detail.Label)
+	if detail.Label == "" {
+		detail.Label = detail.Key
+	}
+	detail.Status = strings.TrimSpace(detail.Status)
+	if detail.Status == "" {
+		detail.Status = "in_progress"
+	}
+	detail.Stage = strings.TrimSpace(detail.Stage)
+	detail.Conclusion = strings.TrimSpace(detail.Conclusion)
+	detail.Text = strings.TrimSpace(detail.Text)
+	detail.UpdatedAt = time.Now().Local().Format("2006-01-02 15:04:05 MST")
+
+	details := parseBuildProgressDetails(record.ProgressDetails)
+	replaced := false
+	for i := range details {
+		if details[i].Key != detail.Key {
+			continue
+		}
+		if detail.Order == 0 {
+			detail.Order = details[i].Order
+		}
+		details[i] = detail
+		replaced = true
+		break
+	}
+	if !replaced {
+		if detail.Order == 0 {
+			detail.Order = len(details) + 1
+		}
+		details = append(details, detail)
+	}
+	return encodeBuildProgressDetails(details)
+}
+
+func progressFromBuildDetails(details []BuildProgressDetail) int {
+	if len(details) == 0 {
+		return -1
+	}
+	total := len(details)
+	weighted := 0
+	for _, detail := range details {
+		switch {
+		case detail.Status == "completed" && detail.Conclusion == "success":
+			weighted += 100
+		case detail.Status == "completed":
+			weighted += 100
+		case detail.Stage == "upload":
+			weighted += 78
+		case detail.Stage == "build":
+			weighted += 45
+		case detail.Status == "in_progress":
+			weighted += 35
+		default:
+			weighted += 12
+		}
+	}
+	progress := 20 + int(float64(weighted)/float64(total)*0.55)
+	if progress < 30 {
+		progress = 30
+	}
+	if progress > 80 {
+		progress = 80
+	}
+	return progress
+}
+
+func initialBuildProgressDetails(client, core, platforms string) string {
+	requested, err := expandRequestedBuildPlatformsForClient(client, core, platforms)
+	if err != nil || len(requested) == 0 {
+		return ""
+	}
+	details := make([]BuildProgressDetail, 0, len(requested))
+	for i, platform := range requested {
+		details = append(details, BuildProgressDetail{
+			Key:    platform,
+			Label:  buildPlatformProgressLabel(platform),
+			Status: "queued",
+			Stage:  "queued",
+			Text:   "等待开始",
+			Order:  i + 1,
+		})
+	}
+	return encodeBuildProgressDetails(details)
 }
 
 func buildProgressForEvent(status, conclusion string, progress int, progressText, progressStage string) (int, string, string) {
@@ -2351,7 +2549,7 @@ func (h *Handlers) applyWorkflowRunToBuildRecord(record *BuildRecord, run *Workf
 	}
 	releaseTag := buildReleaseTag(record)
 	progress, progressText, progressStage := buildProgressForEvent(status, conclusion, -1, "", "")
-	if err := updateBuildRecordStatusProgressExt(record.ID, run.ID, status, conclusion, "github", runURL, releaseTag, progress, progressText, progressStage); err != nil {
+	if err := updateBuildRecordStatusProgressExt(record.ID, run.ID, status, conclusion, "github", runURL, releaseTag, progress, progressText, progressStage, ""); err != nil {
 		return
 	}
 	if err := consumeBuildUsageForCompletedRecord(record.ID); err != nil {
@@ -2676,7 +2874,8 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	record, err := createBuildRecord(claims.CodeID, claims.CodeName, req.Client, req.Profile, req.Tag, req.Branch, req.Core, req.Platforms)
+	progressDetails := initialBuildProgressDetails(req.Client, req.Core, req.Platforms)
+	record, err := createBuildRecordWithProgressDetails(claims.CodeID, claims.CodeName, req.Client, req.Profile, req.Tag, req.Branch, req.Core, req.Platforms, progressDetails)
 	if err != nil {
 		jsonError(w, "创建打包记录失败", 500)
 		return
@@ -2704,7 +2903,7 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 	err = h.gh.TriggerWorkflow(cfg.BuildOwner, cfg.BuildRepo, clientConfig.WorkflowFile, inputs)
 	if err != nil {
 		progressText := "触发打包失败：" + err.Error()
-		_ = updateBuildRecordStatusProgressExt(record.ID, 0, "completed", "trigger_failed", "server", "", "", 100, progressText, "trigger_failed")
+		_ = updateBuildRecordStatusProgressExt(record.ID, 0, "completed", "trigger_failed", "server", "", "", 100, progressText, "trigger_failed", "")
 		jsonError(w, err.Error(), 500)
 		return
 	}
@@ -2771,10 +2970,10 @@ func buildReleaseTagForRun(record *BuildRecord, runID int64, releaseTag string) 
 }
 
 func (h *Handlers) persistBuildRecordEvent(record *BuildRecord, runID int64, status, conclusion, statusSource, runURL, releaseTag string) (*BuildRecord, error) {
-	return h.persistBuildRecordProgressEvent(record, runID, status, conclusion, statusSource, runURL, releaseTag, -1, "", "")
+	return h.persistBuildRecordProgressEvent(record, runID, status, conclusion, statusSource, runURL, releaseTag, -1, "", "", nil)
 }
 
-func (h *Handlers) persistBuildRecordProgressEvent(record *BuildRecord, runID int64, status, conclusion, statusSource, runURL, releaseTag string, progress int, progressText, progressStage string) (*BuildRecord, error) {
+func (h *Handlers) persistBuildRecordProgressEvent(record *BuildRecord, runID int64, status, conclusion, statusSource, runURL, releaseTag string, progress int, progressText, progressStage string, progressDetail *BuildProgressDetail) (*BuildRecord, error) {
 	if record == nil {
 		return nil, fmt.Errorf("打包记录不存在")
 	}
@@ -2785,6 +2984,9 @@ func (h *Handlers) persistBuildRecordProgressEvent(record *BuildRecord, runID in
 	}
 	if record.Status == "completed" && status != "completed" {
 		status = record.Status
+		progress = normalizeBuildProgress(record)
+		progressText = record.ProgressText
+		progressStage = record.ProgressStage
 	}
 	conclusion = strings.TrimSpace(conclusion)
 	if conclusion == "" {
@@ -2795,9 +2997,18 @@ func (h *Handlers) persistBuildRecordProgressEvent(record *BuildRecord, runID in
 		runURL = buildWorkflowRunURL(runID)
 	}
 	releaseTag = buildReleaseTagForRun(record, runID, releaseTag)
+	progressDetails := record.ProgressDetails
+	if progressDetail != nil {
+		progressDetails = mergeBuildProgressDetail(record, *progressDetail)
+		if progress >= 0 && progress < 85 {
+			if detailProgress := progressFromBuildDetails(parseBuildProgressDetails(progressDetails)); detailProgress > 0 {
+				progress = detailProgress
+			}
+		}
+	}
 	progress, progressText, progressStage = buildProgressForEvent(status, conclusion, progress, progressText, progressStage)
 
-	if err := updateBuildRecordStatusProgressExt(record.ID, runID, status, conclusion, statusSource, runURL, releaseTag, progress, progressText, progressStage); err != nil {
+	if err := updateBuildRecordStatusProgressExt(record.ID, runID, status, conclusion, statusSource, runURL, releaseTag, progress, progressText, progressStage, progressDetails); err != nil {
 		return nil, err
 	}
 	if err := consumeBuildUsageForCompletedRecord(record.ID); err != nil {
@@ -2827,15 +3038,16 @@ func (h *Handlers) InternalBindBuildRun(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var req struct {
-		RequestID     string `json:"request_id"`
-		RunID         int64  `json:"run_id"`
-		RunURL        string `json:"run_url"`
-		Status        string `json:"status"`
-		Conclusion    string `json:"conclusion"`
-		ReleaseTag    string `json:"release_tag"`
-		Progress      int    `json:"progress_percent"`
-		ProgressText  string `json:"progress_text"`
-		ProgressStage string `json:"progress_stage"`
+		RequestID      string              `json:"request_id"`
+		RunID          int64               `json:"run_id"`
+		RunURL         string              `json:"run_url"`
+		Status         string              `json:"status"`
+		Conclusion     string              `json:"conclusion"`
+		ReleaseTag     string              `json:"release_tag"`
+		Progress       int                 `json:"progress_percent"`
+		ProgressText   string              `json:"progress_text"`
+		ProgressStage  string              `json:"progress_stage"`
+		ProgressDetail BuildProgressDetail `json:"progress_detail"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
@@ -2858,7 +3070,11 @@ func (h *Handlers) InternalBindBuildRun(w http.ResponseWriter, r *http.Request) 
 	if status == "" || status == "dispatching" {
 		status = "in_progress"
 	}
-	record, err = h.persistBuildRecordProgressEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag, req.Progress, req.ProgressText, req.ProgressStage)
+	var progressDetail *BuildProgressDetail
+	if strings.TrimSpace(req.ProgressDetail.Key) != "" {
+		progressDetail = &req.ProgressDetail
+	}
+	record, err = h.persistBuildRecordProgressEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag, req.Progress, req.ProgressText, req.ProgressStage, progressDetail)
 	if err != nil {
 		jsonError(w, "绑定打包运行失败", 500)
 		return
@@ -2877,15 +3093,16 @@ func (h *Handlers) InternalCompleteBuildRun(w http.ResponseWriter, r *http.Reque
 	}
 
 	var req struct {
-		RequestID     string `json:"request_id"`
-		RunID         int64  `json:"run_id"`
-		RunURL        string `json:"run_url"`
-		Status        string `json:"status"`
-		Conclusion    string `json:"conclusion"`
-		ReleaseTag    string `json:"release_tag"`
-		Progress      int    `json:"progress_percent"`
-		ProgressText  string `json:"progress_text"`
-		ProgressStage string `json:"progress_stage"`
+		RequestID      string              `json:"request_id"`
+		RunID          int64               `json:"run_id"`
+		RunURL         string              `json:"run_url"`
+		Status         string              `json:"status"`
+		Conclusion     string              `json:"conclusion"`
+		ReleaseTag     string              `json:"release_tag"`
+		Progress       int                 `json:"progress_percent"`
+		ProgressText   string              `json:"progress_text"`
+		ProgressStage  string              `json:"progress_stage"`
+		ProgressDetail BuildProgressDetail `json:"progress_detail"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
@@ -2911,7 +3128,11 @@ func (h *Handlers) InternalCompleteBuildRun(w http.ResponseWriter, r *http.Reque
 	if status == "" {
 		status = "completed"
 	}
-	record, err = h.persistBuildRecordProgressEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag, req.Progress, req.ProgressText, req.ProgressStage)
+	var progressDetail *BuildProgressDetail
+	if strings.TrimSpace(req.ProgressDetail.Key) != "" {
+		progressDetail = &req.ProgressDetail
+	}
+	record, err = h.persistBuildRecordProgressEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag, req.Progress, req.ProgressText, req.ProgressStage, progressDetail)
 	if err != nil {
 		jsonError(w, "更新打包完成状态失败", 500)
 		return
@@ -2930,15 +3151,16 @@ func (h *Handlers) InternalUpdateBuildProgress(w http.ResponseWriter, r *http.Re
 	}
 
 	var req struct {
-		RequestID     string `json:"request_id"`
-		RunID         int64  `json:"run_id"`
-		RunURL        string `json:"run_url"`
-		Status        string `json:"status"`
-		Conclusion    string `json:"conclusion"`
-		ReleaseTag    string `json:"release_tag"`
-		Progress      int    `json:"progress_percent"`
-		ProgressText  string `json:"progress_text"`
-		ProgressStage string `json:"progress_stage"`
+		RequestID      string              `json:"request_id"`
+		RunID          int64               `json:"run_id"`
+		RunURL         string              `json:"run_url"`
+		Status         string              `json:"status"`
+		Conclusion     string              `json:"conclusion"`
+		ReleaseTag     string              `json:"release_tag"`
+		Progress       int                 `json:"progress_percent"`
+		ProgressText   string              `json:"progress_text"`
+		ProgressStage  string              `json:"progress_stage"`
+		ProgressDetail BuildProgressDetail `json:"progress_detail"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", 400)
@@ -2963,7 +3185,11 @@ func (h *Handlers) InternalUpdateBuildProgress(w http.ResponseWriter, r *http.Re
 	if status == "" {
 		status = "in_progress"
 	}
-	record, err = h.persistBuildRecordProgressEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag, req.Progress, req.ProgressText, req.ProgressStage)
+	var progressDetail *BuildProgressDetail
+	if strings.TrimSpace(req.ProgressDetail.Key) != "" {
+		progressDetail = &req.ProgressDetail
+	}
+	record, err = h.persistBuildRecordProgressEvent(record, req.RunID, status, req.Conclusion, "callback", req.RunURL, req.ReleaseTag, req.Progress, req.ProgressText, req.ProgressStage, progressDetail)
 	if err != nil {
 		jsonError(w, "更新打包进度失败", 500)
 		return

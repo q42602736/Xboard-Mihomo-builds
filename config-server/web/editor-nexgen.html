@@ -8968,14 +8968,51 @@
             if (!data || !data.found) return '';
             var details = [];
             if (data.last_sync_at) details.push('最后更新：' + escapeHtml(formatClientUpdateTime(data.last_sync_at)));
-            var note = '打包任务正在处理中，请保持页面打开或稍后回来查看。';
+            var note = '打包任务正在处理中。';
             if (!isBuildTerminalStatus(data.status)) {
-                note += ' 状态更新可能会有短暂延迟。';
+                note += ' 下方会显示各平台的最新状态，可能会有短暂延迟。';
             }
             if (details.length > 0) {
                 note += '<br>' + details.join(' · ');
             }
             return '<div class="build-progress-note">' + note + '</div>';
+        }
+
+        function normalizeBuildDetailStatusClass(detail) {
+            var status = detail && detail.status ? detail.status : 'queued';
+            var conclusion = detail && detail.conclusion ? detail.conclusion : '';
+            if (status === 'completed') {
+                if (conclusion === 'failure' || conclusion === 'cancelled') return conclusion === 'cancelled' ? 'cancelled' : 'failure';
+                return 'success';
+            }
+            if (status === 'in_progress') return 'in_progress';
+            if (status === 'cancelled') return 'cancelled';
+            return 'queued';
+        }
+
+        function renderBuildProgressDetails(data) {
+            var html = buildProgressNoteHtml(data);
+            var details = Array.isArray(data && data.progress_details) ? data.progress_details : [];
+            if (details.length === 0) {
+                return html;
+            }
+            details.forEach(function(detail) {
+                var statusClass = normalizeBuildDetailStatusClass(detail);
+                var icon = getStatusIcon(detail.status || 'queued', detail.conclusion || '');
+                var label = detail.label || detail.key || '平台';
+                var hint = detail.text || detail.stage || '';
+                if (detail.status === 'completed' && detail.conclusion === 'success' && !hint) {
+                    hint = '已完成';
+                }
+                html += '<div class="build-job-item ' + statusClass + '">' +
+                    '<div class="build-job-header">' +
+                        '<span class="build-job-icon">' + escapeHtml(icon) + '</span>' +
+                        '<span class="build-job-name">' + escapeHtml(label) + '</span>' +
+                        '<span class="build-job-step-hint">' + escapeHtml(hint) + '</span>' +
+                    '</div>' +
+                '</div>';
+            });
+            return html;
         }
 
         function getStepIcon(status, conclusion) {
@@ -9047,7 +9084,7 @@
                 document.getElementById('buildProgressTime').textContent = '';
             }
 
-            jobsListEl.innerHTML = buildProgressNoteHtml(data);
+            jobsListEl.innerHTML = renderBuildProgressDetails(data);
         }
 
         // 页面加载时恢复构建进度追踪

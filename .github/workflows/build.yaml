@@ -317,9 +317,11 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           PLATFORM_LABEL: ${{ matrix.platform }} ${{ matrix.arch }}
+          PLATFORM_KEY: ${{ matrix.build_platform == 'windows' && format('windows-{0}', matrix.arch) || matrix.build_platform == 'macos' && format('macos-{0}', matrix.arch) || matrix.platform }}
         run: |
           CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/progress"
           PAYLOAD=$(node -e '
+            const label = process.env.PLATFORM_LABEL || "客户端";
             const payload = {
               request_id: process.env.REQUEST_ID,
               run_id: Number(process.env.RUN_ID || 0),
@@ -327,7 +329,14 @@ jobs:
               status: "in_progress",
               progress_percent: 35,
               progress_stage: "build",
-              progress_text: `正在编译 ${process.env.PLATFORM_LABEL || "客户端"} 安装包`
+              progress_text: `正在编译 ${label} 安装包`,
+              progress_detail: {
+                key: process.env.PLATFORM_KEY || label,
+                label,
+                status: "in_progress",
+                stage: "build",
+                text: "正在编译"
+              }
             };
             process.stdout.write(JSON.stringify(payload));
           ')
@@ -778,7 +787,41 @@ jobs:
 
       - name: Build
         if: steps.check.outputs.should_run == 'true'
+        env:
+          CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+          CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PLATFORM_LABEL: ${{ matrix.platform }} ${{ matrix.arch }}
+          PLATFORM_KEY: ${{ matrix.build_platform == 'windows' && format('windows-{0}', matrix.arch) || matrix.build_platform == 'macos' && format('macos-{0}', matrix.arch) || matrix.platform }}
         run: |
+          CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/progress"
+          PAYLOAD=$(node -e '
+            const label = process.env.PLATFORM_LABEL || "客户端";
+            const payload = {
+              request_id: process.env.REQUEST_ID,
+              run_id: Number(process.env.RUN_ID || 0),
+              run_url: process.env.RUN_URL || "",
+              status: "in_progress",
+              progress_percent: 35,
+              progress_stage: "build",
+              progress_text: `正在编译 ${label} 安装包`,
+              progress_detail: {
+                key: process.env.PLATFORM_KEY || label,
+                label,
+                status: "in_progress",
+                stage: "build",
+                text: "正在编译"
+              }
+            };
+            process.stdout.write(JSON.stringify(payload));
+          ')
+          curl -fsS -X POST "$CALLBACK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+            -d "$PAYLOAD" || true
+
           cd source
           echo "=== Build Environment ==="
           echo "Platform: ${{ matrix.platform }}"
@@ -960,6 +1003,44 @@ jobs:
           echo "=== Build log tail ==="
           tail -100 ./source/build.log 2>/dev/null || echo "No build log"
 
+      - name: Report Platform Failed
+        if: failure() && steps.check.outputs.should_run == 'true'
+        env:
+          CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+          CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PLATFORM_LABEL: ${{ matrix.platform }} ${{ matrix.arch }}
+          PLATFORM_KEY: ${{ matrix.build_platform == 'windows' && format('windows-{0}', matrix.arch) || matrix.build_platform == 'macos' && format('macos-{0}', matrix.arch) || matrix.platform }}
+        run: |
+          CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/progress"
+          PAYLOAD=$(node -e '
+            const label = process.env.PLATFORM_LABEL || "客户端";
+            const payload = {
+              request_id: process.env.REQUEST_ID,
+              run_id: Number(process.env.RUN_ID || 0),
+              run_url: process.env.RUN_URL || "",
+              status: "in_progress",
+              progress_percent: 80,
+              progress_stage: "build",
+              progress_text: `${label} 打包失败`,
+              progress_detail: {
+                key: process.env.PLATFORM_KEY || label,
+                label,
+                status: "completed",
+                conclusion: "failure",
+                stage: "completed",
+                text: "打包失败"
+              }
+            };
+            process.stdout.write(JSON.stringify(payload));
+          ')
+          curl -fsS -X POST "$CALLBACK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+            -d "$PAYLOAD" || true
+
       - name: Upload dist to Draft Release
         if: success() && steps.check.outputs.should_run == 'true'
         env:
@@ -972,24 +1053,44 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           PLATFORM_LABEL: ${{ matrix.platform }} ${{ matrix.arch }}
+          PLATFORM_KEY: ${{ matrix.build_platform == 'windows' && format('windows-{0}', matrix.arch) || matrix.build_platform == 'macos' && format('macos-{0}', matrix.arch) || matrix.platform }}
         run: |
-          CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/progress"
-          PAYLOAD=$(node -e '
-            const payload = {
-              request_id: process.env.REQUEST_ID,
-              run_id: Number(process.env.RUN_ID || 0),
-              run_url: process.env.RUN_URL || "",
-              status: "in_progress",
-              progress_percent: 75,
-              progress_stage: "upload",
-              progress_text: `正在上传 ${process.env.PLATFORM_LABEL || "客户端"} 构建产物`
-            };
-            process.stdout.write(JSON.stringify(payload));
-          ')
-          curl -fsS -X POST "$CALLBACK_URL" \
-            -H "Content-Type: application/json" \
-            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
-            -d "$PAYLOAD" || true
+          report_build_progress() {
+            local detail_status="$1"
+            local detail_stage="$2"
+            local detail_text="$3"
+            local detail_conclusion="${4:-}"
+            local overall_progress="${5:-75}"
+            CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/progress"
+            PAYLOAD=$(DETAIL_STATUS="$detail_status" DETAIL_STAGE="$detail_stage" DETAIL_TEXT="$detail_text" DETAIL_CONCLUSION="$detail_conclusion" OVERALL_PROGRESS="$overall_progress" node -e '
+              const label = process.env.PLATFORM_LABEL || "客户端";
+              const payload = {
+                request_id: process.env.REQUEST_ID,
+                run_id: Number(process.env.RUN_ID || 0),
+                run_url: process.env.RUN_URL || "",
+                status: "in_progress",
+                progress_percent: Number(process.env.OVERALL_PROGRESS || 75),
+                progress_stage: process.env.DETAIL_STAGE || "upload",
+                progress_text: process.env.DETAIL_TEXT ? `${label} ${process.env.DETAIL_TEXT}` : `正在处理 ${label} 构建产物`,
+                progress_detail: {
+                  key: process.env.PLATFORM_KEY || label,
+                  label,
+                  status: process.env.DETAIL_STATUS || "in_progress",
+                  conclusion: process.env.DETAIL_CONCLUSION || "",
+                  stage: process.env.DETAIL_STAGE || "",
+                  text: process.env.DETAIL_TEXT || ""
+                }
+              };
+              process.stdout.write(JSON.stringify(payload));
+            ')
+            curl -fsS -X POST "$CALLBACK_URL" \
+              -H "Content-Type: application/json" \
+              -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+              -d "$PAYLOAD" || true
+          }
+
+          trap 'report_build_progress "completed" "completed" "打包失败" "failure" "80"' ERR
+          report_build_progress "in_progress" "upload" "正在上传构建产物" "" "75"
 
           if [ ! -d "./source/dist" ]; then
             echo "source/dist not found"
@@ -1057,6 +1158,7 @@ jobs:
 
             echo "Uploaded asset verified: id=$UPLOADED_ASSET_ID state=$UPLOADED_ASSET_STATE name=$UPLOADED_ASSET_NAME"
           done
+          report_build_progress "completed" "completed" "已上传" "success" "80"
 
           echo "=== Release assets after upload ==="
           FINAL_ASSET_COUNT=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
@@ -1167,9 +1269,11 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           PLATFORM_LABEL: linux ${{ matrix.arch }}
+          PLATFORM_KEY: linux-${{ matrix.arch }}
         run: |
           CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/progress"
           PAYLOAD=$(node -e '
+            const label = process.env.PLATFORM_LABEL || "Linux";
             const payload = {
               request_id: process.env.REQUEST_ID,
               run_id: Number(process.env.RUN_ID || 0),
@@ -1177,7 +1281,14 @@ jobs:
               status: "in_progress",
               progress_percent: 35,
               progress_stage: "build",
-              progress_text: `正在编译 ${process.env.PLATFORM_LABEL || "Linux"} 安装包`
+              progress_text: `正在编译 ${label} 安装包`,
+              progress_detail: {
+                key: process.env.PLATFORM_KEY || label,
+                label,
+                status: "in_progress",
+                stage: "build",
+                text: "正在编译"
+              }
             };
             process.stdout.write(JSON.stringify(payload));
           ')
@@ -1447,6 +1558,44 @@ jobs:
           echo "=== Build log tail ==="
           tail -100 ./source/build.log 2>/dev/null || echo "No build log"
 
+      - name: Report Linux Platform Failed
+        if: failure() && steps.check.outputs.should_run == 'true'
+        env:
+          CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+          CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+          REQUEST_ID: ${{ github.event.inputs.request_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PLATFORM_LABEL: linux ${{ matrix.arch }}
+          PLATFORM_KEY: linux-${{ matrix.arch }}
+        run: |
+          CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/progress"
+          PAYLOAD=$(node -e '
+            const label = process.env.PLATFORM_LABEL || "Linux";
+            const payload = {
+              request_id: process.env.REQUEST_ID,
+              run_id: Number(process.env.RUN_ID || 0),
+              run_url: process.env.RUN_URL || "",
+              status: "in_progress",
+              progress_percent: 80,
+              progress_stage: "build",
+              progress_text: `${label} 打包失败`,
+              progress_detail: {
+                key: process.env.PLATFORM_KEY || label,
+                label,
+                status: "completed",
+                conclusion: "failure",
+                stage: "completed",
+                text: "打包失败"
+              }
+            };
+            process.stdout.write(JSON.stringify(payload));
+          ')
+          curl -fsS -X POST "$CALLBACK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+            -d "$PAYLOAD" || true
+
       - name: Upload dist to Draft Release
         if: success() && steps.check.outputs.should_run == 'true'
         env:
@@ -1459,24 +1608,44 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           PLATFORM_LABEL: linux ${{ matrix.arch }}
+          PLATFORM_KEY: linux-${{ matrix.arch }}
         run: |
-          CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/progress"
-          PAYLOAD=$(node -e '
-            const payload = {
-              request_id: process.env.REQUEST_ID,
-              run_id: Number(process.env.RUN_ID || 0),
-              run_url: process.env.RUN_URL || "",
-              status: "in_progress",
-              progress_percent: 75,
-              progress_stage: "upload",
-              progress_text: `正在上传 ${process.env.PLATFORM_LABEL || "Linux"} 构建产物`
-            };
-            process.stdout.write(JSON.stringify(payload));
-          ')
-          curl -fsS -X POST "$CALLBACK_URL" \
-            -H "Content-Type: application/json" \
-            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
-            -d "$PAYLOAD" || true
+          report_build_progress() {
+            local detail_status="$1"
+            local detail_stage="$2"
+            local detail_text="$3"
+            local detail_conclusion="${4:-}"
+            local overall_progress="${5:-75}"
+            CALLBACK_URL="${CONFIG_SERVER_URL%/}/api/internal/build-events/progress"
+            PAYLOAD=$(DETAIL_STATUS="$detail_status" DETAIL_STAGE="$detail_stage" DETAIL_TEXT="$detail_text" DETAIL_CONCLUSION="$detail_conclusion" OVERALL_PROGRESS="$overall_progress" node -e '
+              const label = process.env.PLATFORM_LABEL || "Linux";
+              const payload = {
+                request_id: process.env.REQUEST_ID,
+                run_id: Number(process.env.RUN_ID || 0),
+                run_url: process.env.RUN_URL || "",
+                status: "in_progress",
+                progress_percent: Number(process.env.OVERALL_PROGRESS || 75),
+                progress_stage: process.env.DETAIL_STAGE || "upload",
+                progress_text: process.env.DETAIL_TEXT ? `${label} ${process.env.DETAIL_TEXT}` : `正在处理 ${label} 构建产物`,
+                progress_detail: {
+                  key: process.env.PLATFORM_KEY || label,
+                  label,
+                  status: process.env.DETAIL_STATUS || "in_progress",
+                  conclusion: process.env.DETAIL_CONCLUSION || "",
+                  stage: process.env.DETAIL_STAGE || "",
+                  text: process.env.DETAIL_TEXT || ""
+                }
+              };
+              process.stdout.write(JSON.stringify(payload));
+            ')
+            curl -fsS -X POST "$CALLBACK_URL" \
+              -H "Content-Type: application/json" \
+              -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+              -d "$PAYLOAD" || true
+          }
+
+          trap 'report_build_progress "completed" "completed" "打包失败" "failure" "80"' ERR
+          report_build_progress "in_progress" "upload" "正在上传构建产物" "" "75"
 
           if [ ! -d "./source/dist" ]; then
             echo "source/dist not found"
@@ -1544,6 +1713,7 @@ jobs:
 
             echo "Uploaded asset verified: id=$UPLOADED_ASSET_ID state=$UPLOADED_ASSET_STATE name=$UPLOADED_ASSET_NAME"
           done
+          report_build_progress "completed" "completed" "已上传" "success" "80"
 
           echo "=== Release assets after upload ==="
           FINAL_ASSET_COUNT=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
