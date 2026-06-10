@@ -434,6 +434,27 @@ jobs:
         shell: bash
         run: node build-server/.github/scripts/apply-nexgen-version.mjs source "${{ github.event.inputs.tag }}"
 
+      - name: Install Image Tools
+        shell: bash
+        run: |
+          case "${{ runner.os }}" in
+            Linux)
+              sudo apt-get update -y
+              sudo apt-get install -y --no-install-recommends imagemagick
+              ;;
+            macOS)
+              brew install imagemagick
+              ;;
+            Windows)
+              choco install imagemagick -y --no-progress
+              powershell -NoProfile -Command '$dir = Get-ChildItem "C:\Program Files" -Directory -Filter "ImageMagick*" | Select-Object -First 1; if ($dir) { Add-Content -Path $env:GITHUB_PATH -Value $dir.FullName }'
+              ;;
+            *)
+              echo "::error::不支持的 runner 系统：${{ runner.os }}"
+              exit 1
+              ;;
+          esac
+
       - name: Apply App Icon
         shell: bash
         run: node build-server/.github/scripts/apply-nexgen-icon.mjs source
