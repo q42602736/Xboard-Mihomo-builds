@@ -849,6 +849,13 @@ jobs:
           normalize_nexgen_artifact_names
 
           artifact_list="$(mktemp)"
+          upload_stage_dir="$(mktemp -d)"
+          upload_index=0
+          cleanup_upload_stage() {
+            rm -rf "$upload_stage_dir"
+            rm -f "$artifact_list"
+          }
+          trap cleanup_upload_stage EXIT
           find source/dist -maxdepth 1 -type f \( \
             -name "*.zip" -o \
             -name "*.pkg" -o \
@@ -893,12 +900,21 @@ jobs:
             fi
 
             encoded_name="$(node -e 'console.log(encodeURIComponent(process.argv[1]))' "$asset_name")"
+            upload_source="$file"
+            if printf '%s' "$file" | LC_ALL=C grep -q '[^ -~]'; then
+              upload_index=$((upload_index + 1))
+              extension="${base##*.}"
+              staged_source="$upload_stage_dir/asset-$(printf '%03d' "$upload_index").$extension"
+              node -e 'require("fs").copyFileSync(process.argv[1], process.argv[2])' "$file" "$staged_source"
+              upload_source="$staged_source"
+              echo "Using ASCII upload source for non-ASCII path: $asset_name"
+            fi
             echo "Uploading release asset: $asset_name"
             upload_response=$(curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: $content_type" \
               -H "Expect:" \
-              --data-binary @"$file" \
+              --data-binary @"$upload_source" \
               "${UPLOAD_URL}?name=${encoded_name}")
 
             uploaded_asset_state=$(printf '%s' "$upload_response" | node -e "
@@ -912,7 +928,8 @@ jobs:
               exit 1
             fi
           done < "$artifact_list"
-          rm -f "$artifact_list"
+          cleanup_upload_stage
+          trap - EXIT
           report_build_progress "completed" "completed" "" "success" "80"
 
   # 从 Draft Release 汇总所有平台产物并回传合集包
