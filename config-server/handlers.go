@@ -2963,13 +2963,76 @@ func (h *Handlers) resolveBuildRecordAsset(record *BuildRecord, assetID int64) (
 	return matchedAsset, nil
 }
 
-func writeReleaseAssetToResponse(w http.ResponseWriter, asset *ReleaseAsset, resp *http.Response) {
+func buildDisplayBuildAssetName(record *BuildRecord, assetName string) string {
+	assetName = strings.TrimSpace(assetName)
+	if assetName == "" || record == nil || normalizeBuildClient(record.Client) != buildClientNexGenReact {
+		return assetName
+	}
+
+	displayPrefix := strings.TrimSpace(record.CodeName)
+	if displayPrefix == "" {
+		displayPrefix = strings.TrimSpace(record.Profile)
+	}
+	if displayPrefix == "" {
+		return assetName
+	}
+
+	version := strings.TrimSpace(record.Tag)
+	if version == "" {
+		return assetName
+	}
+	versionMarker := "-" + version + "-"
+	if idx := strings.Index(assetName, versionMarker); idx >= 0 {
+		return displayPrefix + assetName[idx:]
+	}
+	return assetName
+}
+
+func asciiAttachmentFilenameFallback(filename string) string {
+	filename = strings.TrimSpace(filename)
+	if filename == "" {
+		return "download"
+	}
+
+	var b strings.Builder
+	lastDash := false
+	for _, r := range filename {
+		switch {
+		case r >= 0x20 && r <= 0x7e && !strings.ContainsRune(`"\/;`, r):
+			b.WriteRune(r)
+			lastDash = false
+		case !lastDash:
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+
+	result := strings.Trim(b.String(), " .-")
+	if result == "" {
+		return "download"
+	}
+	return result
+}
+
+func attachmentContentDisposition(filename, fallbackName string) string {
+	filename = strings.TrimSpace(filename)
+	if filename == "" {
+		filename = strings.TrimSpace(fallbackName)
+	}
+	if filename == "" {
+		filename = "download"
+	}
+	fallback := asciiAttachmentFilenameFallback(fallbackName)
+	return fmt.Sprintf("attachment; filename=%q; filename*=UTF-8''%s", fallback, url.PathEscape(filename))
+}
+
+func writeReleaseAssetToResponse(w http.ResponseWriter, asset *ReleaseAsset, resp *http.Response, filename string) {
 	contentType := asset.ContentType
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", asset.Name))
+	w.Header().Set("Content-Disposition", attachmentContentDisposition(filename, asset.Name))
 	w.Header().Set("Cache-Control", "private, no-store, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -4351,9 +4414,11 @@ func (h *Handlers) GetBuildRecordAssets(w http.ResponseWriter, r *http.Request) 
 
 	assets := []map[string]interface{}{}
 	for _, asset := range release.Assets {
+		displayName := buildDisplayBuildAssetName(record, asset.Name)
 		assets = append(assets, map[string]interface{}{
 			"id":             asset.ID,
-			"name":           asset.Name,
+			"name":           displayName,
+			"source_name":    asset.Name,
 			"size":           asset.Size,
 			"content_type":   asset.ContentType,
 			"download_count": asset.DownloadCount,
@@ -4413,10 +4478,12 @@ func (h *Handlers) CreateBuildRecordAssetDownloadLink(w http.ResponseWriter, r *
 		fmt.Sprintf("record_id=%d asset_id=%d asset_name=%s expires_at=%s", record.ID, asset.ID, asset.Name, expiresAt.UTC().Format(time.RFC3339)),
 		r.RemoteAddr)
 
+	displayName := buildDisplayBuildAssetName(record, asset.Name)
 	jsonResponse(w, map[string]interface{}{
 		"record_id":          record.ID,
 		"asset_id":           asset.ID,
-		"asset_name":         asset.Name,
+		"asset_name":         displayName,
+		"source_asset_name":  asset.Name,
 		"download_url":       buildAssetSignedDownloadURL(r, record.ID, asset.ID, token),
 		"expires_at":         expiresAt.UTC().Format(time.RFC3339),
 		"expires_in_seconds": int(buildAssetDownloadLinkTTL.Seconds()),
@@ -4540,7 +4607,8 @@ func (h *Handlers) DownloadBuildRecordAsset(w http.ResponseWriter, r *http.Reque
 	}
 	defer resp.Body.Close()
 
-	writeReleaseAssetToResponse(w, matchedAsset, resp)
+	displayName := buildDisplayBuildAssetName(record, matchedAsset.Name)
+	writeReleaseAssetToResponse(w, matchedAsset, resp, displayName)
 
 	logAudit(claims.CodeID, claims.CodeName, "download_build_asset",
 		fmt.Sprintf("record_id=%d asset_id=%d asset_name=%s", record.ID, matchedAsset.ID, matchedAsset.Name),
@@ -4599,7 +4667,8 @@ func (h *Handlers) DownloadBuildRecordAssetByToken(w http.ResponseWriter, r *htt
 	}
 	defer resp.Body.Close()
 
-	writeReleaseAssetToResponse(w, matchedAsset, resp)
+	displayName := buildDisplayBuildAssetName(record, matchedAsset.Name)
+	writeReleaseAssetToResponse(w, matchedAsset, resp, displayName)
 
 	logAudit(record.CodeID, record.CodeName, "download_build_asset_signed",
 		fmt.Sprintf("record_id=%d asset_id=%d asset_name=%s", record.ID, matchedAsset.ID, matchedAsset.Name),

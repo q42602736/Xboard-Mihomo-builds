@@ -684,16 +684,16 @@ jobs:
           build_android_apk "armv7" "armeabi-v7a.apk" "armeabi-v7a" '/arm/release/.*\.apk$|app-arm-release.*\.apk$|armeabi.*\.apk$' "1"
           build_android_apk "universal" "universal.apk" "universal" '/universal/release/.*\.apk$|app-universal-release.*\.apk$' "0"
 
-          ARTIFACT_APP_NAME="${{ needs.prepare-release.outputs.artifact_app_name }}"
-          if [ -z "$ARTIFACT_APP_NAME" ]; then
-            echo "::error::未能解析 NexGen Android 下载产物名。"
+          SAFE_APP_NAME="${{ needs.prepare-release.outputs.safe_app_name }}"
+          if [ -z "$SAFE_APP_NAME" ]; then
+            echo "::error::未能解析 NexGen Android 安全产物名。"
             exit 1
           fi
 
           rm -f dist/*.apk
-          cp "$ANDROID_APK_STAGE_DIR/arm64-v8a.apk" "dist/${ARTIFACT_APP_NAME}-${{ github.event.inputs.tag }}-android-arm64-v8a.apk"
-          cp "$ANDROID_APK_STAGE_DIR/armeabi-v7a.apk" "dist/${ARTIFACT_APP_NAME}-${{ github.event.inputs.tag }}-android-armeabi-v7a.apk"
-          cp "$ANDROID_APK_STAGE_DIR/universal.apk" "dist/${ARTIFACT_APP_NAME}-${{ github.event.inputs.tag }}-android-universal.apk"
+          cp "$ANDROID_APK_STAGE_DIR/arm64-v8a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-arm64-v8a.apk"
+          cp "$ANDROID_APK_STAGE_DIR/armeabi-v7a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-armeabi-v7a.apk"
+          cp "$ANDROID_APK_STAGE_DIR/universal.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-universal.apk"
           apk_count="$(find dist -maxdepth 1 -type f -name "*.apk" | wc -l | tr -d ' ')"
           if [ "$apk_count" != "3" ]; then
             echo "::error::Android APK 产物数量异常，预期 3 个，实际 $apk_count 个。"
@@ -783,7 +783,6 @@ jobs:
           RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
           UPLOAD_URL: ${{ needs.prepare-release.outputs.upload_url }}
           APP_NAME: ${{ needs.prepare-release.outputs.app_name }}
-          ARTIFACT_APP_NAME: ${{ needs.prepare-release.outputs.artifact_app_name }}
           SAFE_APP_NAME: ${{ needs.prepare-release.outputs.safe_app_name }}
           VERSION: ${{ github.event.inputs.tag }}
           CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
@@ -840,28 +839,23 @@ jobs:
             echo "::error::未能解析 NexGen 安全产物名：$APP_NAME"
             exit 1
           fi
-          if [ -z "$ARTIFACT_APP_NAME" ]; then
-            echo "::error::未能解析 NexGen 下载产物名：$APP_NAME"
-            exit 1
-          fi
-
           normalize_nexgen_artifact_names() {
             local file base normalized suffix prefix
             for file in source/dist/*.pkg source/dist/*.apk source/dist/*.exe source/dist/*.msi source/dist/*.zip; do
               [ -f "$file" ] || continue
               base="$(basename "$file")"
               case "$base" in
-                *macos-amd64*.pkg) prefix="$ARTIFACT_APP_NAME"; suffix="macos-amd64.pkg" ;;
-                *macos-arm64*.pkg) prefix="$ARTIFACT_APP_NAME"; suffix="macos-arm64.pkg" ;;
-                *android-arm64-v8a*.apk|*arm64-v8a*.apk) prefix="$ARTIFACT_APP_NAME"; suffix="android-arm64-v8a.apk" ;;
-                *android-armeabi-v7a*.apk|*armeabi-v7a*.apk) prefix="$ARTIFACT_APP_NAME"; suffix="android-armeabi-v7a.apk" ;;
-                *android-universal*.apk|*universal*.apk) prefix="$ARTIFACT_APP_NAME"; suffix="android-universal.apk" ;;
-                *windows-x64-setup.exe) prefix="$ARTIFACT_APP_NAME"; suffix="windows-x64-setup.exe" ;;
-                *windows-arm64-setup.exe) prefix="$ARTIFACT_APP_NAME"; suffix="windows-arm64-setup.exe" ;;
-                *windows-x64-installer.msi) prefix="$ARTIFACT_APP_NAME"; suffix="windows-x64-installer.msi" ;;
-                *windows-arm64-installer.msi) prefix="$ARTIFACT_APP_NAME"; suffix="windows-arm64-installer.msi" ;;
-                *windows-x64-portable.zip) prefix="$ARTIFACT_APP_NAME"; suffix="windows-x64-portable.zip" ;;
-                *windows-arm64-portable.zip) prefix="$ARTIFACT_APP_NAME"; suffix="windows-arm64-portable.zip" ;;
+                *macos-amd64*.pkg) prefix="$SAFE_APP_NAME"; suffix="macos-amd64.pkg" ;;
+                *macos-arm64*.pkg) prefix="$SAFE_APP_NAME"; suffix="macos-arm64.pkg" ;;
+                *android-arm64-v8a*.apk|*arm64-v8a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-arm64-v8a.apk" ;;
+                *android-armeabi-v7a*.apk|*armeabi-v7a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-armeabi-v7a.apk" ;;
+                *android-universal*.apk|*universal*.apk) prefix="$SAFE_APP_NAME"; suffix="android-universal.apk" ;;
+                *windows-x64-setup.exe) prefix="$SAFE_APP_NAME"; suffix="windows-x64-setup.exe" ;;
+                *windows-arm64-setup.exe) prefix="$SAFE_APP_NAME"; suffix="windows-arm64-setup.exe" ;;
+                *windows-x64-installer.msi) prefix="$SAFE_APP_NAME"; suffix="windows-x64-installer.msi" ;;
+                *windows-arm64-installer.msi) prefix="$SAFE_APP_NAME"; suffix="windows-arm64-installer.msi" ;;
+                *windows-x64-portable.zip) prefix="$SAFE_APP_NAME"; suffix="windows-x64-portable.zip" ;;
+                *windows-arm64-portable.zip) prefix="$SAFE_APP_NAME"; suffix="windows-arm64-portable.zip" ;;
                 *) continue ;;
               esac
               normalized="source/dist/${prefix}-${VERSION}-${suffix}"
@@ -911,18 +905,29 @@ jobs:
               *.apk) content_type="application/vnd.android.package-archive" ;;
             esac
 
-            existing_asset_id=$(printf '%s' "$ASSETS_RESPONSE" | node -e "
+            printf '%s' "$ASSETS_RESPONSE" | node -e "
               const fs = require('fs');
               const assetName = process.argv[1];
+              const version = process.argv[2];
               const data = JSON.parse(fs.readFileSync(0, 'utf8'));
-              const asset = (Array.isArray(data) ? data : []).find(item => item && item.name === assetName);
-              process.stdout.write(asset ? String(asset.id) : '');
-            " "$asset_name")
-            if [ -n "$existing_asset_id" ]; then
-              echo "Deleting existing release asset: $asset_name"
+              const candidates = new Set([assetName]);
+              const marker = version ? '-' + version + '-' : '';
+              const markerIndex = marker ? assetName.indexOf(marker) : -1;
+              if (markerIndex >= 0) {
+                candidates.add(assetName.slice(markerIndex));
+              }
+              for (const item of Array.isArray(data) ? data : []) {
+                const name = String((item && item.name) || '');
+                if (item && item.id && candidates.has(name)) {
+                  process.stdout.write(String(item.id) + '\t' + name + '\n');
+                }
+              }
+            " "$asset_name" "$VERSION" | while IFS=$'\t' read -r existing_asset_id existing_asset_name; do
+              [ -n "$existing_asset_id" ] || continue
+              echo "Deleting existing release asset: $existing_asset_name"
               curl -sS --fail -X DELETE -H "Authorization: token $GH_TOKEN" \
                 "https://api.github.com/repos/${{ github.repository }}/releases/assets/${existing_asset_id}" > /dev/null
-            fi
+            done
 
             encoded_name="$(node -e 'console.log(encodeURIComponent(process.argv[1]))' "$asset_name")"
             upload_source="$file"
@@ -942,12 +947,22 @@ jobs:
               --data-binary @"$upload_source" \
               "${UPLOAD_URL}?name=${encoded_name}")
 
+            uploaded_asset_id=$(printf '%s' "$upload_response" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              process.stdout.write(data && data.id ? String(data.id) : '');
+            ")
+            uploaded_asset_name=$(printf '%s' "$upload_response" | node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+              process.stdout.write(data && data.name ? String(data.name) : '');
+            ")
             uploaded_asset_state=$(printf '%s' "$upload_response" | node -e "
               const fs = require('fs');
               const data = JSON.parse(fs.readFileSync(0, 'utf8'));
               process.stdout.write(data && data.state ? String(data.state) : '');
             ")
-            if [ "$uploaded_asset_state" != "uploaded" ]; then
+            if [ -z "$uploaded_asset_id" ] || [ "$uploaded_asset_name" != "$asset_name" ] || [ "$uploaded_asset_state" != "uploaded" ]; then
               echo "::error::Release asset upload verification failed: $asset_name"
               echo "$upload_response"
               exit 1
@@ -1003,7 +1018,7 @@ jobs:
             const fs = require('fs');
             const data = JSON.parse(fs.readFileSync(0, 'utf8'));
             const assets = (Array.isArray(data) ? data : [])
-              .filter(item => item && item.id && item.name && !String(item.name).endsWith('-bundle.zip'));
+              .filter(item => item && item.id && item.name && !String(item.name).includes('-bundle.zip'));
             for (const asset of assets) {
               process.stdout.write(String(asset.id) + '\t' + asset.name + '\n');
             }
@@ -1025,13 +1040,13 @@ jobs:
             echo "Found artifacts:"
             ls -la ./dist/
 
-            PROFILE_NAME_SAFE="${{ needs.prepare-release.outputs.artifact_app_name }}"
+            PROFILE_NAME_SAFE="${{ needs.prepare-release.outputs.safe_app_name }}"
             if [ -z "$PROFILE_NAME_SAFE" ]; then
-              echo "::error::未能解析 NexGen 合集包下载产物名。"
+              echo "::error::未能解析 NexGen 合集包安全产物名。"
               exit 1
             fi
             echo "profile_name_safe=$PROFILE_NAME_SAFE" >> "$GITHUB_OUTPUT"
-            echo "使用 NexGen 合集包下载产物名：$PROFILE_NAME_SAFE"
+            echo "使用 NexGen 合集包安全产物名：$PROFILE_NAME_SAFE"
           else
             echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
             echo "No artifacts found"
@@ -1069,25 +1084,36 @@ jobs:
           RELEASE_UPLOAD_URL: ${{ needs.prepare-release.outputs.upload_url }}
         run: |
           PACKAGE_NAME="${{ steps.package.outputs.package_name }}"
+          VERSION="${{ github.event.inputs.tag }}"
           ASSETS_RESPONSE=$(curl -sS --fail -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
           printf '%s' "$ASSETS_RESPONSE" | node -e '
             const fs = require("fs");
             const packageName = process.argv[1];
+            const version = process.argv[2];
             const data = JSON.parse(fs.readFileSync(0, "utf8"));
+            const exactNames = new Set();
+            const partPrefixes = [];
+            function addBundleFamily(baseName) {
+              exactNames.add(baseName);
+              exactNames.add(`${baseName}.sha256`);
+              exactNames.add(`${baseName}.manifest.txt`);
+              partPrefixes.push(`${baseName}.part-`);
+            }
+            addBundleFamily(packageName);
+            const marker = version ? `-${version}-` : "";
+            const markerIndex = marker ? packageName.indexOf(marker) : -1;
+            if (markerIndex >= 0) {
+              addBundleFamily(packageName.slice(markerIndex));
+            }
             const assets = (Array.isArray(data) ? data : []).filter((item) => {
               const name = String((item && item.name) || "");
-              return item && item.id && (
-                name === packageName ||
-                name === `${packageName}.sha256` ||
-                name === `${packageName}.manifest.txt` ||
-                name.startsWith(`${packageName}.part-`)
-              );
+              return item && item.id && (exactNames.has(name) || partPrefixes.some((prefix) => name.startsWith(prefix)));
             });
             for (const asset of assets) {
               process.stdout.write(`${asset.id}\t${asset.name}\n`);
             }
-          ' "$PACKAGE_NAME" | while IFS=$'\t' read -r asset_id asset_name; do
+          ' "$PACKAGE_NAME" "$VERSION" | while IFS=$'\t' read -r asset_id asset_name; do
             [ -n "$asset_id" ] || continue
             echo "Deleting existing bundle asset: $asset_name"
             curl -sS --fail -X DELETE -H "Authorization: token $GH_TOKEN" \
