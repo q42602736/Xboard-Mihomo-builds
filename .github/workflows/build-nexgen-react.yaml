@@ -372,6 +372,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Setup Gradle Cache
+        if: matrix.family == 'android'
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Setup Android SDK
         if: matrix.family == 'android'
         uses: android-actions/setup-android@v3
@@ -380,7 +384,9 @@ jobs:
         if: matrix.family == 'android'
         shell: bash
         run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;28.0.13004108"
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973"
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/27.0.12077973" >> "$GITHUB_ENV"
+          echo "NDK_HOME=${ANDROID_HOME}/ndk/27.0.12077973" >> "$GITHUB_ENV"
 
       - name: Install Dependencies
         working-directory: source
@@ -443,6 +449,27 @@ jobs:
       - name: Apply App Version
         shell: bash
         run: node build-server/.github/scripts/apply-nexgen-version.mjs source "${{ github.event.inputs.tag }}"
+
+      - name: Cache Android Rust Build
+        if: matrix.family == 'android'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+            source/src-tauri/target
+          key: ${{ runner.os }}-nexgen-react-android-rust-${{ hashFiles('source/src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-nexgen-react-android-rust-
+
+      - name: Cache Android Core Artifacts
+        if: matrix.family == 'android'
+        uses: actions/cache@v4
+        with:
+          path: source/core/android-libs
+          key: ${{ runner.os }}-nexgen-react-android-core-${{ hashFiles('source/core/android-bridge/go.sum', 'source/core/android-bridge/**/*.go', 'source/core/mihomo/go.sum', 'source/core/mihomo/**/*.go', 'source/scripts/build-android-core.mjs') }}
+          restore-keys: |
+            ${{ runner.os }}-nexgen-react-android-core-
 
       - name: Install Image Tools
         shell: bash
@@ -512,6 +539,24 @@ jobs:
         run: |
           set -o pipefail
 
+          sync_nexgen_build_inputs() {
+            node scripts/generate-config.mjs
+            node scripts/sync-branding.mjs
+          }
+
+          disable_tauri_before_build_command() {
+            node - <<'NODE'
+          const fs = require("fs");
+          const configPath = "src-tauri/tauri.conf.json";
+          const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+          if (config.build && Object.prototype.hasOwnProperty.call(config.build, "beforeBuildCommand")) {
+            delete config.build.beforeBuildCommand;
+            fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
+            console.log("已禁用 Tauri Android 重复 beforeBuildCommand，复用当前 dist。");
+          }
+          NODE
+          }
+
           configure_android_signing() {
             if [ -z "${NEXGEN_ANDROID_SIGNING_BUNDLE:-}" ]; then
               echo "::error::未配置 NEXGEN_ANDROID_SIGNING_BUNDLE，无法生成固定签名 Android APK。"
@@ -562,8 +607,9 @@ jobs:
             find src-tauri/gen/android src-tauri/target -type f -name "*.apk" -print 2>/dev/null || echo "No APK files"
           }
 
+          sync_nexgen_build_inputs
           if [ ! -d src-tauri/gen/android/app ]; then
-            npm run tauri -- android init
+            node scripts/tauri-wrapper.mjs android init
           fi
           configure_android_signing
           mkdir -p dist
@@ -655,9 +701,9 @@ jobs:
             local prune_env="$5"
             clean_android_apk_outputs
             if [ "$prune_env" = "1" ]; then
-              NEXGEN_ANDROID_PRUNE_TO_ABI=1 npm run tauri -- android build --apk --target "$target" --split-per-abi 2>&1 | tee -a build.log
+              NEXGEN_ANDROID_PRUNE_TO_ABI=1 node scripts/tauri-wrapper.mjs android build --apk --target "$target" --split-per-abi 2>&1 | tee -a build.log
             else
-              npm run tauri -- android build --apk --target aarch64 armv7 2>&1 | tee -a build.log
+              node scripts/tauri-wrapper.mjs android build --apk --target aarch64 armv7 2>&1 | tee -a build.log
             fi
             BUILD_EXIT_CODE=${PIPESTATUS[0]}
             if [ "$BUILD_EXIT_CODE" -ne 0 ]; then
@@ -680,6 +726,8 @@ jobs:
           }
 
           : > build.log
+          npm run build
+          disable_tauri_before_build_command
           build_android_apk "aarch64" "arm64-v8a.apk" "arm64-v8a" '/arm64/release/.*\.apk$|app-arm64-release.*\.apk$' "1"
           build_android_apk "armv7" "armeabi-v7a.apk" "armeabi-v7a" '/arm/release/.*\.apk$|app-arm-release.*\.apk$|armeabi.*\.apk$' "1"
           build_android_apk "universal" "universal.apk" "universal" '/universal/release/.*\.apk$|app-universal-release.*\.apk$' "0"
@@ -1121,17 +1169,17 @@ jobs:
           done
 
           cd ./release
-          BUNDLE_PART_BYTES=$((512 * 1024 * 1024))
+          BUNDLE_PART_BYTES=$((1536 * 1024 * 1024))
           FILESIZE=$(du -h "$PACKAGE_NAME" | cut -f1)
           UPLOAD_DIR="./upload"
           rm -rf "$UPLOAD_DIR"
           mkdir -p "$UPLOAD_DIR"
 
-          echo "::notice::合集包 $PACKAGE_NAME 大小为 $FILESIZE，将按 512 MiB 固定分片上传，避免大文件 curl 上传内存不足。"
+          echo "::notice::合集包 $PACKAGE_NAME 大小为 $FILESIZE，将按 1.5 GiB 固定分片上传，避免大文件 curl 上传内存不足。"
           sha256sum "$PACKAGE_NAME" > "$UPLOAD_DIR/${PACKAGE_NAME}.sha256"
           split -b "$BUNDLE_PART_BYTES" -d -a 3 "$PACKAGE_NAME" "$UPLOAD_DIR/${PACKAGE_NAME}.part-"
           {
-            printf '%s 已按 512 MiB 固定分片上传，避免 GitHub Actions curl 大文件上传内存不足。\n\n' "$PACKAGE_NAME"
+            printf '%s 已按 1.5 GiB 固定分片上传，避免 GitHub Actions curl 大文件上传内存不足。\n\n' "$PACKAGE_NAME"
             printf '合并命令:\n'
             printf 'cat %s.part-* > %s\n' "$PACKAGE_NAME" "$PACKAGE_NAME"
             printf 'sha256sum -c %s.sha256\n' "$PACKAGE_NAME"

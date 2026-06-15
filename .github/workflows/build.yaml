@@ -1878,17 +1878,17 @@ jobs:
           done
 
           cd ./release
-          BUNDLE_PART_BYTES=$((512 * 1024 * 1024))
+          BUNDLE_PART_BYTES=$((1536 * 1024 * 1024))
           FILESIZE=$(du -h "$PACKAGE_NAME" | cut -f1)
           UPLOAD_DIR="./upload"
           rm -rf "$UPLOAD_DIR"
           mkdir -p "$UPLOAD_DIR"
 
-          echo "::notice::合集包 $PACKAGE_NAME 大小为 $FILESIZE，将按 512 MiB 固定分片上传，避免大文件 curl 上传内存不足。"
+          echo "::notice::合集包 $PACKAGE_NAME 大小为 $FILESIZE，将按 1.5 GiB 固定分片上传，避免大文件 curl 上传内存不足。"
           sha256sum "$PACKAGE_NAME" > "$UPLOAD_DIR/${PACKAGE_NAME}.sha256"
           split -b "$BUNDLE_PART_BYTES" -d -a 3 "$PACKAGE_NAME" "$UPLOAD_DIR/${PACKAGE_NAME}.part-"
           {
-            printf '%s 已按 512 MiB 固定分片上传，避免 GitHub Actions curl 大文件上传内存不足。\n\n' "$PACKAGE_NAME"
+            printf '%s 已按 1.5 GiB 固定分片上传，避免 GitHub Actions curl 大文件上传内存不足。\n\n' "$PACKAGE_NAME"
             printf '合并命令:\n'
             printf 'cat %s.part-* > %s\n' "$PACKAGE_NAME" "$PACKAGE_NAME"
             printf 'sha256sum -c %s.sha256\n' "$PACKAGE_NAME"
