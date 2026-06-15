@@ -1142,11 +1142,13 @@ jobs:
             const data = JSON.parse(fs.readFileSync(0, "utf8"));
             const exactNames = new Set();
             const partPrefixes = [];
+            const zipSplitPrefixes = [];
             function addBundleFamily(baseName) {
               exactNames.add(baseName);
               exactNames.add(`${baseName}.sha256`);
               exactNames.add(`${baseName}.manifest.txt`);
               partPrefixes.push(`${baseName}.part-`);
+              zipSplitPrefixes.push(`${baseName.replace(/\.zip$/i, "")}.z`);
             }
             addBundleFamily(packageName);
             const marker = version ? `-${version}-` : "";
@@ -1156,7 +1158,11 @@ jobs:
             }
             const assets = (Array.isArray(data) ? data : []).filter((item) => {
               const name = String((item && item.name) || "");
-              return item && item.id && (exactNames.has(name) || partPrefixes.some((prefix) => name.startsWith(prefix)));
+              return item && item.id && (
+                exactNames.has(name)
+                || partPrefixes.some((prefix) => name.startsWith(prefix))
+                || zipSplitPrefixes.some((prefix) => name.startsWith(prefix) && /^\d+$/.test(name.slice(prefix.length)))
+              );
             });
             for (const asset of assets) {
               process.stdout.write(`${asset.id}\t${asset.name}\n`);
@@ -1170,20 +1176,31 @@ jobs:
 
           cd ./release
           BUNDLE_PART_BYTES=$((1536 * 1024 * 1024))
+          BUNDLE_PART_SIZE="1536m"
           FILESIZE=$(du -h "$PACKAGE_NAME" | cut -f1)
+          PACKAGE_BYTES=$(wc -c < "$PACKAGE_NAME" | tr -d ' ')
           UPLOAD_DIR="./upload"
           rm -rf "$UPLOAD_DIR"
           mkdir -p "$UPLOAD_DIR"
 
-          echo "::notice::合集包 $PACKAGE_NAME 大小为 $FILESIZE，将按 1.5 GiB 固定分片上传，避免大文件 curl 上传内存不足。"
-          sha256sum "$PACKAGE_NAME" > "$UPLOAD_DIR/${PACKAGE_NAME}.sha256"
-          split -b "$BUNDLE_PART_BYTES" -d -a 3 "$PACKAGE_NAME" "$UPLOAD_DIR/${PACKAGE_NAME}.part-"
-          {
-            printf '%s 已按 1.5 GiB 固定分片上传，避免 GitHub Actions curl 大文件上传内存不足。\n\n' "$PACKAGE_NAME"
-            printf '合并命令:\n'
-            printf 'cat %s.part-* > %s\n' "$PACKAGE_NAME" "$PACKAGE_NAME"
-            printf 'sha256sum -c %s.sha256\n' "$PACKAGE_NAME"
-          } > "$UPLOAD_DIR/${PACKAGE_NAME}.manifest.txt"
+          if [ "$PACKAGE_BYTES" -gt "$BUNDLE_PART_BYTES" ]; then
+            echo "::notice::合集包 $PACKAGE_NAME 大小为 $FILESIZE，超过 1.5 GiB，将生成 ZIP 分卷上传。"
+            zip -s "$BUNDLE_PART_SIZE" "$PACKAGE_NAME" --out "$UPLOAD_DIR/$PACKAGE_NAME"
+            {
+              printf '%s 已按 1.5 GiB 生成 ZIP 分卷上传。\n\n' "$PACKAGE_NAME"
+              printf '下载同名前缀的 .z01/.z02/... 和 .zip 到同一目录，然后打开 .zip 解压。\n'
+              printf 'Windows 推荐 7-Zip/WinRAR，macOS 推荐 Keka/The Unarchiver。\n'
+              printf '校验命令:\n'
+              printf 'sha256sum -c %s.sha256\n' "$PACKAGE_NAME"
+            } > "$UPLOAD_DIR/${PACKAGE_NAME}.manifest.txt"
+          else
+            echo "::notice::合集包 $PACKAGE_NAME 大小为 $FILESIZE，未超过 1.5 GiB，将直接上传完整 zip。"
+            cp "$PACKAGE_NAME" "$UPLOAD_DIR/$PACKAGE_NAME"
+          fi
+          (
+            cd "$UPLOAD_DIR"
+            find . -maxdepth 1 -type f ! -name "*.sha256" -print0 | sort -z | xargs -0 sha256sum > "${PACKAGE_NAME}.sha256"
+          )
 
           upload_release_asset() {
             local file_path="$1"
