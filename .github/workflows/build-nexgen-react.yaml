@@ -609,7 +609,7 @@ jobs:
 
           sync_nexgen_build_inputs
           if [ ! -d src-tauri/gen/android/app ]; then
-            node scripts/tauri-wrapper.mjs android init
+            npm --ignore-scripts run tauri -- android init
           fi
           configure_android_signing
           mkdir -p dist
@@ -701,9 +701,9 @@ jobs:
             local prune_env="$5"
             clean_android_apk_outputs
             if [ "$prune_env" = "1" ]; then
-              NEXGEN_ANDROID_PRUNE_TO_ABI=1 node scripts/tauri-wrapper.mjs android build --apk --target "$target" --split-per-abi 2>&1 | tee -a build.log
+              NEXGEN_ANDROID_PRUNE_TO_ABI=1 npm --ignore-scripts run tauri -- android build --apk --target "$target" --split-per-abi 2>&1 | tee -a build.log
             else
-              node scripts/tauri-wrapper.mjs android build --apk --target aarch64 armv7 2>&1 | tee -a build.log
+              npm --ignore-scripts run tauri -- android build --apk --target aarch64 armv7 2>&1 | tee -a build.log
             fi
             BUILD_EXIT_CODE=${PIPESTATUS[0]}
             if [ "$BUILD_EXIT_CODE" -ne 0 ]; then
