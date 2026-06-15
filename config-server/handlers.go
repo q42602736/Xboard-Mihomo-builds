@@ -362,7 +362,7 @@ func stripNexGenProfileUnsupportedConfig(yamlContent string) string {
 	if nexgen == nil {
 		return yamlContent
 	}
-	removeMapKeys(nexgen, "online_support", "cloud_dispatch", "cloudDispatch")
+	removeMapKeys(nexgen, "online_support")
 	app := getMapValueNode(nexgen, "app")
 	if app != nil {
 		logo := getMapValueNode(app, "logo")

@@ -1219,47 +1219,6 @@
         .support-index { color: #00d4ff; font-weight: bold; margin-bottom: 10px; }
         .support-fields { display: none; margin-top: 10px; }
         .support-fields.active { display: block; }
-        .secure-log-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-            margin: 12px 0;
-        }
-        .secure-log-note,
-        .secure-log-path-help {
-            color: #dce8f6;
-            font-size: 13px;
-            line-height: 1.8;
-        }
-        .secure-log-note {
-            margin-top: 6px;
-        }
-        .secure-log-path-help {
-            margin: 10px 0 14px;
-        }
-        .secure-log-path-help code {
-            color: #ffffff;
-            background: rgba(0,212,255,0.12);
-            border: 1px solid rgba(0,212,255,0.2);
-            border-radius: 4px;
-            padding: 1px 5px;
-        }
-        .secure-log-output {
-            width: 100%;
-            min-height: 420px;
-            resize: vertical;
-            padding: 14px;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            background: rgba(0,0,0,0.32);
-            color: #e6edf7;
-            font-family: Monaco, Menlo, Consolas, monospace;
-            font-size: 12px;
-            line-height: 1.6;
-            white-space: pre;
-        }
-
         .build-progress-panel {
             background: rgba(255,255,255,0.04);
             border: 1px solid rgba(255,255,255,0.08);
@@ -3156,6 +3115,10 @@
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 5a2 2 0 012-2h8a2 2 0 012 2v1a1 1 0 11-2 0V5H6v2h8a2 2 0 012 2v1a1 1 0 11-2 0V9H6v2h8a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-1a1 1 0 112 0v1h8v-2H6a2 2 0 01-2-2v-2a2 2 0 012-2h8V5H6v1a1 1 0 11-2 0V5z" clip-rule="evenodd"/></svg>
                     UI 设置
                 </div>
+                <div class="nav-item" onclick="switchSection('customFeatures')">
+                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 01.894.553l1.382 2.764 3.049.443a1 1 0 01.554 1.706l-2.205 2.149.52 3.037a1 1 0 01-1.45 1.054L10 12.347l-2.724 1.432a1 1 0 01-1.45-1.054l.52-3.037L4.141 7.466a1 1 0 01.554-1.706l3.049-.443 1.382-2.764A1 1 0 0110 2zm0 3.236L9.236 6.76a1 1 0 01-.753.547l-1.681.244 1.217 1.187a1 1 0 01.288.885l-.287 1.673 1.504-.791a1 1 0 01.93 0l1.504.791-.287-1.673a1 1 0 01.288-.885l1.217-1.187-1.681-.244a1 1 0 01-.753-.547L10 5.236z" clip-rule="evenodd"/></svg>
+                    自定义功能
+                </div>
                 <div class="nav-item" onclick="switchSection('subscription')">
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
                     订阅设置
@@ -3167,10 +3130,6 @@
                 <div class="nav-item" onclick="switchSection('updates')">
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm3 4a1 1 0 000 2h6a1 1 0 100-2H7zm0 3a1 1 0 100 2h6a1 1 0 100-2H7zm0 3a1 1 0 100 2h4a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
                     更新记录
-                </div>
-                <div class="nav-item" onclick="switchSection('secureLogs')">
-                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L6.382 6H3a1 1 0 000 2h1.382l-1.276 2.553A1 1 0 004 12h1.382l-1.276 2.553A1 1 0 005 16h10a1 1 0 00.894-1.447L14.618 12H16a1 1 0 00.894-1.447L15.618 8H17a1 1 0 100-2h-3.382l-1.724-3.447A1 1 0 0011 2H9zm.618 4L10 5.236 10.382 6h-.764zM8.618 8h2.764l1 2H7.618l1-2zm-2 4h6.764l1 2H5.618l1-2z" clip-rule="evenodd"/></svg>
-                    日志解密
                 </div>
                 <div class="nav-divider"></div>
                 <div class="nav-item" onclick="switchSection('build')">
@@ -3363,6 +3322,42 @@
                     </div>
                 </div>
 
+                <!-- 自定义功能 -->
+                <div class="content-section" id="customFeaturesSection">
+                    <div class="page-header">
+                        <div class="page-header-content">
+                            <h2>自定义功能</h2>
+                            <p class="subtitle">输入对接码并验证后，显示对应的自定义功能配置</p>
+                        </div>
+                    </div>
+                    <div class="editor-container">
+                        <div class="section">
+                            <div id="customTrafficBarGateWrap" style="margin-top:16px;">
+                                <div class="help-text" id="customTrafficBarCodeHint">输入对接码并验证通过后，才会显示可用的自定义功能。</div>
+                                <div class="form-row" style="grid-template-columns:minmax(0,1fr) 220px; align-items:end; margin-top:12px;">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label id="customTrafficBarAccessLabel">对接码</label>
+                                        <input type="text" id="customTrafficBarIntegrationCode" placeholder="请输入后台设置的对接码">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <button type="button" class="btn btn-primary" id="customTrafficBarUnlockBtn" onclick="unlockCustomTrafficBarConfig()" style="width:100%;">验证对接码</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="customTrafficBarEditorPanel" style="display:none;">
+                                <div class="section-title">自定义功能配置</div>
+                                <div class="help-text">只会显示当前对接码已绑定的功能。保存后会直接写入当前档案对应的公共 YAML 配置。</div>
+                                <div class="custom-feature-grid" id="customFeatureGrid"></div>
+                                <div class="page-footer" style="justify-content:flex-start; gap:10px;">
+                                    <button type="button" class="btn btn-primary" onclick="loadCustomTrafficBarConfig()">读取当前配置</button>
+                                    <button type="button" class="btn btn-success page-save-btn" onclick="saveCustomTrafficBarConfig()">保存到公共配置</button>
+                                </div>
+                            </div>
+                            <div id="customTrafficBarStatus" class="sidebar-status info" style="display:none; margin-top:12px;"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 订阅设置 -->
                 <div class="content-section" id="subscriptionSection">
                     <div class="page-header">
@@ -3453,6 +3448,51 @@
                                     </div>
                                 </div>
                                 <div class="help-text">启用后，应用启动完成所有初始化请求后会自动进入离线模式</div>
+                            </div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">云端调度</div>
+                            <div class="switch-card">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">启用云端调度</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="cloudDispatchEnabled"><span class="slider"></span></label>
+                                        <span id="cloudDispatchEnabledLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="switch-card-extra">
+                                    <div class="form-row-2">
+                                        <div class="form-group">
+                                            <label>GTM 服务地址</label>
+                                            <input type="url" id="cloudDispatchQueryUrl" placeholder="https://gtm.example.com">
+                                            <div class="help-text">只填协议、主机和端口即可；客户端固定请求 <code>/api/query/machines</code>。</div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>查询密钥</label>
+                                            <input type="text" id="cloudDispatchQuerySecret" placeholder="填写 GTM QUERY_SECRET">
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:16px;">
+                                        <div class="switch-card-header">
+                                            <span class="switch-card-label">自动调度</span>
+                                            <div class="switch-group">
+                                                <label class="switch"><input type="checkbox" id="cloudDispatchAutoEnabled"><span class="slider"></span></label>
+                                                <span id="cloudDispatchAutoEnabledLabel">关闭</span>
+                                            </div>
+                                        </div>
+                                        <div class="form-row-2" style="margin-top:12px;">
+                                            <div class="form-group">
+                                                <label>自动调度间隔（分钟）</label>
+                                                <input type="number" id="cloudDispatchAutoIntervalMinutes" min="1" max="1440" value="5">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>离线兜底回查间隔（分钟）</label>
+                                                <input type="number" id="cloudDispatchFallbackRetryMinutes" min="1" max="1440" value="5">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="help-text">开启后，客户端会用 GTM 服务返回的在线机器信息匹配订阅节点域名，并把节点 <code>server</code> 替换为最新公网 IPv4。</div>
+                                </div>
                             </div>
                         </div>
                         <div class="section">
@@ -3726,41 +3766,6 @@
                         </div>
                         <div class="updates-list" id="clientUpdatesList">
                             <div style="color:#8b949e;font-size:13px;">点击左侧“更新记录”后加载最近提交...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="content-section" id="secureLogsSection">
-                    <div class="page-header">
-                        <div class="page-header-content">
-                            <h2>日志解密</h2>
-                            <p class="subtitle">上传客户端 .xblog 加密日志，解密后可复制或下载为 .log</p>
-                        </div>
-                    </div>
-                    <div class="editor-container">
-                        <div class="section">
-                            <div class="section-title">加密日志文件</div>
-                            <div id="secureLogStatus" class="sidebar-status info" style="margin-bottom:12px;">请选择 .xblog 日志文件</div>
-                            <div class="form-group">
-                                <label>选择客户端 .xblog 日志文件</label>
-                                <input type="file" id="secureLogFile" accept=".xblog">
-                                <div class="secure-log-note">仅支持 .xblog 文件，单文件最大 20MB。</div>
-                            </div>
-                            <div class="secure-log-path-help">
-                                日志文件名形如 <code>console-20260512-213000.xblog</code>，默认保存在应用数据目录的 <code>logs</code> 文件夹，不在软件安装目录。<br>
-                                当前页面选择的应用名称：<code id="secureLogCurrentAppName">未选择</code>。不同配置档案打包后的应用名称会变化，下面的 <code>&lt;应用名称&gt;</code> 请替换成实际名称。<br>
-                                macOS：<code>~/Library/Application Support/com.nexgen/logs</code><br>
-                                Windows：<code>%APPDATA%\com.nexgen\&lt;应用名称&gt;\logs</code><br>
-                                Linux：<code>~/.local/share/com.follow.&lt;英文或拼音应用名&gt;/logs</code>；如果设置了 <code>XDG_DATA_HOME</code>，就是 <code>$XDG_DATA_HOME/com.follow.&lt;英文或拼音应用名&gt;/logs</code><br>
-                                Android 手机：<code>/data/user/0/com.nexgen.client/files/logs</code> 或 <code>/data/data/com.nexgen.client/files/logs</code><br>
-                                Android TV/debug：包名可能是 <code>com.nexgen.client.tv</code>、<code>com.nexgen.client.debug</code> 或 <code>com.nexgen.client.tv.debug</code>，目录同样在对应包名的 <code>files/logs</code> 下。
-                            </div>
-                            <div class="secure-log-actions">
-                                <button type="button" class="btn btn-primary" onclick="decryptSecureLog()">解密日志</button>
-                                <button type="button" class="btn" style="background:rgba(255,255,255,0.08);color:#ddd;" onclick="copySecureLogOutput()">复制结果</button>
-                                <button type="button" class="btn" style="background:rgba(255,255,255,0.08);color:#ddd;" onclick="downloadSecureLogOutput()">下载 .log</button>
-                            </div>
-                            <textarea id="secureLogOutput" class="secure-log-output" readonly placeholder="解密后的日志会显示在这里"></textarea>
                         </div>
                     </div>
                 </div>
@@ -4103,29 +4108,6 @@
 
             var uploadPath = appendBuildClientQuery('/profiles/' + encodeURIComponent(profileName) + '/assets/' + encodeURIComponent(kind));
             var response = await fetch('/api' + uploadPath, {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                },
-                body: formData
-            });
-            if (response.status === 401) {
-                sessionStorage.removeItem(getBuildPollKey());
-                sessionStorage.removeItem(SESSION_KEY);
-                window.location.href = '/';
-                return null;
-            }
-            return response;
-        }
-
-        async function uploadSecureLogFile(file) {
-            var token = getToken();
-            if (!token) return null;
-
-            var formData = new FormData();
-            formData.append('file', file);
-
-            var response = await fetch('/api/secure-logs/decrypt', {
                 method: 'POST',
                 headers: {
                     'Authorization': 'Bearer ' + token
@@ -5364,15 +5346,59 @@
                 syncSessionUserInfo(data);
                 if (!ensureCurrentClientAllowed()) return;
                 renderBuildUsageInfo(data);
+                updateCustomTrafficBarCodeHint();
+                syncCustomTrafficBarAccessView();
             } catch (e) {
                 currentUserInfo = null;
                 renderBuildUsageInfo({ can_build: false, build_status_text: '加载失败' });
+                updateCustomTrafficBarCodeHint();
+                syncCustomTrafficBarAccessView();
             }
         }
 
 
         // ==================== 全局变量 ====================
         var currentUserInfo = null;
+        var customTrafficBarAccessVerified = false;
+        var customUIColorAvailableFeatures = [];
+        var customUIColorFeatureKeys = [
+            'traffic_bar_color',
+            'notice_dialog_icon_background_color',
+            'subscription_website_icon_color',
+            'subscription_refresh_icon_color',
+            'subscription_notice_icon_color',
+            'login_button_color',
+            'plans_subscribe_button_color',
+            'plans_filter_tab_color',
+            'invite_code_text_color',
+            'invite_code_background_color',
+            'commission_balance_card_background_color',
+            'invite_stats_total_invites_icon_color',
+            'invite_stats_commission_rate_icon_color',
+            'invite_stats_total_commission_icon_color',
+            'subscription_status_popup',
+            'main_policy_nodes_only',
+            'sspanel_node_page_parse',
+            'registration_invite',
+            'cloud_dispatch'
+        ];
+        var customUIColorFields = [
+            { key: 'traffic_bar_color', id: 'customTrafficBarColor', label: '流量条自定义', defaultColor: '#00897B', placeholder: '#00897B', help: '留空则继续使用默认流量条颜色；如需透明度，也可以手动输入 #AARRGGBB。' },
+            { key: 'notice_dialog_icon_background_color', id: 'customNoticeDialogIconBackgroundColor', label: '公告弹窗图标背景自定义', defaultColor: '#00897B', placeholder: '#00897B', help: '留空则继续使用默认背景颜色。' },
+            { key: 'subscription_website_icon_color', id: 'customSubscriptionWebsiteIconColor', label: '官网按钮图标自定义', defaultColor: '#00897B', placeholder: '#00897B', help: '留空则继续使用默认图标颜色。' },
+            { key: 'subscription_refresh_icon_color', id: 'customSubscriptionRefreshIconColor', label: '刷新按钮图标自定义', defaultColor: '#00897B', placeholder: '#00897B', help: '留空则继续使用默认图标颜色。' },
+            { key: 'subscription_notice_icon_color', id: 'customSubscriptionNoticeIconColor', label: '公告按钮图标自定义', defaultColor: '#00897B', placeholder: '#00897B', help: '留空则继续使用默认图标颜色。' },
+            { key: 'login_button_color', id: 'customLoginButtonColor', label: '登录按钮颜色自定义', defaultColor: '#374151', placeholder: '#374151', help: '留空则继续使用默认登录按钮颜色。' },
+            { key: 'plans_subscribe_button_color', id: 'customPlansSubscribeButtonColor', label: '套餐订阅按钮颜色自定义', defaultColor: '#00897B', placeholder: '#00897B', help: '留空则继续使用默认套餐订阅按钮颜色。' },
+            { key: 'plans_filter_tab_color', id: 'customPlansFilterTabColor', label: '套餐筛选按钮颜色自定义', defaultColor: '#00897B', placeholder: '#00897B', help: '留空则继续使用默认套餐筛选按钮颜色。' },
+            { key: 'invite_code_text_color', id: 'customInviteCodeTextColor', label: '邀请码文本颜色自定义', defaultColor: '#00897B', placeholder: '#00897B', help: '留空则继续使用默认邀请码文本颜色。' },
+            { key: 'invite_code_background_color', id: 'customInviteCodeBackgroundColor', label: '邀请码卡片背景颜色自定义', defaultColor: '#4DB6AC', placeholder: '#4DB6AC', help: '留空则继续使用默认邀请码卡片背景颜色。' },
+            { key: 'commission_balance_card_background_color', id: 'customCommissionBalanceCardBackgroundColor', label: '可用佣金卡片背景颜色自定义', defaultColor: '#4DB6AC', placeholder: '#4DB6AC', help: '留空则继续使用默认可用佣金卡片背景颜色。' },
+            { key: 'invite_stats_total_invites_icon_color', id: 'customInviteStatsTotalInvitesIconColor', label: '邀请统计总邀请图标颜色自定义', defaultColor: '#00897B', placeholder: '#00897B', help: '留空则继续使用默认邀请统计总邀请图标颜色。' },
+            { key: 'invite_stats_commission_rate_icon_color', id: 'customInviteStatsCommissionRateIconColor', label: '邀请统计返佣比例图标颜色自定义', defaultColor: '#00897B', placeholder: '#00897B', help: '留空则继续使用默认邀请统计返佣比例图标颜色。' },
+            { key: 'invite_stats_total_commission_icon_color', id: 'customInviteStatsTotalCommissionIconColor', label: '邀请统计总佣金图标颜色自定义', defaultColor: '#00897B', placeholder: '#00897B', help: '留空则继续使用默认邀请统计总佣金图标颜色。' }
+        ];
+        var CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY = 'nexgen_custom_traffic_bar_code_v1';
         var sources = [];
         var remoteConfigEncryptedData = '';
         var remoteConfigEncryptionKey = '';
@@ -5463,6 +5489,608 @@
             return getProfileDisplayName(profile) || key;
         }
 
+        function renderCustomUIColorCard(field) {
+            return [
+                '<div class="switch-card" data-custom-feature-key="' + escapeHtml(field.key) + '" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">' + escapeHtml(field.label) + '</span>',
+                    '</div>',
+                    '<div class="switch-card-extra" style="margin-top:12px;">',
+                        '<div class="form-row" style="grid-template-columns: 1fr 1.4fr 96px;">',
+                            '<div class="form-group">',
+                                '<label>颜色选择器</label>',
+                                '<input type="color" id="' + escapeHtml(getCustomUIColorPickerId(field.id)) + '" value="' + escapeHtml(field.defaultColor) + '" style="height:44px;padding:6px 8px;">',
+                            '</div>',
+                            '<div class="form-group">',
+                                '<label>颜色值</label>',
+                                '<input type="text" id="' + escapeHtml(field.id) + '" placeholder="' + escapeHtml(field.placeholder) + '">',
+                            '</div>',
+                            '<div class="form-group">',
+                                '<label>&nbsp;</label>',
+                                '<button type="button" class="btn btn-secondary" onclick="clearCustomUIColorField(\'' + escapeHtml(field.id) + '\')" style="width:100%;">清空</button>',
+                            '</div>',
+                        '</div>',
+                        '<div class="help-text">' + escapeHtml(field.help) + '</div>',
+                    '</div>',
+                '</div>'
+            ].join('');
+        }
+
+        function renderCustomFeatureControls() {
+            var grid = document.getElementById('customFeatureGrid');
+            if (!grid) return;
+            var html = customUIColorFields.map(renderCustomUIColorCard).join('');
+            html += [
+                '<div class="switch-card" data-custom-feature-key="subscription_status_popup" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">登录窗口套餐状态拦截</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customSubscriptionStatusPopupEnabled"><span class="slider"></span></label>',
+                            '<span id="customSubscriptionStatusPopupEnabledLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="switch-card-extra" style="margin-top:12px;">',
+                        '<div class="form-group" style="margin-bottom:0;">',
+                            '<label>官网跳转地址</label>',
+                            '<input type="url" id="customSubscriptionStatusOfficialUrl" placeholder="https://example.com">',
+                        '</div>',
+                        '<div class="help-text">开启后会在登录窗口校验套餐；无套餐、到期或流量用尽时提示用户前往官网处理。</div>',
+                    '</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="main_policy_nodes_only" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">节点弹窗仅显示主策略节点</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customProxyGroupsMainPolicyNodesOnly"><span class="slider"></span></label>',
+                            '<span id="customProxyGroupsMainPolicyNodesOnlyLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="help-text">开启后，选择节点弹窗直接显示主策略组节点，不再先显示其他分流组。</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="sspanel_node_page_parse" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">SSPanel 节点页面解析</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customSSPanelNodePageParseEnabled"><span class="slider"></span></label>',
+                            '<span id="customSSPanelNodePageParseEnabledLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="help-text">开启后客户端节点列表改从 SSPanel 的 /user/node 页面解析节点卡片；关闭时继续使用默认 API 接口。</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="registration_invite" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">注册邀请绑定</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customRegistrationInviteEnabled"><span class="slider"></span></label>',
+                            '<span id="customRegistrationInviteEnabledLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="switch-card-extra" style="margin-top:12px;">',
+                        '<div class="form-row" style="grid-template-columns: 1fr 1fr;">',
+                            '<div class="form-group">',
+                                '<label>绑定模式</label>',
+                                '<select id="customRegistrationInviteMode">',
+                                    '<option value="default_when_empty">用户未填时使用默认邀请码</option>',
+                                    '<option value="force_override">强制使用默认邀请码</option>',
+                                '</select>',
+                            '</div>',
+                            '<div class="form-group">',
+                                '<label>邀请码</label>',
+                                '<input type="text" id="customRegistrationInviteCode" placeholder="填写默认注册邀请码">',
+                            '</div>',
+                        '</div>',
+                        '<div class="help-text">开启后，App 注册时会按当前模式自动使用这里配置的邀请码。</div>',
+                    '</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="cloud_dispatch" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">云端调度</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customCloudDispatchEnabled"><span class="slider"></span></label>',
+                            '<span id="customCloudDispatchEnabledLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="switch-card-extra cloud-dispatch-extra">',
+                        '<div class="cloud-dispatch-fields">',
+                            '<div class="form-group">',
+                                '<label>GTM 服务地址</label>',
+                                '<input type="url" id="customCloudDispatchQueryUrl" placeholder="https://gtm.example.com">',
+                                '<div class="help-text">只填协议、主机和端口即可；客户端固定请求 <code>/api/query/machines</code>。</div>',
+                            '</div>',
+                            '<div class="form-group">',
+                                '<label>查询密钥</label>',
+                                '<input type="text" id="customCloudDispatchQuerySecret" placeholder="填写 GTM QUERY_SECRET">',
+                            '</div>',
+                        '</div>',
+                        '<div class="cloud-dispatch-auto-section">',
+                            '<div class="cloud-dispatch-auto-header">',
+                                '<div class="cloud-dispatch-auto-copy">',
+                                    '<div class="cloud-dispatch-auto-title">自动调度</div>',
+                                    '<div class="cloud-dispatch-auto-hint">开启后客户端按间隔自动查询并替换入口 IP。</div>',
+                                '</div>',
+                                '<div class="switch-group cloud-dispatch-auto-control">',
+                                    '<label class="switch"><input type="checkbox" id="customCloudDispatchAutoEnabled"><span class="slider"></span></label>',
+                                    '<span id="customCloudDispatchAutoEnabledLabel">关闭</span>',
+                                '</div>',
+                            '</div>',
+                            '<div class="form-group cloud-dispatch-auto-input">',
+                                '<label>自动调度间隔（分钟）</label>',
+                                '<input type="number" id="customCloudDispatchAutoIntervalMinutes" min="1" max="1440" value="5">',
+                            '</div>',
+                            '<div class="form-group cloud-dispatch-auto-input">',
+                                '<label>离线兜底回查间隔（分钟）</label>',
+                                '<input type="number" id="customCloudDispatchFallbackRetryMinutes" min="1" max="1440" value="5">',
+                                '<div class="help-text">目标入口离线后先切到其他可用入口；到达该间隔后再次允许回查原入口，恢复后切回原入口最新 IP。</div>',
+                            '</div>',
+                        '</div>',
+                        '<div class="help-text cloud-dispatch-note">客户端只使用 GTM 服务地址和查询密钥，不需要上传密钥或后台 token；会自动用 GTM 返回域名匹配订阅节点，未知运营商命中 GTM 总入口时随机选择可用分类入口。</div>',
+                    '</div>',
+                '</div>'
+            ].join('');
+            grid.innerHTML = html;
+        }
+
+        function setCustomTrafficBarStatus(message, type) {
+            var el = document.getElementById('customTrafficBarStatus');
+            if (!el) return;
+            if (!message) {
+                el.style.display = 'none';
+                el.textContent = '';
+                el.className = 'sidebar-status info';
+                return;
+            }
+            el.style.display = 'block';
+            el.textContent = message;
+            el.className = 'sidebar-status ' + (type || 'info');
+        }
+
+        function getSelectedCustomTrafficBarProfile() {
+            var select = document.getElementById('profileSelect');
+            return select ? String(select.value || '').trim() : '';
+        }
+
+        function syncCustomTrafficBarProfileName() {
+            var el = document.getElementById('customTrafficBarProfileName');
+            if (!el) return;
+            el.textContent = getSelectedCustomTrafficBarProfile() ? getSelectedProfileDisplayName() : '未选择';
+        }
+
+        function hasCustomTrafficBarFeatureConfigured() {
+            return !(currentUserInfo && currentUserInfo.integration_code_configured === false);
+        }
+
+        function isCustomTrafficBarAccessUnlocked() {
+            return isAdminSession() || customTrafficBarAccessVerified;
+        }
+
+        function getVisibleCustomUIColorFeatureKeys() {
+            return isAdminSession()
+                ? customUIColorFeatureKeys.slice()
+                : customUIColorAvailableFeatures.slice();
+        }
+
+        function isCustomUIColorFeatureVisible(featureKey) {
+            return getVisibleCustomUIColorFeatureKeys().indexOf(featureKey) !== -1;
+        }
+
+        function syncCustomUIColorFeatureVisibility() {
+            var visibleFeatureKeys = getVisibleCustomUIColorFeatureKeys();
+            document.querySelectorAll('[data-custom-feature-key]').forEach(function(section) {
+                var featureKey = String(section.getAttribute('data-custom-feature-key') || '').trim();
+                section.style.display = visibleFeatureKeys.indexOf(featureKey) !== -1 ? 'block' : 'none';
+            });
+        }
+
+        function syncCustomTrafficBarAccessView() {
+            var gateWrap = document.getElementById('customTrafficBarGateWrap');
+            var editorPanel = document.getElementById('customTrafficBarEditorPanel');
+            var unlockBtn = document.getElementById('customTrafficBarUnlockBtn');
+            var accessLabel = document.getElementById('customTrafficBarAccessLabel');
+            var unlocked = isCustomTrafficBarAccessUnlocked();
+            var configured = hasCustomTrafficBarFeatureConfigured();
+
+            if (gateWrap) {
+                gateWrap.style.display = isAdminSession() ? 'none' : 'block';
+            }
+            if (editorPanel) {
+                editorPanel.style.display = unlocked ? 'block' : 'none';
+            }
+            if (unlockBtn) {
+                unlockBtn.disabled = !configured;
+                unlockBtn.textContent = customTrafficBarAccessVerified ? '重新验证对接码' : '验证对接码';
+            }
+            if (accessLabel) {
+                accessLabel.textContent = configured ? '对接码' : '对接码（后台未配置）';
+            }
+            syncCustomUIColorFeatureVisibility();
+        }
+
+        function normalizeCustomTrafficBarColorInput(value) {
+            value = String(value || '').trim().toUpperCase();
+            if (!value) return '';
+            if (value.charAt(0) !== '#') {
+                value = '#' + value;
+            }
+            return value;
+        }
+
+        function getCustomUIColorPickerId(inputId) {
+            return inputId + 'Picker';
+        }
+
+        function applyCustomUIColorTextValue(inputId, value) {
+            var input = document.getElementById(inputId);
+            var picker = document.getElementById(getCustomUIColorPickerId(inputId));
+            if (!input || !picker) return;
+            var normalized = normalizeCustomTrafficBarColorInput(value);
+            input.value = normalized;
+            if (/^#[0-9A-F]{6}$/.test(normalized)) {
+                picker.value = normalized;
+            } else if (picker.dataset.defaultColor) {
+                picker.value = picker.dataset.defaultColor;
+            }
+        }
+
+        function syncCustomUIColorTextFromPicker(inputId) {
+            var input = document.getElementById(inputId);
+            var picker = document.getElementById(getCustomUIColorPickerId(inputId));
+            if (!input || !picker) return;
+            input.value = String(picker.value || '').toUpperCase();
+        }
+
+        function syncCustomUIColorPickerFromText(inputId) {
+            var input = document.getElementById(inputId);
+            var picker = document.getElementById(getCustomUIColorPickerId(inputId));
+            if (!input || !picker) return;
+            var normalized = normalizeCustomTrafficBarColorInput(input.value);
+            if (/^#[0-9A-F]{6}$/.test(normalized)) {
+                picker.value = normalized;
+            }
+        }
+
+        function clearCustomUIColorField(inputId) {
+            var input = document.getElementById(inputId);
+            var picker = document.getElementById(getCustomUIColorPickerId(inputId));
+            if (input) {
+                input.value = '';
+            }
+            if (picker && picker.dataset.defaultColor) {
+                picker.value = picker.dataset.defaultColor;
+            }
+        }
+
+        function syncCustomFeatureSwitchLabel(id) {
+            var input = document.getElementById(id);
+            var label = document.getElementById(id + 'Label');
+            if (!input || !label) return;
+            label.textContent = input.checked ? '开启' : '关闭';
+        }
+
+        function setCustomFeatureSwitchValue(id, checked) {
+            var input = document.getElementById(id);
+            if (input) {
+                input.checked = !!checked;
+            }
+            syncCustomFeatureSwitchLabel(id);
+        }
+
+        function initCustomFeatureSwitches() {
+            [
+                'customSubscriptionStatusPopupEnabled',
+                'customProxyGroupsMainPolicyNodesOnly',
+                'customSSPanelNodePageParseEnabled',
+                'customRegistrationInviteEnabled',
+                'customCloudDispatchEnabled',
+                'customCloudDispatchAutoEnabled'
+            ].forEach(function(id) {
+                var input = document.getElementById(id);
+                if (!input) return;
+                input.addEventListener('change', function() {
+                    syncCustomFeatureSwitchLabel(id);
+                });
+                syncCustomFeatureSwitchLabel(id);
+            });
+        }
+
+        function getCustomInputValue(id) {
+            var el = document.getElementById(id);
+            return el ? String(el.value || '').trim() : '';
+        }
+
+        function getCustomInputIntValue(id, fallback) {
+            var value = parseInt(getCustomInputValue(id) || String(fallback), 10);
+            return isNaN(value) ? fallback : value;
+        }
+
+        function getCustomInputChecked(id) {
+            var el = document.getElementById(id);
+            return !!(el && el.checked);
+        }
+
+        function setCustomInputValue(id, value) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.value = value == null ? '' : value;
+            }
+        }
+
+        function applyCustomTrafficBarConfig(data) {
+            customUIColorAvailableFeatures = Array.isArray(data.feature_keys)
+                ? data.feature_keys.map(function(item) { return String(item || '').trim(); }).filter(Boolean)
+                : [];
+            applyCustomUIColorTextValue('customTrafficBarColor', data.traffic_bar_enabled ? (data.traffic_bar_color || '') : '');
+            applyCustomUIColorTextValue('customNoticeDialogIconBackgroundColor', data.notice_dialog_icon_background_color || '');
+            applyCustomUIColorTextValue('customSubscriptionWebsiteIconColor', data.subscription_website_icon_color || '');
+            applyCustomUIColorTextValue('customSubscriptionRefreshIconColor', data.subscription_refresh_icon_color || '');
+            applyCustomUIColorTextValue('customSubscriptionNoticeIconColor', data.subscription_notice_icon_color || '');
+            applyCustomUIColorTextValue('customLoginButtonColor', data.login_button_color || '');
+            applyCustomUIColorTextValue('customPlansSubscribeButtonColor', data.plans_subscribe_button_color || '');
+            applyCustomUIColorTextValue('customPlansFilterTabColor', data.plans_filter_tab_color || '');
+            applyCustomUIColorTextValue('customInviteCodeTextColor', data.invite_code_text_color || '');
+            applyCustomUIColorTextValue('customInviteCodeBackgroundColor', data.invite_code_background_color || '');
+            applyCustomUIColorTextValue('customCommissionBalanceCardBackgroundColor', data.commission_balance_card_background_color || '');
+            applyCustomUIColorTextValue('customInviteStatsTotalInvitesIconColor', data.invite_stats_total_invites_icon_color || '');
+            applyCustomUIColorTextValue('customInviteStatsCommissionRateIconColor', data.invite_stats_commission_rate_icon_color || '');
+            applyCustomUIColorTextValue('customInviteStatsTotalCommissionIconColor', data.invite_stats_total_commission_icon_color || '');
+            setCustomFeatureSwitchValue('customSubscriptionStatusPopupEnabled', !!data.subscription_status_popup_enabled);
+            setCustomFeatureSwitchValue('customProxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
+            setCustomFeatureSwitchValue('customSSPanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
+            setCustomFeatureSwitchValue('customRegistrationInviteEnabled', !!data.registration_invite_enabled);
+            setCustomFeatureSwitchValue('customCloudDispatchEnabled', !!data.cloud_dispatch_enabled);
+            setCustomFeatureSwitchValue('customCloudDispatchAutoEnabled', !!data.cloud_dispatch_auto_enabled);
+            setCustomInputValue('customSubscriptionStatusOfficialUrl', data.subscription_status_official_url || '');
+            setCustomInputValue('customRegistrationInviteMode', data.registration_invite_mode || 'default_when_empty');
+            setCustomInputValue('customRegistrationInviteCode', data.registration_invite_code || '');
+            setCustomInputValue('customCloudDispatchQueryUrl', data.cloud_dispatch_query_url || '');
+            setCustomInputValue('customCloudDispatchQuerySecret', data.cloud_dispatch_query_secret || '');
+            setCustomInputValue('customCloudDispatchAutoIntervalMinutes', data.cloud_dispatch_auto_interval_minutes || 5);
+            setCustomInputValue('customCloudDispatchFallbackRetryMinutes', data.cloud_dispatch_fallback_retry_minutes || 5);
+            syncCustomUIColorFeatureVisibility();
+        }
+
+        function updateCustomTrafficBarCodeHint() {
+            var hintEl = document.getElementById('customTrafficBarCodeHint');
+            if (!hintEl) return;
+            if (isAdminSession()) {
+                hintEl.textContent = '当前为管理员登录，可直接查看和保存；普通用户则需要先输入对接码并验证。';
+                return;
+            }
+            if (currentUserInfo && currentUserInfo.integration_code_configured === false) {
+                hintEl.textContent = '后台还没有为该自定义功能配置任何可用的自定义功能组，请先到管理后台系统设置中新增。';
+                return;
+            }
+            hintEl.textContent = '请输入后台设置的对接码，验证通过后才会显示对应功能。';
+        }
+
+        async function unlockCustomTrafficBarConfig() {
+            var profileName = getSelectedCustomTrafficBarProfile();
+            var integrationCode = getCustomInputValue('customTrafficBarIntegrationCode');
+            if (isAdminSession()) {
+                customTrafficBarAccessVerified = true;
+                syncCustomTrafficBarAccessView();
+                setCustomTrafficBarStatus('当前为管理员，功能已直接显示', 'success');
+                return;
+            }
+            if (!hasCustomTrafficBarFeatureConfigured()) {
+                customTrafficBarAccessVerified = false;
+                syncCustomTrafficBarAccessView();
+                setCustomTrafficBarStatus('后台还没有为该自定义功能配置任何可用的自定义功能组', 'error');
+                return;
+            }
+            if (!profileName) {
+                setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
+                return;
+            }
+            if (!integrationCode) {
+                setCustomTrafficBarStatus('请输入对接码后再展开自定义功能页', 'error');
+                return;
+            }
+
+            setCustomTrafficBarStatus('正在校验对接码并读取当前公共配置...', 'info');
+            try {
+                var response = await api('POST', appendBuildClientQuery('/custom-features/ui-colors/load'), {
+                    profile: profileName,
+                    integration_code: integrationCode
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '校验失败');
+                }
+
+                customTrafficBarAccessVerified = true;
+                applyCustomTrafficBarConfig(data);
+                sessionStorage.setItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY, integrationCode);
+                syncCustomTrafficBarAccessView();
+                setCustomTrafficBarStatus('对接码验证通过，已显示当前绑定的自定义功能', 'success');
+            } catch (e) {
+                customTrafficBarAccessVerified = false;
+                customUIColorAvailableFeatures = [];
+                syncCustomTrafficBarAccessView();
+                setCustomTrafficBarStatus('验证失败: ' + e.message, 'error');
+            }
+        }
+
+        async function loadCustomTrafficBarConfig() {
+            var profileName = getSelectedCustomTrafficBarProfile();
+            var integrationCode = getCustomInputValue('customTrafficBarIntegrationCode');
+            if (!profileName) {
+                setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
+                return;
+            }
+            if (!isAdminSession() && !customTrafficBarAccessVerified) {
+                await unlockCustomTrafficBarConfig();
+                return;
+            }
+            if (!isAdminSession() && !integrationCode) {
+                setCustomTrafficBarStatus('请输入对接码后再读取当前配置', 'error');
+                return;
+            }
+
+            setCustomTrafficBarStatus('正在读取当前公共配置...', 'info');
+            try {
+                var response = await api('POST', appendBuildClientQuery('/custom-features/ui-colors/load'), {
+                    profile: profileName,
+                    integration_code: integrationCode
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '读取失败');
+                }
+
+                applyCustomTrafficBarConfig(data);
+                if (integrationCode) {
+                    sessionStorage.setItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY, integrationCode);
+                }
+                if (!isAdminSession()) {
+                    customTrafficBarAccessVerified = true;
+                    syncCustomTrafficBarAccessView();
+                }
+                setCustomTrafficBarStatus('已读取当前自定义功能配置', 'success');
+            } catch (e) {
+                if (!isAdminSession()) {
+                    customTrafficBarAccessVerified = false;
+                    customUIColorAvailableFeatures = [];
+                    syncCustomTrafficBarAccessView();
+                }
+                setCustomTrafficBarStatus('读取失败: ' + e.message, 'error');
+            }
+        }
+
+        async function saveCustomTrafficBarConfig() {
+            var profileName = getSelectedCustomTrafficBarProfile();
+            var integrationCode = getCustomInputValue('customTrafficBarIntegrationCode');
+            var color = normalizeCustomTrafficBarColorInput(getCustomInputValue('customTrafficBarColor'));
+            var enabled = !!color;
+            var noticeDialogIconBackgroundColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customNoticeDialogIconBackgroundColor'));
+            var subscriptionWebsiteIconColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customSubscriptionWebsiteIconColor'));
+            var subscriptionRefreshIconColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customSubscriptionRefreshIconColor'));
+            var subscriptionNoticeIconColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customSubscriptionNoticeIconColor'));
+            var loginButtonColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customLoginButtonColor'));
+            var plansSubscribeButtonColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customPlansSubscribeButtonColor'));
+            var plansFilterTabColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customPlansFilterTabColor'));
+            var inviteCodeTextColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customInviteCodeTextColor'));
+            var inviteCodeBackgroundColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customInviteCodeBackgroundColor'));
+            var commissionBalanceCardBackgroundColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customCommissionBalanceCardBackgroundColor'));
+            var inviteStatsTotalInvitesIconColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customInviteStatsTotalInvitesIconColor'));
+            var inviteStatsCommissionRateIconColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customInviteStatsCommissionRateIconColor'));
+            var inviteStatsTotalCommissionIconColor = normalizeCustomTrafficBarColorInput(getCustomInputValue('customInviteStatsTotalCommissionIconColor'));
+            var subscriptionStatusPopupEnabled = getCustomInputChecked('customSubscriptionStatusPopupEnabled');
+            var subscriptionStatusOfficialUrl = getCustomInputValue('customSubscriptionStatusOfficialUrl');
+            var proxyGroupsMainPolicyNodesOnly = getCustomInputChecked('customProxyGroupsMainPolicyNodesOnly');
+            var sspanelNodePageParseEnabled = getCustomInputChecked('customSSPanelNodePageParseEnabled');
+            var registrationInviteEnabled = getCustomInputChecked('customRegistrationInviteEnabled');
+            var registrationInviteMode = getCustomInputValue('customRegistrationInviteMode') || 'default_when_empty';
+            var registrationInviteCode = getCustomInputValue('customRegistrationInviteCode');
+            var cloudDispatchEnabled = getCustomInputChecked('customCloudDispatchEnabled');
+            var cloudDispatchQueryUrl = getCustomInputValue('customCloudDispatchQueryUrl');
+            var cloudDispatchQuerySecret = getCustomInputValue('customCloudDispatchQuerySecret');
+            var cloudDispatchAutoEnabled = getCustomInputChecked('customCloudDispatchAutoEnabled');
+            var cloudDispatchAutoIntervalMinutes = getCustomInputIntValue('customCloudDispatchAutoIntervalMinutes', 5);
+            var cloudDispatchFallbackRetryMinutes = getCustomInputIntValue('customCloudDispatchFallbackRetryMinutes', 5);
+
+            if (!profileName) {
+                setCustomTrafficBarStatus('请先在左侧选择要操作的配置档案', 'error');
+                return;
+            }
+            if (!isAdminSession() && !customTrafficBarAccessVerified) {
+                setCustomTrafficBarStatus('请先验证对接码并展开自定义功能页，再保存公共配置', 'error');
+                return;
+            }
+            if (!isAdminSession() && !integrationCode) {
+                setCustomTrafficBarStatus('请输入对接码后再保存公共配置', 'error');
+                return;
+            }
+            if (
+                isCustomUIColorFeatureVisible('subscription_status_popup') &&
+                subscriptionStatusPopupEnabled &&
+                !/^https?:\/\//i.test(subscriptionStatusOfficialUrl)
+            ) {
+                setCustomTrafficBarStatus('开启登录窗口套餐状态拦截时，请填写 http:// 或 https:// 开头的官网跳转地址', 'error');
+                return;
+            }
+            if (isCustomUIColorFeatureVisible('cloud_dispatch') && cloudDispatchEnabled) {
+                if (!/^https?:\/\//i.test(cloudDispatchQueryUrl)) {
+                    setCustomTrafficBarStatus('开启云端调度时，请填写 http:// 或 https:// 开头的 GTM 服务地址', 'error');
+                    return;
+                }
+                if (!cloudDispatchQuerySecret) {
+                    setCustomTrafficBarStatus('开启云端调度时，请填写查询密钥', 'error');
+                    return;
+                }
+                if (cloudDispatchAutoIntervalMinutes < 1) {
+                    setCustomTrafficBarStatus('自动调度间隔不能小于 1 分钟', 'error');
+                    return;
+                }
+                if (cloudDispatchFallbackRetryMinutes < 1) {
+                    setCustomTrafficBarStatus('离线兜底回查间隔不能小于 1 分钟', 'error');
+                    return;
+                }
+            }
+            if (isCustomUIColorFeatureVisible('registration_invite') && registrationInviteEnabled && !registrationInviteCode) {
+                setCustomTrafficBarStatus('开启注册邀请绑定时，请填写邀请码', 'error');
+                return;
+            }
+
+            setCustomTrafficBarStatus('正在写入公共配置...', 'info');
+            try {
+                var response = await api('PUT', appendBuildClientQuery('/custom-features/ui-colors'), {
+                    profile: profileName,
+                    integration_code: integrationCode,
+                    traffic_bar_enabled: enabled,
+                    traffic_bar_color: color,
+                    notice_dialog_icon_background_color: noticeDialogIconBackgroundColor,
+                    subscription_website_icon_color: subscriptionWebsiteIconColor,
+                    subscription_refresh_icon_color: subscriptionRefreshIconColor,
+                    subscription_notice_icon_color: subscriptionNoticeIconColor,
+                    login_button_color: loginButtonColor,
+                    plans_subscribe_button_color: plansSubscribeButtonColor,
+                    plans_filter_tab_color: plansFilterTabColor,
+                    invite_code_text_color: inviteCodeTextColor,
+                    invite_code_background_color: inviteCodeBackgroundColor,
+                    commission_balance_card_background_color: commissionBalanceCardBackgroundColor,
+                    invite_stats_total_invites_icon_color: inviteStatsTotalInvitesIconColor,
+                    invite_stats_commission_rate_icon_color: inviteStatsCommissionRateIconColor,
+                    invite_stats_total_commission_icon_color: inviteStatsTotalCommissionIconColor,
+                    subscription_status_popup_enabled: subscriptionStatusPopupEnabled,
+                    subscription_status_official_url: subscriptionStatusOfficialUrl,
+                    proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly,
+                    sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
+                    registration_invite_enabled: registrationInviteEnabled,
+                    registration_invite_mode: registrationInviteMode,
+                    registration_invite_code: registrationInviteCode,
+                    cloud_dispatch_enabled: cloudDispatchEnabled,
+                    cloud_dispatch_query_url: cloudDispatchQueryUrl,
+                    cloud_dispatch_query_secret: cloudDispatchQuerySecret,
+                    cloud_dispatch_auto_enabled: cloudDispatchAutoEnabled,
+                    cloud_dispatch_auto_interval_minutes: cloudDispatchAutoIntervalMinutes,
+                    cloud_dispatch_fallback_retry_minutes: cloudDispatchFallbackRetryMinutes
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '保存失败');
+                }
+
+                applyCustomTrafficBarConfig(data);
+                if (integrationCode) {
+                    sessionStorage.setItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY, integrationCode);
+                }
+                if (profileName === getSelectedCustomTrafficBarProfile()) {
+                    await loadProfile();
+                }
+                setCustomTrafficBarStatus('自定义功能配置已保存', 'success');
+            } catch (e) {
+                if (!isAdminSession()) {
+                    customTrafficBarAccessVerified = false;
+                    customUIColorAvailableFeatures = [];
+                    syncCustomTrafficBarAccessView();
+                }
+                setCustomTrafficBarStatus('保存失败: ' + e.message, 'error');
+            }
+        }
+
 
         // ==================== 导航切换 ====================
         function switchSection(sectionName, triggerElement) {
@@ -5495,8 +6123,14 @@
             targetSection.classList.add('active');
             if (sectionName === 'updates') {
                 loadClientUpdates(false);
-            } else if (sectionName === 'secureLogs') {
-                updateSecureLogPathHint();
+            } else if (sectionName === 'customFeatures') {
+                if (!isAdminSession()) {
+                    customTrafficBarAccessVerified = false;
+                    customUIColorAvailableFeatures = [];
+                }
+                syncCustomTrafficBarProfileName();
+                updateCustomTrafficBarCodeHint();
+                syncCustomTrafficBarAccessView();
             }
         }
 
@@ -5525,6 +6159,18 @@
             }
             renderProfileActionButtons();
             await loadCurrentUserInfo();
+            renderCustomFeatureControls();
+            document.getElementById('customTrafficBarIntegrationCode').value =
+                sessionStorage.getItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY) || '';
+            syncCustomTrafficBarProfileName();
+            customUIColorFields.forEach(function(field) {
+                var picker = document.getElementById(getCustomUIColorPickerId(field.id));
+                if (picker) {
+                    picker.dataset.defaultColor = String(picker.value || '').toUpperCase();
+                }
+            });
+            updateCustomTrafficBarCodeHint();
+            syncCustomTrafficBarAccessView();
 
             document.getElementById('addSourceBtn').addEventListener('click', addSource);
             document.getElementById('buildBtn').addEventListener('click', triggerBuild);
@@ -5540,7 +6186,7 @@
             document.getElementById('provider').addEventListener('change', function() {
                 updateProviderConsistencyState({ source: 'basic' });
             });
-            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix'].forEach(function(id) {
+            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'cloudDispatchQueryUrl', 'cloudDispatchQuerySecret', 'cloudDispatchAutoIntervalMinutes', 'cloudDispatchFallbackRetryMinutes'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (!el) return;
                 el.addEventListener('input', formToYaml);
@@ -5555,7 +6201,13 @@
             document.getElementById('appIconUploadInput').addEventListener('change', handleAppIconUpload);
             document.getElementById('profileSelect').addEventListener('change', function() {
                 syncProfileBoundAppTitle();
-                updateSecureLogPathHint();
+                syncCustomTrafficBarProfileName();
+                setCustomTrafficBarStatus('', 'info');
+                if (!isAdminSession()) {
+                    customTrafficBarAccessVerified = false;
+                    customUIColorAvailableFeatures = [];
+                    syncCustomTrafficBarAccessView();
+                }
                 if (!isAdminSession()) {
 	                    var selected = getSelectedProfileKey();
                     if (selected) {
@@ -5563,16 +6215,48 @@
                     }
                 }
             });
-            document.getElementById('appTitle').addEventListener('input', updateSecureLogPathHint);
+            document.getElementById('customTrafficBarIntegrationCode').addEventListener('input', function() {
+                if (!isAdminSession()) {
+                    customTrafficBarAccessVerified = false;
+                    customUIColorAvailableFeatures = [];
+                    syncCustomTrafficBarAccessView();
+                }
+            });
+            document.getElementById('customTrafficBarIntegrationCode').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    unlockCustomTrafficBarConfig();
+                }
+            });
+            customUIColorFields.forEach(function(field) {
+                var picker = document.getElementById(getCustomUIColorPickerId(field.id));
+                var input = document.getElementById(field.id);
+                if (picker) {
+                    picker.addEventListener('input', function() {
+                        syncCustomUIColorTextFromPicker(field.id);
+                    });
+                    picker.addEventListener('change', function() {
+                        syncCustomUIColorTextFromPicker(field.id);
+                    });
+                }
+                if (input) {
+                    input.addEventListener('input', function() {
+                        syncCustomUIColorPickerFromText(field.id);
+                    });
+                    input.addEventListener('change', function() {
+                        syncCustomUIColorPickerFromText(field.id);
+                    });
+                }
+            });
             document.getElementById('appTitle').addEventListener('change', function() {
                 displayBuildHistory();
-                updateSecureLogPathHint();
             });
 
             document.getElementById('confirmSaveProfileBtn').addEventListener('click', confirmSaveProfile);
             document.getElementById('cancelSaveProfileBtn').addEventListener('click', hideSaveProfileInput);
 
             initSwitches();
+            initCustomFeatureSwitches();
             initPlatformCheckboxes();
             initCustomSelects(document);
             observeCustomSelectTree();
@@ -5583,7 +6267,6 @@
             updateProviderConsistencyState();
 
             syncProfileBoundAppTitle();
-            updateSecureLogPathHint();
             setMyBuildRecordsExpanded(false);
             loadAppIconHistory();
             loadProfiles().then(function() { checkActiveBuild(); });
@@ -5626,6 +6309,14 @@
                 '    decrypt_key: ""',
                 '  auto_offline:',
                 '    enabled: false',
+                '  cloud_dispatch:',
+                '    enabled: false',
+                '    query_url: ""',
+                '    query_secret: ""',
+                '    fallback_retry_minutes: 5',
+                '    auto:',
+                '      enabled: false',
+                '      interval_minutes: 5',
                 '  subscription_cache:',
                 '    enabled: false',
                 '    ttl_hours: 24',
@@ -5721,7 +6412,7 @@
                 var trimmed = line.trim();
                 var indent = (line.match(/^(\s*)/) || [''])[0].length;
 
-                if (indent === 2 && /^(online_support|cloud_dispatch|cloudDispatch):\s*$/.test(trimmed)) {
+                if (indent === 2 && /^(online_support):\s*$/.test(trimmed)) {
                     stripYamlBlock(lines, i, indent);
                     i--;
                     continue;
@@ -5872,6 +6563,12 @@
                 use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
                 auto_offline_enabled: document.getElementById('autoOfflineEnabled').checked,
+                cloud_dispatch_enabled: document.getElementById('cloudDispatchEnabled').checked,
+                cloud_dispatch_query_url: document.getElementById('cloudDispatchQueryUrl').value.trim(),
+                cloud_dispatch_query_secret: document.getElementById('cloudDispatchQuerySecret').value.trim(),
+                cloud_dispatch_auto_enabled: document.getElementById('cloudDispatchAutoEnabled').checked,
+                cloud_dispatch_auto_interval_minutes: parseInt(document.getElementById('cloudDispatchAutoIntervalMinutes').value || '5', 10) || 5,
+                cloud_dispatch_fallback_retry_minutes: parseInt(document.getElementById('cloudDispatchFallbackRetryMinutes').value || '5', 10) || 5,
                 subscription_cache_enabled: document.getElementById('subscriptionCacheEnabled').checked,
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
@@ -5894,6 +6591,29 @@
             if (!profileName) {
                 setStatus(options.emptyNameMessage || '请输入档案名称', 'error');
                 return false;
+            }
+            var cloudDispatchEnabled = !!document.getElementById('cloudDispatchEnabled').checked;
+            var cloudDispatchQueryUrl = String(document.getElementById('cloudDispatchQueryUrl').value || '').trim();
+            var cloudDispatchQuerySecret = String(document.getElementById('cloudDispatchQuerySecret').value || '').trim();
+            var cloudDispatchAutoIntervalMinutes = parseInt(document.getElementById('cloudDispatchAutoIntervalMinutes').value || '5', 10) || 5;
+            var cloudDispatchFallbackRetryMinutes = parseInt(document.getElementById('cloudDispatchFallbackRetryMinutes').value || '5', 10) || 5;
+            if (cloudDispatchEnabled) {
+                if (!/^https?:\/\//i.test(cloudDispatchQueryUrl)) {
+                    setStatus('开启云端调度时，请填写 http:// 或 https:// 开头的 GTM 服务地址', 'error');
+                    return false;
+                }
+                if (!cloudDispatchQuerySecret) {
+                    setStatus('开启云端调度时，请填写查询密钥', 'error');
+                    return false;
+                }
+                if (cloudDispatchAutoIntervalMinutes < 1) {
+                    setStatus('自动调度间隔不能小于 1 分钟', 'error');
+                    return false;
+                }
+                if (cloudDispatchFallbackRetryMinutes < 1) {
+                    setStatus('离线兜底回查间隔不能小于 1 分钟', 'error');
+                    return false;
+                }
             }
 
             formToYaml();
@@ -6095,12 +6815,6 @@
 	            var appTitle = getBoundAppTitleValue();
 	            return appTitle || getSelectedProfileDisplayName() || '未命名应用';
 	        }
-
-        function updateSecureLogPathHint() {
-            var appNameEl = document.getElementById('secureLogCurrentAppName');
-            if (!appNameEl) return;
-            appNameEl.textContent = getAppName();
-        }
 
         function displayBuildHistory() {
 	            var profileName = getSelectedProfileKey();
@@ -6826,82 +7540,8 @@
             status.className = 'status ' + type;
         }
 
-        function setSecureLogStatus(message, type) {
-            var status = document.getElementById('secureLogStatus');
-            if (!status) return;
-            status.textContent = message || '';
-            status.className = 'sidebar-status ' + (type || 'info');
-        }
-
-        async function decryptSecureLog() {
-            var fileInput = document.getElementById('secureLogFile');
-            var outputEl = document.getElementById('secureLogOutput');
-            var file = fileInput && fileInput.files ? fileInput.files[0] : null;
-            if (!file) {
-                setSecureLogStatus('请选择 .xblog 日志文件', 'error');
-                return;
-            }
-            if (!file.name.toLowerCase().endsWith('.xblog')) {
-                setSecureLogStatus('只支持 .xblog 日志文件', 'error');
-                return;
-            }
-            if (file.size > 20 * 1024 * 1024) {
-                setSecureLogStatus('日志文件过大，最大支持 20MB', 'error');
-                return;
-            }
-
-            outputEl.value = '';
-            setSecureLogStatus('正在解密...', 'info');
-
-            try {
-                var response = await uploadSecureLogFile(file);
-                if (!response) return;
-                var data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || '解密失败');
-                }
-                outputEl.value = data.content || '';
-                setSecureLogStatus('解密完成：' + (data.filename || file.name), 'success');
-            } catch (e) {
-                setSecureLogStatus('解密失败：' + e.message, 'error');
-            }
-        }
-
-        function copySecureLogOutput() {
-            var value = document.getElementById('secureLogOutput').value;
-            if (!value) {
-                showAppAlert('没有可复制的解密结果。', '复制失败');
-                return;
-            }
-            navigator.clipboard.writeText(value).then(function() {
-                showAppAlert('解密结果已复制。', '复制成功');
-            }).catch(function() {
-                showAppAlert('复制失败，请手动选择文本复制。', '复制失败');
-            });
-        }
-
-        function downloadSecureLogOutput() {
-            var value = document.getElementById('secureLogOutput').value;
-            if (!value) {
-                showAppAlert('没有可下载的解密结果。', '下载失败');
-                return;
-            }
-            var fileInput = document.getElementById('secureLogFile');
-            var sourceName = fileInput.files && fileInput.files[0]
-                ? fileInput.files[0].name.replace(/\.xblog$/i, '')
-                : 'secure-log';
-            var blob = new Blob([value], { type: 'text/plain;charset=utf-8' });
-            var link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = sourceName + '.log';
-            document.body.appendChild(link);
-            link.click();
-            URL.revokeObjectURL(link.href);
-            link.remove();
-        }
-
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -8471,6 +9111,38 @@
             var autoOfflineEnabled = autoOfflineMatch ? autoOfflineMatch[1] === 'true' : false;
             document.getElementById('autoOfflineEnabled').checked = autoOfflineEnabled;
             document.getElementById('autoOfflineEnabledLabel').textContent = autoOfflineEnabled ? '开启' : '关闭';
+            var cloudDispatchEnabledMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}enabled:\s*(true|false)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);
+            var cloudDispatchEnabled = cloudDispatchEnabledMatch ? cloudDispatchEnabledMatch[1] === 'true' : false;
+            document.getElementById('cloudDispatchEnabled').checked = cloudDispatchEnabled;
+            document.getElementById('cloudDispatchEnabledLabel').textContent = cloudDispatchEnabled ? '开启' : '关闭';
+            var cloudDispatchQueryUrlMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}query_url:[^\S\n]*(.*)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)queryUrl:[^\S\n]*(.*)/);
+            var cloudDispatchQuerySecretMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}query_secret:[^\S\n]*(.*)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)querySecret:[^\S\n]*(.*)/);
+            document.getElementById('cloudDispatchQueryUrl').value = cloudDispatchQueryUrlMatch
+                ? cloudDispatchQueryUrlMatch[1].trim().replace(/^["']|["']$/g, '')
+                : '';
+            document.getElementById('cloudDispatchQuerySecret').value = cloudDispatchQuerySecretMatch
+                ? cloudDispatchQuerySecretMatch[1].trim().replace(/^["']|["']$/g, '')
+                : '';
+            var cloudDispatchAutoEnabledMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}auto:\s*\n(?:[\s\S]*?)^\s{6}enabled:\s*(true|false)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)auto:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);
+            var cloudDispatchAutoEnabled = cloudDispatchAutoEnabledMatch ? cloudDispatchAutoEnabledMatch[1] === 'true' : false;
+            document.getElementById('cloudDispatchAutoEnabled').checked = cloudDispatchAutoEnabled;
+            document.getElementById('cloudDispatchAutoEnabledLabel').textContent = cloudDispatchAutoEnabled ? '开启' : '关闭';
+            var cloudDispatchAutoIntervalMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}auto:\s*\n(?:[\s\S]*?)^\s{6}interval_minutes:\s*(\d+)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)auto:\s*\n(?:[\s\S]*?)intervalMinutes:\s*(\d+)/);
+            var cloudDispatchFallbackRetryMatch =
+                yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}fallback_retry_minutes:\s*(\d+)/m) ||
+                yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)fallbackRetryMinutes:\s*(\d+)/);
+            document.getElementById('cloudDispatchAutoIntervalMinutes').value = cloudDispatchAutoIntervalMatch ? parseInt(cloudDispatchAutoIntervalMatch[1], 10) : 5;
+            document.getElementById('cloudDispatchFallbackRetryMinutes').value = cloudDispatchFallbackRetryMatch ? parseInt(cloudDispatchFallbackRetryMatch[1], 10) : 5;
             var subCacheEnabledMatch = yaml.match(/subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var subCacheEnabled = subCacheEnabledMatch ? subCacheEnabledMatch[1] === 'true' : false;
             document.getElementById('subscriptionCacheEnabled').checked = subCacheEnabled;
