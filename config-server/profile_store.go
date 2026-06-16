@@ -175,6 +175,7 @@ func defaultProfileYaml(displayName string) string {
       value: 0
     notice:
       auto_open_on_startup: false
+      auto_open_interval_hours: 24
     subscription_status_popup:
       enabled: false
       official_url: ""

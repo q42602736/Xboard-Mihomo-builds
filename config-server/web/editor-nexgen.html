@@ -3280,6 +3280,12 @@
                                         <span id="noticeAutoOpenOnStartupLabel">关闭</span>
                                     </div>
                                 </div>
+                                <div class="switch-card-extra">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label>自动弹出最小间隔（小时）</label>
+                                        <input type="number" id="noticeAutoOpenIntervalHours" value="24" min="0" placeholder="24">
+                                    </div>
+                                </div>
                                 <div class="help-text">启用后，进入软件首页且存在可见公告时，会自动打开公告详情。</div>
                             </div>
                         </div>
@@ -6332,6 +6338,7 @@
                 '      value: 0',
                 '    notice:',
                 '      auto_open_on_startup: false',
+                '      auto_open_interval_hours: 24',
                 '    proxy_groups:',
                 '      show_custom_rule_entry: true',
                 '      main_policy_nodes_only: false',
@@ -6576,6 +6583,7 @@
                 latency_reduction_enabled: document.getElementById('latencyReductionEnabled').checked,
                 latency_reduction_value: normalizeLatencyReductionValue(document.getElementById('latencyReductionValue').value),
                 notice_auto_open_on_startup: document.getElementById('noticeAutoOpenOnStartup').checked,
+                notice_auto_open_interval_hours: normalizeNoticeAutoOpenIntervalHours(document.getElementById('noticeAutoOpenIntervalHours').value),
                 show_custom_rule_entry: document.getElementById('showCustomRuleEntry').checked,
                 checkin_show_button: document.getElementById('checkinShowButton').checked,
                 gift_card_show_button: document.getElementById('giftCardShowButton').checked,
@@ -7561,6 +7569,16 @@
                 this.value = normalizeLatencyReductionValue(this.value);
                 formToYaml();
             });
+            document.getElementById('noticeAutoOpenIntervalHours').addEventListener('change', function() {
+                this.value = normalizeNoticeAutoOpenIntervalHours(this.value);
+                formToYaml();
+            });
+        }
+
+        function normalizeNoticeAutoOpenIntervalHours(value) {
+            var parsed = parseInt(value, 10);
+            if (!Number.isFinite(parsed) || parsed < 0) return 0;
+            return parsed;
         }
 
         function syncExclusiveSubscriptionUserAgentVisibility(enabled) {
@@ -9183,6 +9201,12 @@
             var noticeAutoOpenOnStartup = noticeAutoOpenMatch ? noticeAutoOpenMatch[1] === 'true' : false;
             document.getElementById('noticeAutoOpenOnStartup').checked = noticeAutoOpenOnStartup;
             document.getElementById('noticeAutoOpenOnStartupLabel').textContent = noticeAutoOpenOnStartup ? '开启' : '关闭';
+            var noticeAutoOpenIntervalMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}notice:\s*\n(?:[\s\S]*?)^\s{6}auto_open_interval_hours:\s*(-?\d+)/m) ||
+                yaml.match(/notice:\s*\n(?:[\s\S]*?)auto_open_interval_hours:\s*(-?\d+)/);
+            document.getElementById('noticeAutoOpenIntervalHours').value = noticeAutoOpenIntervalMatch
+                ? normalizeNoticeAutoOpenIntervalHours(noticeAutoOpenIntervalMatch[1])
+                : 24;
             var showCustomRuleEntryMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}proxy_groups:\s*\n(?:[\s\S]*?)^\s{6}show_custom_rule_entry:\s*(true|false)/m) ||
                 yaml.match(/proxy_groups:\s*\n(?:[\s\S]*?)show_custom_rule_entry:\s*(true|false)/);

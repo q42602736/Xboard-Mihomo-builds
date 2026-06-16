@@ -44,6 +44,7 @@ type ProfileFormState struct {
 	LatencyReductionEnabled        bool                      `json:"latency_reduction_enabled"`
 	LatencyReductionValue          int                       `json:"latency_reduction_value"`
 	NoticeAutoOpenOnStartup        bool                      `json:"notice_auto_open_on_startup"`
+	NoticeAutoOpenIntervalHours    *int                      `json:"notice_auto_open_interval_hours"`
 	CheckinShowButton              bool                      `json:"checkin_show_button"`
 	GiftCardShowButton             bool                      `json:"gift_card_show_button"`
 	ShowCustomRuleEntry            bool                      `json:"show_custom_rule_entry"`
@@ -185,6 +186,9 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	setMapBoolValue(latencyReduction, "enabled", form.LatencyReductionEnabled)
 	setMapIntValue(latencyReduction, "value", normalizeLatencyReductionValue(form.LatencyReductionValue))
 	setMapBoolValue(notice, "auto_open_on_startup", form.NoticeAutoOpenOnStartup)
+	if form.NoticeAutoOpenIntervalHours != nil {
+		setMapIntValue(notice, "auto_open_interval_hours", normalizeNoticeAutoOpenIntervalHours(*form.NoticeAutoOpenIntervalHours))
+	}
 	setMapBoolValue(checkin, "show_button", form.CheckinShowButton)
 	setMapBoolValue(giftCard, "show_button", form.GiftCardShowButton)
 	setMapBoolValue(proxyGroups, "show_custom_rule_entry", form.ShowCustomRuleEntry)
@@ -349,6 +353,13 @@ func normalizeLatencyReductionValue(value int) int {
 	}
 	if value > 90 {
 		return 90
+	}
+	return value
+}
+
+func normalizeNoticeAutoOpenIntervalHours(value int) int {
+	if value < 0 {
+		return 0
 	}
 	return value
 }
