@@ -49,6 +49,9 @@ type ProfileFormState struct {
 	NoticeAutoOpenIntervalHours    *int                      `json:"notice_auto_open_interval_hours"`
 	CheckinShowButton              bool                      `json:"checkin_show_button"`
 	GiftCardShowButton             bool                      `json:"gift_card_show_button"`
+	UtilitySpeedShowButton         bool                      `json:"utility_speed_show_button"`
+	UtilityIPLookupShowButton      bool                      `json:"utility_ip_lookup_show_button"`
+	UtilityMediaUnlockShowButton   bool                      `json:"utility_media_unlock_show_button"`
 	ShowCustomRuleEntry            bool                      `json:"show_custom_rule_entry"`
 	AuthPagesSupportShowButton     bool                      `json:"auth_pages_support_show_button"`
 	Sources                        []ProfileSourceFormState  `json:"sources"`
@@ -109,6 +112,11 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	notice := ensureMapValueNode(ui, "notice")
 	checkin := ensureMapValueNode(ui, "checkin")
 	giftCard := ensureMapValueNode(ui, "gift_card")
+	utilities := ensureMapValueNode(ui, "utilities")
+	utilityTools := ensureMapValueNode(utilities, "tools")
+	utilitySpeed := ensureMapValueNode(utilityTools, "speed")
+	utilityIPLookup := ensureMapValueNode(utilityTools, "ip_lookup")
+	utilityMediaUnlock := ensureMapValueNode(utilityTools, "media_unlock")
 	proxyGroups := ensureMapValueNode(ui, "proxy_groups")
 	uiOnlineSupport := ensureMapValueNode(ui, "online_support")
 	authPages := ensureMapValueNode(uiOnlineSupport, "auth_pages")
@@ -195,6 +203,9 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	}
 	setMapBoolValue(checkin, "show_button", form.CheckinShowButton)
 	setMapBoolValue(giftCard, "show_button", form.GiftCardShowButton)
+	setMapBoolValue(utilitySpeed, "show_button", form.UtilitySpeedShowButton)
+	setMapBoolValue(utilityIPLookup, "show_button", form.UtilityIPLookupShowButton)
+	setMapBoolValue(utilityMediaUnlock, "show_button", form.UtilityMediaUnlockShowButton)
 	setMapBoolValue(proxyGroups, "show_custom_rule_entry", form.ShowCustomRuleEntry)
 	setMapBoolValue(authPages, "show_button", form.AuthPagesSupportShowButton)
 	removeMapKeys(profileRoot, "proxy_groups", "proxyGroups")

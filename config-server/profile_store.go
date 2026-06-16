@@ -190,7 +190,15 @@ func defaultProfileYaml(displayName string) string {
     checkin:
       show_button: false
     gift_card:
-      show_button: false`, displayName)
+      show_button: false
+    utilities:
+      tools:
+        speed:
+          show_button: true
+        ip_lookup:
+          show_button: true
+        media_unlock:
+          show_button: true`, displayName)
 }
 
 func (h *Handlers) createManualProfile(displayName string) (StoredProfile, error) {

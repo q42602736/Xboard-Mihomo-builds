@@ -3321,6 +3321,34 @@
                                 </div>
                                 <div class="help-text">仅用于 main 分支对接 XBoard 面板。开启前请确认你的 XBoard 已安装并启用 <code>DailyCheckin</code> 这类签到插件，否则客户端只会显示按钮，实际无法签到。</div>
                             </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：网速测试</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="utilitySpeedShowButton" checked><span class="slider"></span></label>
+                                        <span id="utilitySpeedShowButtonLabel">开启</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：IP 查询</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="utilityIpLookupShowButton" checked><span class="slider"></span></label>
+                                        <span id="utilityIpLookupShowButtonLabel">开启</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：流媒体解锁检测</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="utilityMediaUnlockShowButton" checked><span class="slider"></span></label>
+                                        <span id="utilityMediaUnlockShowButtonLabel">开启</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">三个实用工具全部关闭后，客户端会自动隐藏左侧导航中的“实用工具”入口。</div>
+                            </div>
                         </div>
                     </div>
                     <div class="page-footer">
@@ -6360,7 +6388,15 @@
                 '    checkin:',
                 '      show_button: false',
                 '    gift_card:',
-                '      show_button: false'
+                '      show_button: false',
+                '    utilities:',
+                '      tools:',
+                '        speed:',
+                '          show_button: true',
+                '        ip_lookup:',
+                '          show_button: true',
+                '        media_unlock:',
+                '          show_button: true'
             ];
             return lines.join('\n');
         }
@@ -6604,6 +6640,9 @@
                 show_custom_rule_entry: document.getElementById('showCustomRuleEntry').checked,
                 checkin_show_button: document.getElementById('checkinShowButton').checked,
                 gift_card_show_button: document.getElementById('giftCardShowButton').checked,
+                utility_speed_show_button: document.getElementById('utilitySpeedShowButton').checked,
+                utility_ip_lookup_show_button: document.getElementById('utilityIpLookupShowButton').checked,
+                utility_media_unlock_show_button: document.getElementById('utilityMediaUnlockShowButton').checked,
                 sources: validSources,
                 online_support_items: []
             };
@@ -7566,7 +7605,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'utilitySpeedShowButton', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -9264,6 +9303,24 @@
             var giftCardShowButton = giftCardShowButtonMatch ? giftCardShowButtonMatch[1] === 'true' : false;
             document.getElementById('giftCardShowButton').checked = giftCardShowButton;
             document.getElementById('giftCardShowButtonLabel').textContent = giftCardShowButton ? '开启' : '关闭';
+            var utilitySpeedShowButtonMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}utilities:\s*\n(?:[\s\S]*?)^\s{6}tools:\s*\n(?:[\s\S]*?)^\s{8}speed:\s*\n(?:[\s\S]*?)^\s{10}show_button:\s*(true|false)/m) ||
+                yaml.match(/utilities:\s*\n(?:[\s\S]*?)tools:\s*\n(?:[\s\S]*?)speed:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);
+            var utilitySpeedShowButton = utilitySpeedShowButtonMatch ? utilitySpeedShowButtonMatch[1] === 'true' : true;
+            document.getElementById('utilitySpeedShowButton').checked = utilitySpeedShowButton;
+            document.getElementById('utilitySpeedShowButtonLabel').textContent = utilitySpeedShowButton ? '开启' : '关闭';
+            var utilityIpLookupShowButtonMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}utilities:\s*\n(?:[\s\S]*?)^\s{6}tools:\s*\n(?:[\s\S]*?)^\s{8}ip_lookup:\s*\n(?:[\s\S]*?)^\s{10}show_button:\s*(true|false)/m) ||
+                yaml.match(/utilities:\s*\n(?:[\s\S]*?)tools:\s*\n(?:[\s\S]*?)ip_lookup:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);
+            var utilityIpLookupShowButton = utilityIpLookupShowButtonMatch ? utilityIpLookupShowButtonMatch[1] === 'true' : true;
+            document.getElementById('utilityIpLookupShowButton').checked = utilityIpLookupShowButton;
+            document.getElementById('utilityIpLookupShowButtonLabel').textContent = utilityIpLookupShowButton ? '开启' : '关闭';
+            var utilityMediaUnlockShowButtonMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}utilities:\s*\n(?:[\s\S]*?)^\s{6}tools:\s*\n(?:[\s\S]*?)^\s{8}media_unlock:\s*\n(?:[\s\S]*?)^\s{10}show_button:\s*(true|false)/m) ||
+                yaml.match(/utilities:\s*\n(?:[\s\S]*?)tools:\s*\n(?:[\s\S]*?)media_unlock:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);
+            var utilityMediaUnlockShowButton = utilityMediaUnlockShowButtonMatch ? utilityMediaUnlockShowButtonMatch[1] === 'true' : true;
+            document.getElementById('utilityMediaUnlockShowButton').checked = utilityMediaUnlockShowButton;
+            document.getElementById('utilityMediaUnlockShowButtonLabel').textContent = utilityMediaUnlockShowButton ? '开启' : '关闭';
             var authBackgroundEnabledMatch = yaml.match(/auth_background:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var authBackgroundEnabled = authBackgroundEnabledMatch ? authBackgroundEnabledMatch[1] === 'true' : false;
             document.getElementById('authBackgroundEnabled').checked = authBackgroundEnabled;
