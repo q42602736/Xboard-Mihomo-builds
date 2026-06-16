@@ -130,6 +130,8 @@ func defaultProfileYaml(displayName string) string {
     decrypt_key: ""
   auto_offline:
     enabled: false
+    force_on_startup: false
+    auto_enter_interval_hours: 0
   subscription_cache:
     enabled: false
     ttl_hours: 24

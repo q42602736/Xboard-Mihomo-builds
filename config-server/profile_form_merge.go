@@ -24,6 +24,8 @@ type ProfileFormState struct {
 	UseExclusiveMode               bool                      `json:"use_exclusive_mode"`
 	DecryptKey                     string                    `json:"decrypt_key"`
 	AutoOfflineEnabled             bool                      `json:"auto_offline_enabled"`
+	AutoOfflineForceOnStartup      bool                      `json:"auto_offline_force_on_startup"`
+	AutoOfflineIntervalHours       int                       `json:"auto_offline_interval_hours"`
 	CloudDispatchEnabled           bool                      `json:"cloud_dispatch_enabled"`
 	CloudDispatchQueryURL          string                    `json:"cloud_dispatch_query_url"`
 	CloudDispatchQuerySecret       string                    `json:"cloud_dispatch_query_secret"`
@@ -132,6 +134,8 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	setMapBoolValue(subscription, "use_exclusive_mode", form.UseExclusiveMode)
 	setMapStringValue(subscription, "decrypt_key", form.DecryptKey)
 	setMapBoolValue(autoOffline, "enabled", form.AutoOfflineEnabled)
+	setMapBoolValue(autoOffline, "force_on_startup", form.AutoOfflineForceOnStartup)
+	setMapIntValue(autoOffline, "auto_enter_interval_hours", normalizeAutoOfflineIntervalHours(form.AutoOfflineIntervalHours))
 	setMapBoolValue(cloudDispatch, "enabled", form.CloudDispatchEnabled)
 	normalizedCloudDispatchQueryURL, err := normalizeCloudDispatchQueryURL(form.CloudDispatchQueryURL)
 	if err != nil {
@@ -358,6 +362,13 @@ func normalizeLatencyReductionValue(value int) int {
 }
 
 func normalizeNoticeAutoOpenIntervalHours(value int) int {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func normalizeAutoOfflineIntervalHours(value int) int {
 	if value < 0 {
 		return 0
 	}

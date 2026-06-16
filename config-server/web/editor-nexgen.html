@@ -3453,7 +3453,20 @@
                                         <span id="autoOfflineEnabledLabel">关闭</span>
                                     </div>
                                 </div>
-                                <div class="help-text">启用后，应用启动完成所有初始化请求后会自动进入离线模式</div>
+                                <div class="switch-card-extra">
+                                    <div class="switch-card-header" style="margin-bottom:12px;">
+                                        <span class="switch-card-label">启动时强制自动离线</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="autoOfflineForceOnStartup"><span class="slider"></span></label>
+                                            <span id="autoOfflineForceOnStartupLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label>强制自动离线最小间隔（小时）</label>
+                                        <input type="number" id="autoOfflineIntervalHours" value="0" min="0" placeholder="0">
+                                    </div>
+                                </div>
+                                <div class="help-text">启用后，首次在线成功并已有本地缓存时会自动进入离线模式；开启强制后，即使用户手动退出，也会按间隔再次自动进入。间隔为 0 表示每次启动都可自动进入。</div>
                             </div>
                         </div>
                         <div class="section">
@@ -6315,6 +6328,8 @@
                 '    decrypt_key: ""',
                 '  auto_offline:',
                 '    enabled: false',
+                '    force_on_startup: false',
+                '    auto_enter_interval_hours: 0',
                 '  cloud_dispatch:',
                 '    enabled: false',
                 '    query_url: ""',
@@ -6570,6 +6585,8 @@
                 use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
                 auto_offline_enabled: document.getElementById('autoOfflineEnabled').checked,
+                auto_offline_force_on_startup: document.getElementById('autoOfflineForceOnStartup').checked,
+                auto_offline_interval_hours: normalizeAutoOfflineIntervalHours(document.getElementById('autoOfflineIntervalHours').value),
                 cloud_dispatch_enabled: document.getElementById('cloudDispatchEnabled').checked,
                 cloud_dispatch_query_url: document.getElementById('cloudDispatchQueryUrl').value.trim(),
                 cloud_dispatch_query_secret: document.getElementById('cloudDispatchQuerySecret').value.trim(),
@@ -7549,7 +7566,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -7573,6 +7590,16 @@
                 this.value = normalizeNoticeAutoOpenIntervalHours(this.value);
                 formToYaml();
             });
+            document.getElementById('autoOfflineIntervalHours').addEventListener('change', function() {
+                this.value = normalizeAutoOfflineIntervalHours(this.value);
+                formToYaml();
+            });
+        }
+
+        function normalizeAutoOfflineIntervalHours(value) {
+            var parsed = parseInt(value, 10);
+            if (!Number.isFinite(parsed) || parsed < 0) return 0;
+            return parsed;
         }
 
         function normalizeNoticeAutoOpenIntervalHours(value) {
@@ -9129,6 +9156,18 @@
             var autoOfflineEnabled = autoOfflineMatch ? autoOfflineMatch[1] === 'true' : false;
             document.getElementById('autoOfflineEnabled').checked = autoOfflineEnabled;
             document.getElementById('autoOfflineEnabledLabel').textContent = autoOfflineEnabled ? '开启' : '关闭';
+            var autoOfflineForceMatch =
+                yaml.match(/auto_offline:\s*\n(?:[\s\S]*?)^\s{4}force_on_startup:\s*(true|false)/m) ||
+                yaml.match(/autoOffline:\s*\n(?:[\s\S]*?)forceOnStartup:\s*(true|false)/);
+            var autoOfflineForceOnStartup = autoOfflineForceMatch ? autoOfflineForceMatch[1] === 'true' : false;
+            document.getElementById('autoOfflineForceOnStartup').checked = autoOfflineForceOnStartup;
+            document.getElementById('autoOfflineForceOnStartupLabel').textContent = autoOfflineForceOnStartup ? '开启' : '关闭';
+            var autoOfflineIntervalMatch =
+                yaml.match(/auto_offline:\s*\n(?:[\s\S]*?)^\s{4}auto_enter_interval_hours:\s*(-?\d+)/m) ||
+                yaml.match(/autoOffline:\s*\n(?:[\s\S]*?)autoEnterIntervalHours:\s*(-?\d+)/);
+            document.getElementById('autoOfflineIntervalHours').value = autoOfflineIntervalMatch
+                ? normalizeAutoOfflineIntervalHours(autoOfflineIntervalMatch[1])
+                : 0;
             var cloudDispatchEnabledMatch =
                 yaml.match(/cloud_dispatch:\s*\n(?:[\s\S]*?)^\s{4}enabled:\s*(true|false)/m) ||
                 yaml.match(/cloudDispatch:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);
