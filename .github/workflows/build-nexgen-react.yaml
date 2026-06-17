@@ -581,43 +581,6 @@ jobs:
             echo "已配置 NexGen Android 固定签名。"
           }
 
-          android_gradle_package_task() {
-            case "$1" in
-              arm64-v8a)
-                printf '%s\n' ":app:packageArm64Release"
-                ;;
-              armeabi-v7a)
-                printf '%s\n' ":app:packageArmRelease"
-                ;;
-              universal)
-                printf '%s\n' ":app:packageUniversalRelease"
-                ;;
-              *)
-                printf '%s\n' ":app:assembleRelease"
-                ;;
-            esac
-          }
-
-          print_android_gradle_stacktrace() {
-            local abi="$1"
-            local gradle_task
-            gradle_task="$(android_gradle_package_task "$abi")"
-
-            if [ ! -f src-tauri/gen/android/gradlew ]; then
-              echo "=== Android Build Debug: Gradle stacktrace probe skipped, gradlew not found ==="
-              return 0
-            fi
-
-            echo ""
-            echo "=== Android Build Debug: Gradle stacktrace probe (${gradle_task}) ==="
-            (
-              cd src-tauri/gen/android
-              GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1" \
-                /bin/sh ./gradlew "$gradle_task" --stacktrace --no-daemon
-            ) 2>&1 | tee -a "gradle-stacktrace-${abi}.log" || true
-            echo ""
-          }
-
           print_android_diagnostics() {
             echo ""
             echo "=== Android Build Debug: build.log last 500 lines ==="
@@ -767,7 +730,6 @@ jobs:
             set -e
             if [ "$BUILD_EXIT_CODE" -ne 0 ]; then
               echo "::error::NexGen Android ${abi} APK 打包失败，下面输出完整诊断日志。"
-              print_android_gradle_stacktrace "$abi"
               print_android_diagnostics
               exit "$BUILD_EXIT_CODE"
             fi
