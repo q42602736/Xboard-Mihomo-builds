@@ -640,10 +640,8 @@ jobs:
 
           clean_android_apk_outputs() {
             rm -rf \
-              src-tauri/gen/android/app/build/intermediates/merged_native_libs \
-              src-tauri/gen/android/app/build/intermediates/stripped_native_libs \
-              src-tauri/gen/android/app/build/intermediates/merged_jni_libs \
-              src-tauri/gen/android/app/build/outputs/apk
+              src-tauri/gen/android/app/.cxx \
+              src-tauri/gen/android/app/build
           }
 
           find_android_apk_by_pattern() {
