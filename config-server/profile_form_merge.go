@@ -52,6 +52,8 @@ type ProfileFormState struct {
 	UtilitySpeedShowButton         bool                      `json:"utility_speed_show_button"`
 	UtilityIPLookupShowButton      bool                      `json:"utility_ip_lookup_show_button"`
 	UtilityMediaUnlockShowButton   bool                      `json:"utility_media_unlock_show_button"`
+	UtilityPopularAppsShowSection  bool                      `json:"utility_popular_apps_show_section"`
+	UtilityPopularApps             []ProfilePopularAppState  `json:"utility_popular_apps"`
 	ShowCustomRuleEntry            bool                      `json:"show_custom_rule_entry"`
 	AuthPagesSupportShowButton     bool                      `json:"auth_pages_support_show_button"`
 	Sources                        []ProfileSourceFormState  `json:"sources"`
@@ -77,6 +79,16 @@ type ProfileSupportFormState struct {
 	PropertyID   string `json:"property_id"`
 	WebsiteToken string `json:"website_token"`
 	BaseURL      string `json:"base_url"`
+}
+
+type ProfilePopularAppState struct {
+	MergeKey    string `json:"merge_key,omitempty"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	IconURL     string `json:"icon_url"`
+	DownloadURL string `json:"download_url"`
+	ShowButton  bool   `json:"show_button"`
 }
 
 func mergeProfileYamlWithForm(baseYaml string, form ProfileFormState) (string, error) {
@@ -117,6 +129,7 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	utilitySpeed := ensureMapValueNode(utilityTools, "speed")
 	utilityIPLookup := ensureMapValueNode(utilityTools, "ip_lookup")
 	utilityMediaUnlock := ensureMapValueNode(utilityTools, "media_unlock")
+	utilityPopularApps := ensureMapValueNode(utilities, "popular_apps")
 	proxyGroups := ensureMapValueNode(ui, "proxy_groups")
 	uiOnlineSupport := ensureMapValueNode(ui, "online_support")
 	authPages := ensureMapValueNode(uiOnlineSupport, "auth_pages")
@@ -206,6 +219,8 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	setMapBoolValue(utilitySpeed, "show_button", form.UtilitySpeedShowButton)
 	setMapBoolValue(utilityIPLookup, "show_button", form.UtilityIPLookupShowButton)
 	setMapBoolValue(utilityMediaUnlock, "show_button", form.UtilityMediaUnlockShowButton)
+	setMapBoolValue(utilityPopularApps, "show_section", form.UtilityPopularAppsShowSection)
+	setMapNodeValue(utilityPopularApps, "items", mergeProfilePopularApps(getSequenceValueNode(utilityPopularApps, "items"), form.UtilityPopularApps))
 	setMapBoolValue(proxyGroups, "show_custom_rule_entry", form.ShowCustomRuleEntry)
 	setMapBoolValue(authPages, "show_button", form.AuthPagesSupportShowButton)
 	removeMapKeys(profileRoot, "proxy_groups", "proxyGroups")
@@ -520,6 +535,31 @@ func mergeProfileSupportItems(existing *yaml.Node, items []ProfileSupportFormSta
 			setMapStringValue(itemNode, "website_token", strings.TrimSpace(item.WebsiteToken))
 			setMapStringValue(itemNode, "base_url", strings.TrimSpace(item.BaseURL))
 		}
+
+		seq.Content = append(seq.Content, itemNode)
+	}
+	return seq
+}
+
+func mergeProfilePopularApps(existing *yaml.Node, items []ProfilePopularAppState) *yaml.Node {
+	seq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+	for index, item := range items {
+		itemNode := pickExistingSequenceItem(existing, item.MergeKey, index)
+		if itemNode == nil || itemNode.Kind != yaml.MappingNode {
+			itemNode = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+		}
+
+		id := strings.TrimSpace(item.ID)
+		if id == "" {
+			id = fmt.Sprintf("app-%d", index+1)
+		}
+
+		setMapStringValue(itemNode, "id", id)
+		setMapStringValue(itemNode, "name", strings.TrimSpace(item.Name))
+		setMapStringValue(itemNode, "description", strings.TrimSpace(item.Description))
+		setMapStringValue(itemNode, "icon_url", strings.TrimSpace(item.IconURL))
+		setMapStringValue(itemNode, "download_url", strings.TrimSpace(item.DownloadURL))
+		setMapBoolValue(itemNode, "show_button", item.ShowButton)
 
 		seq.Content = append(seq.Content, itemNode)
 	}

@@ -21,7 +21,12 @@ const nexgen = deepMerge(
 fs.writeFileSync(outputPath, toYaml({ nexgen }));
 
 function convertNexgenProfile(nexgen) {
-  return pruneEmpty(record(nexgen));
+  const converted = record(nexgen);
+  converted.ui = {
+    ...record(converted.ui),
+    utilities: normalizeUtilitiesOverride(record(converted.ui).utilities),
+  };
+  return pruneEmpty(converted);
 }
 
 function convertXboardToNexgen(xboard) {
@@ -47,10 +52,23 @@ function convertXboardToNexgen(xboard) {
       notice: record(ui.notice),
       checkin: record(ui.checkin),
       gift_card: record(ui.gift_card),
+      utilities: normalizeUtilitiesOverride(ui.utilities),
       proxy_groups: record(ui.proxy_groups),
     },
   };
   return pruneEmpty(converted);
+}
+
+function normalizeUtilitiesOverride(value) {
+  const utilities = record(value);
+  const popularApps = record(utilities.popular_apps);
+  return {
+    ...utilities,
+    popular_apps: {
+      show_section: typeof popularApps.show_section === "boolean" ? popularApps.show_section : false,
+      items: Array.isArray(popularApps.items) ? popularApps.items : [],
+    },
+  };
 }
 
 function deepMerge(base, override) {
@@ -201,6 +219,8 @@ function parseScalar(value) {
   if (value === "true") return true;
   if (value === "false") return false;
   if (value === "null") return null;
+  if (value === "[]") return [];
+  if (value === "{}") return {};
   if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
   if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
     return value.slice(1, -1);

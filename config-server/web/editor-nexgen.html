@@ -602,6 +602,13 @@
         .source-item .btn-remove { position: absolute; top: 10px; right: 10px; background: rgba(255,68,68,0.3); color: #ff4444; border: 1px solid rgba(255,68,68,0.5); padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; }
         .source-item .btn-remove:hover { background: rgba(255,68,68,0.5); }
         .source-index { color: #00d4ff; font-weight: bold; margin-bottom: 10px; }
+        .popular-app-item { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 15px; margin-bottom: 10px; position: relative; }
+        .popular-app-item .btn-remove { position: absolute; top: 10px; right: 10px; background: rgba(255,68,68,0.3); color: #ff4444; border: 1px solid rgba(255,68,68,0.5); padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; }
+        .popular-app-item .btn-remove:hover { background: rgba(255,68,68,0.5); }
+        .popular-app-index { color: #00d4ff; font-weight: bold; margin-bottom: 10px; }
+        .popular-app-item .popular-app-main-row { grid-template-columns: 1fr 160px; }
+        .popular-app-item .popular-app-url-row { grid-template-columns: 1.2fr 1.4fr; margin-top: 10px; }
+        .popular-app-editor.collapsed { display: none; }
         .remote-config-workflow {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -3347,7 +3354,26 @@
                                         <span id="utilityMediaUnlockShowButtonLabel">开启</span>
                                     </div>
                                 </div>
-                                <div class="help-text">三个实用工具全部关闭后，客户端会自动隐藏左侧导航中的“实用工具”入口。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：热门应用</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="popularAppsShowSection"><span class="slider"></span></label>
+                                        <span id="popularAppsShowSectionLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="switch-card-extra">
+                                    <div class="form-row" style="grid-template-columns:minmax(0,1fr) 160px; align-items:center; margin-bottom:12px;">
+                                        <div class="help-text" id="popularAppsSummary">已添加 0 个应用，配置默认收起。</div>
+                                        <button type="button" class="btn btn-secondary" id="togglePopularAppsBtn">展开配置</button>
+                                    </div>
+                                    <div class="popular-app-editor collapsed" id="popularAppsEditor">
+                                        <div id="popularAppsContainer"></div>
+                                        <button type="button" class="btn btn-primary" id="addPopularAppBtn" style="margin-top: 10px;">+ 添加应用</button>
+                                    </div>
+                                </div>
+                                <div class="help-text">开启后，客户端工具箱内会显示单独的“热门应用”工具；用户点击后查看应用列表，点击应用图标会跳转下载地址，下载地址不会直接展示。</div>
                             </div>
                         </div>
                     </div>
@@ -5447,6 +5473,8 @@
         ];
         var CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY = 'nexgen_custom_traffic_bar_code_v1';
         var sources = [];
+        var popularApps = [];
+        var popularAppsExpanded = false;
         var remoteConfigEncryptedData = '';
         var remoteConfigEncryptionKey = '';
         var remoteConfigPanels = [];
@@ -6220,6 +6248,8 @@
             syncCustomTrafficBarAccessView();
 
             document.getElementById('addSourceBtn').addEventListener('click', addSource);
+            document.getElementById('addPopularAppBtn').addEventListener('click', addPopularApp);
+            document.getElementById('togglePopularAppsBtn').addEventListener('click', togglePopularAppsEditor);
             document.getElementById('buildBtn').addEventListener('click', triggerBuild);
             document.getElementById('buildTag').addEventListener('input', updateBuildTagValidationState);
             document.getElementById('buildTag').addEventListener('change', updateBuildTagValidationState);
@@ -6396,7 +6426,10 @@
                 '        ip_lookup:',
                 '          show_button: true',
                 '        media_unlock:',
-                '          show_button: true'
+                '          show_button: true',
+                '      popular_apps:',
+                '        show_section: false',
+                '        items: []'
             ];
             return lines.join('\n');
         }
@@ -6594,6 +6627,7 @@
         function buildCurrentProfileFormState() {
             collectSources();
             collectSupportItems();
+            collectPopularApps();
 
             var validSources = sources.filter(function(source) {
                 return source && String(source.url || '').trim();
@@ -6603,6 +6637,19 @@
                     name: normalizeSourceType(source.name),
                     url: String(source.url || '').trim(),
                     encryption_key: String(source.encryption_key || '').trim()
+                };
+            });
+
+            var validPopularApps = popularApps.filter(function(item) {
+                return item && (String(item.name || '').trim() || String(item.download_url || '').trim());
+            }).map(function(item) {
+                return {
+                    merge_key: item._merge_key || '',
+                    name: String(item.name || '').trim(),
+                    description: String(item.description || '').trim(),
+                    icon_url: String(item.icon_url || '').trim(),
+                    download_url: String(item.download_url || '').trim(),
+                    show_button: item.show_button !== false
                 };
             });
 
@@ -6643,6 +6690,8 @@
                 utility_speed_show_button: document.getElementById('utilitySpeedShowButton').checked,
                 utility_ip_lookup_show_button: document.getElementById('utilityIpLookupShowButton').checked,
                 utility_media_unlock_show_button: document.getElementById('utilityMediaUnlockShowButton').checked,
+                utility_popular_apps_show_section: document.getElementById('popularAppsShowSection').checked,
+                utility_popular_apps: validPopularApps,
                 sources: validSources,
                 online_support_items: []
             };
@@ -7605,7 +7654,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'utilitySpeedShowButton', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'utilitySpeedShowButton', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -7792,6 +7841,103 @@
                 sources.push(obj);
             });
             return sources;
+        }
+
+        // ==================== 热门应用管理 ====================
+
+        function createPopularAppItem(index, item) {
+            item = item || { name: '', description: '', icon_url: '', download_url: '', show_button: true };
+            var div = document.createElement('div');
+            div.className = 'popular-app-item';
+            div.dataset.index = index;
+            if (item._merge_key !== undefined && item._merge_key !== null && item._merge_key !== '') {
+                div.dataset.mergeKey = String(item._merge_key);
+            }
+            var showButton = item.show_button !== false;
+            div.innerHTML = '<div class="popular-app-index">热门应用 #' + (index + 1) + '</div>' +
+                '<button type="button" class="btn-remove" onclick="removePopularApp(' + index + ')">删除</button>' +
+                '<div class="form-row popular-app-main-row">' +
+                    '<div class="form-group"><label>应用名称</label><input type="text" class="popular-app-name" value="' + escapeHtml(item.name || '') + '" placeholder="如: OpenClash"></div>' +
+                    '<div class="form-group"><label>显示</label><label style="display:flex;align-items:center;gap:8px;height:44px;"><input type="checkbox" class="popular-app-show-button"' + (showButton ? ' checked' : '') + '> 在客户端显示</label></div>' +
+                '</div>' +
+                '<div class="form-row popular-app-url-row">' +
+                    '<div class="form-group"><label>图标地址</label><input type="text" class="popular-app-icon-url" value="' + escapeHtml(item.icon_url || '') + '" placeholder="https://example.com/app.png"></div>' +
+                    '<div class="form-group"><label>下载地址</label><input type="text" class="popular-app-download-url" value="' + escapeHtml(item.download_url || '') + '" placeholder="https://example.com/download"></div>' +
+                '</div>' +
+                '<div class="form-group" style="margin-bottom:0;"><label>描述</label><input type="text" class="popular-app-description" value="' + escapeHtml(item.description || '') + '" placeholder="可选，用于应用列表说明"></div>';
+            return div;
+        }
+
+        function renderPopularApps() {
+            var container = document.getElementById('popularAppsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            popularApps.forEach(function(item, index) {
+                var el = createPopularAppItem(index, item);
+                container.appendChild(el);
+                el.querySelectorAll('input').forEach(function(input) {
+                    input.addEventListener('input', formToYaml);
+                    input.addEventListener('change', formToYaml);
+                });
+            });
+            updatePopularAppsEditorState();
+        }
+
+        function updatePopularAppsEditorState() {
+            var editor = document.getElementById('popularAppsEditor');
+            var toggleBtn = document.getElementById('togglePopularAppsBtn');
+            var summary = document.getElementById('popularAppsSummary');
+            if (editor) {
+                editor.classList.toggle('collapsed', !popularAppsExpanded);
+            }
+            if (toggleBtn) {
+                toggleBtn.textContent = popularAppsExpanded ? '收起配置' : '展开配置';
+            }
+            if (summary) {
+                summary.textContent = '已添加 ' + popularApps.length + ' 个应用，当前' + (popularAppsExpanded ? '已展开。' : '已收起。');
+            }
+        }
+
+        function togglePopularAppsEditor() {
+            popularAppsExpanded = !popularAppsExpanded;
+            updatePopularAppsEditorState();
+        }
+
+        function addPopularApp() {
+            popularAppsExpanded = true;
+            popularApps.push({ name: '', description: '', icon_url: '', download_url: '', show_button: true });
+            renderPopularApps();
+            formToYaml();
+        }
+
+        function removePopularApp(index) {
+            popularApps.splice(index, 1);
+            renderPopularApps();
+            formToYaml();
+        }
+
+        function collectPopularApps() {
+            var container = document.getElementById('popularAppsContainer');
+            if (!container) {
+                popularApps = [];
+                return popularApps;
+            }
+            var items = container.querySelectorAll('.popular-app-item');
+            popularApps = [];
+            items.forEach(function(item) {
+                var obj = {
+                    name: item.querySelector('.popular-app-name').value.trim(),
+                    description: item.querySelector('.popular-app-description').value.trim(),
+                    icon_url: item.querySelector('.popular-app-icon-url').value.trim(),
+                    download_url: item.querySelector('.popular-app-download-url').value.trim(),
+                    show_button: item.querySelector('.popular-app-show-button').checked
+                };
+                if (item.dataset.mergeKey) {
+                    obj._merge_key = item.dataset.mergeKey;
+                }
+                popularApps.push(obj);
+            });
+            return popularApps;
         }
 
         function switchRemoteConfigTab(tabName, triggerElement) {
@@ -9148,6 +9294,115 @@
 
         // ==================== YAML <-> 表单 转换 ====================
 
+        function stripYamlScalarQuotes(value) {
+            value = String(value || '').trim();
+            return value.replace(/^["']|["']$/g, '');
+        }
+
+        function parsePopularAppsFromYaml(yaml) {
+            var result = {
+                show_section: false,
+                items: []
+            };
+            var lines = String(yaml || '').split('\n');
+            var inPopularApps = false;
+            var inItems = false;
+            var popularAppsIndent = -1;
+            var itemsIndent = -1;
+            var currentItem = null;
+
+            function readKeyValue(text) {
+                var match = text.match(/^([a-zA-Z0-9_]+):\s*(.*)$/);
+                if (!match) return null;
+                return {
+                    key: match[1],
+                    value: stripYamlScalarQuotes(match[2])
+                };
+            }
+
+            function applyItemValue(item, key, value) {
+                if (!item) return;
+                if (key === 'show_button') {
+                    item.show_button = String(value).trim() !== 'false';
+                    return;
+                }
+                if (key === 'id' || key === 'name' || key === 'description' || key === 'icon_url' || key === 'download_url') {
+                    item[key] = value;
+                }
+            }
+
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                if (/^\s*#/.test(line)) continue;
+                var trimmed = line.trim();
+                if (!trimmed) continue;
+                var indent = (line.match(/^(\s*)/) || [''])[0].length;
+
+                if (!inPopularApps) {
+                    if (/^popular_apps:\s*$/.test(trimmed)) {
+                        inPopularApps = true;
+                        popularAppsIndent = indent;
+                    }
+                    continue;
+                }
+
+                if (indent <= popularAppsIndent) {
+                    break;
+                }
+
+                if (!inItems && /^show_section:\s*(true|false)/.test(trimmed)) {
+                    result.show_section = trimmed.match(/^show_section:\s*(true|false)/)[1] === 'true';
+                    continue;
+                }
+
+                if (/^items:\s*\[\]\s*$/.test(trimmed)) {
+                    inItems = false;
+                    continue;
+                }
+
+                if (/^items:\s*$/.test(trimmed)) {
+                    inItems = true;
+                    itemsIndent = indent;
+                    continue;
+                }
+
+                if (!inItems || indent <= itemsIndent) {
+                    continue;
+                }
+
+                if (/^-\s*/.test(trimmed)) {
+                    if (currentItem) {
+                        result.items.push(currentItem);
+                    }
+                    currentItem = {
+                        _merge_key: String(result.items.length),
+                        id: '',
+                        name: '',
+                        description: '',
+                        icon_url: '',
+                        download_url: '',
+                        show_button: true
+                    };
+                    var inline = trimmed.replace(/^-\s*/, '');
+                    var inlinePair = readKeyValue(inline);
+                    if (inlinePair) {
+                        applyItemValue(currentItem, inlinePair.key, inlinePair.value);
+                    }
+                    continue;
+                }
+
+                var pair = readKeyValue(trimmed);
+                if (pair) {
+                    applyItemValue(currentItem, pair.key, pair.value);
+                }
+            }
+
+            if (currentItem) {
+                result.items.push(currentItem);
+            }
+            return result;
+        }
+
         function yamlToForm() {
             var yaml = document.getElementById('editor').value;
             if (!yaml.trim()) return;
@@ -9321,6 +9576,11 @@
             var utilityMediaUnlockShowButton = utilityMediaUnlockShowButtonMatch ? utilityMediaUnlockShowButtonMatch[1] === 'true' : true;
             document.getElementById('utilityMediaUnlockShowButton').checked = utilityMediaUnlockShowButton;
             document.getElementById('utilityMediaUnlockShowButtonLabel').textContent = utilityMediaUnlockShowButton ? '开启' : '关闭';
+            var parsedPopularApps = parsePopularAppsFromYaml(yaml);
+            document.getElementById('popularAppsShowSection').checked = parsedPopularApps.show_section;
+            document.getElementById('popularAppsShowSectionLabel').textContent = parsedPopularApps.show_section ? '开启' : '关闭';
+            popularApps = parsedPopularApps.items;
+            renderPopularApps();
             var authBackgroundEnabledMatch = yaml.match(/auth_background:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var authBackgroundEnabled = authBackgroundEnabledMatch ? authBackgroundEnabledMatch[1] === 'true' : false;
             document.getElementById('authBackgroundEnabled').checked = authBackgroundEnabled;
@@ -9386,6 +9646,7 @@
         function formToYaml() {
             collectSources();
             collectSupportItems();
+            collectPopularApps();
             updateProviderConsistencyState();
             var editor = document.getElementById('editor');
             if (editor) {

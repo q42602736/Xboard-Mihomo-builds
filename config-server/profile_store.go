@@ -198,7 +198,10 @@ func defaultProfileYaml(displayName string) string {
         ip_lookup:
           show_button: true
         media_unlock:
-          show_button: true`, displayName)
+          show_button: true
+      popular_apps:
+        show_section: false
+        items: []`, displayName)
 }
 
 func (h *Handlers) createManualProfile(displayName string) (StoredProfile, error) {
