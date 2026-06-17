@@ -581,22 +581,78 @@ jobs:
             echo "已配置 NexGen Android 固定签名。"
           }
 
+          android_gradle_package_task() {
+            case "$1" in
+              arm64-v8a)
+                printf '%s\n' ":app:packageArm64Release"
+                ;;
+              armeabi-v7a)
+                printf '%s\n' ":app:packageArmRelease"
+                ;;
+              universal)
+                printf '%s\n' ":app:packageUniversalRelease"
+                ;;
+              *)
+                printf '%s\n' ":app:assembleRelease"
+                ;;
+            esac
+          }
+
+          print_android_gradle_stacktrace() {
+            local abi="$1"
+            local gradle_task
+            gradle_task="$(android_gradle_package_task "$abi")"
+
+            if [ ! -f src-tauri/gen/android/gradlew ]; then
+              echo "=== Android Build Debug: Gradle stacktrace probe skipped, gradlew not found ==="
+              return 0
+            fi
+
+            echo ""
+            echo "=== Android Build Debug: Gradle stacktrace probe (${gradle_task}) ==="
+            (
+              cd src-tauri/gen/android
+              GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1" \
+                /bin/sh ./gradlew "$gradle_task" --stacktrace --no-daemon
+            ) 2>&1 | tee -a "gradle-stacktrace-${abi}.log" || true
+            echo ""
+          }
+
           print_android_diagnostics() {
             echo ""
-            echo "=== Android Build Debug: build.log last 300 lines ==="
-            tail -300 build.log 2>/dev/null || echo "No build.log"
+            echo "=== Android Build Debug: build.log last 500 lines ==="
+            tail -500 build.log 2>/dev/null || echo "No build.log"
             echo ""
 
             echo "=== Android Build Debug: dist files ==="
             find dist -maxdepth 3 -type f -print 2>/dev/null || echo "No dist files"
             echo ""
 
+            echo "=== Android Build Debug: Gradle wrapper ==="
+            ls -l src-tauri/gen/android/gradlew src-tauri/gen/android/gradlew-real.sh src-tauri/gen/android/gradle/wrapper/gradle-wrapper.jar 2>/dev/null || true
+            sed -n '1,24p' src-tauri/gen/android/gradlew 2>/dev/null || true
+            echo ""
+
+            echo "=== Android Build Debug: jniLibs ==="
+            find src-tauri/gen/android/app/src/main/jniLibs -maxdepth 3 -type f -exec ls -lh {} \; 2>/dev/null || echo "No jniLibs"
+            echo ""
+
             echo "=== Android Build Debug: generated project files ==="
             find src-tauri/gen/android -maxdepth 5 -type f -print 2>/dev/null | tail -120 || echo "No Android generated project files"
             echo ""
 
+            echo "=== Android Build Debug: Android build outputs and intermediates ==="
+            find src-tauri/gen/android/app/build/outputs src-tauri/gen/android/app/build/intermediates -maxdepth 7 -type f \
+              \( -name "*.apk" -o -name "*.idsig" -o -name "*.so" -o -name "*.json" -o -name "*.txt" \) \
+              -print 2>/dev/null | tail -220 || echo "No Android build outputs"
+            echo ""
+
+            echo "=== Android Build Debug: Android reports ==="
+            find src-tauri/gen/android/build/reports src-tauri/gen/android/app/build/reports -maxdepth 5 -type f -print 2>/dev/null || echo "No Android reports"
+            echo ""
+
             echo "=== Android Build Debug: recent Gradle and build logs ==="
-            find src-tauri/gen/android src-tauri/target -type f \( -name "*.log" -o -name "*.txt" \) 2>/dev/null | while read -r log_file; do
+            find src-tauri/gen/android src-tauri/target -type f \( -name "*.log" -o -name "*.txt" -o -name "*.html" \) 2>/dev/null | while read -r log_file; do
               echo ""
               echo "--- $log_file ---"
               tail -160 "$log_file" || true
@@ -701,13 +757,14 @@ jobs:
             local prune_env="$5"
             clean_android_apk_outputs
             if [ "$prune_env" = "1" ]; then
-              NEXGEN_ANDROID_PRUNE_TO_ABI=1 npm --ignore-scripts run tauri -- android build --apk --target "$target" --split-per-abi 2>&1 | tee -a build.log
+              TAURI_CLI_VERBOSITY=1 NEXGEN_ANDROID_PRUNE_TO_ABI=1 npm --ignore-scripts run tauri -- android build --apk --target "$target" --split-per-abi 2>&1 | tee -a build.log
             else
-              npm --ignore-scripts run tauri -- android build --apk --target aarch64 armv7 2>&1 | tee -a build.log
+              TAURI_CLI_VERBOSITY=1 npm --ignore-scripts run tauri -- android build --apk --target aarch64 armv7 2>&1 | tee -a build.log
             fi
             BUILD_EXIT_CODE=${PIPESTATUS[0]}
             if [ "$BUILD_EXIT_CODE" -ne 0 ]; then
               echo "::error::NexGen Android ${abi} APK 打包失败，下面输出完整诊断日志。"
+              print_android_gradle_stacktrace "$abi"
               print_android_diagnostics
               exit "$BUILD_EXIT_CODE"
             fi
