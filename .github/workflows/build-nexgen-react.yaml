@@ -756,12 +756,15 @@ jobs:
             local find_pattern="$4"
             local prune_env="$5"
             clean_android_apk_outputs
+            set +e
             if [ "$prune_env" = "1" ]; then
               TAURI_CLI_VERBOSITY=1 NEXGEN_ANDROID_PRUNE_TO_ABI=1 npm --ignore-scripts run tauri -- android build --apk --target "$target" --split-per-abi 2>&1 | tee -a build.log
+              BUILD_EXIT_CODE=${PIPESTATUS[0]}
             else
               TAURI_CLI_VERBOSITY=1 npm --ignore-scripts run tauri -- android build --apk --target aarch64 armv7 2>&1 | tee -a build.log
+              BUILD_EXIT_CODE=${PIPESTATUS[0]}
             fi
-            BUILD_EXIT_CODE=${PIPESTATUS[0]}
+            set -e
             if [ "$BUILD_EXIT_CODE" -ne 0 ]; then
               echo "::error::NexGen Android ${abi} APK 打包失败，下面输出完整诊断日志。"
               print_android_gradle_stacktrace "$abi"
