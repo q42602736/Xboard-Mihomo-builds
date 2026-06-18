@@ -256,7 +256,17 @@ jobs:
             { platform: "android", os: "ubuntu-latest", family: "android", arch: "" },
             { platform: "android-tv", os: "ubuntu-latest", family: "android", arch: "arm64" },
           ];
-          const tokens = raw.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
+          const normalizePlatformToken = (value) => {
+            const token = String(value || "")
+              .replace(/[\u200B-\u200D\uFEFF]/g, "")
+              .replace(/[\u2010-\u2015]/g, "-")
+              .trim()
+              .toLowerCase()
+              .replace(/[\s_]+/g, "-");
+            if (token === "androidtv" || token === "android-television" || token === "tv") return "android-tv";
+            return token;
+          };
+          const tokens = raw.split(",").map(normalizePlatformToken).filter(Boolean);
           const selected = new Set();
           const addFamily = (family) => catalog.filter((item) => item.family === family).forEach((item) => selected.add(item.platform));
           const addPlatform = (platform) => catalog.some((item) => item.platform === platform) && selected.add(platform);
