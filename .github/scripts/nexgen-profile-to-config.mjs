@@ -22,6 +22,7 @@ fs.writeFileSync(outputPath, toYaml({ nexgen }));
 
 function convertNexgenProfile(nexgen) {
   const converted = record(nexgen);
+  normalizeCloudDispatchOverride(converted);
   converted.ui = {
     ...record(converted.ui),
     utilities: normalizeUtilitiesOverride(record(converted.ui).utilities),
@@ -45,6 +46,7 @@ function convertXboardToNexgen(xboard) {
     auto_offline: record(xboard.auto_offline || xboard.offline_mode),
     subscription: record(xboard.subscription),
     security: record(xboard.security),
+    cloud_dispatch: getCloudDispatchOverride(xboard),
     ui: {
       hide_traffic_details: boolOrUndefined(ui.hide_traffic_details),
       hide_node_status: boolOrUndefined(ui.hide_node_status),
@@ -57,6 +59,73 @@ function convertXboardToNexgen(xboard) {
     },
   };
   return pruneEmpty(converted);
+}
+
+function getCloudDispatchOverride(config) {
+  const hasSnake = Object.prototype.hasOwnProperty.call(config, "cloud_dispatch");
+  const hasCamel = Object.prototype.hasOwnProperty.call(config, "cloudDispatch");
+  if (!hasSnake && !hasCamel) return disabledCloudDispatchOverride();
+
+  const cloudDispatch = {
+    ...record(config.cloud_dispatch ?? config.cloudDispatch),
+  };
+  normalizeAlias(cloudDispatch, "enable", "enabled");
+  normalizeAlias(cloudDispatch, "queryUrl", "query_url");
+  normalizeAlias(cloudDispatch, "querySecret", "query_secret");
+  normalizeAlias(cloudDispatch, "fallbackRetryMinutes", "fallback_retry_minutes");
+
+  const auto = {
+    ...record(cloudDispatch.auto),
+  };
+  normalizeAlias(auto, "enable", "enabled");
+  normalizeAlias(auto, "intervalMinutes", "interval_minutes");
+  delete auto.enable;
+  delete auto.intervalMinutes;
+
+  cloudDispatch.enabled = typeof cloudDispatch.enabled === "boolean" ? cloudDispatch.enabled : false;
+  cloudDispatch.query_url = nullableTextOverride(cloudDispatch.query_url);
+  cloudDispatch.query_secret = nullableTextOverride(cloudDispatch.query_secret);
+  cloudDispatch.fallback_retry_minutes = cloudDispatch.fallback_retry_minutes ?? 5;
+  cloudDispatch.auto = {
+    ...auto,
+    enabled: typeof auto.enabled === "boolean" ? auto.enabled : false,
+    interval_minutes: auto.interval_minutes ?? 5,
+  };
+  delete cloudDispatch.enable;
+  delete cloudDispatch.queryUrl;
+  delete cloudDispatch.querySecret;
+  delete cloudDispatch.fallbackRetryMinutes;
+  return cloudDispatch;
+}
+
+function normalizeCloudDispatchOverride(config) {
+  config.cloud_dispatch = getCloudDispatchOverride(config);
+  delete config.cloudDispatch;
+}
+
+function disabledCloudDispatchOverride() {
+  return {
+    enabled: false,
+    query_url: null,
+    query_secret: null,
+    fallback_retry_minutes: 5,
+    auto: {
+      enabled: false,
+      interval_minutes: 5,
+    },
+  };
+}
+
+function normalizeAlias(target, oldKey, nextKey) {
+  if (Object.prototype.hasOwnProperty.call(target, oldKey) && !Object.prototype.hasOwnProperty.call(target, nextKey)) {
+    target[nextKey] = target[oldKey];
+  }
+}
+
+function nullableTextOverride(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+  return value;
 }
 
 function normalizeUtilitiesOverride(value) {
