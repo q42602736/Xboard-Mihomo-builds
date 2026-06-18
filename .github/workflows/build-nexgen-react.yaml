@@ -32,7 +32,7 @@ on:
         type: string
         default: 'nexgen'
       platforms:
-        description: '选择平台：all, windows, windows-amd64, windows-arm64, android, macos, macos-amd64, macos-arm64'
+        description: '选择平台：all, windows, windows-amd64, windows-arm64, android, android-tv, macos, macos-amd64, macos-arm64'
         required: true
         type: string
         default: 'all'
@@ -254,6 +254,7 @@ jobs:
             { platform: "macos-amd64", os: "macos-15-intel", family: "macos", arch: "amd64" },
             { platform: "macos-arm64", os: "macos-14", family: "macos", arch: "arm64" },
             { platform: "android", os: "ubuntu-latest", family: "android", arch: "" },
+            { platform: "android-tv", os: "ubuntu-latest", family: "android", arch: "arm64" },
           ];
           const tokens = raw.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
           const selected = new Set();
@@ -748,9 +749,6 @@ jobs:
           : > build.log
           npm run build
           disable_tauri_before_build_command
-          build_android_apk "aarch64" "arm64-v8a.apk" "arm64-v8a" '/arm64/release/.*\.apk$|app-arm64-release.*\.apk$' "1"
-          build_android_apk "armv7" "armeabi-v7a.apk" "armeabi-v7a" '/arm/release/.*\.apk$|app-arm-release.*\.apk$|armeabi.*\.apk$' "1"
-          build_android_apk "universal" "universal.apk" "universal" '/universal/release/.*\.apk$|app-universal-release.*\.apk$' "0"
 
           SAFE_APP_NAME="${{ needs.prepare-release.outputs.safe_app_name }}"
           if [ -z "$SAFE_APP_NAME" ]; then
@@ -759,12 +757,24 @@ jobs:
           fi
 
           rm -f dist/*.apk
-          cp "$ANDROID_APK_STAGE_DIR/arm64-v8a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-arm64-v8a.apk"
-          cp "$ANDROID_APK_STAGE_DIR/armeabi-v7a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-armeabi-v7a.apk"
-          cp "$ANDROID_APK_STAGE_DIR/universal.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-universal.apk"
+          if [ "${{ matrix.platform }}" = "android-tv" ]; then
+            build_android_apk "aarch64" "tv-arm64-v8a.apk" "arm64-v8a" '/arm64/release/.*\.apk$|app-arm64-release.*\.apk$' "1"
+            cp "$ANDROID_APK_STAGE_DIR/tv-arm64-v8a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-tv-arm64-v8a.apk"
+          else
+            build_android_apk "aarch64" "arm64-v8a.apk" "arm64-v8a" '/arm64/release/.*\.apk$|app-arm64-release.*\.apk$' "1"
+            build_android_apk "armv7" "armeabi-v7a.apk" "armeabi-v7a" '/arm/release/.*\.apk$|app-arm-release.*\.apk$|armeabi.*\.apk$' "1"
+            build_android_apk "universal" "universal.apk" "universal" '/universal/release/.*\.apk$|app-universal-release.*\.apk$' "0"
+            cp "$ANDROID_APK_STAGE_DIR/arm64-v8a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-arm64-v8a.apk"
+            cp "$ANDROID_APK_STAGE_DIR/armeabi-v7a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-armeabi-v7a.apk"
+            cp "$ANDROID_APK_STAGE_DIR/universal.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-universal.apk"
+          fi
+          expected_apk_count="3"
+          if [ "${{ matrix.platform }}" = "android-tv" ]; then
+            expected_apk_count="1"
+          fi
           apk_count="$(find dist -maxdepth 1 -type f -name "*.apk" | wc -l | tr -d ' ')"
-          if [ "$apk_count" != "3" ]; then
-            echo "::error::Android APK 产物数量异常，预期 3 个，实际 $apk_count 个。"
+          if [ "$apk_count" != "$expected_apk_count" ]; then
+            echo "::error::Android APK 产物数量异常，预期 $expected_apk_count 个，实际 $apk_count 个。"
             find dist "$ANDROID_APK_STAGE_DIR" -maxdepth 1 -type f -name "*.apk" -print 2>/dev/null || true
             exit 1
           fi
@@ -915,6 +925,7 @@ jobs:
               case "$base" in
                 *macos-amd64*.pkg) prefix="$SAFE_APP_NAME"; suffix="macos-amd64.pkg" ;;
                 *macos-arm64*.pkg) prefix="$SAFE_APP_NAME"; suffix="macos-arm64.pkg" ;;
+                *android-tv-arm64-v8a*.apk|*tv-arm64-v8a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-tv-arm64-v8a.apk" ;;
                 *android-arm64-v8a*.apk|*arm64-v8a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-arm64-v8a.apk" ;;
                 *android-armeabi-v7a*.apk|*armeabi-v7a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-armeabi-v7a.apk" ;;
                 *android-universal*.apk|*universal*.apk) prefix="$SAFE_APP_NAME"; suffix="android-universal.apk" ;;

@@ -3896,7 +3896,7 @@
 	                                <label class="platform-checkbox"><input type="checkbox" value="windows-arm64" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">Windows ARM64</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="windows-amd64" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">Windows AMD64</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">Android（手机）</span></label>
-	                                <label class="platform-checkbox"><input type="checkbox" value="android-tv" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Android TV</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="android-tv" class="platformItem" data-cores="mihomo,nexgen"><span class="platform-checkbox-label">Android TV</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="linux-arm64" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Linux ARM64</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="linux-amd64" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Linux AMD64</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">macOS ARM64</span></label>
@@ -4732,7 +4732,7 @@
 
 	        function getBuildPlatformCatalogValues() {
 	            if (isNexGenClient()) {
-	                return ['windows-arm64', 'windows-amd64', 'android', 'macos-amd64', 'macos-arm64'];
+	                return ['windows-arm64', 'windows-amd64', 'android', 'android-tv', 'macos-amd64', 'macos-arm64'];
 	            }
 	            return [
 	                'windows-arm64',
