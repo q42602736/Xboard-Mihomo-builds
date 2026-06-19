@@ -3357,6 +3357,16 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：安卓谷歌服务检测</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="utilityGoogleServicesShowButton"><span class="slider"></span></label>
+                                        <span id="utilityGoogleServicesShowButtonLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">仅 Android 客户端显示；关闭后会隐藏工具箱中的谷歌服务检测入口。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">显示实用工具：热门应用</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="popularAppsShowSection"><span class="slider"></span></label>
@@ -6427,6 +6437,8 @@
                 '          show_button: true',
                 '        media_unlock:',
                 '          show_button: true',
+                '        google_services:',
+                '          show_button: false',
                 '      popular_apps:',
                 '        show_section: false',
                 '        items: []'
@@ -6690,6 +6702,7 @@
                 utility_speed_show_button: document.getElementById('utilitySpeedShowButton').checked,
                 utility_ip_lookup_show_button: document.getElementById('utilityIpLookupShowButton').checked,
                 utility_media_unlock_show_button: document.getElementById('utilityMediaUnlockShowButton').checked,
+                utility_google_services_show_button: document.getElementById('utilityGoogleServicesShowButton').checked,
                 utility_popular_apps_show_section: document.getElementById('popularAppsShowSection').checked,
                 utility_popular_apps: validPopularApps,
                 sources: validSources,
@@ -7654,7 +7667,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'utilitySpeedShowButton', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'utilitySpeedShowButton', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -9576,6 +9589,12 @@
             var utilityMediaUnlockShowButton = utilityMediaUnlockShowButtonMatch ? utilityMediaUnlockShowButtonMatch[1] === 'true' : true;
             document.getElementById('utilityMediaUnlockShowButton').checked = utilityMediaUnlockShowButton;
             document.getElementById('utilityMediaUnlockShowButtonLabel').textContent = utilityMediaUnlockShowButton ? '开启' : '关闭';
+            var utilityGoogleServicesShowButtonMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}utilities:\s*\n(?:[\s\S]*?)^\s{6}tools:\s*\n(?:[\s\S]*?)^\s{8}google_services:\s*\n(?:[\s\S]*?)^\s{10}show_button:\s*(true|false)/m) ||
+                yaml.match(/utilities:\s*\n(?:[\s\S]*?)tools:\s*\n(?:[\s\S]*?)google_services:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);
+            var utilityGoogleServicesShowButton = utilityGoogleServicesShowButtonMatch ? utilityGoogleServicesShowButtonMatch[1] === 'true' : false;
+            document.getElementById('utilityGoogleServicesShowButton').checked = utilityGoogleServicesShowButton;
+            document.getElementById('utilityGoogleServicesShowButtonLabel').textContent = utilityGoogleServicesShowButton ? '开启' : '关闭';
             var parsedPopularApps = parsePopularAppsFromYaml(yaml);
             document.getElementById('popularAppsShowSection').checked = parsedPopularApps.show_section;
             document.getElementById('popularAppsShowSectionLabel').textContent = parsedPopularApps.show_section ? '开启' : '关闭';

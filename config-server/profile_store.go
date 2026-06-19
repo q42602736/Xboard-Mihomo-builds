@@ -199,6 +199,8 @@ func defaultProfileYaml(displayName string) string {
           show_button: true
         media_unlock:
           show_button: true
+        google_services:
+          show_button: false
       popular_apps:
         show_section: false
         items: []`, displayName)

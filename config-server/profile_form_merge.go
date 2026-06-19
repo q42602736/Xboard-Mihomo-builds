@@ -10,54 +10,55 @@ import (
 )
 
 type ProfileFormState struct {
-	Provider                       string                    `json:"provider"`
-	AppTitle                       string                    `json:"app_title"`
-	LogoType                       string                    `json:"logo_type"`
-	LogoImageURL                   string                    `json:"logo_image_url"`
-	AppIconURL                     string                    `json:"app_icon_url"`
-	AuthBackgroundEnabled          bool                      `json:"auth_background_enabled"`
-	AuthBackgroundImageURL         string                    `json:"auth_background_image_url"`
-	PreferEncrypt                  bool                      `json:"prefer_encrypt"`
-	SubscriptionUserAgent          string                    `json:"user_agent"`
-	SubscriptionExclusiveUserAgent string                    `json:"exclusive_user_agent"`
-	SubscriptionCustomQuerySuffix  string                    `json:"custom_query_suffix"`
-	UseExclusiveMode               bool                      `json:"use_exclusive_mode"`
-	DecryptKey                     string                    `json:"decrypt_key"`
-	AutoOfflineEnabled             bool                      `json:"auto_offline_enabled"`
-	AutoOfflineForceOnStartup      bool                      `json:"auto_offline_force_on_startup"`
-	AutoOfflineIntervalHours       int                       `json:"auto_offline_interval_hours"`
-	CloudDispatchEnabled           bool                      `json:"cloud_dispatch_enabled"`
-	CloudDispatchQueryURL          string                    `json:"cloud_dispatch_query_url"`
-	CloudDispatchQuerySecret       string                    `json:"cloud_dispatch_query_secret"`
-	CloudDispatchTargetHost        string                    `json:"cloud_dispatch_target_host"`
-	CloudDispatchTargetHosts       []string                  `json:"cloud_dispatch_target_hosts"`
-	CloudDispatchAutoEnabled       bool                      `json:"cloud_dispatch_auto_enabled"`
-	CloudDispatchAutoInterval      int                       `json:"cloud_dispatch_auto_interval_minutes"`
-	CloudDispatchFallbackRetry     int                       `json:"cloud_dispatch_fallback_retry_minutes"`
-	RegistrationInviteEnabled      bool                      `json:"registration_invite_enabled"`
-	RegistrationInviteMode         string                    `json:"registration_invite_mode"`
-	RegistrationInviteCode         string                    `json:"registration_invite_code"`
-	SubscriptionCacheEnabled       bool                      `json:"subscription_cache_enabled"`
-	SubscriptionCacheTTL           int                       `json:"subscription_cache_ttl"`
-	HideTrafficDetails             bool                      `json:"hide_traffic_details"`
-	HideNodeStatus                 bool                      `json:"hide_node_status"`
-	ShowIPInfo                     *bool                     `json:"show_ip_info"`
-	HomePanelDefaultLayout         string                    `json:"home_panel_default_layout"`
-	LatencyReductionEnabled        bool                      `json:"latency_reduction_enabled"`
-	LatencyReductionValue          int                       `json:"latency_reduction_value"`
-	NoticeAutoOpenOnStartup        bool                      `json:"notice_auto_open_on_startup"`
-	NoticeAutoOpenIntervalHours    *int                      `json:"notice_auto_open_interval_hours"`
-	CheckinShowButton              bool                      `json:"checkin_show_button"`
-	GiftCardShowButton             bool                      `json:"gift_card_show_button"`
-	UtilitySpeedShowButton         bool                      `json:"utility_speed_show_button"`
-	UtilityIPLookupShowButton      bool                      `json:"utility_ip_lookup_show_button"`
-	UtilityMediaUnlockShowButton   bool                      `json:"utility_media_unlock_show_button"`
-	UtilityPopularAppsShowSection  bool                      `json:"utility_popular_apps_show_section"`
-	UtilityPopularApps             []ProfilePopularAppState  `json:"utility_popular_apps"`
-	ShowCustomRuleEntry            bool                      `json:"show_custom_rule_entry"`
-	AuthPagesSupportShowButton     bool                      `json:"auth_pages_support_show_button"`
-	Sources                        []ProfileSourceFormState  `json:"sources"`
-	OnlineSupportItems             []ProfileSupportFormState `json:"online_support_items"`
+	Provider                        string                    `json:"provider"`
+	AppTitle                        string                    `json:"app_title"`
+	LogoType                        string                    `json:"logo_type"`
+	LogoImageURL                    string                    `json:"logo_image_url"`
+	AppIconURL                      string                    `json:"app_icon_url"`
+	AuthBackgroundEnabled           bool                      `json:"auth_background_enabled"`
+	AuthBackgroundImageURL          string                    `json:"auth_background_image_url"`
+	PreferEncrypt                   bool                      `json:"prefer_encrypt"`
+	SubscriptionUserAgent           string                    `json:"user_agent"`
+	SubscriptionExclusiveUserAgent  string                    `json:"exclusive_user_agent"`
+	SubscriptionCustomQuerySuffix   string                    `json:"custom_query_suffix"`
+	UseExclusiveMode                bool                      `json:"use_exclusive_mode"`
+	DecryptKey                      string                    `json:"decrypt_key"`
+	AutoOfflineEnabled              bool                      `json:"auto_offline_enabled"`
+	AutoOfflineForceOnStartup       bool                      `json:"auto_offline_force_on_startup"`
+	AutoOfflineIntervalHours        int                       `json:"auto_offline_interval_hours"`
+	CloudDispatchEnabled            bool                      `json:"cloud_dispatch_enabled"`
+	CloudDispatchQueryURL           string                    `json:"cloud_dispatch_query_url"`
+	CloudDispatchQuerySecret        string                    `json:"cloud_dispatch_query_secret"`
+	CloudDispatchTargetHost         string                    `json:"cloud_dispatch_target_host"`
+	CloudDispatchTargetHosts        []string                  `json:"cloud_dispatch_target_hosts"`
+	CloudDispatchAutoEnabled        bool                      `json:"cloud_dispatch_auto_enabled"`
+	CloudDispatchAutoInterval       int                       `json:"cloud_dispatch_auto_interval_minutes"`
+	CloudDispatchFallbackRetry      int                       `json:"cloud_dispatch_fallback_retry_minutes"`
+	RegistrationInviteEnabled       bool                      `json:"registration_invite_enabled"`
+	RegistrationInviteMode          string                    `json:"registration_invite_mode"`
+	RegistrationInviteCode          string                    `json:"registration_invite_code"`
+	SubscriptionCacheEnabled        bool                      `json:"subscription_cache_enabled"`
+	SubscriptionCacheTTL            int                       `json:"subscription_cache_ttl"`
+	HideTrafficDetails              bool                      `json:"hide_traffic_details"`
+	HideNodeStatus                  bool                      `json:"hide_node_status"`
+	ShowIPInfo                      *bool                     `json:"show_ip_info"`
+	HomePanelDefaultLayout          string                    `json:"home_panel_default_layout"`
+	LatencyReductionEnabled         bool                      `json:"latency_reduction_enabled"`
+	LatencyReductionValue           int                       `json:"latency_reduction_value"`
+	NoticeAutoOpenOnStartup         bool                      `json:"notice_auto_open_on_startup"`
+	NoticeAutoOpenIntervalHours     *int                      `json:"notice_auto_open_interval_hours"`
+	CheckinShowButton               bool                      `json:"checkin_show_button"`
+	GiftCardShowButton              bool                      `json:"gift_card_show_button"`
+	UtilitySpeedShowButton          bool                      `json:"utility_speed_show_button"`
+	UtilityIPLookupShowButton       bool                      `json:"utility_ip_lookup_show_button"`
+	UtilityMediaUnlockShowButton    bool                      `json:"utility_media_unlock_show_button"`
+	UtilityGoogleServicesShowButton bool                      `json:"utility_google_services_show_button"`
+	UtilityPopularAppsShowSection   bool                      `json:"utility_popular_apps_show_section"`
+	UtilityPopularApps              []ProfilePopularAppState  `json:"utility_popular_apps"`
+	ShowCustomRuleEntry             bool                      `json:"show_custom_rule_entry"`
+	AuthPagesSupportShowButton      bool                      `json:"auth_pages_support_show_button"`
+	Sources                         []ProfileSourceFormState  `json:"sources"`
+	OnlineSupportItems              []ProfileSupportFormState `json:"online_support_items"`
 }
 
 type ProfileSourceFormState struct {
@@ -129,6 +130,7 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	utilitySpeed := ensureMapValueNode(utilityTools, "speed")
 	utilityIPLookup := ensureMapValueNode(utilityTools, "ip_lookup")
 	utilityMediaUnlock := ensureMapValueNode(utilityTools, "media_unlock")
+	utilityGoogleServices := ensureMapValueNode(utilityTools, "google_services")
 	utilityPopularApps := ensureMapValueNode(utilities, "popular_apps")
 	proxyGroups := ensureMapValueNode(ui, "proxy_groups")
 	uiOnlineSupport := ensureMapValueNode(ui, "online_support")
@@ -219,6 +221,7 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	setMapBoolValue(utilitySpeed, "show_button", form.UtilitySpeedShowButton)
 	setMapBoolValue(utilityIPLookup, "show_button", form.UtilityIPLookupShowButton)
 	setMapBoolValue(utilityMediaUnlock, "show_button", form.UtilityMediaUnlockShowButton)
+	setMapBoolValue(utilityGoogleServices, "show_button", form.UtilityGoogleServicesShowButton)
 	setMapBoolValue(utilityPopularApps, "show_section", form.UtilityPopularAppsShowSection)
 	setMapNodeValue(utilityPopularApps, "items", mergeProfilePopularApps(getSequenceValueNode(utilityPopularApps, "items"), form.UtilityPopularApps))
 	setMapBoolValue(proxyGroups, "show_custom_rule_entry", form.ShowCustomRuleEntry)
