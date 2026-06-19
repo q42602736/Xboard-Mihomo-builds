@@ -1484,6 +1484,16 @@ func setClientUpdatesLimit(limit int) error {
 	return setSystemSetting("client_updates_limit", strconv.Itoa(normalizeClientUpdatesLimit(limit)))
 }
 
+func normalizeCustomFeatureKey(featureKey string) string {
+	featureKey = strings.TrimSpace(featureKey)
+	switch featureKey {
+	case "invite_link", "inviteLink", "invite_link_enabled", "inviteLinkEnabled", "registration_invite_link":
+		return customFeatureCustomInviteLink
+	default:
+		return featureKey
+	}
+}
+
 func normalizeCustomFeatureGroups(groups []CustomFeatureGroup) []CustomFeatureGroup {
 	if groups == nil {
 		return []CustomFeatureGroup{}
@@ -1495,7 +1505,7 @@ func normalizeCustomFeatureGroups(groups []CustomFeatureGroup) []CustomFeatureGr
 		features := make([]string, 0, len(group.FeatureKeys))
 		seen := map[string]struct{}{}
 		for _, featureKey := range group.FeatureKeys {
-			featureKey = strings.TrimSpace(featureKey)
+			featureKey = normalizeCustomFeatureKey(featureKey)
 			if featureKey == "" {
 				continue
 			}

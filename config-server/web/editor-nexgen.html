@@ -3613,9 +3613,9 @@
                     </div>
                     <div class="editor-container">
                         <div class="form-group">
-                            <label>面板 API 路径前缀</label>
+                            <label>自定义 API 逻辑前缀</label>
                             <input type="text" id="apiPathPrefix" value="/api/v1" placeholder="/api/v1">
-                            <div class="help-text">客户端会用这里配置的路径替换默认 <code>/api/v1</code> 前缀，站点域名仍从 OSS 配置文件获取。</div>
+                            <div class="help-text">客户端会用这里配置的 API 逻辑前缀替换默认 <code>/api/v1</code>，站点域名仍从 OSS 配置文件获取。</div>
                         </div>
                         <div id="sourcesContainer"></div>
                         <button type="button" class="btn btn-primary" id="addSourceBtn" style="margin-top: 10px;">+ 添加配置源</button>
@@ -5468,6 +5468,7 @@
             'main_policy_nodes_only',
             'sspanel_node_page_parse',
             'registration_invite',
+            'custom_invite_link',
             'cloud_dispatch'
         ];
         var customUIColorFields = [
@@ -5669,21 +5670,23 @@
                                 '<input type="text" id="customRegistrationInviteCode" placeholder="填写默认注册邀请码">',
                             '</div>',
                         '</div>',
-                        '<div class="form-row" style="grid-template-columns: 1fr 1fr; margin-top:12px;">',
-                            '<div class="form-group">',
-                                '<label>复制完整邀请链接</label>',
-                                '<div class="switch-group">',
-                                    '<label class="switch"><input type="checkbox" id="customRegistrationInviteLinkEnabled"><span class="slider"></span></label>',
-                                    '<span id="customRegistrationInviteLinkEnabledLabel">关闭</span>',
-                                '</div>',
-                            '</div>',
-                            '<div class="form-group">',
-                                '<label>邀请链接基础地址</label>',
-                                '<input type="url" id="customRegistrationInviteLinkBaseUrl" placeholder="https://6.6.6.6:12011">',
-                            '</div>',
-                        '</div>',
                         '<div class="help-text">开启后，App 注册时会按当前模式自动使用这里配置的邀请码。</div>',
-                        '<div class="help-text">复制完整邀请链接开启后，邀请页会拼接 <code>/#/register?code=邀请码</code>。</div>',
+                    '</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="custom_invite_link" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">自定义邀请链接</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customRegistrationInviteLinkEnabled"><span class="slider"></span></label>',
+                            '<span id="customRegistrationInviteLinkEnabledLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="switch-card-extra" style="margin-top:12px;">',
+                        '<div class="form-group" style="margin-bottom:0;">',
+                            '<label>邀请链接地址</label>',
+                            '<input type="url" id="customRegistrationInviteLinkBaseUrl" placeholder="https://6.6.6.6:12011">',
+                        '</div>',
+                        '<div class="help-text">开启后，邀请页会使用这里配置的邀请链接地址。</div>',
                     '</div>',
                 '</div>',
                 '<div class="switch-card" data-custom-feature-key="cloud_dispatch" style="margin-top:16px;">',
@@ -5919,9 +5922,23 @@
             }
         }
 
+        function normalizeCustomFeatureKey(featureKey) {
+            featureKey = String(featureKey || '').trim();
+            if (
+                featureKey === 'invite_link' ||
+                featureKey === 'inviteLink' ||
+                featureKey === 'invite_link_enabled' ||
+                featureKey === 'inviteLinkEnabled' ||
+                featureKey === 'registration_invite_link'
+            ) {
+                return 'custom_invite_link';
+            }
+            return featureKey;
+        }
+
         function applyCustomTrafficBarConfig(data) {
             customUIColorAvailableFeatures = Array.isArray(data.feature_keys)
-                ? data.feature_keys.map(function(item) { return String(item || '').trim(); }).filter(Boolean)
+                ? data.feature_keys.map(normalizeCustomFeatureKey).filter(Boolean)
                 : [];
             applyCustomUIColorTextValue('customTrafficBarColor', data.traffic_bar_enabled ? (data.traffic_bar_color || '') : '');
             applyCustomUIColorTextValue('customNoticeDialogIconBackgroundColor', data.notice_dialog_icon_background_color || '');
@@ -6142,11 +6159,11 @@
                 return;
             }
             if (
-                isCustomUIColorFeatureVisible('registration_invite') &&
+                isCustomUIColorFeatureVisible('custom_invite_link') &&
                 registrationInviteLinkEnabled &&
                 !/^https?:\/\//i.test(registrationInviteLinkBaseUrl)
             ) {
-                setCustomTrafficBarStatus('开启复制完整邀请链接时，请填写 http:// 或 https:// 开头的邀请链接基础地址', 'error');
+                setCustomTrafficBarStatus('开启自定义邀请链接时，请填写 http:// 或 https:// 开头的邀请链接地址', 'error');
                 return;
             }
 

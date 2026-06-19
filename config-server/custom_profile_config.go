@@ -67,6 +67,7 @@ const (
 	customFeatureCloudDispatch                        = "cloud_dispatch"
 	customFeatureSSPanelNodePageParse                 = "sspanel_node_page_parse"
 	customFeatureRegistrationInvite                   = "registration_invite"
+	customFeatureCustomInviteLink                     = "custom_invite_link"
 	registrationInviteModeDefaultWhenEmpty            = "default_when_empty"
 	registrationInviteModeForceOverride               = "force_override"
 )
@@ -93,6 +94,7 @@ var (
 		customFeatureCloudDispatch,
 		customFeatureSSPanelNodePageParse,
 		customFeatureRegistrationInvite,
+		customFeatureCustomInviteLink,
 	}
 )
 
@@ -371,13 +373,19 @@ func filterAllowedUIColorFeatureKeys(featureKeys []string) []string {
 func filterAllowedUIColorFeatureKeysForClient(featureKeys []string, client string) []string {
 	client = normalizeBuildClient(client)
 	allowed := filterAllowedUIColorFeatureKeys(featureKeys)
-	if client == buildClientLegacy {
+	if client == buildClientNexGenReact {
 		return allowed
 	}
 	result := allowed[:0]
 	for _, featureKey := range allowed {
-		if featureKey == customFeatureRegistrationInvite {
-			continue
+		if client == buildClientLegacy {
+			if featureKey == customFeatureCustomInviteLink {
+				continue
+			}
+		} else {
+			if featureKey == customFeatureRegistrationInvite || featureKey == customFeatureCustomInviteLink {
+				continue
+			}
 		}
 		result = append(result, featureKey)
 	}
@@ -931,8 +939,8 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 			return
 		}
 	}
-	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureRegistrationInvite) && req.RegistrationInviteLinkEnabled && normalizedRegistrationInviteLinkBaseURL == "" {
-		jsonError(w, "开启复制完整邀请链接时必须填写注册地址根地址", http.StatusBadRequest)
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureCustomInviteLink) && req.RegistrationInviteLinkEnabled && normalizedRegistrationInviteLinkBaseURL == "" {
+		jsonError(w, "开启自定义邀请链接时必须填写邀请链接地址", http.StatusBadRequest)
 		return
 	}
 
@@ -1026,6 +1034,8 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		targetConfig.RegistrationInviteEnabled = req.RegistrationInviteEnabled
 		targetConfig.RegistrationInviteMode = normalizedRegistrationInviteMode
 		targetConfig.RegistrationInviteCode = normalizedRegistrationInviteCode
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureCustomInviteLink) {
 		targetConfig.RegistrationInviteLinkEnabled = req.RegistrationInviteLinkEnabled
 		targetConfig.RegistrationInviteLinkBaseURL = normalizedRegistrationInviteLinkBaseURL
 	}
