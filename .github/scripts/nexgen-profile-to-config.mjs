@@ -47,6 +47,7 @@ function convertXboardToNexgen(xboard) {
     subscription: record(xboard.subscription),
     security: record(xboard.security),
     cloud_dispatch: getCloudDispatchOverride(xboard),
+    registration_invite: record(xboard.registration_invite ?? xboard.registrationInvite),
     ui: {
       hide_traffic_details: boolOrUndefined(ui.hide_traffic_details),
       hide_node_status: boolOrUndefined(ui.hide_node_status),

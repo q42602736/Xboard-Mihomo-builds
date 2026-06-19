@@ -34,9 +34,12 @@ type ProfileFormState struct {
 	CloudDispatchAutoEnabled        bool                      `json:"cloud_dispatch_auto_enabled"`
 	CloudDispatchAutoInterval       int                       `json:"cloud_dispatch_auto_interval_minutes"`
 	CloudDispatchFallbackRetry      int                       `json:"cloud_dispatch_fallback_retry_minutes"`
+	PanelAPIPathPrefix              string                    `json:"api_path_prefix"`
 	RegistrationInviteEnabled       bool                      `json:"registration_invite_enabled"`
 	RegistrationInviteMode          string                    `json:"registration_invite_mode"`
 	RegistrationInviteCode          string                    `json:"registration_invite_code"`
+	RegistrationInviteLinkEnabled   bool                      `json:"registration_invite_link_enabled"`
+	RegistrationInviteLinkBaseURL   string                    `json:"registration_invite_link_base_url"`
 	SubscriptionCacheEnabled        bool                      `json:"subscription_cache_enabled"`
 	SubscriptionCacheTTL            int                       `json:"subscription_cache_ttl"`
 	HideTrafficDetails              bool                      `json:"hide_traffic_details"`
@@ -194,7 +197,20 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	} else {
 		setMapStringValue(registrationInvite, "invite_code", normalizedRegistrationInviteCode)
 	}
-	removeMapKeys(registrationInvite, "inviteCode", "invite_link", "inviteLink")
+	normalizedRegistrationInviteLinkBaseURL, err := normalizeRegistrationInviteLinkBaseURL(form.RegistrationInviteLinkBaseURL)
+	if err != nil {
+		return "", err
+	}
+	if form.RegistrationInviteLinkEnabled && normalizedRegistrationInviteLinkBaseURL == "" {
+		return "", fmt.Errorf("开启复制完整邀请链接时必须填写注册地址根地址")
+	}
+	setMapBoolValue(registrationInvite, "link_enabled", form.RegistrationInviteLinkEnabled)
+	if normalizedRegistrationInviteLinkBaseURL == "" {
+		removeMapKeys(registrationInvite, "link_base_url")
+	} else {
+		setMapStringValue(registrationInvite, "link_base_url", normalizedRegistrationInviteLinkBaseURL)
+	}
+	removeMapKeys(registrationInvite, "inviteCode", "invite_link", "inviteLink", "linkEnabled", "linkBaseUrl", "invite_link_enabled", "inviteLinkEnabled", "invite_link_base_url", "inviteLinkBaseUrl")
 	removeMapKeys(profileRoot, "registrationInvite")
 	setMapBoolValue(subscriptionCache, "enabled", form.SubscriptionCacheEnabled)
 	setMapIntValue(subscriptionCache, "ttl_hours", form.SubscriptionCacheTTL)
@@ -229,6 +245,7 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	removeMapKeys(profileRoot, "proxy_groups", "proxyGroups")
 	removeMapKeys(onlineSupport, "auth_pages", "authPages")
 
+	setMapStringValue(remoteConfig, "api_path_prefix", normalizePanelAPIPathPrefix(form.PanelAPIPathPrefix))
 	setMapNodeValue(remoteConfig, "sources", mergeProfileSources(getSequenceValueNode(remoteConfig, "sources"), form.Sources))
 	setMapNodeValue(onlineSupport, "items", mergeProfileSupportItems(getSequenceValueNode(onlineSupport, "items"), form.OnlineSupportItems))
 

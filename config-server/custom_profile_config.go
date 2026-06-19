@@ -43,6 +43,8 @@ type UIColorCustomConfig struct {
 	RegistrationInviteEnabled            bool     `json:"registration_invite_enabled"`
 	RegistrationInviteMode               string   `json:"registration_invite_mode"`
 	RegistrationInviteCode               string   `json:"registration_invite_code"`
+	RegistrationInviteLinkEnabled        bool     `json:"registration_invite_link_enabled"`
+	RegistrationInviteLinkBaseURL        string   `json:"registration_invite_link_base_url"`
 }
 
 const (
@@ -144,6 +146,36 @@ func normalizeRegistrationInviteCode(value string) (string, error) {
 		return "", fmt.Errorf("注册邀请邀请码不能包含空白字符")
 	}
 	return value, nil
+}
+
+func normalizeRegistrationInviteLinkBaseURL(value string) (string, error) {
+	value = strings.TrimRight(strings.TrimSpace(value), "/")
+	if value == "" {
+		return "", nil
+	}
+	if strings.ContainsAny(value, " \t\r\n") {
+		return "", fmt.Errorf("邀请链接注册地址格式错误，仅支持 http:// 或 https://")
+	}
+	parsedURL, err := url.Parse(value)
+	if err != nil {
+		return "", fmt.Errorf("邀请链接注册地址格式错误，仅支持 http:// 或 https://")
+	}
+	scheme := strings.ToLower(strings.TrimSpace(parsedURL.Scheme))
+	if (scheme != "http" && scheme != "https") || strings.TrimSpace(parsedURL.Host) == "" {
+		return "", fmt.Errorf("邀请链接注册地址格式错误，仅支持 http:// 或 https://")
+	}
+	return value, nil
+}
+
+func normalizePanelAPIPathPrefix(value string) string {
+	value = strings.TrimRight(strings.TrimSpace(value), "/")
+	if value == "" {
+		return "/api/v1"
+	}
+	if !strings.HasPrefix(value, "/") {
+		value = "/" + value
+	}
+	return value
 }
 
 func normalizeCloudDispatchQueryURL(value string) (string, error) {
@@ -529,6 +561,12 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 		}
 		result.RegistrationInviteMode = normalizeRegistrationInviteMode(readMapStringValue(registrationInvite, "mode"))
 		result.RegistrationInviteCode = readMapStringValue(registrationInvite, "invite_code", "inviteCode")
+		if linkEnabledNode := getMapValueNode(registrationInvite, "link_enabled"); linkEnabledNode != nil {
+			result.RegistrationInviteLinkEnabled = strings.EqualFold(strings.TrimSpace(linkEnabledNode.Value), "true")
+		} else if linkEnabledNode := getMapValueNode(registrationInvite, "linkEnabled"); linkEnabledNode != nil {
+			result.RegistrationInviteLinkEnabled = strings.EqualFold(strings.TrimSpace(linkEnabledNode.Value), "true")
+		}
+		result.RegistrationInviteLinkBaseURL = readMapStringValue(registrationInvite, "link_base_url", "linkBaseUrl", "invite_link_base_url", "inviteLinkBaseUrl")
 	}
 	if strings.TrimSpace(result.RegistrationInviteMode) == "" {
 		result.RegistrationInviteMode = registrationInviteModeDefaultWhenEmpty
@@ -600,7 +638,9 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	setMapBoolValue(registrationInvite, "enabled", config.RegistrationInviteEnabled)
 	setMapStringValue(registrationInvite, "mode", normalizeRegistrationInviteMode(config.RegistrationInviteMode))
 	setOrRemoveMapStringValue(registrationInvite, "invite_code", config.RegistrationInviteCode, "inviteCode")
-	removeMapKeys(registrationInvite, "invite_link", "inviteLink")
+	setMapBoolValue(registrationInvite, "link_enabled", config.RegistrationInviteLinkEnabled)
+	setOrRemoveMapStringValue(registrationInvite, "link_base_url", config.RegistrationInviteLinkBaseURL, "linkBaseUrl")
+	removeMapKeys(registrationInvite, "invite_link", "inviteLink", "linkEnabled", "invite_link_enabled", "inviteLinkEnabled", "invite_link_base_url", "inviteLinkBaseUrl")
 	removeMapKeys(profileRoot, "registrationInvite")
 
 	var buf bytes.Buffer
@@ -709,6 +749,8 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"registration_invite_enabled":              config.RegistrationInviteEnabled,
 		"registration_invite_mode":                 config.RegistrationInviteMode,
 		"registration_invite_code":                 config.RegistrationInviteCode,
+		"registration_invite_link_enabled":         config.RegistrationInviteLinkEnabled,
+		"registration_invite_link_base_url":        config.RegistrationInviteLinkBaseURL,
 	})
 }
 
@@ -747,6 +789,8 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		RegistrationInviteEnabled            bool     `json:"registration_invite_enabled"`
 		RegistrationInviteMode               string   `json:"registration_invite_mode"`
 		RegistrationInviteCode               string   `json:"registration_invite_code"`
+		RegistrationInviteLinkEnabled        bool     `json:"registration_invite_link_enabled"`
+		RegistrationInviteLinkBaseURL        string   `json:"registration_invite_link_base_url"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", http.StatusBadRequest)
@@ -853,6 +897,11 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	normalizedRegistrationInviteLinkBaseURL, err := normalizeRegistrationInviteLinkBaseURL(req.RegistrationInviteLinkBaseURL)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureTrafficBarColor) && req.TrafficBarEnabled && normalizedTrafficBarColor == "" {
 		jsonError(w, "开启自定义颜色时必须填写颜色值", http.StatusBadRequest)
 		return
@@ -876,6 +925,10 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 			jsonError(w, "开启注册邀请绑定时必须填写邀请码", http.StatusBadRequest)
 			return
 		}
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureRegistrationInvite) && req.RegistrationInviteLinkEnabled && normalizedRegistrationInviteLinkBaseURL == "" {
+		jsonError(w, "开启复制完整邀请链接时必须填写注册地址根地址", http.StatusBadRequest)
+		return
 	}
 
 	yamlContent, _, _, exists, err := h.getStoredProfileForClient(client, profileName)
@@ -968,6 +1021,8 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		targetConfig.RegistrationInviteEnabled = req.RegistrationInviteEnabled
 		targetConfig.RegistrationInviteMode = normalizedRegistrationInviteMode
 		targetConfig.RegistrationInviteCode = normalizedRegistrationInviteCode
+		targetConfig.RegistrationInviteLinkEnabled = req.RegistrationInviteLinkEnabled
+		targetConfig.RegistrationInviteLinkBaseURL = normalizedRegistrationInviteLinkBaseURL
 	}
 
 	var updatedYaml string
@@ -1041,5 +1096,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"registration_invite_enabled":              targetConfig.RegistrationInviteEnabled,
 		"registration_invite_mode":                 targetConfig.RegistrationInviteMode,
 		"registration_invite_code":                 targetConfig.RegistrationInviteCode,
+		"registration_invite_link_enabled":         targetConfig.RegistrationInviteLinkEnabled,
+		"registration_invite_link_base_url":        targetConfig.RegistrationInviteLinkBaseURL,
 	})
 }
