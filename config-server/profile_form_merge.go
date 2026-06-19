@@ -197,18 +197,22 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	} else {
 		setMapStringValue(registrationInvite, "invite_code", normalizedRegistrationInviteCode)
 	}
-	normalizedRegistrationInviteLinkBaseURL, err := normalizeRegistrationInviteLinkBaseURL(form.RegistrationInviteLinkBaseURL)
-	if err != nil {
-		return "", err
-	}
-	if form.RegistrationInviteLinkEnabled && normalizedRegistrationInviteLinkBaseURL == "" {
-		return "", fmt.Errorf("开启复制完整邀请链接时必须填写注册地址根地址")
-	}
-	setMapBoolValue(registrationInvite, "link_enabled", form.RegistrationInviteLinkEnabled)
-	if normalizedRegistrationInviteLinkBaseURL == "" {
-		removeMapKeys(registrationInvite, "link_base_url")
+	if rootKey == "nexgen" {
+		normalizedRegistrationInviteLinkBaseURL, err := normalizeRegistrationInviteLinkBaseURL(form.RegistrationInviteLinkBaseURL)
+		if err != nil {
+			return "", err
+		}
+		if form.RegistrationInviteLinkEnabled && normalizedRegistrationInviteLinkBaseURL == "" {
+			return "", fmt.Errorf("开启复制完整邀请链接时必须填写注册地址根地址")
+		}
+		setMapBoolValue(registrationInvite, "link_enabled", form.RegistrationInviteLinkEnabled)
+		if normalizedRegistrationInviteLinkBaseURL == "" {
+			removeMapKeys(registrationInvite, "link_base_url")
+		} else {
+			setMapStringValue(registrationInvite, "link_base_url", normalizedRegistrationInviteLinkBaseURL)
+		}
 	} else {
-		setMapStringValue(registrationInvite, "link_base_url", normalizedRegistrationInviteLinkBaseURL)
+		removeMapKeys(registrationInvite, "link_enabled", "link_base_url")
 	}
 	removeMapKeys(registrationInvite, "inviteCode", "invite_link", "inviteLink", "linkEnabled", "linkBaseUrl", "invite_link_enabled", "inviteLinkEnabled", "invite_link_base_url", "inviteLinkBaseUrl")
 	removeMapKeys(profileRoot, "registrationInvite")
@@ -245,7 +249,11 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	removeMapKeys(profileRoot, "proxy_groups", "proxyGroups")
 	removeMapKeys(onlineSupport, "auth_pages", "authPages")
 
-	setMapStringValue(remoteConfig, "api_path_prefix", normalizePanelAPIPathPrefix(form.PanelAPIPathPrefix))
+	if rootKey == "nexgen" {
+		setMapStringValue(remoteConfig, "api_path_prefix", normalizePanelAPIPathPrefix(form.PanelAPIPathPrefix))
+	} else {
+		removeMapKeys(remoteConfig, "api_path_prefix", "apiPathPrefix")
+	}
 	setMapNodeValue(remoteConfig, "sources", mergeProfileSources(getSequenceValueNode(remoteConfig, "sources"), form.Sources))
 	setMapNodeValue(onlineSupport, "items", mergeProfileSupportItems(getSequenceValueNode(onlineSupport, "items"), form.OnlineSupportItems))
 

@@ -586,7 +586,8 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	}
 
 	root := ensureDocumentMappingNode(doc)
-	profileRoot := ensureMapValueNode(root, writableProfileConfigRootKey(root))
+	profileRootKey := writableProfileConfigRootKey(root)
+	profileRoot := ensureMapValueNode(root, profileRootKey)
 	subscription := ensureMapValueNode(profileRoot, "subscription")
 	ui := ensureMapValueNode(profileRoot, "ui")
 	subscriptionUsage := ensureMapValueNode(ui, "subscription_usage")
@@ -638,8 +639,12 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	setMapBoolValue(registrationInvite, "enabled", config.RegistrationInviteEnabled)
 	setMapStringValue(registrationInvite, "mode", normalizeRegistrationInviteMode(config.RegistrationInviteMode))
 	setOrRemoveMapStringValue(registrationInvite, "invite_code", config.RegistrationInviteCode, "inviteCode")
-	setMapBoolValue(registrationInvite, "link_enabled", config.RegistrationInviteLinkEnabled)
-	setOrRemoveMapStringValue(registrationInvite, "link_base_url", config.RegistrationInviteLinkBaseURL, "linkBaseUrl")
+	if profileRootKey == "nexgen" {
+		setMapBoolValue(registrationInvite, "link_enabled", config.RegistrationInviteLinkEnabled)
+		setOrRemoveMapStringValue(registrationInvite, "link_base_url", config.RegistrationInviteLinkBaseURL, "linkBaseUrl")
+	} else {
+		removeMapKeys(registrationInvite, "link_enabled", "link_base_url")
+	}
 	removeMapKeys(registrationInvite, "invite_link", "inviteLink", "linkEnabled", "invite_link_enabled", "inviteLinkEnabled", "invite_link_base_url", "inviteLinkBaseUrl")
 	removeMapKeys(profileRoot, "registrationInvite")
 

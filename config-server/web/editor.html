@@ -3825,21 +3825,7 @@
                                                 <input type="text" id="registrationInviteCode" placeholder="填写默认注册邀请码">
                                             </div>
                                         </div>
-                                        <div class="form-row" style="grid-template-columns: 1fr 1fr; margin-top:12px;">
-                                            <div class="form-group">
-                                                <label>复制完整邀请链接</label>
-                                                <div class="switch-group">
-                                                    <label class="switch"><input type="checkbox" id="registrationInviteLinkEnabled"><span class="slider"></span></label>
-                                                    <span id="registrationInviteLinkEnabledLabel">关闭</span>
-                                                </div>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>邀请链接基础地址</label>
-                                                <input type="url" id="registrationInviteLinkBaseUrl" placeholder="https://6.6.6.6:12011">
-                                            </div>
-                                        </div>
                                         <div class="help-text">开启后，App 注册时会按当前模式自动使用这里配置的邀请码。</div>
-                                        <div class="help-text">复制完整邀请链接开启后，邀请页会拼接 <code>/#/register?code=邀请码</code>。</div>
                                     </div>
                                 </div>
                                 <div class="switch-card" data-custom-feature-key="cloud_dispatch" style="margin-top:16px;">
@@ -4023,11 +4009,6 @@
                         </div>
                     </div>
                     <div class="editor-container">
-                        <div class="form-group">
-                            <label>面板 API 路径前缀</label>
-                            <input type="text" id="apiPathPrefix" value="/api/v1" placeholder="/api/v1">
-                            <div class="help-text">客户端会用这里配置的路径替换默认 <code>/api/v1</code> 前缀，站点域名仍从 OSS 配置文件获取。</div>
-                        </div>
                         <div id="sourcesContainer"></div>
                         <button type="button" class="btn btn-primary" id="addSourceBtn" style="margin-top: 10px;">+ 添加配置源</button>
                     </div>
@@ -5952,7 +5933,6 @@
             setCustomFeatureSwitchValue('proxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
             setCustomFeatureSwitchValue('sspanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
             setCustomFeatureSwitchValue('registrationInviteEnabled', !!data.registration_invite_enabled);
-            setCustomFeatureSwitchValue('registrationInviteLinkEnabled', !!data.registration_invite_link_enabled);
             setCustomFeatureSwitchValue('cloudDispatchEnabled', !!data.cloud_dispatch_enabled);
             setCustomFeatureSwitchValue('cloudDispatchAutoEnabled', !!data.cloud_dispatch_auto_enabled);
             var subscriptionStatusOfficialUrl = document.getElementById('subscriptionStatusOfficialUrl');
@@ -5966,10 +5946,6 @@
             var registrationInviteCode = document.getElementById('registrationInviteCode');
             if (registrationInviteCode) {
                 registrationInviteCode.value = data.registration_invite_code || '';
-            }
-            var registrationInviteLinkBaseUrl = document.getElementById('registrationInviteLinkBaseUrl');
-            if (registrationInviteLinkBaseUrl) {
-                registrationInviteLinkBaseUrl.value = data.registration_invite_link_base_url || '';
             }
             var cloudDispatchQueryUrl = document.getElementById('cloudDispatchQueryUrl');
             if (cloudDispatchQueryUrl) {
@@ -6079,7 +6055,6 @@
                 'proxyGroupsMainPolicyNodesOnly',
                 'sspanelNodePageParseEnabled',
                 'registrationInviteEnabled',
-                'registrationInviteLinkEnabled',
                 'cloudDispatchEnabled',
                 'cloudDispatchAutoEnabled'
             ].forEach(function(id) {
@@ -6213,8 +6188,6 @@
             var registrationInviteEnabled = !!document.getElementById('registrationInviteEnabled').checked;
             var registrationInviteMode = String(document.getElementById('registrationInviteMode').value || 'default_when_empty').trim();
             var registrationInviteCode = String(document.getElementById('registrationInviteCode').value || '').trim();
-            var registrationInviteLinkEnabled = !!document.getElementById('registrationInviteLinkEnabled').checked;
-            var registrationInviteLinkBaseUrl = String(document.getElementById('registrationInviteLinkBaseUrl').value || '').trim();
             var cloudDispatchEnabled = !!document.getElementById('cloudDispatchEnabled').checked;
             var cloudDispatchQueryUrl = String(document.getElementById('cloudDispatchQueryUrl').value || '').trim();
             var cloudDispatchQuerySecret = String(document.getElementById('cloudDispatchQuerySecret').value || '').trim();
@@ -6266,15 +6239,6 @@
                     return;
                 }
             }
-            if (
-                isCustomUIColorFeatureVisible('registration_invite') &&
-                registrationInviteLinkEnabled &&
-                !/^https?:\/\//i.test(registrationInviteLinkBaseUrl)
-            ) {
-                setCustomTrafficBarStatus('开启复制完整邀请链接时，请填写 http:// 或 https:// 开头的邀请链接基础地址', 'error');
-                return;
-            }
-
             setCustomTrafficBarStatus('正在写入公共配置...', 'info');
             try {
                 var response = await api('PUT', appendBuildClientQuery('/custom-features/ui-colors'), {
@@ -6302,8 +6266,6 @@
                     registration_invite_enabled: registrationInviteEnabled,
                     registration_invite_mode: registrationInviteMode,
                     registration_invite_code: registrationInviteCode,
-                    registration_invite_link_enabled: registrationInviteLinkEnabled,
-                    registration_invite_link_base_url: registrationInviteLinkBaseUrl,
                     cloud_dispatch_enabled: cloudDispatchEnabled,
                     cloud_dispatch_query_url: cloudDispatchQueryUrl,
                     cloud_dispatch_query_secret: cloudDispatchQuerySecret,
@@ -6920,7 +6882,7 @@
             document.getElementById('provider').addEventListener('change', function() {
                 updateProviderConsistencyState({ source: 'basic' });
             });
-            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'apiPathPrefix'].forEach(function(id) {
+            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (!el) return;
                 el.addEventListener('input', formToYaml);
@@ -7073,10 +7035,7 @@
                 '    enabled: false',
                 '    mode: default_when_empty',
                 '    invite_code: ""',
-                '    link_enabled: false',
-                '    link_base_url: ""',
                 '  remote_config:',
-                '    api_path_prefix: /api/v1',
                 '    sources:',
                 '      - name: redirect',
                 '        url: ""',
@@ -7294,8 +7253,6 @@
                 registration_invite_enabled: document.getElementById('registrationInviteEnabled') ? document.getElementById('registrationInviteEnabled').checked : false,
                 registration_invite_mode: document.getElementById('registrationInviteMode') ? document.getElementById('registrationInviteMode').value : 'default_when_empty',
                 registration_invite_code: document.getElementById('registrationInviteCode') ? document.getElementById('registrationInviteCode').value.trim() : '',
-                registration_invite_link_enabled: document.getElementById('registrationInviteLinkEnabled') ? document.getElementById('registrationInviteLinkEnabled').checked : false,
-                registration_invite_link_base_url: document.getElementById('registrationInviteLinkBaseUrl') ? document.getElementById('registrationInviteLinkBaseUrl').value.trim() : '',
                 subscription_cache_enabled: document.getElementById('subscriptionCacheEnabled').checked,
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
@@ -7309,7 +7266,6 @@
                 checkin_show_button: document.getElementById('checkinShowButton').checked,
                 auth_pages_support_show_button: document.getElementById('authPagesSupportShowButton').checked,
                 gift_card_show_button: document.getElementById('giftCardShowButton').checked,
-                api_path_prefix: document.getElementById('apiPathPrefix') ? document.getElementById('apiPathPrefix').value.trim() : '/api/v1',
                 sources: validSources,
                 online_support_items: validSupportItems
             };
@@ -9762,22 +9718,12 @@
             var registrationInviteCodeMatch =
                 yaml.match(/registration_invite:\s*\n(?:[\s\S]*?)^\s{4}invite_code:[^\S\n]*(.*)/m) ||
                 yaml.match(/registrationInvite:\s*\n(?:[\s\S]*?)inviteCode:[^\S\n]*(.*)/);
-            var registrationInviteLinkEnabledMatch =
-                yaml.match(/registration_invite:\s*\n(?:[\s\S]*?)^\s{4}link_enabled:\s*(true|false)/m) ||
-                yaml.match(/registrationInvite:\s*\n(?:[\s\S]*?)linkEnabled:\s*(true|false)/);
-            var registrationInviteLinkBaseUrlMatch =
-                yaml.match(/registration_invite:\s*\n(?:[\s\S]*?)^\s{4}link_base_url:[^\S\n]*(.*)/m) ||
-                yaml.match(/registrationInvite:\s*\n(?:[\s\S]*?)linkBaseUrl:[^\S\n]*(.*)/);
             setCustomFeatureSwitchValue('registrationInviteEnabled', registrationInviteEnabledMatch ? registrationInviteEnabledMatch[1] === 'true' : false);
-            setCustomFeatureSwitchValue('registrationInviteLinkEnabled', registrationInviteLinkEnabledMatch ? registrationInviteLinkEnabledMatch[1] === 'true' : false);
             if (document.getElementById('registrationInviteMode')) {
                 document.getElementById('registrationInviteMode').value = registrationInviteModeMatch ? registrationInviteModeMatch[1].trim().replace(/^["']|["']$/g, '') : 'default_when_empty';
             }
             if (document.getElementById('registrationInviteCode')) {
                 document.getElementById('registrationInviteCode').value = registrationInviteCodeMatch ? registrationInviteCodeMatch[1].trim().replace(/^["']|["']$/g, '') : '';
-            }
-            if (document.getElementById('registrationInviteLinkBaseUrl')) {
-                document.getElementById('registrationInviteLinkBaseUrl').value = registrationInviteLinkBaseUrlMatch ? registrationInviteLinkBaseUrlMatch[1].trim().replace(/^["']|["']$/g, '') : '';
             }
             var subCacheEnabledMatch = yaml.match(/subscription_cache:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var subCacheEnabled = subCacheEnabledMatch ? subCacheEnabledMatch[1] === 'true' : false;
@@ -9861,12 +9807,6 @@
             document.getElementById('authBackgroundImageUrl').value = authBackgroundImageUrlMatch
                 ? authBackgroundImageUrlMatch[1].trim().replace(/^["']|["']$/g, '')
                 : '';
-            var apiPathPrefixMatch =
-                yaml.match(/remote_config:\s*\n(?:[\s\S]*?)^\s{4}api_path_prefix:[^\S\n]*(.*)/m) ||
-                yaml.match(/remoteConfig:\s*\n(?:[\s\S]*?)apiPathPrefix:[^\S\n]*(.*)/);
-            if (document.getElementById('apiPathPrefix')) {
-                document.getElementById('apiPathPrefix').value = apiPathPrefixMatch ? apiPathPrefixMatch[1].trim().replace(/^["']|["']$/g, '') : '/api/v1';
-            }
 
             // 解析 sources
             sources = [];

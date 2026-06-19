@@ -411,6 +411,8 @@ func normalizeNexGenProfileConfig(yamlContent string) string {
 	}
 
 	subscription := ensureMapValueNode(nexgen, "subscription")
+	registrationInvite := ensureMapValueNode(nexgen, "registration_invite")
+	remoteConfig := ensureMapValueNode(nexgen, "remote_config")
 
 	var preferEncrypt, useExclusiveMode bool
 	var sspanelNodePageParseEnabled bool
@@ -462,6 +464,15 @@ func normalizeNexGenProfileConfig(yamlContent string) string {
 		if hasLegacySubscriptionCustomQuerySuffix && strings.TrimSpace(subscriptionCustomQuerySuffix) != "" {
 			setMapStringValue(subscription, "custom_query_suffix", strings.TrimSpace(subscriptionCustomQuerySuffix))
 		}
+	}
+	if getMapValueNode(registrationInvite, "link_enabled") == nil && getMapValueNode(registrationInvite, "linkEnabled") == nil {
+		setMapBoolValue(registrationInvite, "link_enabled", false)
+	}
+	if getMapValueNode(registrationInvite, "link_base_url") == nil && getMapValueNode(registrationInvite, "linkBaseUrl") == nil {
+		setMapStringValue(registrationInvite, "link_base_url", "")
+	}
+	if getMapValueNode(remoteConfig, "api_path_prefix") == nil && getMapValueNode(remoteConfig, "apiPathPrefix") == nil {
+		setMapStringValue(remoteConfig, "api_path_prefix", "/api/v1")
 	}
 
 	var buf bytes.Buffer

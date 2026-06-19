@@ -147,10 +147,7 @@ func defaultProfileYaml(displayName string) string {
     enabled: false
     mode: default_when_empty
     invite_code: ""
-    link_enabled: false
-    link_base_url: ""
   remote_config:
-    api_path_prefix: /api/v1
     sources:
       - name: redirect
         url: ""
