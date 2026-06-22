@@ -929,7 +929,7 @@ jobs:
           fi
           normalize_nexgen_artifact_names() {
             local file base normalized suffix prefix
-            for file in source/dist/*.pkg source/dist/*.apk source/dist/*.exe source/dist/*.msi source/dist/*.zip; do
+            for file in source/dist/*.pkg source/dist/*.apk source/dist/*.exe source/dist/*.msi; do
               [ -f "$file" ] || continue
               base="$(basename "$file")"
               case "$base" in
@@ -943,8 +943,6 @@ jobs:
                 *windows-arm64-setup.exe) prefix="$SAFE_APP_NAME"; suffix="windows-arm64-setup.exe" ;;
                 *windows-x64-installer.msi) prefix="$SAFE_APP_NAME"; suffix="windows-x64-installer.msi" ;;
                 *windows-arm64-installer.msi) prefix="$SAFE_APP_NAME"; suffix="windows-arm64-installer.msi" ;;
-                *windows-x64-portable.zip) prefix="$SAFE_APP_NAME"; suffix="windows-x64-portable.zip" ;;
-                *windows-arm64-portable.zip) prefix="$SAFE_APP_NAME"; suffix="windows-arm64-portable.zip" ;;
                 *) continue ;;
               esac
               normalized="source/dist/${prefix}-${VERSION}-${suffix}"
@@ -965,7 +963,6 @@ jobs:
           }
           trap cleanup_upload_stage EXIT
           find source/dist -maxdepth 1 -type f \( \
-            -name "*.zip" -o \
             -name "*.pkg" -o \
             -name "*.exe" -o \
             -name "*.msi" -o \
@@ -987,7 +984,6 @@ jobs:
             asset_name="$safe_base"
             content_type="application/octet-stream"
             case "$asset_name" in
-              *.zip) content_type="application/zip" ;;
               *.pkg) content_type="application/octet-stream" ;;
               *.exe) content_type="application/vnd.microsoft.portable-executable" ;;
               *.msi) content_type="application/x-msi" ;;
