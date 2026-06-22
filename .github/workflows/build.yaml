@@ -1923,7 +1923,9 @@ jobs:
 
             echo "Uploading merged bundle asset: $asset_name ($filesize)"
             local upload_response
-            upload_response=$(curl -sS --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors -X POST \
+            upload_response=$(curl --fail --http1.1 --retry 5 --retry-delay 2 --retry-all-errors \
+              --connect-timeout 30 --max-time 1800 --speed-time 300 --speed-limit 1024 \
+              --progress-bar -X POST \
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: $content_type" \
               -H "Expect:" \
