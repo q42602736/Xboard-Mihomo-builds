@@ -1880,8 +1880,8 @@ jobs:
           done
 
           cd ./release
-          BUNDLE_PART_BYTES=$((1536 * 1024 * 1024))
-          BUNDLE_PART_SIZE="1536m"
+          BUNDLE_PART_BYTES=$((1024 * 1024 * 1024))
+          BUNDLE_PART_SIZE="1024m"
           FILESIZE=$(du -h "$PACKAGE_NAME" | cut -f1)
           PACKAGE_BYTES=$(wc -c < "$PACKAGE_NAME" | tr -d ' ')
           UPLOAD_DIR="./upload"
@@ -1889,17 +1889,17 @@ jobs:
           mkdir -p "$UPLOAD_DIR"
 
           if [ "$PACKAGE_BYTES" -gt "$BUNDLE_PART_BYTES" ]; then
-            echo "::notice::合集包 $PACKAGE_NAME 大小为 $FILESIZE，超过 1.5 GiB，将生成 ZIP 分卷上传。"
+            echo "::notice::合集包 $PACKAGE_NAME 大小为 $FILESIZE，超过 1 GiB，将生成 ZIP 分卷上传。"
             zip -s "$BUNDLE_PART_SIZE" "$PACKAGE_NAME" --out "$UPLOAD_DIR/$PACKAGE_NAME"
             {
-              printf '%s 已按 1.5 GiB 生成 ZIP 分卷上传。\n\n' "$PACKAGE_NAME"
+              printf '%s 已按 1 GiB 生成 ZIP 分卷上传。\n\n' "$PACKAGE_NAME"
               printf '下载同名前缀的 .z01/.z02/... 和 .zip 到同一目录，然后打开 .zip 解压。\n'
               printf 'Windows 推荐 7-Zip/WinRAR，macOS 推荐 Keka/The Unarchiver。\n'
               printf '校验命令:\n'
               printf 'sha256sum -c %s.sha256\n' "$PACKAGE_NAME"
             } > "$UPLOAD_DIR/${PACKAGE_NAME}.manifest.txt"
           else
-            echo "::notice::合集包 $PACKAGE_NAME 大小为 $FILESIZE，未超过 1.5 GiB，将直接上传完整 zip。"
+            echo "::notice::合集包 $PACKAGE_NAME 大小为 $FILESIZE，未超过 1 GiB，将直接上传完整 zip。"
             cp "$PACKAGE_NAME" "$UPLOAD_DIR/$PACKAGE_NAME"
           fi
           (
