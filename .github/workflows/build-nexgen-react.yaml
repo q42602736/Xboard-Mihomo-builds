@@ -387,17 +387,48 @@ jobs:
         if: matrix.family == 'android'
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Setup Android SDK
-        if: matrix.family == 'android'
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android Targets
+      - name: Install Android SDK
         if: matrix.family == 'android'
         shell: bash
         run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973"
-          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/27.0.12077973" >> "$GITHUB_ENV"
-          echo "NDK_HOME=${ANDROID_HOME}/ndk/27.0.12077973" >> "$GITHUB_ENV"
+          set -euo pipefail
+
+          android_home="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          export ANDROID_HOME="$android_home"
+          export ANDROID_SDK_ROOT="$android_home"
+
+          sdkmanager_path=""
+          for candidate in \
+            "$android_home/cmdline-tools/latest/bin/sdkmanager" \
+            "$android_home/cmdline-tools/16.0/bin/sdkmanager" \
+            "$android_home/cmdline-tools/bin/sdkmanager" \
+            "$(command -v sdkmanager || true)"; do
+            if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+              sdkmanager_path="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$sdkmanager_path" ]; then
+            echo "::error::未找到 sdkmanager，无法安装 Android SDK 组件"
+            exit 1
+          fi
+
+          echo "ANDROID_HOME=$android_home" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$android_home" >> "$GITHUB_ENV"
+          echo "$android_home/platform-tools" >> "$GITHUB_PATH"
+
+          set +o pipefail
+          yes | "$sdkmanager_path" --licenses > /dev/null || true
+          yes | "$sdkmanager_path" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;27.0.12077973"
+          set -o pipefail
+
+          echo "ANDROID_NDK_HOME=$android_home/ndk/27.0.12077973" >> "$GITHUB_ENV"
+          echo "NDK_HOME=$android_home/ndk/27.0.12077973" >> "$GITHUB_ENV"
 
       - name: Install Dependencies
         working-directory: source
