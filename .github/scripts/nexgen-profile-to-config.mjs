@@ -51,6 +51,7 @@ function convertXboardToNexgen(xboard) {
     ui: {
       hide_traffic_details: boolOrUndefined(ui.hide_traffic_details),
       hide_node_status: boolOrUndefined(ui.hide_node_status),
+      hide_current_node_label: boolOrUndefined(ui.hide_current_node_label ?? ui.hideCurrentNodeLabel),
       latency_reduction: record(ui.latency_reduction),
       notice: record(ui.notice),
       checkin: record(ui.checkin),
@@ -132,13 +133,70 @@ function nullableTextOverride(value) {
 function normalizeUtilitiesOverride(value) {
   const utilities = record(value);
   const popularApps = record(utilities.popular_apps);
+  const tools = record(utilities.tools);
+  const nextTools = {
+    ...tools,
+  };
+  if (Object.prototype.hasOwnProperty.call(tools, "cf_speed") || Object.prototype.hasOwnProperty.call(tools, "cfSpeed")) {
+    nextTools.cf_speed = normalizeCfSpeedOverride(tools.cf_speed ?? tools.cfSpeed);
+  }
+  delete nextTools.cfSpeed;
   return {
     ...utilities,
+    tools: nextTools,
     popular_apps: {
       show_section: typeof popularApps.show_section === "boolean" ? popularApps.show_section : false,
       items: Array.isArray(popularApps.items) ? popularApps.items : [],
     },
   };
+}
+
+function normalizeCfSpeedOverride(value) {
+  const cfSpeed = {
+    ...record(value),
+  };
+  normalizeAlias(cfSpeed, "showButton", "show_button");
+  normalizeAlias(cfSpeed, "targetDomains", "target_domains");
+
+  const autoReplace = {
+    ...record(cfSpeed.auto_replace ?? cfSpeed.autoReplace),
+  };
+  normalizeAlias(autoReplace, "intervalMinutes", "interval_minutes");
+
+  cfSpeed.show_button = typeof cfSpeed.show_button === "boolean" ? cfSpeed.show_button : true;
+  cfSpeed.target_domains = normalizeStringList(cfSpeed.target_domains);
+  cfSpeed.auto_replace = {
+    ...autoReplace,
+    enabled: typeof autoReplace.enabled === "boolean" ? autoReplace.enabled : false,
+    interval_minutes: normalizeIntervalMinutes(autoReplace.interval_minutes, 1440),
+  };
+  delete cfSpeed.showButton;
+  delete cfSpeed.targetDomains;
+  delete cfSpeed.autoReplace;
+  delete cfSpeed.auto_replace.intervalMinutes;
+  return cfSpeed;
+}
+
+function normalizeStringList(value) {
+  if (typeof value === "string") {
+    value = value.split(/[,\n]/);
+  }
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  const result = [];
+  for (const item of value) {
+    const textValue = text(item);
+    if (!textValue || seen.has(textValue)) continue;
+    seen.add(textValue);
+    result.push(textValue);
+  }
+  return result;
+}
+
+function normalizeIntervalMinutes(value, fallback) {
+  const parsed = Number.parseInt(value ?? fallback, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, 1440);
 }
 
 function deepMerge(base, override) {

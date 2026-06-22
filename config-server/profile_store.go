@@ -156,6 +156,7 @@ func defaultProfileYaml(displayName string) string {
   ui:
     hide_traffic_details: false
     hide_node_status: false
+    hide_current_node_label: false
     show_ip_info: true
     custom_colors:
       notice_dialog_icon_background_color: ""

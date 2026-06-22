@@ -3265,6 +3265,16 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">隐藏连接卡片当前节点标签</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="hideCurrentNodeLabel"><span class="slider"></span></label>
+                                        <span id="hideCurrentNodeLabelLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">启用后，仅隐藏连接状态卡片里节点名称上方的“当前节点”文本，不影响节点名称显示。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">延迟显示调整</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="latencyReductionEnabled"><span class="slider"></span></label>
@@ -3336,6 +3346,35 @@
                                         <span id="utilitySpeedShowButtonLabel">开启</span>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：CF 优选</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="utilityCfSpeedShowButton" checked><span class="slider"></span></label>
+                                        <span id="utilityCfSpeedShowButtonLabel">开启</span>
+                                    </div>
+                                </div>
+                                <div class="switch-card-extra">
+                                    <div class="form-group" style="margin-bottom:12px;">
+                                        <label>需要替换的节点地址</label>
+                                        <textarea id="utilityCfSpeedTargetDomains" placeholder="每行填写一个需要替换的节点地址"></textarea>
+                                    </div>
+                                    <div class="form-row" style="grid-template-columns:minmax(0,1fr) minmax(160px,220px); align-items:end;">
+                                        <div class="form-group" style="margin-bottom:0;">
+                                            <label>自动优选替换</label>
+                                            <div class="switch-group">
+                                                <label class="switch"><input type="checkbox" id="utilityCfSpeedAutoReplaceEnabled"><span class="slider"></span></label>
+                                                <span id="utilityCfSpeedAutoReplaceEnabledLabel">关闭</span>
+                                            </div>
+                                        </div>
+                                        <div class="form-group" style="margin-bottom:0;">
+                                            <label>自动间隔（分钟）</label>
+                                            <input type="number" id="utilityCfSpeedAutoReplaceIntervalMinutes" min="1" max="1440" value="1440">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="help-text">每行一个域名或 IP。留空时只显示测速工具，不会替换节点地址。</div>
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
@@ -5466,6 +5505,7 @@
             'invite_stats_total_commission_icon_color',
             'subscription_status_popup',
             'main_policy_nodes_only',
+            'hide_current_node_label',
             'sspanel_node_page_parse',
             'registration_invite',
             'custom_invite_link',
@@ -5637,6 +5677,16 @@
                         '</div>',
                     '</div>',
                     '<div class="help-text">开启后，选择节点弹窗直接显示主策略组节点，不再先显示其他分流组。</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="hide_current_node_label" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">隐藏连接卡片当前节点标签</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customHideCurrentNodeLabel"><span class="slider"></span></label>',
+                            '<span id="customHideCurrentNodeLabelLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="help-text">开启后，仅隐藏普通连接状态卡片里节点名称上方的“当前节点”文本。</div>',
                 '</div>',
                 '<div class="switch-card" data-custom-feature-key="sspanel_node_page_parse" style="margin-top:16px;">',
                     '<div class="switch-card-header">',
@@ -5885,6 +5935,7 @@
             [
                 'customSubscriptionStatusPopupEnabled',
                 'customProxyGroupsMainPolicyNodesOnly',
+                'customHideCurrentNodeLabel',
                 'customSSPanelNodePageParseEnabled',
                 'customRegistrationInviteEnabled',
                 'customRegistrationInviteLinkEnabled',
@@ -5956,6 +6007,7 @@
             applyCustomUIColorTextValue('customInviteStatsTotalCommissionIconColor', data.invite_stats_total_commission_icon_color || '');
             setCustomFeatureSwitchValue('customSubscriptionStatusPopupEnabled', !!data.subscription_status_popup_enabled);
             setCustomFeatureSwitchValue('customProxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
+            setCustomFeatureSwitchValue('customHideCurrentNodeLabel', !!data.hide_current_node_label);
             setCustomFeatureSwitchValue('customSSPanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
             setCustomFeatureSwitchValue('customRegistrationInviteEnabled', !!data.registration_invite_enabled);
             setCustomFeatureSwitchValue('customRegistrationInviteLinkEnabled', !!data.registration_invite_link_enabled);
@@ -6103,6 +6155,7 @@
             var subscriptionStatusPopupEnabled = getCustomInputChecked('customSubscriptionStatusPopupEnabled');
             var subscriptionStatusOfficialUrl = getCustomInputValue('customSubscriptionStatusOfficialUrl');
             var proxyGroupsMainPolicyNodesOnly = getCustomInputChecked('customProxyGroupsMainPolicyNodesOnly');
+            var hideCurrentNodeLabel = getCustomInputChecked('customHideCurrentNodeLabel');
             var sspanelNodePageParseEnabled = getCustomInputChecked('customSSPanelNodePageParseEnabled');
             var registrationInviteEnabled = getCustomInputChecked('customRegistrationInviteEnabled');
             var registrationInviteMode = getCustomInputValue('customRegistrationInviteMode') || 'default_when_empty';
@@ -6190,6 +6243,7 @@
                     subscription_status_popup_enabled: subscriptionStatusPopupEnabled,
                     subscription_status_official_url: subscriptionStatusOfficialUrl,
                     proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly,
+                    hide_current_node_label: hideCurrentNodeLabel,
                     sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
                     registration_invite_enabled: registrationInviteEnabled,
                     registration_invite_mode: registrationInviteMode,
@@ -6324,7 +6378,7 @@
             document.getElementById('provider').addEventListener('change', function() {
                 updateProviderConsistencyState({ source: 'basic' });
             });
-            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'cloudDispatchQueryUrl', 'cloudDispatchQuerySecret', 'cloudDispatchAutoIntervalMinutes', 'cloudDispatchFallbackRetryMinutes', 'apiPathPrefix'].forEach(function(id) {
+            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'cloudDispatchQueryUrl', 'cloudDispatchQuerySecret', 'cloudDispatchAutoIntervalMinutes', 'cloudDispatchFallbackRetryMinutes', 'utilityCfSpeedTargetDomains', 'utilityCfSpeedAutoReplaceIntervalMinutes', 'apiPathPrefix'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (!el) return;
                 el.addEventListener('input', formToYaml);
@@ -6474,6 +6528,7 @@
                 '  ui:',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
+                '    hide_current_node_label: false',
                 '    latency_reduction:',
                 '      enabled: false',
                 '      value: 0',
@@ -6491,6 +6546,13 @@
                 '      tools:',
                 '        speed:',
                 '          show_button: true',
+                '        cf_speed:',
+                '          show_button: true',
+                '          target_domains:',
+                '            - youxuan1.513514.xyz',
+                '          auto_replace:',
+                '            enabled: false',
+                '            interval_minutes: 1440',
                 '        ip_lookup:',
                 '          show_button: true',
                 '        media_unlock:',
@@ -6694,6 +6756,15 @@
         var autoSaveProfileDelayMs = 3 * 60 * 1000;
         var currentProfileBaseYaml = '';
 
+        function parseMultilineListValue(value) {
+            return String(value || '')
+                .split(/[\n,]/)
+                .map(function(item) { return stripYamlScalarQuotes(item); })
+                .filter(function(item, index, list) {
+                    return item && list.indexOf(item) === index;
+                });
+        }
+
         function buildCurrentProfileFormState() {
             collectSources();
             collectSupportItems();
@@ -6755,6 +6826,7 @@
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
+                hide_current_node_label: document.getElementById('hideCurrentNodeLabel').checked,
                 latency_reduction_enabled: document.getElementById('latencyReductionEnabled').checked,
                 latency_reduction_value: normalizeLatencyReductionValue(document.getElementById('latencyReductionValue').value),
                 notice_auto_open_on_startup: document.getElementById('noticeAutoOpenOnStartup').checked,
@@ -6763,6 +6835,10 @@
                 checkin_show_button: document.getElementById('checkinShowButton').checked,
                 gift_card_show_button: document.getElementById('giftCardShowButton').checked,
                 utility_speed_show_button: document.getElementById('utilitySpeedShowButton').checked,
+                utility_cf_speed_show_button: document.getElementById('utilityCfSpeedShowButton').checked,
+                utility_cf_speed_target_domains: parseMultilineListValue(document.getElementById('utilityCfSpeedTargetDomains').value),
+                utility_cf_speed_auto_replace_enabled: document.getElementById('utilityCfSpeedAutoReplaceEnabled').checked,
+                utility_cf_speed_auto_replace_interval_minutes: parseInt(document.getElementById('utilityCfSpeedAutoReplaceIntervalMinutes').value || '1440', 10) || 1440,
                 utility_ip_lookup_show_button: document.getElementById('utilityIpLookupShowButton').checked,
                 utility_media_unlock_show_button: document.getElementById('utilityMediaUnlockShowButton').checked,
                 utility_google_services_show_button: document.getElementById('utilityGoogleServicesShowButton').checked,
@@ -6787,6 +6863,8 @@
             var cloudDispatchQuerySecret = String(document.getElementById('cloudDispatchQuerySecret').value || '').trim();
             var cloudDispatchAutoIntervalMinutes = parseInt(document.getElementById('cloudDispatchAutoIntervalMinutes').value || '5', 10) || 5;
             var cloudDispatchFallbackRetryMinutes = parseInt(document.getElementById('cloudDispatchFallbackRetryMinutes').value || '5', 10) || 5;
+            var utilityCfSpeedAutoReplaceEnabled = !!document.getElementById('utilityCfSpeedAutoReplaceEnabled').checked;
+            var utilityCfSpeedAutoReplaceIntervalMinutes = parseInt(document.getElementById('utilityCfSpeedAutoReplaceIntervalMinutes').value || '1440', 10) || 1440;
             if (cloudDispatchEnabled) {
                 if (!/^https?:\/\//i.test(cloudDispatchQueryUrl)) {
                     setStatus('开启云端调度时，请填写 http:// 或 https:// 开头的 GTM 服务地址', 'error');
@@ -6804,6 +6882,10 @@
                     setStatus('离线兜底回查间隔不能小于 1 分钟', 'error');
                     return false;
                 }
+            }
+            if (utilityCfSpeedAutoReplaceEnabled && utilityCfSpeedAutoReplaceIntervalMinutes < 1) {
+                setStatus('CF 优选自动间隔不能小于 1 分钟', 'error');
+                return false;
             }
 
             formToYaml();
@@ -7731,7 +7813,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'utilitySpeedShowButton', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'hideCurrentNodeLabel', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -7755,10 +7837,24 @@
                 this.value = normalizeNoticeAutoOpenIntervalHours(this.value);
                 formToYaml();
             });
+            document.getElementById('utilityCfSpeedTargetDomains').addEventListener('change', function() {
+                this.value = parseMultilineListValue(this.value).join('\n');
+                formToYaml();
+            });
+            document.getElementById('utilityCfSpeedAutoReplaceIntervalMinutes').addEventListener('change', function() {
+                this.value = normalizeMinuteIntervalValue(this.value, 1440);
+                formToYaml();
+            });
             document.getElementById('autoOfflineIntervalHours').addEventListener('change', function() {
                 this.value = normalizeAutoOfflineIntervalHours(this.value);
                 formToYaml();
             });
+        }
+
+        function normalizeMinuteIntervalValue(value, fallback) {
+            var parsed = parseInt(value, 10);
+            if (isNaN(parsed) || parsed < 1) return fallback;
+            return Math.min(parsed, 1440);
         }
 
         function normalizeAutoOfflineIntervalHours(value) {
@@ -9480,6 +9576,74 @@
             return result;
         }
 
+        function extractNamedYamlBlock(source, keyName) {
+            var lines = String(source || '').split('\n');
+            var keyPattern = new RegExp('^\\s*' + keyName + ':\\s*$');
+            for (var i = 0; i < lines.length; i++) {
+                if (!keyPattern.test(lines[i])) continue;
+                var baseIndent = (lines[i].match(/^(\s*)/) || [''])[0].length;
+                var block = [];
+                for (var j = i + 1; j < lines.length; j++) {
+                    var line = lines[j];
+                    if (line.trim() === '' || /^\s*#/.test(line)) {
+                        block.push(line);
+                        continue;
+                    }
+                    var indent = (line.match(/^(\s*)/) || [''])[0].length;
+                    if (indent <= baseIndent) break;
+                    block.push(line);
+                }
+                return block.join('\n');
+            }
+            return '';
+        }
+
+        function extractNestedYamlBlock(source, keyNames) {
+            var block = String(source || '');
+            for (var i = 0; i < keyNames.length; i++) {
+                block = extractNamedYamlBlock(block, keyNames[i]);
+                if (!block) return '';
+            }
+            return block;
+        }
+
+        function parseYamlBlockBool(block, keyName, fallback) {
+            var match = String(block || '').match(new RegExp('^\\s*' + keyName + ':\\s*(true|false)\\s*$', 'm'));
+            return match ? match[1] === 'true' : fallback;
+        }
+
+        function parseYamlBlockInt(block, keyName, fallback) {
+            var match = String(block || '').match(new RegExp('^\\s*' + keyName + ':\\s*(-?\\d+)\\s*$', 'm'));
+            return match ? parseInt(match[1], 10) : fallback;
+        }
+
+        function parseYamlBlockStringList(block, keyName) {
+            var lines = String(block || '').split('\n');
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                var keyMatch = line.match(new RegExp('^(\\s*)' + keyName + ':\\s*(.*)$'));
+                if (!keyMatch) continue;
+                var inlineValue = String(keyMatch[2] || '').trim();
+                if (/^\[.*\]$/.test(inlineValue)) {
+                    return parseMultilineListValue(inlineValue.slice(1, -1));
+                }
+                var baseIndent = keyMatch[1].length;
+                var result = [];
+                for (var j = i + 1; j < lines.length; j++) {
+                    var itemLine = lines[j];
+                    if (itemLine.trim() === '' || /^\s*#/.test(itemLine)) continue;
+                    var indent = (itemLine.match(/^(\s*)/) || [''])[0].length;
+                    if (indent <= baseIndent) break;
+                    var itemMatch = itemLine.match(/^\s*-\s*(.+?)\s*$/);
+                    if (itemMatch) {
+                        result.push(stripYamlScalarQuotes(itemMatch[1]));
+                    }
+                }
+                return parseMultilineListValue(result.join('\n'));
+            }
+            return [];
+        }
+
         function yamlToForm() {
             var yaml = document.getElementById('editor').value;
             if (!yaml.trim()) return;
@@ -9606,6 +9770,10 @@
             var hideNodeStatus = hideNodeStatusMatch ? hideNodeStatusMatch[1] === 'true' : false;
             document.getElementById('hideNodeStatus').checked = hideNodeStatus;
             document.getElementById('hideNodeStatusLabel').textContent = hideNodeStatus ? '开启' : '关闭';
+            var hideCurrentNodeLabelMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_current_node_label:\s*(true|false)/);
+            var hideCurrentNodeLabel = hideCurrentNodeLabelMatch ? hideCurrentNodeLabelMatch[1] === 'true' : false;
+            document.getElementById('hideCurrentNodeLabel').checked = hideCurrentNodeLabel;
+            document.getElementById('hideCurrentNodeLabelLabel').textContent = hideCurrentNodeLabel ? '开启' : '关闭';
             var latencyReductionEnabledMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}latency_reduction:\s*\n(?:[\s\S]*?)^\s{6}enabled:\s*(true|false)/m) ||
                 yaml.match(/latency_reduction:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);
@@ -9661,6 +9829,29 @@
             var utilitySpeedShowButton = utilitySpeedShowButtonMatch ? utilitySpeedShowButtonMatch[1] === 'true' : true;
             document.getElementById('utilitySpeedShowButton').checked = utilitySpeedShowButton;
             document.getElementById('utilitySpeedShowButtonLabel').textContent = utilitySpeedShowButton ? '开启' : '关闭';
+            var utilityToolsBlock = extractNestedYamlBlock(yaml, ['utilities', 'tools']);
+            var utilityCfSpeedBlock =
+                extractNamedYamlBlock(utilityToolsBlock, 'cf_speed') ||
+                extractNamedYamlBlock(utilityToolsBlock, 'cfSpeed') ||
+                extractNamedYamlBlock(yaml, 'cf_speed') ||
+                extractNamedYamlBlock(yaml, 'cfSpeed');
+            var utilityCfSpeedAutoReplaceBlock = extractNamedYamlBlock(utilityCfSpeedBlock, 'auto_replace') || extractNamedYamlBlock(utilityCfSpeedBlock, 'autoReplace');
+            var utilityCfSpeedShowButton = parseYamlBlockBool(utilityCfSpeedBlock, 'show_button', true);
+            var utilityCfSpeedTargetDomains = parseYamlBlockStringList(utilityCfSpeedBlock, 'target_domains');
+            if (utilityCfSpeedTargetDomains.length === 0) {
+                utilityCfSpeedTargetDomains = parseYamlBlockStringList(utilityCfSpeedBlock, 'targetDomains');
+            }
+            var utilityCfSpeedAutoReplaceEnabled = parseYamlBlockBool(utilityCfSpeedAutoReplaceBlock, 'enabled', false);
+            var utilityCfSpeedAutoReplaceInterval = parseYamlBlockInt(utilityCfSpeedAutoReplaceBlock, 'interval_minutes', 1440);
+            if (utilityCfSpeedAutoReplaceInterval === 1440) {
+                utilityCfSpeedAutoReplaceInterval = parseYamlBlockInt(utilityCfSpeedAutoReplaceBlock, 'intervalMinutes', 1440);
+            }
+            document.getElementById('utilityCfSpeedShowButton').checked = utilityCfSpeedShowButton;
+            document.getElementById('utilityCfSpeedShowButtonLabel').textContent = utilityCfSpeedShowButton ? '开启' : '关闭';
+            document.getElementById('utilityCfSpeedTargetDomains').value = utilityCfSpeedTargetDomains.join('\n');
+            document.getElementById('utilityCfSpeedAutoReplaceEnabled').checked = utilityCfSpeedAutoReplaceEnabled;
+            document.getElementById('utilityCfSpeedAutoReplaceEnabledLabel').textContent = utilityCfSpeedAutoReplaceEnabled ? '开启' : '关闭';
+            document.getElementById('utilityCfSpeedAutoReplaceIntervalMinutes').value = normalizeMinuteIntervalValue(utilityCfSpeedAutoReplaceInterval, 1440);
             var utilityIpLookupShowButtonMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}utilities:\s*\n(?:[\s\S]*?)^\s{6}tools:\s*\n(?:[\s\S]*?)^\s{8}ip_lookup:\s*\n(?:[\s\S]*?)^\s{10}show_button:\s*(true|false)/m) ||
                 yaml.match(/utilities:\s*\n(?:[\s\S]*?)tools:\s*\n(?:[\s\S]*?)ip_lookup:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);

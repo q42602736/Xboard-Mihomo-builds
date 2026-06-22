@@ -31,6 +31,7 @@ type UIColorCustomConfig struct {
 	SubscriptionStatusPopupEnabled       bool     `json:"subscription_status_popup_enabled"`
 	SubscriptionStatusOfficialURL        string   `json:"subscription_status_official_url"`
 	ProxyGroupsMainPolicyNodesOnly       bool     `json:"proxy_groups_main_policy_nodes_only"`
+	HideCurrentNodeLabel                 bool     `json:"hide_current_node_label"`
 	CloudDispatchEnabled                 bool     `json:"cloud_dispatch_enabled"`
 	CloudDispatchQueryURL                string   `json:"cloud_dispatch_query_url"`
 	CloudDispatchQuerySecret             string   `json:"cloud_dispatch_query_secret"`
@@ -64,6 +65,7 @@ const (
 	customFeatureInviteStatsTotalCommissionIconColor  = "invite_stats_total_commission_icon_color"
 	customFeatureSubscriptionStatusPopup              = "subscription_status_popup"
 	customFeatureMainPolicyNodesOnly                  = "main_policy_nodes_only"
+	customFeatureHideCurrentNodeLabel                 = "hide_current_node_label"
 	customFeatureCloudDispatch                        = "cloud_dispatch"
 	customFeatureSSPanelNodePageParse                 = "sspanel_node_page_parse"
 	customFeatureRegistrationInvite                   = "registration_invite"
@@ -91,6 +93,7 @@ var (
 		customFeatureInviteStatsTotalCommissionIconColor,
 		customFeatureSubscriptionStatusPopup,
 		customFeatureMainPolicyNodesOnly,
+		customFeatureHideCurrentNodeLabel,
 		customFeatureCloudDispatch,
 		customFeatureSSPanelNodePageParse,
 		customFeatureRegistrationInvite,
@@ -378,6 +381,9 @@ func filterAllowedUIColorFeatureKeysForClient(featureKeys []string, client strin
 	}
 	result := allowed[:0]
 	for _, featureKey := range allowed {
+		if featureKey == customFeatureHideCurrentNodeLabel {
+			continue
+		}
 		if client == buildClientLegacy {
 			if featureKey == customFeatureCustomInviteLink {
 				continue
@@ -522,6 +528,13 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 			result.ProxyGroupsMainPolicyNodesOnly = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
 		}
 	}
+	if ui != nil {
+		if enabledNode := getMapValueNode(ui, "hide_current_node_label"); enabledNode != nil {
+			result.HideCurrentNodeLabel = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "hideCurrentNodeLabel"); enabledNode != nil {
+			result.HideCurrentNodeLabel = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
+	}
 
 	cloudDispatch := getMapValueNode(profileRoot, "cloud_dispatch")
 	if cloudDispatch == nil {
@@ -630,6 +643,8 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	setMapBoolValue(subscriptionStatusPopup, "enabled", config.SubscriptionStatusPopupEnabled)
 	setOrRemoveMapStringValue(subscriptionStatusPopup, "official_url", config.SubscriptionStatusOfficialURL, "officialUrl")
 	removeMapKeys(ui, "subscriptionStatusPopup")
+	setMapBoolValue(ui, "hide_current_node_label", config.HideCurrentNodeLabel)
+	removeMapKeys(ui, "hideCurrentNodeLabel")
 	setMapBoolValue(proxyGroups, "main_policy_nodes_only", config.ProxyGroupsMainPolicyNodesOnly)
 	removeMapKeys(proxyGroups, "mainPolicyNodesOnly")
 	removeMapKeys(ui, "proxyGroups")
@@ -750,6 +765,7 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"subscription_status_popup_enabled":        config.SubscriptionStatusPopupEnabled,
 		"subscription_status_official_url":         config.SubscriptionStatusOfficialURL,
 		"proxy_groups_main_policy_nodes_only":      config.ProxyGroupsMainPolicyNodesOnly,
+		"hide_current_node_label":                  config.HideCurrentNodeLabel,
 		"cloud_dispatch_enabled":                   config.CloudDispatchEnabled,
 		"cloud_dispatch_query_url":                 config.CloudDispatchQueryURL,
 		"cloud_dispatch_query_secret":              config.CloudDispatchQuerySecret,
@@ -790,6 +806,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		SubscriptionStatusPopupEnabled       bool     `json:"subscription_status_popup_enabled"`
 		SubscriptionStatusOfficialURL        string   `json:"subscription_status_official_url"`
 		ProxyGroupsMainPolicyNodesOnly       bool     `json:"proxy_groups_main_policy_nodes_only"`
+		HideCurrentNodeLabel                 bool     `json:"hide_current_node_label"`
 		CloudDispatchEnabled                 bool     `json:"cloud_dispatch_enabled"`
 		CloudDispatchQueryURL                string   `json:"cloud_dispatch_query_url"`
 		CloudDispatchQuerySecret             string   `json:"cloud_dispatch_query_secret"`
@@ -1017,6 +1034,9 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureMainPolicyNodesOnly) {
 		targetConfig.ProxyGroupsMainPolicyNodesOnly = req.ProxyGroupsMainPolicyNodesOnly
 	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureHideCurrentNodeLabel) {
+		targetConfig.HideCurrentNodeLabel = req.HideCurrentNodeLabel
+	}
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureCloudDispatch) {
 		targetConfig.CloudDispatchEnabled = req.CloudDispatchEnabled
 		targetConfig.CloudDispatchQueryURL = normalizedCloudDispatchQueryURL
@@ -1099,6 +1119,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"subscription_status_popup_enabled":        targetConfig.SubscriptionStatusPopupEnabled,
 		"subscription_status_official_url":         targetConfig.SubscriptionStatusOfficialURL,
 		"proxy_groups_main_policy_nodes_only":      targetConfig.ProxyGroupsMainPolicyNodesOnly,
+		"hide_current_node_label":                  targetConfig.HideCurrentNodeLabel,
 		"cloud_dispatch_enabled":                   targetConfig.CloudDispatchEnabled,
 		"cloud_dispatch_query_url":                 targetConfig.CloudDispatchQueryURL,
 		"cloud_dispatch_query_secret":              targetConfig.CloudDispatchQuerySecret,

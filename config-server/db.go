@@ -1489,6 +1489,8 @@ func normalizeCustomFeatureKey(featureKey string) string {
 	switch featureKey {
 	case "invite_link", "inviteLink", "invite_link_enabled", "inviteLinkEnabled", "registration_invite_link":
 		return customFeatureCustomInviteLink
+	case "hideCurrentNodeLabel", "current_node_label", "hide_current_node":
+		return customFeatureHideCurrentNodeLabel
 	default:
 		return featureKey
 	}
