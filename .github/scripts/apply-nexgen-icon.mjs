@@ -118,8 +118,7 @@ function ensurePngIconSource(sourcePath, sourceDir) {
 function ensureSquareIconSource(sourcePath, sourceDir) {
   const dimension = getImageDimension(sourcePath);
   if (!dimension) {
-    console.warn("无法识别图标尺寸，继续使用原图。");
-    return sourcePath;
+    throw new Error("无法识别图标尺寸，不能确认是否符合 Tauri 正方形图标要求。请使用 PNG/WebP/JPEG/GIF/BMP 图标，或确保 ImageMagick 可用。");
   }
 
   if (dimension.width === dimension.height) {
@@ -144,6 +143,11 @@ function ensureSquareIconSource(sourcePath, sourceDir) {
   });
   if (result.status !== 0 || !fs.existsSync(outputPath)) {
     throw new Error("图标自动规整为正方形失败。");
+  }
+
+  const outputDimension = getImageDimension(outputPath);
+  if (!outputDimension || outputDimension.width !== outputDimension.height) {
+    throw new Error("图标自动规整后的输出仍不是有效正方形。");
   }
 
   return outputPath;
@@ -262,7 +266,144 @@ function getImageMetadata(sourcePath) {
 
 function getImageDimension(sourcePath) {
   const metadata = getImageMetadata(sourcePath);
-  return metadata ? { width: metadata.width, height: metadata.height } : null;
+  if (metadata) {
+    return { width: metadata.width, height: metadata.height };
+  }
+
+  return getImageDimensionFromBuffer(fs.readFileSync(sourcePath));
+}
+
+function getImageDimensionFromBuffer(buffer) {
+  if (buffer.length >= 24 && compareBytes(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
+    return {
+      width: buffer.readUInt32BE(16),
+      height: buffer.readUInt32BE(20),
+    };
+  }
+
+  if (buffer.length >= 10) {
+    const gifHeader = buffer.toString("ascii", 0, 6);
+    if (gifHeader === "GIF87a" || gifHeader === "GIF89a") {
+      return {
+        width: buffer.readUInt16LE(6),
+        height: buffer.readUInt16LE(8),
+      };
+    }
+  }
+
+  if (buffer.length >= 30 && buffer.toString("ascii", 0, 2) === "BM") {
+    return {
+      width: Math.abs(buffer.readInt32LE(18)),
+      height: Math.abs(buffer.readInt32LE(22)),
+    };
+  }
+
+  if (buffer.length >= 12 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") {
+    return getWebpDimension(buffer);
+  }
+
+  if (buffer.length >= 4 && compareBytes(buffer, [0xff, 0xd8, 0xff])) {
+    return getJpegDimension(buffer);
+  }
+
+  return null;
+}
+
+function getWebpDimension(buffer) {
+  let offset = 12;
+  while (offset + 8 <= buffer.length) {
+    const chunkType = buffer.toString("ascii", offset, offset + 4);
+    const chunkSize = buffer.readUInt32LE(offset + 4);
+    const payloadOffset = offset + 8;
+    const nextOffset = payloadOffset + chunkSize + (chunkSize % 2);
+
+    if (payloadOffset + chunkSize > buffer.length) return null;
+
+    if (chunkType === "VP8X" && chunkSize >= 10) {
+      return {
+        width: 1 + readUInt24LE(buffer, payloadOffset + 4),
+        height: 1 + readUInt24LE(buffer, payloadOffset + 7),
+      };
+    }
+
+    if (chunkType === "VP8L" && chunkSize >= 5 && buffer[payloadOffset] === 0x2f) {
+      const b1 = buffer[payloadOffset + 1];
+      const b2 = buffer[payloadOffset + 2];
+      const b3 = buffer[payloadOffset + 3];
+      const b4 = buffer[payloadOffset + 4];
+      return {
+        width: 1 + (((b2 & 0x3f) << 8) | b1),
+        height: 1 + (((b4 & 0x0f) << 10) | (b3 << 2) | ((b2 & 0xc0) >> 6)),
+      };
+    }
+
+    if (chunkType === "VP8 " && chunkSize >= 10) {
+      return {
+        width: buffer.readUInt16LE(payloadOffset + 6) & 0x3fff,
+        height: buffer.readUInt16LE(payloadOffset + 8) & 0x3fff,
+      };
+    }
+
+    offset = nextOffset;
+  }
+
+  return null;
+}
+
+function readUInt24LE(buffer, offset) {
+  return buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16);
+}
+
+function getJpegDimension(buffer) {
+  let offset = 2;
+  while (offset + 9 < buffer.length) {
+    if (buffer[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+
+    while (buffer[offset] === 0xff) {
+      offset += 1;
+    }
+
+    const marker = buffer[offset];
+    offset += 1;
+
+    if (marker === 0xd9 || marker === 0xda) return null;
+    if (offset + 2 > buffer.length) return null;
+
+    const segmentLength = buffer.readUInt16BE(offset);
+    if (segmentLength < 2 || offset + segmentLength > buffer.length) return null;
+
+    if (isJpegStartOfFrameMarker(marker)) {
+      return {
+        height: buffer.readUInt16BE(offset + 3),
+        width: buffer.readUInt16BE(offset + 5),
+      };
+    }
+
+    offset += segmentLength;
+  }
+
+  return null;
+}
+
+function isJpegStartOfFrameMarker(marker) {
+  return [
+    0xc0,
+    0xc1,
+    0xc2,
+    0xc3,
+    0xc5,
+    0xc6,
+    0xc7,
+    0xc9,
+    0xca,
+    0xcb,
+    0xcd,
+    0xce,
+    0xcf,
+  ].includes(marker);
 }
 
 function findImageMagickPadCommand(sourcePath, targetPath, size) {
