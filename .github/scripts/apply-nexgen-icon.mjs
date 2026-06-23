@@ -26,7 +26,8 @@ if (!fs.existsSync(appIconSource)) {
   throw new Error(`NexGen App 图标源不存在：${appIconSource}`);
 }
 
-const preparedAppIconSource = ensureSquareIconSource(appIconSource, sourceDir);
+const pngAppIconSource = ensurePngIconSource(appIconSource, sourceDir);
+const preparedAppIconSource = ensureSquareIconSource(pngAppIconSource, sourceDir);
 
 if (isPathInside(preparedAppIconSource, iconsDir)) {
   console.log("NexGen App 图标源已在 Tauri icons 目录，跳过图标生成。");
@@ -68,6 +69,52 @@ function hashFile(filePath) {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
+function ensurePngIconSource(sourcePath, sourceDir) {
+  const inspection = inspectImageSource(sourcePath);
+  if (!inspection.valid) {
+    throw new Error(`NexGen App 图标文件无效：${inspection.reason}`);
+  }
+
+  const outputDir = path.join(sourceDir, ".nexgen", "icons");
+  const outputPath = path.join(outputDir, "app-icon.source.png");
+  const format = normalizeImageFormat(inspection.format);
+
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  if (format === "png") {
+    if (path.extname(sourcePath).toLowerCase() === ".png") {
+      return sourcePath;
+    }
+    if (path.resolve(sourcePath) !== path.resolve(outputPath)) {
+      fs.copyFileSync(sourcePath, outputPath);
+    }
+    return outputPath;
+  }
+
+  const convertCommand = findImageMagickConvertCommand(sourcePath, outputPath);
+  if (!convertCommand) {
+    throw new Error(`图标格式为 ${format}，但当前环境缺少可用的图片转换工具（ImageMagick）将其转换为 PNG。`);
+  }
+
+  const [command, args] = convertCommand;
+  const result = spawnSync(command, args, {
+    cwd: sourceDir,
+    env: process.env,
+    stdio: "ignore",
+    shell: process.platform === "win32",
+  });
+  if (result.status !== 0 || !fs.existsSync(outputPath)) {
+    throw new Error(`图标转换为 PNG 失败：${path.basename(sourcePath)}`);
+  }
+
+  const convertedInspection = inspectImageSource(outputPath);
+  if (!convertedInspection.valid || normalizeImageFormat(convertedInspection.format) !== "png") {
+    throw new Error("图标转换后的输出不是有效 PNG。");
+  }
+
+  return outputPath;
+}
+
 function ensureSquareIconSource(sourcePath, sourceDir) {
   const dimension = getImageDimension(sourcePath);
   if (!dimension) {
@@ -102,38 +149,120 @@ function ensureSquareIconSource(sourcePath, sourceDir) {
   return outputPath;
 }
 
-function getImageDimension(sourcePath) {
-  if (commandExists("magick")) {
-    const result = spawnSync("magick", ["identify", "-format", "%w %h", sourcePath], {
-      cwd: path.dirname(sourcePath),
-      env: process.env,
-      encoding: "utf8",
-      shell: process.platform === "win32",
-    });
-    if (result.status === 0) {
-      const match = String(result.stdout || "").trim().match(/^(\d+)\s+(\d+)$/);
-      if (match) {
-        return { width: Number(match[1]), height: Number(match[2]) };
-      }
-    }
+function inspectImageSource(sourcePath) {
+  if (!fs.existsSync(sourcePath)) {
+    return { valid: false, reason: `文件不存在：${sourcePath}` };
   }
 
-  if (commandExists("identify")) {
-    const result = spawnSync("identify", ["-format", "%w %h", sourcePath], {
+  const fileBuffer = fs.readFileSync(sourcePath);
+  if (fileBuffer.length === 0) {
+    return { valid: false, reason: "文件为空" };
+  }
+
+  const head = fileBuffer.subarray(0, Math.min(fileBuffer.length, 4096));
+  const signatureFormat = detectImageFormatFromBuffer(head);
+  if (signatureFormat) {
+    return { valid: true, format: signatureFormat };
+  }
+
+  const textPreview = head.toString("utf8").replace(/^\uFEFF/, "").trimStart();
+  if (looksLikeSvg(textPreview)) {
+    return { valid: true, format: "svg" };
+  }
+  if (looksLikeHtml(textPreview)) {
+    return { valid: false, reason: "内容看起来是 HTML，可能是图床错误页或鉴权页面" };
+  }
+  if (looksLikeJson(textPreview)) {
+    return { valid: false, reason: "内容看起来是 JSON，不是图片" };
+  }
+
+  const metadata = getImageMetadata(sourcePath);
+  if (metadata?.format) {
+    return { valid: true, format: normalizeImageFormat(metadata.format) };
+  }
+
+  return { valid: false, reason: "文件头无法识别为受支持图片，且图片工具也无法解析" };
+}
+
+function detectImageFormatFromBuffer(buffer) {
+  if (buffer.length >= 8 && compareBytes(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return "png";
+  if (buffer.length >= 3 && compareBytes(buffer, [0xff, 0xd8, 0xff])) return "jpeg";
+  if (buffer.length >= 12 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") return "webp";
+  if (buffer.length >= 6) {
+    const gifHeader = buffer.toString("ascii", 0, 6);
+    if (gifHeader === "GIF87a" || gifHeader === "GIF89a") return "gif";
+  }
+  if (buffer.length >= 2 && buffer.toString("ascii", 0, 2) === "BM") return "bmp";
+  if (buffer.length >= 4 && compareBytes(buffer, [0x00, 0x00, 0x01, 0x00])) return "ico";
+  if (buffer.length >= 4) {
+    const littleEndianTiff = compareBytes(buffer, [0x49, 0x49, 0x2a, 0x00]);
+    const bigEndianTiff = compareBytes(buffer, [0x4d, 0x4d, 0x00, 0x2a]);
+    if (littleEndianTiff || bigEndianTiff) return "tiff";
+  }
+  if (buffer.length >= 12 && buffer.toString("ascii", 4, 8) === "ftyp") {
+    const brand = buffer.toString("ascii", 8, 12).toLowerCase();
+    if (brand === "avif" || brand === "avis") return "avif";
+    if (brand.startsWith("hei") || brand.startsWith("mif")) return "heic";
+  }
+  return "";
+}
+
+function compareBytes(buffer, bytes) {
+  if (buffer.length < bytes.length) return false;
+  return bytes.every((value, index) => buffer[index] === value);
+}
+
+function looksLikeSvg(text) {
+  return /^<\?xml[\s\S]*?<svg\b/i.test(text) || /^<!doctype\s+svg[\s\S]*?<svg\b/i.test(text) || /^<svg\b/i.test(text);
+}
+
+function looksLikeHtml(text) {
+  return /^<!doctype\s+html\b/i.test(text) || /^<html\b/i.test(text) || /^<head\b/i.test(text) || /^<body\b/i.test(text);
+}
+
+function looksLikeJson(text) {
+  return /^(?:\{|\[)/.test(text);
+}
+
+function normalizeImageFormat(format) {
+  const normalized = String(format || "").trim().toLowerCase();
+  if (!normalized) return "";
+  if (normalized === "jpg" || normalized === "jpeg") return "jpeg";
+  if (normalized === "svg+xml") return "svg";
+  if (normalized === "tif") return "tiff";
+  return normalized;
+}
+
+function getImageMetadata(sourcePath) {
+  const probeCommands = [
+    ["magick", ["identify", "-format", "%m %w %h", sourcePath]],
+    ["identify", ["-format", "%m %w %h", sourcePath]],
+  ];
+
+  for (const [command, args] of probeCommands) {
+    if (!commandExists(command)) continue;
+    const result = spawnSync(command, args, {
       cwd: path.dirname(sourcePath),
       env: process.env,
       encoding: "utf8",
       shell: process.platform === "win32",
     });
-    if (result.status === 0) {
-      const match = String(result.stdout || "").trim().match(/^(\d+)\s+(\d+)$/);
-      if (match) {
-        return { width: Number(match[1]), height: Number(match[2]) };
-      }
-    }
+    if (result.status !== 0) continue;
+    const match = String(result.stdout || "").trim().match(/^([A-Za-z0-9+_-]+)\s+(\d+)\s+(\d+)$/);
+    if (!match) continue;
+    return {
+      format: match[1],
+      width: Number(match[2]),
+      height: Number(match[3]),
+    };
   }
 
   return null;
+}
+
+function getImageDimension(sourcePath) {
+  const metadata = getImageMetadata(sourcePath);
+  return metadata ? { width: metadata.width, height: metadata.height } : null;
 }
 
 function findImageMagickPadCommand(sourcePath, targetPath, size) {
@@ -147,6 +276,20 @@ function findImageMagickPadCommand(sourcePath, targetPath, size) {
     `${size}x${size}`,
     targetPath,
   ];
+
+  if (commandExists("magick")) {
+    return ["magick", args];
+  }
+
+  if (commandExists("convert")) {
+    return ["convert", args];
+  }
+
+  return undefined;
+}
+
+function findImageMagickConvertCommand(sourcePath, targetPath) {
+  const args = [sourcePath, targetPath];
 
   if (commandExists("magick")) {
     return ["magick", args];
