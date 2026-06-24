@@ -8,7 +8,7 @@ on:
     types:
       - completed
   schedule:
-    - cron: "17 * * * *"
+    - cron: "17 3 * * *"
   workflow_dispatch:
     inputs:
       retention_hours:
