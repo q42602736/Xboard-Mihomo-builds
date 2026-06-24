@@ -121,19 +121,6 @@ jobs:
           rustup() {
             RETRY_LABEL=rustup retry command rustup "$@"
           }
-          configure_network_retry_tools() {
-            if command -v git >/dev/null 2>&1; then
-              git config --global http.version HTTP/1.1 || true
-              git config --global http.lowSpeedLimit 1000 || true
-              git config --global http.lowSpeedTime 60 || true
-            fi
-            if command -v npm >/dev/null 2>&1; then
-              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
-              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
-              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
-            fi
-          }
-          configure_network_retry_tools || true
           EOF
           echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
 
@@ -379,19 +366,6 @@ jobs:
           rustup() {
             RETRY_LABEL=rustup retry command rustup "$@"
           }
-          configure_network_retry_tools() {
-            if command -v git >/dev/null 2>&1; then
-              git config --global http.version HTTP/1.1 || true
-              git config --global http.lowSpeedLimit 1000 || true
-              git config --global http.lowSpeedTime 60 || true
-            fi
-            if command -v npm >/dev/null 2>&1; then
-              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
-              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
-              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
-            fi
-          }
-          configure_network_retry_tools || true
           EOF
           echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
 
@@ -1218,19 +1192,6 @@ jobs:
           rustup() {
             RETRY_LABEL=rustup retry command rustup "$@"
           }
-          configure_network_retry_tools() {
-            if command -v git >/dev/null 2>&1; then
-              git config --global http.version HTTP/1.1 || true
-              git config --global http.lowSpeedLimit 1000 || true
-              git config --global http.lowSpeedTime 60 || true
-            fi
-            if command -v npm >/dev/null 2>&1; then
-              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
-              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
-              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
-            fi
-          }
-          configure_network_retry_tools || true
           EOF
           echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
 
@@ -1510,19 +1471,6 @@ jobs:
           rustup() {
             RETRY_LABEL=rustup retry command rustup "$@"
           }
-          configure_network_retry_tools() {
-            if command -v git >/dev/null 2>&1; then
-              git config --global http.version HTTP/1.1 || true
-              git config --global http.lowSpeedLimit 1000 || true
-              git config --global http.lowSpeedTime 60 || true
-            fi
-            if command -v npm >/dev/null 2>&1; then
-              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
-              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
-              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
-            fi
-          }
-          configure_network_retry_tools || true
           EOF
           echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
 
