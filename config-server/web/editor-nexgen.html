@@ -580,6 +580,10 @@
             border-color: rgba(255, 68, 68, 0.65);
             box-shadow: 0 0 0 1px rgba(255, 68, 68, 0.16);
         }
+        #buildSection .form-group.is-error > label {
+            color: #ff6b6b;
+            font-weight: 600;
+        }
         #editor {
             width: 100%;
             min-height: 400px;
@@ -3941,9 +3945,9 @@
                                 <div class="help-text error" style="font-weight: 600;">请选择与你当前面板类型对应的源码分支：XBoard、V2Board 和 xiaov2board 请选择 <code>main</code>，SSPanel 请选择对应分支。</div>
                             </div>
                             <div class="form-group">
-                                <label>版本标签</label>
+                                <label for="buildTag">版本</label>
                                 <input type="text" id="buildTag" placeholder="如: 1.0.0" aria-invalid="false">
-                                <div class="help-text" id="buildTagHelpText">这里请直接填写标准版本号，不要带 <code>v</code> 前缀，直接使用 <code>1.0.0</code> 这种格式。</div>
+                                <div class="help-text" id="buildTagHelpText">这里请直接填写标准 SemVer 版本号，不要带 <code>v</code> 前缀，例如 <code>1.0.0</code> 或 <code>1.0.0-beta.1</code>。</div>
                             </div>
                         </div>
                         <div class="form-group">
@@ -3975,7 +3979,7 @@
                             <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
                                 <div style="display:flex; flex-direction:column; gap:4px; min-width:0;">
                                     <div style="color:#aaa; font-size:12px;">我的打包记录</div>
-                                    <div style="color:#666; font-size:11px;">仅保留最近 5 条记录，删除时会同步删除 GitHub 打包产物</div>
+                                    <div style="color:#666; font-size:11px;">老客户端和新客户端共用最近 3 条记录，删除时会同步删除 GitHub 打包产物</div>
                                 </div>
                                 <button type="button" class="btn btn-secondary" id="myBuildRecordsToggleBtn" onclick="toggleMyBuildRecordsPanel()" style="padding:6px 10px; font-size:12px; white-space:nowrap;">展开</button>
                             </div>
@@ -5095,26 +5099,35 @@
         }
 
         function validateBuildTagValue(value) {
-            return /^\d+\.\d+\.\d+$/.test(String(value || '').trim());
+            return /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/.test(String(value || '').trim());
         }
 
-        function updateBuildTagValidationState() {
+        function updateBuildTagValidationState(options) {
             var input = document.getElementById('buildTag');
             var helpText = document.getElementById('buildTagHelpText');
             if (!input || !helpText) return true;
 
+            options = options || {};
             var group = input.closest('.form-group');
             var value = input.value.trim();
-            var isValid = !value || validateBuildTagValue(value);
+            var isMissing = !value;
+            var isValid = isMissing ? !options.requireValue : validateBuildTagValue(value);
 
             if (group) {
                 group.classList.toggle('is-error', !isValid);
             }
             input.setAttribute('aria-invalid', isValid ? 'false' : 'true');
             helpText.classList.toggle('error', !isValid);
-            helpText.innerHTML = isValid
-                ? '这里请直接填写标准版本号，不要带 <code>v</code> 前缀，直接使用 <code>1.0.0</code> 这种格式。'
-                : '版本标签格式不正确，请直接填写 <code>1.0.0</code> 这种格式，不要带 <code>v</code> 前缀，也不要追加 <code>+20260308</code> 这类内容。';
+            if (isValid) {
+                helpText.innerHTML = '这里请直接填写标准 SemVer 版本号，不要带 <code>v</code> 前缀，例如 <code>1.0.0</code> 或 <code>1.0.0-beta.1</code>。';
+            } else if (isMissing) {
+                helpText.innerHTML = '请填写版本号，例如 <code>1.0.0</code>。';
+            } else {
+                helpText.innerHTML = '版本号必须是合法 SemVer，例如 <code>26.6.24</code> 或 <code>1.0.0-beta.1</code>；不要带 <code>v</code> 前缀，也不要写 <code>26.06.24</code> 这种前导零格式。';
+            }
+            if (!isValid && options.focus) {
+                input.focus();
+            }
 
             return isValid;
         }
@@ -6488,7 +6501,8 @@
             syncDerivedProviderName({ updateRemotePreview: false });
 
             syncProfileBoundAppTitle();
-            setMyBuildRecordsExpanded(false);
+            setMyBuildRecordsExpanded(true);
+            loadMyBuildRecords();
             loadAppIconHistory();
             loadProfiles().then(function() { checkActiveBuild(); });
             loadBuildHistory();
@@ -7300,7 +7314,9 @@
             var container = document.getElementById('buildAssets-' + recordId);
             if (!container) return;
             if (!data.available || !data.assets || data.assets.length === 0) {
-                container.innerHTML = '<div style="color:#aaa; font-size:12px;">产物暂未就绪，请稍后再试。</div>';
+                var message = data.message || (data.expired ? '打包产物已过期，请重新打包后下载。' : '产物暂未就绪，请稍后再试。');
+                var color = data.expired ? '#ffb347' : '#aaa';
+                container.innerHTML = '<div style="color:' + color + '; font-size:12px;">' + escapeHtml(message) + '</div>';
                 return;
             }
 
@@ -7532,7 +7548,13 @@
                 }
                 html += '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex-shrink:0;">';
                 html += '<span style="color:' + statusColor + '; font-size:12px;">' + statusText + '</span>';
-                html += '<button type="button" class="btn btn-secondary" style="padding:6px 10px; font-size:12px;" onclick="toggleBuildAssets(' + record.id + ')">' + (record.download_ready ? '查看下载' : '查看产物') + '</button>';
+                if (record.download_ready) {
+                    html += '<button type="button" class="btn btn-primary" style="padding:7px 12px; font-size:12px; font-weight:600;" onclick="toggleBuildAssets(' + record.id + ')">下载文件</button>';
+                } else if (record.release_expired) {
+                    html += '<button type="button" class="btn btn-secondary" style="padding:6px 10px; font-size:12px;" onclick="toggleBuildAssets(' + record.id + ')">文件已过期</button>';
+                } else {
+                    html += '<button type="button" class="btn btn-secondary" style="padding:6px 10px; font-size:12px;" onclick="toggleBuildAssets(' + record.id + ')">查看产物</button>';
+                }
                 html += actionButtonsHtml;
                 html += '</div>';
                 html += '</div>';
@@ -7643,6 +7665,7 @@
                 saveBuildingProfile(null);
                 buildPollContext = null;
                 loadBuildQueue();
+                revealMyBuildRecordsPanel(true);
                 updateBuildProgressCancelAction({
                     record_id: matchedRecord.id,
                     status: matchedRecord.status,
@@ -7672,7 +7695,7 @@
         async function loadMyBuildRecords() {
             try {
                 buildAssetCache = {};
-                var response = await api('GET', appendBuildClientQuery('/build/records?limit=5'));
+                var response = await api('GET', appendBuildClientQuery('/build/records?limit=3'));
                 if (!response) return [];
                 var data = await response.json();
                 if (!response.ok) {
@@ -7701,6 +7724,11 @@
             }
             myBuildRecordsCache = null;
             return Promise.resolve([]);
+        }
+
+        function revealMyBuildRecordsPanel(forceRefresh) {
+            setMyBuildRecordsExpanded(true);
+            return refreshMyBuildRecordsIfNeeded(!!forceRefresh);
         }
 
         function getBuildQueuePollInterval() {
@@ -7793,12 +7821,13 @@
                 return;
             }
             if (!buildTag) {
-                setBuildStatus('请填写版本标签', 'error');
+                updateBuildTagValidationState({ requireValue: true, focus: true });
+                setBuildStatus('请填写版本号', 'error');
                 return;
             }
             if (!validateBuildTagValue(buildTag)) {
-                updateBuildTagValidationState();
-                setBuildStatus('版本标签格式不正确，请直接填写 1.0.0 这种格式', 'error');
+                updateBuildTagValidationState({ requireValue: true, focus: true });
+                setBuildStatus('版本号必须是合法 SemVer，例如 26.6.24 或 1.0.0-beta.1，不能写 26.06.24', 'error');
                 return;
             }
 
@@ -7828,7 +7857,7 @@
 	                setBuildStatus('软件打包已提交！档案: ' + profileDisplayName + ', 内核: ' + formatBuildCoreLabel(buildCore) + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
                 await loadBuildHistory();
                 loadBuildQueue();
-                refreshMyBuildRecordsIfNeeded(false);
+                revealMyBuildRecordsPanel(false);
                 await loadCurrentUserInfo();
                 startBuildPolling({
                     profile: profileName,
@@ -10298,6 +10327,7 @@
                     saveBuildingProfile(null);
                     buildPollContext = null;
                     loadBuildQueue();
+                    revealMyBuildRecordsPanel(true);
                     updateBuildProgressCancelAction(data);
                 }
             } catch (e) {

@@ -4359,7 +4359,7 @@
                             <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
                                 <div style="display:flex; flex-direction:column; gap:4px; min-width:0;">
                                     <div style="color:#aaa; font-size:12px;">我的打包记录</div>
-                                    <div style="color:#666; font-size:11px;">仅保留最近 5 条记录，删除时会同步删除 GitHub 打包产物</div>
+                                    <div style="color:#666; font-size:11px;">老客户端和新客户端共用最近 3 条记录，删除时会同步删除 GitHub 打包产物</div>
                                 </div>
                                 <button type="button" class="btn btn-secondary" id="myBuildRecordsToggleBtn" onclick="toggleMyBuildRecordsPanel()" style="padding:6px 10px; font-size:12px; white-space:nowrap;">展开</button>
                             </div>
@@ -6975,7 +6975,8 @@
 
             syncProfileBoundAppTitle();
             updateSecureLogPathHint();
-            setMyBuildRecordsExpanded(false);
+            setMyBuildRecordsExpanded(true);
+            loadMyBuildRecords();
             loadAppIconHistory();
             loadProfiles().then(function() { checkActiveBuild(); });
             loadBuildHistory();
@@ -7647,7 +7648,9 @@
             var container = document.getElementById('buildAssets-' + recordId);
             if (!container) return;
             if (!data.available || !data.assets || data.assets.length === 0) {
-                container.innerHTML = '<div style="color:#aaa; font-size:12px;">产物暂未就绪，请稍后再试。</div>';
+                var message = data.message || (data.expired ? '打包产物已过期，请重新打包后下载。' : '产物暂未就绪，请稍后再试。');
+                var color = data.expired ? '#ffb347' : '#aaa';
+                container.innerHTML = '<div style="color:' + color + '; font-size:12px;">' + escapeHtml(message) + '</div>';
                 return;
             }
 
@@ -7879,7 +7882,13 @@
                 }
                 html += '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex-shrink:0;">';
                 html += '<span style="color:' + statusColor + '; font-size:12px;">' + statusText + '</span>';
-                html += '<button type="button" class="btn btn-secondary" style="padding:6px 10px; font-size:12px;" onclick="toggleBuildAssets(' + record.id + ')">' + (record.download_ready ? '查看下载' : '查看产物') + '</button>';
+                if (record.download_ready) {
+                    html += '<button type="button" class="btn btn-primary" style="padding:7px 12px; font-size:12px; font-weight:600;" onclick="toggleBuildAssets(' + record.id + ')">下载文件</button>';
+                } else if (record.release_expired) {
+                    html += '<button type="button" class="btn btn-secondary" style="padding:6px 10px; font-size:12px;" onclick="toggleBuildAssets(' + record.id + ')">文件已过期</button>';
+                } else {
+                    html += '<button type="button" class="btn btn-secondary" style="padding:6px 10px; font-size:12px;" onclick="toggleBuildAssets(' + record.id + ')">查看产物</button>';
+                }
                 html += actionButtonsHtml;
                 html += '</div>';
                 html += '</div>';
@@ -7990,6 +7999,7 @@
                 saveBuildingProfile(null);
                 buildPollContext = null;
                 loadBuildQueue();
+                revealMyBuildRecordsPanel(true);
                 updateBuildProgressCancelAction({
                     record_id: matchedRecord.id,
                     status: matchedRecord.status,
@@ -8019,7 +8029,7 @@
         async function loadMyBuildRecords() {
             try {
                 buildAssetCache = {};
-                var response = await api('GET', appendBuildClientQuery('/build/records?limit=5'));
+                var response = await api('GET', appendBuildClientQuery('/build/records?limit=3'));
                 if (!response) return [];
                 var data = await response.json();
                 if (!response.ok) {
@@ -8048,6 +8058,11 @@
             }
             myBuildRecordsCache = null;
             return Promise.resolve([]);
+        }
+
+        function revealMyBuildRecordsPanel(forceRefresh) {
+            setMyBuildRecordsExpanded(true);
+            return refreshMyBuildRecordsIfNeeded(!!forceRefresh);
         }
 
         function getBuildQueuePollInterval() {
@@ -8175,7 +8190,7 @@
 	                setBuildStatus('软件打包已提交！档案: ' + profileDisplayName + ', 内核: ' + formatBuildCoreLabel(buildCore) + ', 分支: ' + buildBranch + ', 平台: ' + platforms + ', 版本: ' + buildTag, 'success');
                 await loadBuildHistory();
                 loadBuildQueue();
-                refreshMyBuildRecordsIfNeeded(false);
+                revealMyBuildRecordsPanel(false);
                 await loadCurrentUserInfo();
                 startBuildPolling({
                     profile: profileName,
@@ -10215,6 +10230,7 @@
                     saveBuildingProfile(null);
                     buildPollContext = null;
                     loadBuildQueue();
+                    revealMyBuildRecordsPanel(true);
                     updateBuildProgressCancelAction(data);
                 }
             } catch (e) {

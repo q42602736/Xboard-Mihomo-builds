@@ -24,8 +24,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const maxBuildRecordHistory = 5
+const maxBuildRecordHistory = 3
 const buildAssetDownloadLinkTTL = 10 * time.Minute
+const buildReleaseRetentionDuration = 15 * 24 * time.Hour
+const buildReleasePruneCheckInterval = 6 * time.Hour
+const buildReleasePruneBatchLimit = 50
 
 var buildRequestIDPattern = regexp.MustCompile(`BR-[0-9a-fA-F]{24}`)
 
@@ -38,11 +41,14 @@ const (
 )
 
 var (
-	storedProfilesCache     keyedTTLCache[map[string]StoredProfile]
-	storedProfileKeysCache  keyedTTLCache[map[string]StoredProfile]
-	buildQueueSnapshotCache keyedTTLCache[BuildQueueSnapshot]
-	buildStatusCache        keyedTTLCache[map[string]interface{}]
-	buildCacheMu            sync.Mutex
+	storedProfilesCache      keyedTTLCache[map[string]StoredProfile]
+	storedProfileKeysCache   keyedTTLCache[map[string]StoredProfile]
+	buildQueueSnapshotCache  keyedTTLCache[BuildQueueSnapshot]
+	buildStatusCache         keyedTTLCache[map[string]interface{}]
+	buildCacheMu             sync.Mutex
+	buildReleasePruneMu      sync.Mutex
+	buildReleasePruneLastAt  time.Time
+	buildReleasePruneRunning bool
 )
 
 func cloneInterfaceMap(src map[string]interface{}) map[string]interface{} {
@@ -2143,6 +2149,60 @@ func buildReleaseTag(record *BuildRecord) string {
 	return fmt.Sprintf("%s-%s-%d", record.Profile, record.Tag, record.RunID)
 }
 
+func buildRecordReleaseBaseTime(record *BuildRecord) (time.Time, bool) {
+	if record == nil {
+		return time.Time{}, false
+	}
+	for _, value := range []string{record.FinishedAt, record.UpdatedAt, record.CreatedAt} {
+		if parsed, ok := parseDBTimestamp(value); ok {
+			return parsed, true
+		}
+	}
+	return time.Time{}, false
+}
+
+func buildRecordReleaseExpiresAt(record *BuildRecord) (time.Time, bool) {
+	base, ok := buildRecordReleaseBaseTime(record)
+	if !ok {
+		return time.Time{}, false
+	}
+	return base.Add(buildReleaseRetentionDuration), true
+}
+
+func buildRecordReleaseExpired(record *BuildRecord) bool {
+	if record == nil {
+		return false
+	}
+	if strings.TrimSpace(record.ReleasePrunedAt) != "" {
+		return true
+	}
+	if record.Status != "completed" || buildReleaseTag(record) == "" {
+		return false
+	}
+	expiresAt, ok := buildRecordReleaseExpiresAt(record)
+	return ok && !time.Now().Before(expiresAt)
+}
+
+func buildRecordReleaseExpiryResponseFields(record *BuildRecord) map[string]interface{} {
+	fields := map[string]interface{}{
+		"release_pruned_at": strings.TrimSpace(record.ReleasePrunedAt),
+		"release_expired":   buildRecordReleaseExpired(record),
+	}
+	if expiresAt, ok := buildRecordReleaseExpiresAt(record); ok {
+		fields["release_expires_at"] = expiresAt.Format(time.RFC3339)
+	} else {
+		fields["release_expires_at"] = ""
+	}
+	if strings.TrimSpace(record.ReleasePrunedAt) != "" {
+		fields["release_expired_message"] = "打包产物已过期并从 GitHub 删除，请重新打包。"
+	} else if fields["release_expired"].(bool) {
+		fields["release_expired_message"] = "打包产物已超过 15 天保留期，请重新打包。"
+	} else {
+		fields["release_expired_message"] = ""
+	}
+	return fields
+}
+
 func canAccessBuildRecord(claims *Claims, record *BuildRecord) bool {
 	if claims == nil || record == nil {
 		return false
@@ -2159,7 +2219,7 @@ func canAccessBuildRecord(claims *Claims, record *BuildRecord) bool {
 
 func buildRecordResponse(record BuildRecord) map[string]interface{} {
 	releaseTag := buildReleaseTag(&record)
-	return map[string]interface{}{
+	response := map[string]interface{}{
 		"id":               record.ID,
 		"code_id":          record.CodeID,
 		"code_name":        record.CodeName,
@@ -2187,8 +2247,12 @@ func buildRecordResponse(record BuildRecord) map[string]interface{} {
 		"created_at":       record.CreatedAt,
 		"updated_at":       record.UpdatedAt,
 		"release_tag":      releaseTag,
-		"download_ready":   releaseTag != "" && record.Status == "completed" && record.Conclusion == "success",
+		"download_ready":   releaseTag != "" && record.Status == "completed" && record.Conclusion == "success" && !buildRecordReleaseExpired(&record),
 	}
+	for key, value := range buildRecordReleaseExpiryResponseFields(&record) {
+		response[key] = value
+	}
+	return response
 }
 
 func buildRecordInputs(record *BuildRecord) map[string]string {
@@ -3005,6 +3069,9 @@ func (h *Handlers) resolveBuildRecordAsset(record *BuildRecord, assetID int64) (
 	if record == nil {
 		return nil, fmt.Errorf("打包记录不存在")
 	}
+	if buildRecordReleaseExpired(record) {
+		return nil, fmt.Errorf("打包产物已过期，请重新打包")
+	}
 
 	releaseTag := buildReleaseTag(record)
 	if releaseTag == "" {
@@ -3116,7 +3183,7 @@ func (h *Handlers) deleteBuildRecordRelease(record *BuildRecord) error {
 }
 
 func (h *Handlers) cleanupOverflowBuildRecords(codeID int, client string) {
-	records, err := listOverflowBuildRecordsByClient(codeID, normalizeBuildClient(client), maxBuildRecordHistory)
+	records, err := listOverflowBuildRecords(codeID, maxBuildRecordHistory)
 	if err != nil {
 		log.Printf("清理旧打包记录失败: code_id=%d client=%s err=%v", codeID, client, err)
 		return
@@ -3133,6 +3200,53 @@ func (h *Handlers) cleanupOverflowBuildRecords(codeID int, client string) {
 		if err := deleteBuildRecord(record.ID); err != nil {
 			log.Printf("删除旧打包记录失败: record_id=%d err=%v", record.ID, err)
 		}
+	}
+}
+
+func (h *Handlers) cleanupExpiredBuildRecordReleases(force bool) {
+	now := time.Now()
+	buildReleasePruneMu.Lock()
+	if buildReleasePruneRunning || (!force && !buildReleasePruneLastAt.IsZero() && now.Sub(buildReleasePruneLastAt) < buildReleasePruneCheckInterval) {
+		buildReleasePruneMu.Unlock()
+		return
+	}
+	buildReleasePruneRunning = true
+	buildReleasePruneLastAt = now
+	buildReleasePruneMu.Unlock()
+
+	defer func() {
+		buildReleasePruneMu.Lock()
+		buildReleasePruneRunning = false
+		buildReleasePruneMu.Unlock()
+	}()
+
+	records, err := listExpiredBuildRecordsForReleasePrune(now.Add(-buildReleaseRetentionDuration), buildReleasePruneBatchLimit)
+	if err != nil {
+		log.Printf("查询过期打包产物失败: err=%v", err)
+		return
+	}
+	for _, record := range records {
+		if isActiveWorkflowStatus(record.Status) {
+			continue
+		}
+		releaseTag := buildReleaseTag(&record)
+		if releaseTag == "" {
+			if err := markBuildRecordReleasePruned(record.ID); err != nil {
+				log.Printf("标记空 Release 打包记录过期失败: record_id=%d err=%v", record.ID, err)
+			}
+			continue
+		}
+		if err := h.deleteBuildRecordRelease(&record); err != nil {
+			log.Printf("删除过期打包产物失败: record_id=%d release_tag=%s err=%v", record.ID, releaseTag, err)
+			continue
+		}
+		if err := markBuildRecordReleasePruned(record.ID); err != nil {
+			log.Printf("标记打包产物已过期失败: record_id=%d err=%v", record.ID, err)
+			continue
+		}
+		githubReleaseCache.delete(githubReleaseCacheKey(cfg.BuildOwner, cfg.BuildRepo, releaseTag))
+		invalidateBuildCachesForRecord(&record)
+		log.Printf("已删除过期打包产物: record_id=%d release_tag=%s", record.ID, releaseTag)
 	}
 }
 
@@ -3273,6 +3387,7 @@ func (h *Handlers) TriggerBuild(w http.ResponseWriter, r *http.Request) {
 		r.RemoteAddr)
 
 	go h.cleanupOverflowBuildRecords(record.CodeID, record.Client)
+	go h.cleanupExpiredBuildRecordReleases(false)
 
 	jsonResponse(w, map[string]interface{}{
 		"message":    "打包已提交",
@@ -4398,6 +4513,8 @@ func (h *Handlers) GetBuildQueue(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) ListBuildRecords(w http.ResponseWriter, r *http.Request) {
+	go h.cleanupExpiredBuildRecordReleases(false)
+
 	claims := getClaims(r)
 	client := normalizeBuildClient(r.URL.Query().Get("client"))
 	if ok, message := canAccessClientForClaims(claims, client); !ok {
@@ -4448,6 +4565,18 @@ func (h *Handlers) GetBuildRecordAssets(w http.ResponseWriter, r *http.Request) 
 	reconciled := h.reconcileBuildRecords([]BuildRecord{*record}, true)
 	if len(reconciled) > 0 {
 		record = &reconciled[0]
+	}
+	if buildRecordReleaseExpired(record) {
+		expiryFields := buildRecordReleaseExpiryResponseFields(record)
+		jsonResponse(w, map[string]interface{}{
+			"record":      buildRecordResponse(*record),
+			"available":   false,
+			"expired":     true,
+			"message":     expiryFields["release_expired_message"],
+			"release_tag": buildReleaseTag(record),
+			"assets":      []map[string]interface{}{},
+		})
+		return
 	}
 
 	releaseTag := buildReleaseTag(record)
@@ -4524,6 +4653,8 @@ func (h *Handlers) CreateBuildRecordAssetDownloadLink(w http.ResponseWriter, r *
 	asset, err := h.resolveBuildRecordAsset(record, assetID)
 	if err != nil {
 		switch err.Error() {
+		case "打包产物已过期，请重新打包":
+			jsonError(w, err.Error(), http.StatusGone)
 		case "当前打包尚未生成可下载产物", "打包产物不存在":
 			jsonError(w, err.Error(), 404)
 		default:
@@ -4656,6 +4787,8 @@ func (h *Handlers) DownloadBuildRecordAsset(w http.ResponseWriter, r *http.Reque
 	matchedAsset, err := h.resolveBuildRecordAsset(record, assetID)
 	if err != nil {
 		switch err.Error() {
+		case "打包产物已过期，请重新打包":
+			jsonError(w, err.Error(), http.StatusGone)
 		case "当前打包尚未生成可下载产物", "打包产物不存在":
 			jsonError(w, err.Error(), 404)
 		default:
@@ -4716,6 +4849,8 @@ func (h *Handlers) DownloadBuildRecordAssetByToken(w http.ResponseWriter, r *htt
 	matchedAsset, err := h.resolveBuildRecordAsset(record, assetID)
 	if err != nil {
 		switch err.Error() {
+		case "打包产物已过期，请重新打包":
+			writeDownloadLinkStatusPage(w, http.StatusGone, "打包产物已过期", "该打包产物只保留 15 天，当前文件已经过期并被清理，请重新打包后下载。")
 		case "当前打包尚未生成可下载产物", "打包产物不存在":
 			writeDownloadLinkStatusPage(w, http.StatusNotFound, "打包产物不存在", "当前打包产物已不存在、尚未生成，或已经被删除。")
 		default:

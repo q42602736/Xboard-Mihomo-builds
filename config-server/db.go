@@ -72,6 +72,7 @@ func initDB() {
 				run_id INTEGER DEFAULT 0,
 				run_url TEXT DEFAULT '',
 				release_tag TEXT DEFAULT '',
+				release_pruned_at TEXT DEFAULT '',
 				status TEXT NOT NULL DEFAULT 'queued',
 				conclusion TEXT DEFAULT '',
 				status_source TEXT DEFAULT '',
@@ -123,6 +124,7 @@ func initDB() {
 	ensureBuildRecordColumn("core", "TEXT DEFAULT 'mihomo'")
 	ensureBuildRecordColumn("run_url", "TEXT DEFAULT ''")
 	ensureBuildRecordColumn("release_tag", "TEXT DEFAULT ''")
+	ensureBuildRecordColumn("release_pruned_at", "TEXT DEFAULT ''")
 	ensureBuildRecordColumn("status_source", "TEXT DEFAULT ''")
 	ensureBuildRecordColumn("progress_percent", "INTEGER DEFAULT 0")
 	ensureBuildRecordColumn("progress_text", "TEXT DEFAULT ''")
@@ -183,6 +185,7 @@ type BuildRecord struct {
 	RunID           int64  `json:"run_id"`
 	RunURL          string `json:"run_url"`
 	ReleaseTag      string `json:"release_tag"`
+	ReleasePrunedAt string `json:"release_pruned_at"`
 	Status          string `json:"status"`
 	Conclusion      string `json:"conclusion"`
 	StatusSource    string `json:"status_source"`
@@ -287,7 +290,7 @@ func updateBuildRecordStatusProgressExt(recordID, runID int64, status, conclusio
 func getBuildRecord(recordID int64) (*BuildRecord, error) {
 	var record BuildRecord
 	row := db.QueryRow(
-		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(progress_details, ''), COALESCE(usage_counted, 0),
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, COALESCE(release_pruned_at, ''), status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(progress_details, ''), COALESCE(usage_counted, 0),
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records WHERE id = ?`,
 		recordID,
@@ -306,6 +309,7 @@ func getBuildRecord(recordID int64) (*BuildRecord, error) {
 		&record.RunID,
 		&record.RunURL,
 		&record.ReleaseTag,
+		&record.ReleasePrunedAt,
 		&record.Status,
 		&record.Conclusion,
 		&record.StatusSource,
@@ -331,7 +335,7 @@ func getBuildRecordByRequestID(requestID string) (*BuildRecord, error) {
 	}
 	var record BuildRecord
 	row := db.QueryRow(
-		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(progress_details, ''), COALESCE(usage_counted, 0),
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, COALESCE(release_pruned_at, ''), status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(progress_details, ''), COALESCE(usage_counted, 0),
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records WHERE request_id = ?`,
 		requestID,
@@ -350,6 +354,7 @@ func getBuildRecordByRequestID(requestID string) (*BuildRecord, error) {
 		&record.RunID,
 		&record.RunURL,
 		&record.ReleaseTag,
+		&record.ReleasePrunedAt,
 		&record.Status,
 		&record.Conclusion,
 		&record.StatusSource,
@@ -378,7 +383,7 @@ func listBuildRecordsByClient(codeID int, isAdmin bool, client string, limit int
 		limit = 20
 	}
 
-	query := `SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(progress_details, ''), COALESCE(usage_counted, 0),
+	query := `SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, COALESCE(release_pruned_at, ''), status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(progress_details, ''), COALESCE(usage_counted, 0),
 	                 COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		FROM build_records`
 	args := []interface{}{}
@@ -420,6 +425,7 @@ func listBuildRecordsByClient(codeID int, isAdmin bool, client string, limit int
 			&record.RunID,
 			&record.RunURL,
 			&record.ReleaseTag,
+			&record.ReleasePrunedAt,
 			&record.Status,
 			&record.Conclusion,
 			&record.StatusSource,
@@ -447,7 +453,7 @@ func listActiveBuildRecordsForQueue(client string, since time.Time, limit int) (
 	}
 	client = strings.TrimSpace(client)
 	rows, err := db.Query(
-		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(progress_details, ''), COALESCE(usage_counted, 0),
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, COALESCE(release_pruned_at, ''), status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(progress_details, ''), COALESCE(usage_counted, 0),
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records
 		 WHERE status != 'completed'
@@ -482,6 +488,7 @@ func listActiveBuildRecordsForQueue(client string, since time.Time, limit int) (
 			&record.RunID,
 			&record.RunURL,
 			&record.ReleaseTag,
+			&record.ReleasePrunedAt,
 			&record.Status,
 			&record.Conclusion,
 			&record.StatusSource,
@@ -513,7 +520,7 @@ func listOverflowBuildRecordsByClient(codeID int, client string, keep int) ([]Bu
 	}
 
 	rows, err := db.Query(
-		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(progress_details, ''), COALESCE(usage_counted, 0),
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, COALESCE(release_pruned_at, ''), status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(progress_details, ''), COALESCE(usage_counted, 0),
 		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
 		 FROM build_records
 		 WHERE code_id = ? AND (? = '' OR COALESCE(client, 'xboard_mihomo_sub') = ?)
@@ -543,6 +550,7 @@ func listOverflowBuildRecordsByClient(codeID int, client string, keep int) ([]Bu
 			&record.RunID,
 			&record.RunURL,
 			&record.ReleaseTag,
+			&record.ReleasePrunedAt,
 			&record.Status,
 			&record.Conclusion,
 			&record.StatusSource,
@@ -562,6 +570,83 @@ func listOverflowBuildRecordsByClient(codeID int, client string, keep int) ([]Bu
 		records = append(records, record)
 	}
 	return records, nil
+}
+
+func listExpiredBuildRecordsForReleasePrune(cutoff time.Time, limit int) ([]BuildRecord, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+
+	rows, err := db.Query(
+		`SELECT id, code_id, code_name, request_id, COALESCE(client, 'xboard_mihomo_sub'), profile, tag, branch, COALESCE(core, 'mihomo'), platforms, run_id, run_url, release_tag, COALESCE(release_pruned_at, ''), status, conclusion, status_source, COALESCE(progress_percent, 0), COALESCE(progress_text, ''), COALESCE(progress_stage, ''), COALESCE(progress_details, ''), COALESCE(usage_counted, 0),
+		        COALESCE(bound_at, ''), COALESCE(finished_at, ''), COALESCE(last_sync_at, ''), created_at, updated_at
+		 FROM build_records
+		 WHERE status = 'completed'
+		   AND (TRIM(COALESCE(release_tag, '')) != '' OR COALESCE(run_id, 0) > 0)
+		   AND TRIM(COALESCE(release_pruned_at, '')) = ''
+		   AND datetime(COALESCE(NULLIF(finished_at, ''), updated_at, created_at)) < datetime(?)
+		 ORDER BY COALESCE(NULLIF(finished_at, ''), updated_at, created_at) ASC, id ASC
+		 LIMIT ?`,
+		cutoff.Format("2006-01-02 15:04:05"),
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	records := []BuildRecord{}
+	for rows.Next() {
+		var record BuildRecord
+		if err := rows.Scan(
+			&record.ID,
+			&record.CodeID,
+			&record.CodeName,
+			&record.RequestID,
+			&record.Client,
+			&record.Profile,
+			&record.Tag,
+			&record.Branch,
+			&record.Core,
+			&record.Platforms,
+			&record.RunID,
+			&record.RunURL,
+			&record.ReleaseTag,
+			&record.ReleasePrunedAt,
+			&record.Status,
+			&record.Conclusion,
+			&record.StatusSource,
+			&record.Progress,
+			&record.ProgressText,
+			&record.ProgressStage,
+			&record.ProgressDetails,
+			&record.UsageCounted,
+			&record.BoundAt,
+			&record.FinishedAt,
+			&record.LastSyncAt,
+			&record.CreatedAt,
+			&record.UpdatedAt,
+		); err != nil {
+			continue
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}
+
+func markBuildRecordReleasePruned(recordID int64) error {
+	if recordID <= 0 {
+		return nil
+	}
+	_, err := db.Exec(
+		`UPDATE build_records
+		 SET release_pruned_at = CURRENT_TIMESTAMP,
+		     updated_at = CURRENT_TIMESTAMP
+		 WHERE id = ?
+		   AND TRIM(COALESCE(release_pruned_at, '')) = ''`,
+		recordID,
+	)
+	return err
 }
 
 func deleteBuildRecord(recordID int64) error {
