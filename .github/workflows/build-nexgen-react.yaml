@@ -52,6 +52,16 @@ env:
   NEXGEN_SOURCE_REPO: q42602736/NexGen-client-React
   NODE_VERSION: '22'
   GO_VERSION: '1.22'
+  CI_RETRY_ATTEMPTS: '5'
+  CI_RETRY_DELAY_SECONDS: '5'
+  CARGO_NET_RETRY: '5'
+  CARGO_HTTP_MULTIPLEXING: 'false'
+  CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
+  NPM_CONFIG_FETCH_RETRIES: '5'
+  NPM_CONFIG_FETCH_RETRY_MINTIMEOUT: '20000'
+  NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT: '120000'
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
 
 jobs:
   prepare-release:
@@ -83,6 +93,50 @@ jobs:
             exit 1
           fi
 
+      - name: Configure Network Retries
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ci-retry-env.sh" <<'EOF'
+          retry() {
+            local max_attempts="${CI_RETRY_ATTEMPTS:-5}"
+            local delay_seconds="${CI_RETRY_DELAY_SECONDS:-5}"
+            local attempt=1
+            local exit_code=0
+            local label="${RETRY_LABEL:-${1##*/}}"
+            while true; do
+              "$@" && return 0
+              exit_code=$?
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::error::${label} 失败，已重试 ${max_attempts} 次。"
+                return "$exit_code"
+              fi
+              echo "::warning::${label} 失败，准备重试 ${attempt}/${max_attempts}。"
+              sleep $((delay_seconds * attempt))
+              attempt=$((attempt + 1))
+            done
+          }
+          curl() {
+            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
+          }
+          rustup() {
+            RETRY_LABEL=rustup retry command rustup "$@"
+          }
+          configure_network_retry_tools() {
+            if command -v git >/dev/null 2>&1; then
+              git config --global http.version HTTP/1.1 || true
+              git config --global http.lowSpeedLimit 1000 || true
+              git config --global http.lowSpeedTime 60 || true
+            fi
+            if command -v npm >/dev/null 2>&1; then
+              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
+            fi
+          }
+          configure_network_retry_tools || true
+          EOF
+          echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
+
       - name: Checkout Build Scripts
         uses: actions/checkout@v4
         with:
@@ -106,7 +160,7 @@ jobs:
 
       - name: Install NexGen Name Dependencies
         working-directory: source
-        run: npm ci --omit=dev --ignore-scripts
+        run: retry npm ci --omit=dev --ignore-scripts
 
       - name: Read And Convert Profile
         id: config
@@ -297,6 +351,50 @@ jobs:
       matrix: ${{ fromJson(needs.resolve-build-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Configure Network Retries
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ci-retry-env.sh" <<'EOF'
+          retry() {
+            local max_attempts="${CI_RETRY_ATTEMPTS:-5}"
+            local delay_seconds="${CI_RETRY_DELAY_SECONDS:-5}"
+            local attempt=1
+            local exit_code=0
+            local label="${RETRY_LABEL:-${1##*/}}"
+            while true; do
+              "$@" && return 0
+              exit_code=$?
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::error::${label} 失败，已重试 ${max_attempts} 次。"
+                return "$exit_code"
+              fi
+              echo "::warning::${label} 失败，准备重试 ${attempt}/${max_attempts}。"
+              sleep $((delay_seconds * attempt))
+              attempt=$((attempt + 1))
+            done
+          }
+          curl() {
+            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
+          }
+          rustup() {
+            RETRY_LABEL=rustup retry command rustup "$@"
+          }
+          configure_network_retry_tools() {
+            if command -v git >/dev/null 2>&1; then
+              git config --global http.version HTTP/1.1 || true
+              git config --global http.lowSpeedLimit 1000 || true
+              git config --global http.lowSpeedTime 60 || true
+            fi
+            if command -v npm >/dev/null 2>&1; then
+              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
+            fi
+          }
+          configure_network_retry_tools || true
+          EOF
+          echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
+
       - name: Report Build Started
         env:
           CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
@@ -419,12 +517,8 @@ jobs:
           echo "$android_home/platform-tools" >> "$GITHUB_PATH"
 
           set +o pipefail
-          yes | "$sdkmanager_path" --licenses > /dev/null || true
-          yes | "$sdkmanager_path" \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0" \
-            "ndk;27.0.12077973"
+          retry bash -c 'yes | "$1" --licenses > /dev/null' _ "$sdkmanager_path" || true
+          retry bash -c 'yes | "$1" "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973"' _ "$sdkmanager_path"
           set -o pipefail
 
           echo "ANDROID_NDK_HOME=$android_home/ndk/27.0.12077973" >> "$GITHUB_ENV"
@@ -432,7 +526,7 @@ jobs:
 
       - name: Install Dependencies
         working-directory: source
-        run: npm ci
+        run: retry npm ci
 
       - name: Warm Go Module Cache
         shell: bash
@@ -450,15 +544,8 @@ jobs:
             (
               cd "$module_dir"
               go env GOVERSION GOMOD GOPROXY GOMODCACHE GOCACHE
-              for attempt in 1 2 3; do
-                if go mod download; then
-                  echo "Go module 预热完成：$module_dir"
-                  return 0
-                fi
-                echo "Go module 下载失败，准备重试：$module_dir attempt=$attempt"
-                sleep $((attempt * 10))
-              done
-              go mod download
+              retry go mod download
+              echo "Go module 预热完成：$module_dir"
             )
           }
 
@@ -513,19 +600,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nexgen-react-android-core-
 
+      - name: Warm Rust Crate Cache
+        shell: bash
+        run: |
+          if [ -f source/src-tauri/Cargo.lock ]; then
+            (cd source/src-tauri && retry cargo fetch --locked)
+          else
+            echo "跳过 Rust crate 预热，未找到 source/src-tauri/Cargo.lock"
+          fi
+
       - name: Install Image Tools
         shell: bash
         run: |
           case "${{ runner.os }}" in
             Linux)
-              sudo apt-get update -y
-              sudo apt-get install -y --no-install-recommends imagemagick
+              retry sudo apt-get update -y
+              retry sudo apt-get install -y --no-install-recommends imagemagick
               ;;
             macOS)
-              brew install imagemagick
+              retry brew install imagemagick
               ;;
             Windows)
-              choco install imagemagick -y --no-progress
+              retry choco install imagemagick -y --no-progress
               powershell -NoProfile -Command '$dir = Get-ChildItem "C:\Program Files" -Directory -Filter "ImageMagick*" | Select-Object -First 1; if ($dir) { Add-Content -Path $env:GITHUB_PATH -Value $dir.FullName }'
               ;;
             *)
@@ -670,7 +766,7 @@ jobs:
 
           sync_nexgen_build_inputs
           if [ ! -d src-tauri/gen/android/app ]; then
-            npm --ignore-scripts run tauri -- android init
+            retry npm --ignore-scripts run tauri -- android init
           fi
           configure_android_signing
           mkdir -p dist
@@ -1094,6 +1190,50 @@ jobs:
     needs: [prepare-release, build]
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     steps:
+      - name: Configure Network Retries
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ci-retry-env.sh" <<'EOF'
+          retry() {
+            local max_attempts="${CI_RETRY_ATTEMPTS:-5}"
+            local delay_seconds="${CI_RETRY_DELAY_SECONDS:-5}"
+            local attempt=1
+            local exit_code=0
+            local label="${RETRY_LABEL:-${1##*/}}"
+            while true; do
+              "$@" && return 0
+              exit_code=$?
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::error::${label} 失败，已重试 ${max_attempts} 次。"
+                return "$exit_code"
+              fi
+              echo "::warning::${label} 失败，准备重试 ${attempt}/${max_attempts}。"
+              sleep $((delay_seconds * attempt))
+              attempt=$((attempt + 1))
+            done
+          }
+          curl() {
+            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
+          }
+          rustup() {
+            RETRY_LABEL=rustup retry command rustup "$@"
+          }
+          configure_network_retry_tools() {
+            if command -v git >/dev/null 2>&1; then
+              git config --global http.version HTTP/1.1 || true
+              git config --global http.lowSpeedLimit 1000 || true
+              git config --global http.lowSpeedTime 60 || true
+            fi
+            if command -v npm >/dev/null 2>&1; then
+              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
+            fi
+          }
+          configure_network_retry_tools || true
+          EOF
+          echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
+
       - name: Report Bundle Started
         env:
           CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
@@ -1342,6 +1482,50 @@ jobs:
     needs: [prepare-release, build, merge-artifacts]
     if: ${{ always() }}
     steps:
+      - name: Configure Network Retries
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ci-retry-env.sh" <<'EOF'
+          retry() {
+            local max_attempts="${CI_RETRY_ATTEMPTS:-5}"
+            local delay_seconds="${CI_RETRY_DELAY_SECONDS:-5}"
+            local attempt=1
+            local exit_code=0
+            local label="${RETRY_LABEL:-${1##*/}}"
+            while true; do
+              "$@" && return 0
+              exit_code=$?
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::error::${label} 失败，已重试 ${max_attempts} 次。"
+                return "$exit_code"
+              fi
+              echo "::warning::${label} 失败，准备重试 ${attempt}/${max_attempts}。"
+              sleep $((delay_seconds * attempt))
+              attempt=$((attempt + 1))
+            done
+          }
+          curl() {
+            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
+          }
+          rustup() {
+            RETRY_LABEL=rustup retry command rustup "$@"
+          }
+          configure_network_retry_tools() {
+            if command -v git >/dev/null 2>&1; then
+              git config --global http.version HTTP/1.1 || true
+              git config --global http.lowSpeedLimit 1000 || true
+              git config --global http.lowSpeedTime 60 || true
+            fi
+            if command -v npm >/dev/null 2>&1; then
+              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
+            fi
+          }
+          configure_network_retry_tools || true
+          EOF
+          echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
+
       - name: Complete Build Record
         env:
           CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}

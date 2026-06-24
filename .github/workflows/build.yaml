@@ -59,6 +59,16 @@ env:
   MIHOMO_SOURCE_REPO: q42602736/Xboard-Mihomo_sub
   XRAY_SOURCE_REPO: q42602736/NexGen-client-xray
   FLUTTER_VERSION: "3.41.4"
+  CI_RETRY_ATTEMPTS: '5'
+  CI_RETRY_DELAY_SECONDS: '5'
+  CARGO_NET_RETRY: '5'
+  CARGO_HTTP_MULTIPLEXING: 'false'
+  CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
+  NPM_CONFIG_FETCH_RETRIES: '5'
+  NPM_CONFIG_FETCH_RETRY_MINTIMEOUT: '20000'
+  NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT: '120000'
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
 
 jobs:
   prepare-release:
@@ -87,6 +97,50 @@ jobs:
             echo "::error::缺少 GitHub Actions secret: CONFIG_SERVER_EVENT_TOKEN"
             exit 1
           fi
+
+      - name: Configure Network Retries
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ci-retry-env.sh" <<'EOF'
+          retry() {
+            local max_attempts="${CI_RETRY_ATTEMPTS:-5}"
+            local delay_seconds="${CI_RETRY_DELAY_SECONDS:-5}"
+            local attempt=1
+            local exit_code=0
+            local label="${RETRY_LABEL:-${1##*/}}"
+            while true; do
+              "$@" && return 0
+              exit_code=$?
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::error::${label} 失败，已重试 ${max_attempts} 次。"
+                return "$exit_code"
+              fi
+              echo "::warning::${label} 失败，准备重试 ${attempt}/${max_attempts}。"
+              sleep $((delay_seconds * attempt))
+              attempt=$((attempt + 1))
+            done
+          }
+          curl() {
+            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
+          }
+          rustup() {
+            RETRY_LABEL=rustup retry command rustup "$@"
+          }
+          configure_network_retry_tools() {
+            if command -v git >/dev/null 2>&1; then
+              git config --global http.version HTTP/1.1 || true
+              git config --global http.lowSpeedLimit 1000 || true
+              git config --global http.lowSpeedTime 60 || true
+            fi
+            if command -v npm >/dev/null 2>&1; then
+              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
+            fi
+          }
+          configure_network_retry_tools || true
+          EOF
+          echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
 
       - name: Prepare Draft Release
         id: release
@@ -308,6 +362,51 @@ jobs:
             echo "✅ Building $CURRENT ($ARCH)"
           fi
 
+      - name: Configure Network Retries
+        if: steps.check.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ci-retry-env.sh" <<'EOF'
+          retry() {
+            local max_attempts="${CI_RETRY_ATTEMPTS:-5}"
+            local delay_seconds="${CI_RETRY_DELAY_SECONDS:-5}"
+            local attempt=1
+            local exit_code=0
+            local label="${RETRY_LABEL:-${1##*/}}"
+            while true; do
+              "$@" && return 0
+              exit_code=$?
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::error::${label} 失败，已重试 ${max_attempts} 次。"
+                return "$exit_code"
+              fi
+              echo "::warning::${label} 失败，准备重试 ${attempt}/${max_attempts}。"
+              sleep $((delay_seconds * attempt))
+              attempt=$((attempt + 1))
+            done
+          }
+          curl() {
+            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
+          }
+          rustup() {
+            RETRY_LABEL=rustup retry command rustup "$@"
+          }
+          configure_network_retry_tools() {
+            if command -v git >/dev/null 2>&1; then
+              git config --global http.version HTTP/1.1 || true
+              git config --global http.lowSpeedLimit 1000 || true
+              git config --global http.lowSpeedTime 60 || true
+            fi
+            if command -v npm >/dev/null 2>&1; then
+              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
+            fi
+          }
+          configure_network_retry_tools || true
+          EOF
+          echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
+
       - name: Report Build Started
         if: steps.check.outputs.should_run == 'true'
         env:
@@ -383,7 +482,7 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          retry ssh-keyscan github.com >> ~/.ssh/known_hosts
           CORE="${{ github.event.inputs.core || 'mihomo' }}"
           SOURCE_REPO="${{ env.MIHOMO_SOURCE_REPO }}"
           if [ "$CORE" = "xray" ]; then
@@ -391,7 +490,7 @@ jobs:
           fi
           echo "Selected core: $CORE"
           echo "Source repo: $SOURCE_REPO"
-          git clone "git@github.com:${SOURCE_REPO}.git" source
+          retry git clone "git@github.com:${SOURCE_REPO}.git" source
           cd source
           REQUESTED_REF="${{ github.event.inputs.branch }}"
           SOURCE_REF="$REQUESTED_REF"
@@ -402,7 +501,7 @@ jobs:
           echo "Checking out source ref: $SOURCE_REF"
           git checkout "$SOURCE_REF"
           echo "Checked out commit: $(git rev-parse HEAD)"
-          git submodule update --init --recursive
+          retry git submodule update --init --recursive
 
       - name: Apply profile config
         id: config
@@ -472,7 +571,7 @@ jobs:
             echo "✓ jq already available"
           else
             echo "Installing jq..."
-            choco install jq -y --no-progress || true
+            retry choco install jq -y --no-progress || true
             export PATH="/c/ProgramData/chocolatey/bin:$PATH"
             echo "/c/ProgramData/chocolatey/bin" >> $GITHUB_PATH
           fi
@@ -483,7 +582,7 @@ jobs:
             echo "✓ Inno Setup already available"
           else
             echo "Installing Inno Setup..."
-            choco install innosetup -y --no-progress
+            retry choco install innosetup -y --no-progress
             echo "/c/Program Files (x86)/Inno Setup 6" >> $GITHUB_PATH
           fi
 
@@ -498,7 +597,7 @@ jobs:
         run: |
           if ! command -v cargo &> /dev/null; then
             echo "Installing Rust for x64..."
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            retry bash -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
             source "$HOME/.cargo/env"
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           else
@@ -512,7 +611,18 @@ jobs:
         run: |
           if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
             Write-Host "Installing Rust for arm64..."
-            Invoke-WebRequest -Uri "https://win.rustup.rs/aarch64" -OutFile rustup-init.exe
+            $attempt = 1
+            while ($true) {
+              try {
+                Invoke-WebRequest -Uri "https://win.rustup.rs/aarch64" -OutFile rustup-init.exe
+                break
+              } catch {
+                if ($attempt -ge 5) { throw }
+                Write-Warning "下载 rustup-init.exe 失败，准备重试 $attempt/5"
+                Start-Sleep -Seconds (5 * $attempt)
+                $attempt++
+              }
+            }
             .\rustup-init.exe -y --default-toolchain stable
             "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           } else {
@@ -622,7 +732,7 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         run: |
           cd source
-          flutter pub get
+          retry flutter pub get
 
       - name: Generate Executable Names
         if: steps.check.outputs.should_run == 'true'
@@ -644,7 +754,7 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         run: |
           cd source/lib/sdk/flutter_xboard_sdk
-          flutter pub get
+          retry flutter pub get
           dart run build_runner build --delete-conflicting-outputs
 
       - name: Generate Main Project Code
@@ -678,7 +788,7 @@ jobs:
           echo "$INNO_SETUP_DIR" >> $GITHUB_PATH
 
           # 安装 flutter_distributor
-          dart pub global activate flutter_distributor
+          retry dart pub global activate flutter_distributor
           echo "✓ flutter_distributor installed"
 
       - name: Clean Windows Build Cache
@@ -700,7 +810,7 @@ jobs:
         run: |
           echo "Preparing Android build environment..."
           # 安装 flutter_distributor
-          dart pub global activate flutter_distributor
+          retry dart pub global activate flutter_distributor
           echo "✓ flutter_distributor installed"
 
       - name: Prepare macOS Build Environment
@@ -709,24 +819,24 @@ jobs:
           echo "Preparing macOS build environment..."
 
           # 安装 flutter_distributor
-          dart pub global activate flutter_distributor
+          retry dart pub global activate flutter_distributor
           echo "✓ flutter_distributor installed"
 
           # 安装 appdmg (用于生成 DMG)
-          npm install -g appdmg
+          retry npm install -g appdmg
           echo "✓ appdmg installed"
 
           # 运行 pod install
           cd source/macos
-          pod install --repo-update
+          retry pod install --repo-update
           echo "✓ CocoaPods dependencies installed"
 
       - name: Prepare Linux Build Environment
         if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'linux'
         run: |
           echo "Preparing Linux build environment..."
-          sudo apt-get update -y
-          sudo apt-get install -y \
+          retry sudo apt-get update -y
+          retry sudo apt-get install -y \
             clang \
             cmake \
             ninja-build \
@@ -758,7 +868,7 @@ jobs:
           Pin: release n=trixie
           Pin-Priority: 990
           EOF
-          sudo apt-get update -y
+          retry sudo apt-get update -y
           echo "=== apt-cache policy (WPE packages) ==="
           apt-cache policy \
             base-files \
@@ -767,7 +877,7 @@ jobs:
             libwpe-1.0-dev || true
           # 这里不能再用 `-t trixie`，否则 apt 会把整个 Debian trixie 发行版都当成
           # 默认候选，像 base-files 这类基础包也会被拉进来，最终在 Ubuntu runner 上冲突。
-          sudo apt-get install -y --no-install-recommends \
+          retry sudo apt-get install -y --no-install-recommends \
             libwpe-1.0-dev/trixie \
             libwpewebkit-2.0-dev/trixie \
             libwpebackend-fdo-1.0-dev/trixie
@@ -782,7 +892,7 @@ jobs:
           pkg-config --modversion libsecret-1 || true
           pkg-config --modversion wayland-server || true
           flutter config --enable-linux-desktop
-          dart pub global activate flutter_distributor
+          retry dart pub global activate flutter_distributor
           echo "✓ Linux dependencies and flutter_distributor installed"
 
       - name: Build
@@ -1243,11 +1353,56 @@ jobs:
             echo "✅ Building linux ($ARCH)"
           fi
 
+      - name: Configure Network Retries
+        if: steps.check.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ci-retry-env.sh" <<'EOF'
+          retry() {
+            local max_attempts="${CI_RETRY_ATTEMPTS:-5}"
+            local delay_seconds="${CI_RETRY_DELAY_SECONDS:-5}"
+            local attempt=1
+            local exit_code=0
+            local label="${RETRY_LABEL:-${1##*/}}"
+            while true; do
+              "$@" && return 0
+              exit_code=$?
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::error::${label} 失败，已重试 ${max_attempts} 次。"
+                return "$exit_code"
+              fi
+              echo "::warning::${label} 失败，准备重试 ${attempt}/${max_attempts}。"
+              sleep $((delay_seconds * attempt))
+              attempt=$((attempt + 1))
+            done
+          }
+          curl() {
+            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
+          }
+          rustup() {
+            RETRY_LABEL=rustup retry command rustup "$@"
+          }
+          configure_network_retry_tools() {
+            if command -v git >/dev/null 2>&1; then
+              git config --global http.version HTTP/1.1 || true
+              git config --global http.lowSpeedLimit 1000 || true
+              git config --global http.lowSpeedTime 60 || true
+            fi
+            if command -v npm >/dev/null 2>&1; then
+              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
+            fi
+          }
+          configure_network_retry_tools || true
+          EOF
+          echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
+
       - name: Bootstrap Linux Container
         if: steps.check.outputs.should_run == 'true'
         run: |
-          apt-get update -y
-          apt-get install -y --no-install-recommends \
+          retry apt-get update -y
+          retry apt-get install -y --no-install-recommends \
             ca-certificates \
             curl \
             file \
@@ -1309,7 +1464,7 @@ jobs:
           fi
           echo "Selected core: $CORE"
           echo "Source repo: $SOURCE_REPO"
-          git clone "https://x-access-token:${{ secrets.WORKFLOW_TOKEN }}@github.com/${SOURCE_REPO}.git" source
+          retry git clone "https://x-access-token:${{ secrets.WORKFLOW_TOKEN }}@github.com/${SOURCE_REPO}.git" source
           cd source
           REQUESTED_REF="${{ github.event.inputs.branch }}"
           SOURCE_REF="$REQUESTED_REF"
@@ -1321,7 +1476,7 @@ jobs:
           git checkout "$SOURCE_REF"
           echo "Checked out commit: $(git rev-parse HEAD)"
           git submodule sync --recursive
-          git submodule update --init --recursive
+          retry git submodule update --init --recursive
 
       - name: Apply profile config
         id: config
@@ -1395,7 +1550,7 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         run: |
           cd source
-          flutter pub get
+          retry flutter pub get
 
       - name: Patch flutter_inappwebview_linux for WebKit < 2.50
         if: steps.check.outputs.should_run == 'true'
@@ -1435,7 +1590,7 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         run: |
           cd source/lib/sdk/flutter_xboard_sdk
-          flutter pub get
+          retry flutter pub get
           dart run build_runner build --delete-conflicting-outputs
 
       - name: Generate Main Project Code
@@ -1461,8 +1616,8 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         run: |
           echo "Preparing Linux build environment in Debian trixie container..."
-          apt-get update -y
-          apt-get install -y --no-install-recommends \
+          retry apt-get update -y
+          retry apt-get install -y --no-install-recommends \
             clang \
             cmake \
             g++ \
@@ -1493,7 +1648,7 @@ jobs:
           PUB_CACHE_BIN="${HOME}/.pub-cache/bin"
           echo "$PUB_CACHE_BIN" >> $GITHUB_PATH
           export PATH="$PUB_CACHE_BIN:$PATH"
-          dart pub global activate flutter_distributor
+          retry dart pub global activate flutter_distributor
           echo "✓ Linux dependencies and flutter_distributor installed"
 
       - name: Build
@@ -1740,6 +1895,50 @@ jobs:
     needs: [ prepare-release, build, build-linux ]
     if: ${{ !cancelled() && needs.build.result == 'success' && (needs.build-linux.result == 'success' || needs.build-linux.result == 'skipped') }}
     steps:
+      - name: Configure Network Retries
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ci-retry-env.sh" <<'EOF'
+          retry() {
+            local max_attempts="${CI_RETRY_ATTEMPTS:-5}"
+            local delay_seconds="${CI_RETRY_DELAY_SECONDS:-5}"
+            local attempt=1
+            local exit_code=0
+            local label="${RETRY_LABEL:-${1##*/}}"
+            while true; do
+              "$@" && return 0
+              exit_code=$?
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::error::${label} 失败，已重试 ${max_attempts} 次。"
+                return "$exit_code"
+              fi
+              echo "::warning::${label} 失败，准备重试 ${attempt}/${max_attempts}。"
+              sleep $((delay_seconds * attempt))
+              attempt=$((attempt + 1))
+            done
+          }
+          curl() {
+            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
+          }
+          rustup() {
+            RETRY_LABEL=rustup retry command rustup "$@"
+          }
+          configure_network_retry_tools() {
+            if command -v git >/dev/null 2>&1; then
+              git config --global http.version HTTP/1.1 || true
+              git config --global http.lowSpeedLimit 1000 || true
+              git config --global http.lowSpeedTime 60 || true
+            fi
+            if command -v npm >/dev/null 2>&1; then
+              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
+            fi
+          }
+          configure_network_retry_tools || true
+          EOF
+          echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
+
       - name: Report Bundle Started
         env:
           CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
@@ -1981,6 +2180,50 @@ jobs:
     needs: [ prepare-release, build, build-linux, merge-artifacts ]
     if: ${{ always() }}
     steps:
+      - name: Configure Network Retries
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ci-retry-env.sh" <<'EOF'
+          retry() {
+            local max_attempts="${CI_RETRY_ATTEMPTS:-5}"
+            local delay_seconds="${CI_RETRY_DELAY_SECONDS:-5}"
+            local attempt=1
+            local exit_code=0
+            local label="${RETRY_LABEL:-${1##*/}}"
+            while true; do
+              "$@" && return 0
+              exit_code=$?
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::error::${label} 失败，已重试 ${max_attempts} 次。"
+                return "$exit_code"
+              fi
+              echo "::warning::${label} 失败，准备重试 ${attempt}/${max_attempts}。"
+              sleep $((delay_seconds * attempt))
+              attempt=$((attempt + 1))
+            done
+          }
+          curl() {
+            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
+          }
+          rustup() {
+            RETRY_LABEL=rustup retry command rustup "$@"
+          }
+          configure_network_retry_tools() {
+            if command -v git >/dev/null 2>&1; then
+              git config --global http.version HTTP/1.1 || true
+              git config --global http.lowSpeedLimit 1000 || true
+              git config --global http.lowSpeedTime 60 || true
+            fi
+            if command -v npm >/dev/null 2>&1; then
+              npm config set fetch-retries "${NPM_CONFIG_FETCH_RETRIES:-5}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-mintimeout "${NPM_CONFIG_FETCH_RETRY_MINTIMEOUT:-20000}" --location=global >/dev/null 2>&1 || true
+              npm config set fetch-retry-maxtimeout "${NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT:-120000}" --location=global >/dev/null 2>&1 || true
+            fi
+          }
+          configure_network_retry_tools || true
+          EOF
+          echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
+
       - name: Complete Build Record
         env:
           CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
