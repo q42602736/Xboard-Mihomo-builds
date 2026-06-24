@@ -86,6 +86,7 @@ vendor/
 # ============================================
 # config-server 敏感/生成文件
 # ============================================
+config-server/
 config-server/.env
 config-server/data/
 config-server/config-server
