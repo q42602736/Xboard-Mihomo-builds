@@ -413,6 +413,8 @@ func normalizeNexGenProfileConfig(yamlContent string) string {
 	subscription := ensureMapValueNode(nexgen, "subscription")
 	registrationInvite := ensureMapValueNode(nexgen, "registration_invite")
 	remoteConfig := ensureMapValueNode(nexgen, "remote_config")
+	ui := ensureMapValueNode(nexgen, "ui")
+	telegram := ensureMapValueNode(ui, "telegram")
 
 	var preferEncrypt, useExclusiveMode bool
 	var sspanelNodePageParseEnabled bool
@@ -473,6 +475,12 @@ func normalizeNexGenProfileConfig(yamlContent string) string {
 	}
 	if getMapValueNode(remoteConfig, "api_path_prefix") == nil && getMapValueNode(remoteConfig, "apiPathPrefix") == nil {
 		setMapStringValue(remoteConfig, "api_path_prefix", "/api/v1")
+	}
+	if getMapValueNode(telegram, "show_button") == nil && getMapValueNode(telegram, "showButton") == nil {
+		setMapBoolValue(telegram, "show_button", false)
+	}
+	if getMapValueNode(telegram, "url") == nil {
+		setMapStringValue(telegram, "url", "")
 	}
 
 	var buf bytes.Buffer

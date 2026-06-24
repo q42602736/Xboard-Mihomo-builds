@@ -13,10 +13,10 @@ const profile = parseSimpleYaml(fs.readFileSync(profilePath, "utf8"));
 const defaultConfig = parseSimpleYaml(fs.readFileSync(defaultConfigPath, "utf8"));
 const profileConfig = record(profile.nexgen);
 const legacyXboard = record(profile.xboard);
-const nexgen = deepMerge(
+const nexgen = normalizeNexgenConfigDefaults(deepMerge(
   record(defaultConfig.nexgen),
   Object.keys(profileConfig).length > 0 ? convertNexgenProfile(profileConfig) : convertXboardToNexgen(legacyXboard),
-);
+));
 
 fs.writeFileSync(outputPath, toYaml({ nexgen }));
 
@@ -25,6 +25,7 @@ function convertNexgenProfile(nexgen) {
   normalizeCloudDispatchOverride(converted);
   converted.ui = {
     ...record(converted.ui),
+    telegram: normalizeTelegramOverride(record(converted.ui).telegram),
     utilities: normalizeUtilitiesOverride(record(converted.ui).utilities),
   };
   return pruneEmpty(converted);
@@ -56,6 +57,7 @@ function convertXboardToNexgen(xboard) {
       notice: record(ui.notice),
       checkin: record(ui.checkin),
       gift_card: record(ui.gift_card),
+      telegram: normalizeTelegramOverride(ui.telegram),
       utilities: normalizeUtilitiesOverride(ui.utilities),
       proxy_groups: record(ui.proxy_groups),
     },
@@ -149,6 +151,32 @@ function normalizeUtilitiesOverride(value) {
       items: Array.isArray(popularApps.items) ? popularApps.items : [],
     },
   };
+}
+
+function normalizeTelegramOverride(value) {
+  const telegram = {
+    ...record(value),
+  };
+  normalizeAlias(telegram, "showButton", "show_button");
+  normalizeAlias(telegram, "channelUrl", "url");
+  normalizeAlias(telegram, "channel_url", "url");
+  normalizeAlias(telegram, "groupUrl", "url");
+  normalizeAlias(telegram, "group_url", "url");
+  normalizeAlias(telegram, "link", "url");
+  return {
+    show_button: typeof telegram.show_button === "boolean" ? telegram.show_button : false,
+    url: text(telegram.url),
+  };
+}
+
+function normalizeNexgenConfigDefaults(config) {
+  const nexgen = record(config);
+  const ui = {
+    ...record(nexgen.ui),
+  };
+  ui.telegram = normalizeTelegramOverride(ui.telegram);
+  nexgen.ui = ui;
+  return nexgen;
 }
 
 function normalizeCfSpeedOverride(value) {

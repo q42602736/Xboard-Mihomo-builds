@@ -3340,6 +3340,22 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">显示 Telegram 频道入口</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="telegramShowButton"><span class="slider"></span></label>
+                                        <span id="telegramShowButtonLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="switch-card-extra">
+                                    <div class="form-group" style="margin-bottom:0;">
+                                        <label>Telegram 频道或群组地址</label>
+                                        <input type="text" id="telegramUrl" placeholder="@fluentboard666 或 https://t.me/fluentboard666">
+                                    </div>
+                                </div>
+                                <div class="help-text">支持 @username 或完整 t.me 链接；关闭后隐藏顶栏 Telegram 入口。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">显示实用工具：网速测试</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="utilitySpeedShowButton" checked><span class="slider"></span></label>
@@ -6378,7 +6394,7 @@
             document.getElementById('provider').addEventListener('change', function() {
                 updateProviderConsistencyState({ source: 'basic' });
             });
-            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'cloudDispatchQueryUrl', 'cloudDispatchQuerySecret', 'cloudDispatchAutoIntervalMinutes', 'cloudDispatchFallbackRetryMinutes', 'utilityCfSpeedTargetDomains', 'utilityCfSpeedAutoReplaceIntervalMinutes', 'apiPathPrefix'].forEach(function(id) {
+            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'cloudDispatchQueryUrl', 'cloudDispatchQuerySecret', 'cloudDispatchAutoIntervalMinutes', 'cloudDispatchFallbackRetryMinutes', 'telegramUrl', 'utilityCfSpeedTargetDomains', 'utilityCfSpeedAutoReplaceIntervalMinutes', 'apiPathPrefix'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (!el) return;
                 el.addEventListener('input', formToYaml);
@@ -6542,6 +6558,9 @@
                 '      show_button: false',
                 '    gift_card:',
                 '      show_button: false',
+                '    telegram:',
+                '      show_button: false',
+                '      url: ""',
                 '    utilities:',
                 '      tools:',
                 '        speed:',
@@ -6834,6 +6853,8 @@
                 show_custom_rule_entry: document.getElementById('showCustomRuleEntry').checked,
                 checkin_show_button: document.getElementById('checkinShowButton').checked,
                 gift_card_show_button: document.getElementById('giftCardShowButton').checked,
+                telegram_show_button: document.getElementById('telegramShowButton').checked,
+                telegram_url: document.getElementById('telegramUrl').value.trim(),
                 utility_speed_show_button: document.getElementById('utilitySpeedShowButton').checked,
                 utility_cf_speed_show_button: document.getElementById('utilityCfSpeedShowButton').checked,
                 utility_cf_speed_target_domains: parseMultilineListValue(document.getElementById('utilityCfSpeedTargetDomains').value),
@@ -7813,7 +7834,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'hideCurrentNodeLabel', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'hideCurrentNodeLabel', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -9617,6 +9638,11 @@
             return match ? parseInt(match[1], 10) : fallback;
         }
 
+        function parseYamlBlockString(block, keyName, fallback) {
+            var match = String(block || '').match(new RegExp('^\\s*' + keyName + ':\\s*(.*)$', 'm'));
+            return match ? stripYamlScalarQuotes(match[1]) : fallback;
+        }
+
         function parseYamlBlockStringList(block, keyName) {
             var lines = String(block || '').split('\n');
             for (var i = 0; i < lines.length; i++) {
@@ -9823,6 +9849,11 @@
             var giftCardShowButton = giftCardShowButtonMatch ? giftCardShowButtonMatch[1] === 'true' : false;
             document.getElementById('giftCardShowButton').checked = giftCardShowButton;
             document.getElementById('giftCardShowButtonLabel').textContent = giftCardShowButton ? '开启' : '关闭';
+            var telegramBlock = extractNestedYamlBlock(yaml, ['ui', 'telegram']) || extractNamedYamlBlock(yaml, 'telegram');
+            var telegramShowButton = parseYamlBlockBool(telegramBlock, 'show_button', false);
+            document.getElementById('telegramShowButton').checked = telegramShowButton;
+            document.getElementById('telegramShowButtonLabel').textContent = telegramShowButton ? '开启' : '关闭';
+            document.getElementById('telegramUrl').value = parseYamlBlockString(telegramBlock, 'url', '');
             var utilitySpeedShowButtonMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}utilities:\s*\n(?:[\s\S]*?)^\s{6}tools:\s*\n(?:[\s\S]*?)^\s{8}speed:\s*\n(?:[\s\S]*?)^\s{10}show_button:\s*(true|false)/m) ||
                 yaml.match(/utilities:\s*\n(?:[\s\S]*?)tools:\s*\n(?:[\s\S]*?)speed:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);

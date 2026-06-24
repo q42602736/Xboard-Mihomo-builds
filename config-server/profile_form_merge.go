@@ -53,6 +53,8 @@ type ProfileFormState struct {
 	NoticeAutoOpenIntervalHours       *int                      `json:"notice_auto_open_interval_hours"`
 	CheckinShowButton                 bool                      `json:"checkin_show_button"`
 	GiftCardShowButton                bool                      `json:"gift_card_show_button"`
+	TelegramShowButton                bool                      `json:"telegram_show_button"`
+	TelegramURL                       string                    `json:"telegram_url"`
 	UtilitySpeedShowButton            bool                      `json:"utility_speed_show_button"`
 	UtilityCfSpeedShowButton          bool                      `json:"utility_cf_speed_show_button"`
 	UtilityCfSpeedTargetDomains       []string                  `json:"utility_cf_speed_target_domains"`
@@ -244,6 +246,11 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	}
 	setMapBoolValue(checkin, "show_button", form.CheckinShowButton)
 	setMapBoolValue(giftCard, "show_button", form.GiftCardShowButton)
+	if rootKey == "nexgen" {
+		telegram := ensureMapValueNode(ui, "telegram")
+		setMapBoolValue(telegram, "show_button", form.TelegramShowButton)
+		setMapStringValue(telegram, "url", strings.TrimSpace(form.TelegramURL))
+	}
 	setMapBoolValue(utilitySpeed, "show_button", form.UtilitySpeedShowButton)
 	if rootKey == "nexgen" {
 		utilityCfSpeed := ensureMapValueNode(utilityTools, "cf_speed")
