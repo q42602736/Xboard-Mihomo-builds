@@ -159,7 +159,7 @@ jobs:
             "https://api.github.com/repos/${PROFILE_REPO}/contents/${ENCODED_PROFILE_PATH}?ref=${PROFILE_BRANCH}")
           if ! echo "$API_RESPONSE" | grep -q '"content"'; then
             echo "::error::读取配置档案失败：$PROFILE_PATH"
-            echo "$API_RESPONSE"
+            printf "%s" "$API_RESPONSE" | node -e 'const fs=require("fs"); const raw=fs.readFileSync(0,"utf8"); try { const data=JSON.parse(raw); console.log(JSON.stringify({message:data.message||"", status:data.status||"", documentation_url:data.documentation_url||""})); } catch { console.log(String(raw).replace(/https?:\/\/\S+/g,"https://[redacted]").slice(0,1000)); }'
             exit 1
           fi
           printf '%s' "$API_RESPONSE" | node -e "
@@ -240,7 +240,7 @@ jobs:
           ")
           if [ -z "$RELEASE_ID" ] || [ -z "$UPLOAD_URL" ]; then
             echo "::error::创建 draft release 失败"
-            echo "$RELEASE_RESPONSE"
+            printf "%s" "$RELEASE_RESPONSE" | node -e 'const fs=require("fs"); const raw=fs.readFileSync(0,"utf8"); try { const data=JSON.parse(raw); console.log(JSON.stringify({message:data.message||"", status:data.status||"", documentation_url:data.documentation_url||"", errors:Array.isArray(data.errors)?data.errors.map(e=>({resource:e.resource,field:e.field,code:e.code})):[]})); } catch { console.log(String(raw).replace(/https?:\/\/\S+/g,"https://[redacted]").slice(0,1000)); }'
             exit 1
           fi
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
@@ -533,7 +533,7 @@ jobs:
             "https://api.github.com/repos/${PROFILE_REPO}/contents/${ENCODED_PROFILE_PATH}?ref=${PROFILE_BRANCH}")
           if ! echo "$API_RESPONSE" | grep -q '"content"'; then
             echo "::error::读取配置档案失败：$PROFILE_PATH"
-            echo "$API_RESPONSE"
+            printf "%s" "$API_RESPONSE" | node -e 'const fs=require("fs"); const raw=fs.readFileSync(0,"utf8"); try { const data=JSON.parse(raw); console.log(JSON.stringify({message:data.message||"", status:data.status||"", documentation_url:data.documentation_url||""})); } catch { console.log(String(raw).replace(/https?:\/\/\S+/g,"https://[redacted]").slice(0,1000)); }'
             exit 1
           fi
           printf '%s' "$API_RESPONSE" | node -e "
@@ -1517,7 +1517,7 @@ jobs:
 
             echo "::warning::同步打包完成状态失败，第 ${ATTEMPT}/${MAX_ATTEMPTS} 次，curl_exit=${CURL_EXIT}，HTTP ${HTTP_CODE:-000}"
             if [ -s "$RESPONSE_FILE" ]; then
-              cat "$RESPONSE_FILE"
+              node -e 'const fs=require("fs"); const raw=fs.readFileSync(process.argv[1],"utf8"); const redacted=String(raw).replace(/https?:\/\/\S+/g,"https://[redacted]").replace(/([A-Za-z0-9_.-]*(?:token|secret|password|passwd|pwd|key|authorization|cookie|session)[A-Za-z0-9_.-]*\s*[:=]\s*)[^\s,}]+/gi,"$1[redacted]").slice(0,2000); console.log(redacted);' "$RESPONSE_FILE"
             fi
             rm -f "$RESPONSE_FILE"
 

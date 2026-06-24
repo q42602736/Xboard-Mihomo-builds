@@ -169,7 +169,7 @@ jobs:
 
           if [ -z "$RELEASE_ID" ] || [ -z "$UPLOAD_URL" ]; then
             echo "Failed to create draft release"
-            echo "$RELEASE_RESPONSE"
+            printf "%s" "$RELEASE_RESPONSE" | node -e 'const fs=require("fs"); const raw=fs.readFileSync(0,"utf8"); try { const data=JSON.parse(raw); console.log(JSON.stringify({message:data.message||"", status:data.status||"", documentation_url:data.documentation_url||"", errors:Array.isArray(data.errors)?data.errors.map(e=>({resource:e.resource,field:e.field,code:e.code})):[]})); } catch { console.log(String(raw).replace(/https?:\/\/\S+/g,"https://[redacted]").slice(0,1000)); }'
             exit 1
           fi
 
@@ -423,7 +423,7 @@ jobs:
             "https://api.github.com/repos/${{ env.PROFILE_REPO }}/contents/${ENCODED_PROFILE_PATH}?ref=${PROFILE_BRANCH}")
           if ! echo "$API_RESPONSE" | grep -q '"content"'; then
             echo "Error: Failed to read $PROFILE_PATH from profile repo branch $PROFILE_BRANCH"
-            echo "$API_RESPONSE"
+            printf "%s" "$API_RESPONSE" | node -e 'const fs=require("fs"); const raw=fs.readFileSync(0,"utf8"); try { const data=JSON.parse(raw); console.log(JSON.stringify({message:data.message||"", status:data.status||"", documentation_url:data.documentation_url||""})); } catch { console.log(String(raw).replace(/https?:\/\/\S+/g,"https://[redacted]").slice(0,1000)); }'
             exit 1
           fi
           printf '%s' "$API_RESPONSE" | node -e "
@@ -448,8 +448,20 @@ jobs:
           echo "Successfully applied profile: $PROFILE_NAME, App Name: $APP_NAME"
 
           echo ""
-          echo "=== Config file content (first 30 lines) ==="
-          head -30 assets/config/xboard.config.yaml
+          echo "=== Config file content (first 30 lines, redacted) ==="
+          node - assets/config/xboard.config.yaml 30 <<'NODE'
+          const fs = require("fs");
+          const file = process.argv[2];
+          const limit = Number(process.argv[3] || 30);
+          const sensitive = /(token|secret|password|passwd|pwd|key|authorization|cookie|session|decrypt|encrypt|sign|keystore|credential|private|subscription|remote|url|host|domain|api|endpoint|server|panel)/i;
+          const lines = fs.readFileSync(file, "utf8").split(/\r?\n/).slice(0, limit).map((line) => {
+            const urlRedacted = line.replace(/https?:\/\/[^\s"'<>]+/gi, "https://[redacted]");
+            const pair = urlRedacted.match(/^(\s*[^:#\n][^:\n]*:\s*)(.*)$/);
+            if (pair && sensitive.test(pair[1])) return `${pair[1]}[redacted]`;
+            return urlRedacted;
+          });
+          console.log(lines.join("\n"));
+          NODE
 
       - name: Setup Android Signing
         if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'android'
@@ -633,7 +645,7 @@ jobs:
           dart run scripts/generate_executable_names.dart
           echo ""
           echo "=== Generated Executable Names ==="
-          cat lib/generated/executable_names.dart
+          grep "const String executableAppName" lib/generated/executable_names.dart || true
 
           # 从生成的文件中提取拼音应用名称
           PINYIN_NAME=$(grep "const String executableAppName = '" lib/generated/executable_names.dart | sed "s/.*const String executableAppName = '\([^']*\)'.*/\1/")
@@ -660,8 +672,22 @@ jobs:
           echo "=== Generating XBoard Config ==="
           dart run tools/generate_config.dart
           echo ""
-          echo "=== Generated Config ==="
-          cat lib/xboard/config/core/generated_config.dart
+          echo "=== Generated Config (redacted preview) ==="
+          node - lib/xboard/config/core/generated_config.dart 80 <<'NODE'
+          const fs = require("fs");
+          const file = process.argv[2];
+          const limit = Number(process.argv[3] || 80);
+          const sensitive = /(token|secret|password|passwd|pwd|key|authorization|cookie|session|decrypt|encrypt|sign|keystore|credential|private|subscription|remote|url|host|domain|api|endpoint|server|panel)/i;
+          const lines = fs.readFileSync(file, "utf8").split(/\r?\n/).slice(0, limit).map((line) => {
+            let output = line.replace(/https?:\/\/[^\s"',)]+/gi, "https://[redacted]");
+            output = output.replace(/((?:token|secret|password|passwd|pwd|key|authorization|cookie|session|decrypt|encrypt|sign|keystore|credential|private|subscription|remote|url|host|domain|api|endpoint|server|panel)[A-Za-z0-9_]*\s*=\s*)(["`])([^"`]*)\2/gi, "$1$2[redacted]$2");
+            if (sensitive.test(output) && /(["`]).*\1/.test(output)) {
+              output = output.replace(/(["`])([^"`]*)\1/g, "$1[redacted]$1");
+            }
+            return output;
+          });
+          console.log(lines.join("\n"));
+          NODE
           echo ""
           echo "=== Pubspec Assets Check ==="
           grep -A 10 "assets:" pubspec.yaml || echo "No assets section found"
@@ -1341,7 +1367,7 @@ jobs:
             "https://api.github.com/repos/${{ env.PROFILE_REPO }}/contents/${ENCODED_PROFILE_PATH}?ref=${PROFILE_BRANCH}")
           if ! echo "$API_RESPONSE" | grep -q '"content"'; then
             echo "Error: Failed to read $PROFILE_PATH from profile repo branch $PROFILE_BRANCH"
-            echo "$API_RESPONSE"
+            printf "%s" "$API_RESPONSE" | node -e 'const fs=require("fs"); const raw=fs.readFileSync(0,"utf8"); try { const data=JSON.parse(raw); console.log(JSON.stringify({message:data.message||"", status:data.status||"", documentation_url:data.documentation_url||""})); } catch { console.log(String(raw).replace(/https?:\/\/\S+/g,"https://[redacted]").slice(0,1000)); }'
             exit 1
           fi
           printf '%s' "$API_RESPONSE" | node -e "
@@ -1364,8 +1390,20 @@ jobs:
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
           echo "Successfully applied profile: $PROFILE_NAME, App Name: $APP_NAME"
           echo ""
-          echo "=== Config file content (first 30 lines) ==="
-          head -30 assets/config/xboard.config.yaml
+          echo "=== Config file content (first 30 lines, redacted) ==="
+          node - assets/config/xboard.config.yaml 30 <<'NODE'
+          const fs = require("fs");
+          const file = process.argv[2];
+          const limit = Number(process.argv[3] || 30);
+          const sensitive = /(token|secret|password|passwd|pwd|key|authorization|cookie|session|decrypt|encrypt|sign|keystore|credential|private|subscription|remote|url|host|domain|api|endpoint|server|panel)/i;
+          const lines = fs.readFileSync(file, "utf8").split(/\r?\n/).slice(0, limit).map((line) => {
+            const urlRedacted = line.replace(/https?:\/\/[^\s"'<>]+/gi, "https://[redacted]");
+            const pair = urlRedacted.match(/^(\s*[^:#\n][^:\n]*:\s*)(.*)$/);
+            if (pair && sensitive.test(pair[1])) return `${pair[1]}[redacted]`;
+            return urlRedacted;
+          });
+          console.log(lines.join("\n"));
+          NODE
 
       - name: Setup Go
         if: steps.check.outputs.should_run == 'true'
@@ -1425,7 +1463,7 @@ jobs:
           dart run scripts/generate_executable_names.dart
           echo ""
           echo "=== Generated Executable Names ==="
-          cat lib/generated/executable_names.dart
+          grep "const String executableAppName" lib/generated/executable_names.dart || true
 
           PINYIN_NAME=$(grep "const String executableAppName = '" lib/generated/executable_names.dart | sed "s/.*const String executableAppName = '\([^']*\)'.*/\1/")
           echo "profile_name_safe=$PINYIN_NAME" >> $GITHUB_OUTPUT
@@ -1451,8 +1489,22 @@ jobs:
           echo "=== Generating XBoard Config ==="
           dart run tools/generate_config.dart
           echo ""
-          echo "=== Generated Config ==="
-          cat lib/xboard/config/core/generated_config.dart
+          echo "=== Generated Config (redacted preview) ==="
+          node - lib/xboard/config/core/generated_config.dart 80 <<'NODE'
+          const fs = require("fs");
+          const file = process.argv[2];
+          const limit = Number(process.argv[3] || 80);
+          const sensitive = /(token|secret|password|passwd|pwd|key|authorization|cookie|session|decrypt|encrypt|sign|keystore|credential|private|subscription|remote|url|host|domain|api|endpoint|server|panel)/i;
+          const lines = fs.readFileSync(file, "utf8").split(/\r?\n/).slice(0, limit).map((line) => {
+            let output = line.replace(/https?:\/\/[^\s"',)]+/gi, "https://[redacted]");
+            output = output.replace(/((?:token|secret|password|passwd|pwd|key|authorization|cookie|session|decrypt|encrypt|sign|keystore|credential|private|subscription|remote|url|host|domain|api|endpoint|server|panel)[A-Za-z0-9_]*\s*=\s*)(["`])([^"`]*)\2/gi, "$1$2[redacted]$2");
+            if (sensitive.test(output) && /(["`]).*\1/.test(output)) {
+              output = output.replace(/(["`])([^"`]*)\1/g, "$1[redacted]$1");
+            }
+            return output;
+          });
+          console.log(lines.join("\n"));
+          NODE
           echo ""
           echo "=== Pubspec Assets Check ==="
           grep -A 10 "assets:" pubspec.yaml || echo "No assets section found"
@@ -2048,7 +2100,7 @@ jobs:
 
             echo "::warning::同步打包完成状态失败，第 ${ATTEMPT}/${MAX_ATTEMPTS} 次，curl_exit=${CURL_EXIT}，HTTP ${HTTP_CODE:-000}"
             if [ -s "$RESPONSE_FILE" ]; then
-              cat "$RESPONSE_FILE"
+              node -e 'const fs=require("fs"); const raw=fs.readFileSync(process.argv[1],"utf8"); const redacted=String(raw).replace(/https?:\/\/\S+/g,"https://[redacted]").replace(/([A-Za-z0-9_.-]*(?:token|secret|password|passwd|pwd|key|authorization|cookie|session)[A-Za-z0-9_.-]*\s*[:=]\s*)[^\s,}]+/gi,"$1[redacted]").slice(0,2000); console.log(redacted);' "$RESPONSE_FILE"
             fi
             rm -f "$RESPONSE_FILE"
 
