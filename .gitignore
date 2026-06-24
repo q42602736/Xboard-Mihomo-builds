@@ -92,6 +92,7 @@ config-server/config-server
 config-server/xboard-config-server
 config-server/nexgen-client
 config-server/dist/
+config-server/secure_log_decrypt.go
 .serena/
 .ace-tool/
 .keys-tmp/
