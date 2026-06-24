@@ -286,7 +286,7 @@ jobs:
             };
             process.stdout.write(JSON.stringify(payload));
           ')
-          curl -fsS -X POST "$CALLBACK_URL" \
+          command curl --http1.1 --connect-timeout "${BUILD_EVENT_CONNECT_TIMEOUT_SECONDS:-10}" --max-time "${BUILD_EVENT_MAX_TIME_SECONDS:-20}" --retry 2 --retry-delay 1 --retry-all-errors -fsS -X POST "$CALLBACK_URL" \
             -H "Content-Type: application/json" \
             -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
             -d "$PAYLOAD"
@@ -427,7 +427,7 @@ jobs:
             };
             process.stdout.write(JSON.stringify(payload));
           ')
-          curl -fsS -X POST "$CALLBACK_URL" \
+          command curl --http1.1 --connect-timeout "${BUILD_EVENT_CONNECT_TIMEOUT_SECONDS:-10}" --max-time "${BUILD_EVENT_MAX_TIME_SECONDS:-20}" --retry 2 --retry-delay 1 --retry-all-errors -fsS -X POST "$CALLBACK_URL" \
             -H "Content-Type: application/json" \
             -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
             -d "$PAYLOAD" || true
@@ -986,7 +986,7 @@ jobs:
             };
             process.stdout.write(JSON.stringify(payload));
           ')
-          curl -fsS -X POST "$CALLBACK_URL" \
+          command curl --http1.1 --connect-timeout "${BUILD_EVENT_CONNECT_TIMEOUT_SECONDS:-10}" --max-time "${BUILD_EVENT_MAX_TIME_SECONDS:-20}" --retry 2 --retry-delay 1 --retry-all-errors -fsS -X POST "$CALLBACK_URL" \
             -H "Content-Type: application/json" \
             -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
             -d "$PAYLOAD" || true
@@ -1036,7 +1036,7 @@ jobs:
               };
               process.stdout.write(JSON.stringify(payload));
             ')
-            curl -fsS -X POST "$CALLBACK_URL" \
+            command curl --http1.1 --connect-timeout "${BUILD_EVENT_CONNECT_TIMEOUT_SECONDS:-10}" --max-time "${BUILD_EVENT_MAX_TIME_SECONDS:-20}" --retry 2 --retry-delay 1 --retry-all-errors -fsS -X POST "$CALLBACK_URL" \
               -H "Content-Type: application/json" \
               -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
               -d "$PAYLOAD" || true
@@ -1255,7 +1255,7 @@ jobs:
             };
             process.stdout.write(JSON.stringify(payload));
           ')
-          curl -fsS -X POST "$CALLBACK_URL" \
+          command curl --http1.1 --connect-timeout "${BUILD_EVENT_CONNECT_TIMEOUT_SECONDS:-10}" --max-time "${BUILD_EVENT_MAX_TIME_SECONDS:-20}" --retry 2 --retry-delay 1 --retry-all-errors -fsS -X POST "$CALLBACK_URL" \
             -H "Content-Type: application/json" \
             -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
             -d "$PAYLOAD" || true
@@ -1569,7 +1569,7 @@ jobs:
             RESPONSE_FILE="$(mktemp)"
             HTTP_CODE="000"
             CURL_EXIT=0
-            HTTP_CODE=$(curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" -X POST "$CALLBACK_URL" \
+            HTTP_CODE=$(command curl --http1.1 --connect-timeout "${BUILD_EVENT_CONNECT_TIMEOUT_SECONDS:-10}" --max-time "${BUILD_EVENT_MAX_TIME_SECONDS:-20}" --retry 2 --retry-delay 1 --retry-all-errors -sS -o "$RESPONSE_FILE" -w "%{http_code}" -X POST "$CALLBACK_URL" \
               -H "Content-Type: application/json" \
               -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
               -d "$PAYLOAD") || CURL_EXIT=$?
