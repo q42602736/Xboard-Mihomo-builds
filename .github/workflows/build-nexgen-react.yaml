@@ -66,6 +66,9 @@ env:
 jobs:
   prepare-release:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     outputs:
       release_id: ${{ steps.release.outputs.release_id }}
       upload_url: ${{ steps.release.outputs.upload_url }}
@@ -114,12 +117,6 @@ jobs:
               sleep $((delay_seconds * attempt))
               attempt=$((attempt + 1))
             done
-          }
-          curl() {
-            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
-          }
-          rustup() {
-            RETRY_LABEL=rustup retry command rustup "$@"
           }
           EOF
           echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
@@ -363,12 +360,6 @@ jobs:
               attempt=$((attempt + 1))
             done
           }
-          curl() {
-            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
-          }
-          rustup() {
-            RETRY_LABEL=rustup retry command rustup "$@"
-          }
           EOF
           echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
 
@@ -446,9 +437,9 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.platform }}" = "windows-arm64" ]; then
-            rustup target add aarch64-pc-windows-msvc
+            retry rustup target add aarch64-pc-windows-msvc
           else
-            rustup target add x86_64-pc-windows-msvc
+            retry rustup target add x86_64-pc-windows-msvc
           fi
 
       - name: Setup Java
@@ -581,7 +572,7 @@ jobs:
         shell: bash
         run: |
           if [ -f source/src-tauri/Cargo.lock ]; then
-            (cd source/src-tauri && retry cargo fetch --locked)
+            (cd source/src-tauri && retry cargo fetch)
           else
             echo "跳过 Rust crate 预热，未找到 source/src-tauri/Cargo.lock"
           fi
@@ -1164,6 +1155,9 @@ jobs:
   # 从 Draft Release 汇总所有平台产物并回传合集包
   merge-artifacts:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     needs: [prepare-release, build]
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     steps:
@@ -1188,12 +1182,6 @@ jobs:
               sleep $((delay_seconds * attempt))
               attempt=$((attempt + 1))
             done
-          }
-          curl() {
-            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
-          }
-          rustup() {
-            RETRY_LABEL=rustup retry command rustup "$@"
           }
           EOF
           echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
@@ -1443,6 +1431,9 @@ jobs:
 
   notify-build-complete:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     needs: [prepare-release, build, merge-artifacts]
     if: ${{ always() }}
     steps:
@@ -1467,12 +1458,6 @@ jobs:
               sleep $((delay_seconds * attempt))
               attempt=$((attempt + 1))
             done
-          }
-          curl() {
-            RETRY_LABEL=curl retry command curl --http1.1 --retry 5 --retry-delay 2 --retry-all-errors "$@"
-          }
-          rustup() {
-            RETRY_LABEL=rustup retry command rustup "$@"
           }
           EOF
           echo "BASH_ENV=$RUNNER_TEMP/ci-retry-env.sh" >> "$GITHUB_ENV"
