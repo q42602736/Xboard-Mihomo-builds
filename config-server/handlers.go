@@ -272,6 +272,34 @@ func bindProfileTitleForRoot(yamlContent, profileName, rootKey string) string {
 	return strings.TrimRight(buf.String(), "\n")
 }
 
+func bindNexGenProfileProvider(yamlContent, profileName string) string {
+	return bindProfileProviderForRoot(yamlContent, profileName, "nexgen")
+}
+
+func bindProfileProviderForRoot(yamlContent, profileName, rootKey string) string {
+	if yamlContent == "" || profileName == "" {
+		return yamlContent
+	}
+
+	doc, err := parseProfileYamlDocument(yamlContent)
+	if err != nil {
+		return yamlContent
+	}
+
+	root := ensureDocumentMappingNode(doc)
+	profileRoot := ensureMapValueNode(root, rootKey)
+	setMapStringValue(profileRoot, "provider", strings.TrimSpace(profileName))
+
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(doc); err != nil {
+		return yamlContent
+	}
+	_ = encoder.Close()
+	return strings.TrimRight(buf.String(), "\n")
+}
+
 func normalizeSubscriptionConfig(yamlContent string) string {
 	if strings.TrimSpace(yamlContent) == "" {
 		return yamlContent
@@ -733,10 +761,15 @@ func (h *Handlers) ListProfiles(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			list = append(list, StoredProfile{
-				Name:        name,
-				Key:         name,
-				DisplayName: name,
-				Exists:      true,
+				Name: name,
+				Key:  name,
+				DisplayName: func() string {
+					if client == buildClientNexGenReact {
+						return stripGeneratedProfileKeySuffix(name)
+					}
+					return name
+				}(),
+				Exists: true,
 			})
 		}
 	}
@@ -769,11 +802,16 @@ func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	displayName := profileDisplayNameFromYaml(content, name)
+	if client == buildClientNexGenReact {
+		displayName = nexGenProfileDisplayNameFromYaml(content, name)
+	}
+
 	payload := struct {
 		YamlContent string `json:"yaml_content"`
 		LastUpdated string `json:"last_updated,omitempty"`
 		DisplayName string `json:"display_name,omitempty"`
-	}{YamlContent: content, LastUpdated: lastUpdated, DisplayName: profileDisplayNameFromYaml(content, name)}
+	}{YamlContent: content, LastUpdated: lastUpdated, DisplayName: displayName}
 
 	if payload.YamlContent != "" {
 		if client == buildClientNexGenReact {
@@ -897,6 +935,9 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 	if displayName == "" {
 		displayName = name
 	}
+	if client == buildClientNexGenReact {
+		displayName = stripGeneratedProfileKeySuffix(displayName)
+	}
 
 	if req.CreateNew {
 		isNewProfile = true
@@ -922,6 +963,9 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		} else {
 			req.YamlContent = bindProfileTitle(req.YamlContent, displayName)
 		}
+	}
+	if client == buildClientNexGenReact {
+		req.YamlContent = bindNexGenProfileProvider(req.YamlContent, displayName)
 	}
 
 	_, err = profileGH.SaveFile(filePath, req.YamlContent, sha, "保存配置档案: "+name)
@@ -5013,7 +5057,8 @@ func profileContentUsesNexGenRoot(content string) bool {
 
 func renamedProfileContentForClient(client, content, newName string) string {
 	if normalizeBuildClient(client) == buildClientNexGenReact || profileContentUsesNexGenRoot(content) {
-		return bindNexGenProfileTitle(normalizeNexGenProfileConfig(content), newName)
+		content = bindNexGenProfileTitle(normalizeNexGenProfileConfig(content), newName)
+		return bindNexGenProfileProvider(content, newName)
 	}
 	return bindProfileTitle(content, newName)
 }

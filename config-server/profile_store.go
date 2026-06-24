@@ -65,6 +65,25 @@ func profileDisplayNameFromYaml(yamlContent, fallback string) string {
 	return displayName
 }
 
+func stripGeneratedProfileKeySuffix(value string) string {
+	value = strings.TrimSpace(value)
+	index := strings.LastIndex(value, "--")
+	if index < 0 || len(value)-index-2 < 6 {
+		return value
+	}
+	suffix := value[index+2:]
+	for _, ch := range suffix {
+		if !((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
+			return value
+		}
+	}
+	return strings.TrimSpace(value[:index])
+}
+
+func nexGenProfileDisplayNameFromYaml(_ string, fallback string) string {
+	return stripGeneratedProfileKeySuffix(fallback)
+}
+
 func randomProfileKeySuffix() string {
 	buf := make([]byte, 4)
 	if _, err := rand.Read(buf); err != nil {
@@ -242,7 +261,7 @@ func (h *Handlers) createManualProfileForClient(client, displayName string) (Sto
 	}
 	var yamlContent string
 	if client == buildClientNexGenReact {
-		yamlContent = normalizeNexGenProfileConfig(defaultProfileYaml(displayName))
+		yamlContent = bindNexGenProfileProvider(normalizeNexGenProfileConfig(defaultProfileYaml(displayName)), displayName)
 	} else {
 		yamlContent = normalizeSubscriptionConfig(defaultProfileYaml(displayName))
 	}
@@ -296,7 +315,11 @@ func (h *Handlers) listStoredProfilesForClient(client string) (map[string]Stored
 		content, _, err := profileGH.GetFile(item.Path)
 		displayName := name
 		if err == nil {
-			displayName = profileDisplayNameFromYaml(content, name)
+			if normalizeBuildClient(client) == buildClientNexGenReact {
+				displayName = nexGenProfileDisplayNameFromYaml(content, name)
+			} else {
+				displayName = profileDisplayNameFromYaml(content, name)
+			}
 		}
 		lastUpdated, err := profileGH.GetLatestCommitTime(item.Path)
 		if err != nil {

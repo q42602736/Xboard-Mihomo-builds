@@ -3161,25 +3161,12 @@
                     <div class="page-header">
                         <div class="page-header-content">
                             <h2>基础设置</h2>
-                            <p class="subtitle">应用信息、图标与登录背景配置</p>
+                            <p class="subtitle">图标与登录背景配置</p>
                         </div>
                     </div>
                     <div class="editor-container">
-                        <div class="section">
-                            <div class="section-title">应用信息</div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>站点分组名称（provider / panels 键名）</label>
-                                    <input type="text" id="provider" placeholder="建议直接填你的品牌名或项目名">
-                                    <div class="help-text" id="providerHelpText">建议直接填写你的品牌名或项目名。这个值必须与“远程配置文件”里的“站点分组名称”完全一致，remote.config.json 会用它作为 panels 的键名。</div>
-                                </div>
-                                <div class="form-group" id="appTitleGroup">
-                                    <label>应用名称</label>
-                                    <input type="text" id="appTitle" placeholder="如：你的应用名称">
-                                </div>
-                            </div>
-                            <div class="help-text">新客户端固定使用配置档案名称作为文字 Logo，不再提供图片 Logo 配置。</div>
-                        </div>
+                        <input type="hidden" id="provider">
+                        <input type="hidden" id="appTitle">
                         <div class="section">
                             <div class="section-title">应用图标</div>
                             <div class="form-group">
@@ -3697,7 +3684,7 @@
                             <div class="section">
                                 <div class="section-title">操作流程</div>
                                 <div class="remote-config-workflow">
-                                    <div class="remote-config-step"><strong>1. 填写配置项</strong><span>直接填写面板类型、官网地址、站点分组名称、站点列表和静态更新配置，系统会实时生成 remote.config.json。</span></div>
+                                    <div class="remote-config-step"><strong>1. 填写配置项</strong><span>直接填写面板类型、官网地址、站点名称、站点列表和静态更新配置，系统会实时生成 remote.config.json。</span></div>
                                     <div class="remote-config-step"><strong>2. 检查源码预览</strong><span>上方“remote.config.json 源码”页签会实时显示最终 JSON，提交前可先核对格式和字段。</span></div>
                                     <div class="remote-config-step remote-config-step-recommended"><strong class="remote-config-step-title">3. 按需加密配置文件 <span class="remote-config-badge">推荐操作</span></strong><span>首次加密建议点击“生成密钥并加密配置文件”；如果是后续更新配置，直接填写已保存的密钥，再点击“使用当前密钥加密”。</span></div>
                                     <div class="remote-config-step"><strong>4. 保存密钥并下载配置文件</strong><span>如果不需要加密，可直接下载 remote.config.json；若已加密，请保存好密钥，并将它填写到远程配置源的“加密密钥（可选）”中。</span></div>
@@ -3712,21 +3699,21 @@
                                         <select id="remoteConfigPanelType">
                                             <option value="">请选择面板类型</option>
                                             <option value="sspanel">sspanel</option>
-                                            <option value="v2board">v2board</option>
+                                            <option value="v2board">v2board/xiaoV2board</option>
                                             <option value="xboard">xboard</option>
                                         </select>
-                                        <div class="help-text">请选择当前站点使用的面板类型；如果是 xiaov2board，请选择 v2board。</div>
+                                        <div class="help-text">请选择当前站点使用的面板类型。</div>
                                     </div>
                                     <div class="form-group">
                                         <label>官网地址（websiteUrl）</label>
                                         <input type="text" id="remoteConfigWebsiteUrl" placeholder="https://your-site.com">
-                                        <div class="help-text">这里填写软件内“官网入口”打开的地址，通常就是你的主站域名，例如 https://your-site.com 。</div>
+                                        <div class="help-text">这里填写软件内点击 Logo 后弹出或打开的网址，通常就是你的主站域名，例如 https://your-site.com 。</div>
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>站点分组名称（remote.config.json > panels 键名）</label>
-                                    <input type="text" id="remoteConfigProviderKey" placeholder="必须与基础设置中的“站点分组名称”完全一致">
-                                    <div class="help-text" id="remoteConfigProviderKeyHelpText">这里非常重要：这个值必须与基础设置里的“站点分组名称”完全一致，包括大小写。建议两个地方都直接填写品牌名；remote.config.json 会用它作为 panels 的键名，如果不一致，软件可能无法正确识别站点，甚至无法正常启动。</div>
+                                    <label>站点名称</label>
+                                    <input type="text" id="remoteConfigProviderKey" placeholder="自动跟随当前档案名称" readonly>
+                                    <div class="help-text" id="remoteConfigProviderKeyHelpText">自动跟随当前档案名称，并写入 remote.config.json 的 panels。</div>
                                 </div>
 
                                 <div class="section" style="margin-top: 20px;">
@@ -3735,7 +3722,7 @@
                                     <div class="remote-config-actions" style="margin-top: 10px; margin-bottom: 10px;">
                                         <button type="button" class="btn btn-primary" id="addRemoteConfigPanelBtn">+ 添加站点</button>
                                     </div>
-                                    <div class="help-text">面板类型、站点分组名称、至少一个站点地址（url）为必填；站点说明（description）留空时会自动使用“站点1、站点2 ...”。</div>
+                                    <div class="help-text">面板类型、站点名称、至少一个站点地址（url）为必填；站点说明（description）留空时会自动使用“站点1、站点2 ...”。</div>
                                 </div>
 
                                 <div class="section" style="margin-top: 20px; margin-bottom: 0;">
@@ -4758,22 +4745,19 @@
 
         function syncProfileBoundAppTitle() {
             var appTitleInput = document.getElementById('appTitle');
-            var appTitleGroup = document.getElementById('appTitleGroup');
             if (!appTitleInput) return;
 
             if (isAdminSession()) {
-                if (appTitleGroup) appTitleGroup.style.display = '';
                 appTitleInput.readOnly = false;
                 appTitleInput.title = '';
                 return;
             }
 
-	            var selectedProfile = getSelectedProfileKey();
-	            if (appTitleGroup) appTitleGroup.style.display = 'none';
-	            appTitleInput.readOnly = true;
-	            appTitleInput.title = selectedProfile ? '普通用户的应用名称固定为配置档案名称' : '请先选择配置档案';
-	            appTitleInput.value = selectedProfile ? getSelectedProfileDisplayName() : '';
-	        }
+            var selectedProfile = getSelectedProfileKey();
+            appTitleInput.readOnly = true;
+            appTitleInput.title = selectedProfile ? '普通用户的应用名称固定为配置档案名称' : '请先选择配置档案';
+            appTitleInput.value = selectedProfile ? getSelectedProfileDisplayName() : '';
+        }
 
         function formatUsageExpiresAt(value) {
             if (!value) return '';
@@ -5554,8 +5538,8 @@
         var remoteConfigActiveTab = 'visual';
         var REMOTE_CONFIG_HISTORY_STORAGE_KEY = 'nexgen_remote_config_history_v1';
         var remoteConfigHistoryRecords = [];
-        var PROVIDER_HELP_TEXT = '建议直接填写你的品牌名或项目名。这个值必须与“远程配置文件”里的“站点分组名称”完全一致，remote.config.json 会用它作为 panels 的键名。';
-        var REMOTE_CONFIG_PROVIDER_HELP_TEXT = '这里非常重要：这个值必须与基础设置里的“站点分组名称”完全一致，包括大小写。建议两个地方都直接填写品牌名；remote.config.json 会用它作为 panels 的键名，如果不一致，软件可能无法正确识别站点，甚至无法正常启动。';
+        var PROVIDER_HELP_TEXT = '自动跟随当前档案名称，并写入 remote.config.json 的 panels。';
+        var REMOTE_CONFIG_PROVIDER_HELP_TEXT = '自动跟随当前档案名称，并写入 remote.config.json 的 panels。';
         var onlineSupportItems = [];
         var profilesCache = [];
         var appIconHistoryRecords = [];
@@ -5584,7 +5568,11 @@
         }
 
         function getProfileDisplayName(profile) {
-            return String((profile && (profile.display_name || profile.name || profile.key)) || '').trim();
+            var displayName = String((profile && profile.display_name) || '').trim();
+            if (displayName) {
+                return displayName;
+            }
+            return stripGeneratedProfileKeySuffix((profile && (profile.name || profile.key)) || '');
         }
 
         function formatProfileOptionLabel(profile) {
@@ -5634,6 +5622,28 @@
             var key = getSelectedProfileKey();
             var profile = findProfileByKey(key);
             return getProfileDisplayName(profile) || key;
+        }
+
+        function stripGeneratedProfileKeySuffix(value) {
+            return String(value || '').replace(/--[a-f0-9]{6,}$/i, '').trim();
+        }
+
+        function getDerivedProviderName() {
+            var saveProfileInput = document.getElementById('newProfileInput');
+            var newProfileInput = document.getElementById('newProfileName');
+            var newProfileName = newProfileInput ? String(newProfileInput.value || '').trim() : '';
+            if (newProfileName && saveProfileInput && saveProfileInput.classList.contains('active')) {
+                return newProfileName;
+            }
+            var selectedKey = getSelectedProfileKey();
+            var selectedProfile = findProfileByKey(selectedKey);
+            var selectedName = selectedProfile && selectedProfile.display_name
+                ? String(selectedProfile.display_name || '').trim()
+                : stripGeneratedProfileKeySuffix(getProfileDisplayName(selectedProfile) || selectedKey);
+            if (selectedName) {
+                return selectedName;
+            }
+            return stripGeneratedProfileKeySuffix(getBoundAppTitleValue());
         }
 
         function renderCustomUIColorCard(field) {
@@ -6387,12 +6397,9 @@
             document.querySelectorAll('input[name="buildCore"]').forEach(function(input) {
                 input.addEventListener('change', handleBuildCoreChange);
             });
-            document.getElementById('provider').addEventListener('change', formToYaml);
-            document.getElementById('provider').addEventListener('input', function() {
-                updateProviderConsistencyState({ source: 'basic' });
-            });
             document.getElementById('provider').addEventListener('change', function() {
-                updateProviderConsistencyState({ source: 'basic' });
+                syncDerivedProviderName({ updateRemotePreview: true });
+                formToYaml();
             });
             ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'cloudDispatchQueryUrl', 'cloudDispatchQuerySecret', 'cloudDispatchAutoIntervalMinutes', 'cloudDispatchFallbackRetryMinutes', 'telegramUrl', 'utilityCfSpeedTargetDomains', 'utilityCfSpeedAutoReplaceIntervalMinutes', 'apiPathPrefix'].forEach(function(id) {
                 var el = document.getElementById(id);
@@ -6410,6 +6417,7 @@
             document.getElementById('profileSelect').addEventListener('change', function() {
                 syncProfileBoundAppTitle();
                 syncCustomTrafficBarProfileName();
+                syncDerivedProviderName({ updateRemotePreview: true });
                 setCustomTrafficBarStatus('', 'info');
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
@@ -6462,6 +6470,11 @@
 
             document.getElementById('confirmSaveProfileBtn').addEventListener('click', confirmSaveProfile);
             document.getElementById('cancelSaveProfileBtn').addEventListener('click', hideSaveProfileInput);
+            ['input', 'change'].forEach(function(eventName) {
+                document.getElementById('newProfileName').addEventListener(eventName, function() {
+                    syncDerivedProviderName({ updateRemotePreview: true });
+                });
+            });
 
             initSwitches();
             initCustomFeatureSwitches();
@@ -6472,7 +6485,7 @@
             initRemoteConfigTool();
             renderSources();
             renderSupportItems();
-            updateProviderConsistencyState();
+            syncDerivedProviderName({ updateRemotePreview: false });
 
             syncProfileBoundAppTitle();
             setMyBuildRecordsExpanded(false);
@@ -6760,15 +6773,17 @@
 	                    createNew: false
 	                });
 	                return;
-	            }
-	            var appTitle = document.getElementById('appTitle').value.trim();
-	            document.getElementById('newProfileName').value = appTitle || getSelectedProfileDisplayName() || '';
-	            document.getElementById('newProfileInput').classList.add('active');
-	        }
+            }
+            var appTitle = document.getElementById('appTitle').value.trim();
+            document.getElementById('newProfileName').value = getSelectedProfileDisplayName() || appTitle || '';
+            document.getElementById('newProfileInput').classList.add('active');
+            syncDerivedProviderName({ updateRemotePreview: true });
+        }
 
         function hideSaveProfileInput() {
             document.getElementById('newProfileInput').classList.remove('active');
             document.getElementById('newProfileName').value = '';
+            syncDerivedProviderName({ updateRemotePreview: true });
         }
 
         var autoSaveProfileTimer = null;
@@ -6814,7 +6829,7 @@
             });
 
             var formState = {
-                provider: document.getElementById('provider').value.trim(),
+                provider: getDerivedProviderName(),
                 app_title: getBoundAppTitleValue(),
                 logo_type: 'text',
                 logo_image_url: '',
@@ -6909,6 +6924,19 @@
                 return false;
             }
 
+            var displayName = options.displayName || getProfileDisplayName(findProfileByKey(profileName)) || profileName;
+            var saveProfileInput = document.getElementById('newProfileInput');
+            var newProfileNameInput = document.getElementById('newProfileName');
+            if (newProfileNameInput) {
+                newProfileNameInput.value = displayName;
+            }
+            if (saveProfileInput && saveProfileInput.classList.contains('active')) {
+                var appTitleInput = document.getElementById('appTitle');
+                if (appTitleInput) {
+                    appTitleInput.value = displayName;
+                }
+            }
+            syncDerivedProviderName({ updateRemotePreview: true });
             formToYaml();
             var baseYamlContent = String(currentProfileBaseYaml || document.getElementById('editor').value || '').trim();
             if (!baseYamlContent) {
@@ -6920,15 +6948,14 @@
             document.getElementById('editor').value = baseYamlContent;
             setStatus(options.loadingMessage || '正在保存...', 'info');
 
-	            try {
-	                var displayName = options.displayName || getProfileDisplayName(findProfileByKey(profileName)) || profileName;
-	                var response = await api('PUT', appendBuildClientQuery('/profiles/' + encodeURIComponent(profileName)), {
-	                    yaml_content: baseYamlContent,
-	                    base_yaml_content: baseYamlContent,
-	                    form_state: buildCurrentProfileFormState(),
-	                    display_name: displayName,
-	                    create_new: !!options.createNew
-	                });
+            try {
+                var response = await api('PUT', appendBuildClientQuery('/profiles/' + encodeURIComponent(profileName)), {
+                    yaml_content: baseYamlContent,
+                    base_yaml_content: baseYamlContent,
+                    form_state: buildCurrentProfileFormState(),
+                    display_name: displayName,
+                    create_new: !!options.createNew
+                });
                 if (!response) return false;
                 var respBody = await response.json();
                 if (!response.ok) {
@@ -6948,11 +6975,12 @@
 	                }
 	                var savedProfileKey = (respBody && respBody.profile) ? getProfileKey(respBody.profile) : profileName;
 	                var savedProfileName = (respBody && respBody.profile) ? getProfileDisplayName(respBody.profile) : (options.displayName || profileName);
-	                document.getElementById('profileSelect').value = savedProfileKey;
-	                syncAllCustomSelects(document.getElementById('profileSelect'));
-	                syncProfileBoundAppTitle();
-	                setStatus(options.successMessage || ('已保存: ' + savedProfileName), 'success');
-	                return true;
+		                document.getElementById('profileSelect').value = savedProfileKey;
+		                syncAllCustomSelects(document.getElementById('profileSelect'));
+		                syncProfileBoundAppTitle();
+		                syncDerivedProviderName({ updateRemotePreview: true });
+		                setStatus(options.successMessage || ('已保存: ' + savedProfileName), 'success');
+		                return true;
             } catch (e) {
                 setStatus((options.errorPrefix || '保存失败: ') + e.message, 'error');
                 return false;
@@ -8653,61 +8681,53 @@
             actions.style.display = input && input.checked ? '' : 'none';
         }
 
-        function updateProviderConsistencyState(options) {
+        function syncDerivedProviderName(options) {
             options = options || {};
-            var source = options.source || '';
             var providerInput = document.getElementById('provider');
             var remoteProviderInput = document.getElementById('remoteConfigProviderKey');
             var providerHelpText = document.getElementById('providerHelpText');
             var remoteProviderHelpText = document.getElementById('remoteConfigProviderKeyHelpText');
-            if (!providerInput || !remoteProviderInput) {
-                return true;
+            if (!providerInput && !remoteProviderInput) {
+                return '';
             }
 
-            var providerValue = String(providerInput.value || '').trim();
-            var remoteProviderValue = String(remoteProviderInput.value || '').trim();
-            var providerGroup = providerInput.closest ? providerInput.closest('.form-group') : null;
-            var remoteProviderGroup = remoteProviderInput.closest ? remoteProviderInput.closest('.form-group') : null;
-
-            if (source === 'basic' && providerValue && !remoteProviderValue) {
+            var providerValue = getDerivedProviderName();
+            var providerGroup = providerInput && providerInput.closest ? providerInput.closest('.form-group') : null;
+            var remoteProviderGroup = remoteProviderInput && remoteProviderInput.closest ? remoteProviderInput.closest('.form-group') : null;
+            var previousRemoteProviderValue = remoteProviderInput ? String(remoteProviderInput.value || '').trim() : '';
+            if (providerInput) {
+                providerInput.value = providerValue;
+            }
+            if (remoteProviderInput) {
                 remoteProviderInput.value = providerValue;
-                remoteProviderValue = providerValue;
-                remoteConfigEncryptedData = '';
-                syncRemoteConfigJsonPreview({ silentStatus: true });
-            } else if (source === 'remote' && remoteProviderValue && !providerValue) {
-                providerInput.value = remoteProviderValue;
-                providerValue = remoteProviderValue;
-                formToYaml();
             }
-
-            var isMismatch = !!(providerValue && remoteProviderValue && providerValue !== remoteProviderValue);
             if (providerGroup) {
-                providerGroup.classList.toggle('is-warning', isMismatch);
+                providerGroup.classList.remove('is-warning');
             }
             if (remoteProviderGroup) {
-                remoteProviderGroup.classList.toggle('is-warning', isMismatch);
+                remoteProviderGroup.classList.remove('is-warning');
             }
             if (providerHelpText) {
-                providerHelpText.textContent = isMismatch
-                    ? '当前与远程配置文件里的“站点分组名称”不一致，请改成完全相同。'
-                    : PROVIDER_HELP_TEXT;
-                providerHelpText.classList.toggle('warning', isMismatch);
+                providerHelpText.textContent = PROVIDER_HELP_TEXT;
+                providerHelpText.classList.remove('warning');
             }
             if (remoteProviderHelpText) {
-                remoteProviderHelpText.textContent = isMismatch
-                    ? '当前与基础设置里的“站点分组名称”不一致，请保持完全相同，否则软件可能无法识别站点。'
-                    : REMOTE_CONFIG_PROVIDER_HELP_TEXT;
-                remoteProviderHelpText.classList.toggle('warning', isMismatch);
+                remoteProviderHelpText.textContent = REMOTE_CONFIG_PROVIDER_HELP_TEXT;
+                remoteProviderHelpText.classList.remove('warning');
             }
-            return !isMismatch;
+            if (remoteProviderInput && providerValue !== previousRemoteProviderValue) {
+                remoteConfigEncryptedData = '';
+                if (options.updateRemotePreview) {
+                    syncRemoteConfigJsonPreview({ silentStatus: true });
+                }
+            }
+            return providerValue;
         }
 
         function getRemoteConfigFormData(requireComplete) {
             var panelTypeValue = String(document.getElementById('remoteConfigPanelType').value || '').trim();
             var websiteUrlValue = String(document.getElementById('remoteConfigWebsiteUrl').value || '').trim();
-            var providerValue = String(document.getElementById('remoteConfigProviderKey').value || '').trim();
-            var basicProviderValue = String(document.getElementById('provider').value || '').trim();
-            updateProviderConsistencyState();
+            var providerValue = syncDerivedProviderName();
             var rawPanelItems = collectRemoteConfigPanels();
             var updateItems = getRemoteConfigUpdateFormData(requireComplete);
             var supportItems = isNexGenClient() ? buildRemoteConfigOnlineSupportItems() : [];
@@ -8737,13 +8757,7 @@
                     throw new Error('请选择面板类型（panelType）');
                 }
                 if (!providerValue) {
-                    throw new Error('请填写站点分组名称');
-                }
-                if (!basicProviderValue) {
-                    throw new Error('请先在基础设置中填写站点分组名称');
-                }
-                if (basicProviderValue !== providerValue) {
-                    throw new Error('远程配置页的站点分组名称必须与基础设置中的站点分组名称完全一致');
+                    throw new Error('请先选择或填写档案名称');
                 }
                 if (panelItems.length === 0) {
                     throw new Error('请至少添加一个站点并填写站点地址（url）');
@@ -8793,7 +8807,7 @@
         }
 
         function handleRemoteConfigFormInput() {
-            updateProviderConsistencyState();
+            syncDerivedProviderName();
             remoteConfigEncryptedData = '';
             syncRemoteConfigJsonPreview({ silentStatus: true });
             setRemoteConfigStatus('remote.config.json 已根据当前配置项自动更新，可直接下载或加密。', 'info');
@@ -8838,7 +8852,7 @@
             });
             if (providerKeyInput) {
                 var handleProviderKeyChange = function() {
-                    updateProviderConsistencyState({ source: 'remote' });
+                    syncDerivedProviderName();
                     handleRemoteConfigFormInput();
                 };
                 providerKeyInput.addEventListener('input', handleProviderKeyChange);
@@ -8876,7 +8890,7 @@
             refreshRemoteConfigSourceTargets();
             syncRemoteConfigJsonPreview({ silentStatus: true });
             renderRemoteConfigHistoryRecords();
-            updateProviderConsistencyState();
+            syncDerivedProviderName();
             setRemoteConfigStatus('请先完善必填项；如果不需要加密，可直接下载使用，如需更高安全性再生成密钥并执行加密。', 'info');
         }
 
@@ -9121,6 +9135,24 @@
             };
         }
 
+        function normalizeRemoteConfigContentProvider(content) {
+            var data = JSON.parse(content);
+            var providerKey = syncDerivedProviderName();
+            if (!providerKey || !data || typeof data !== 'object' || Array.isArray(data)) {
+                return content;
+            }
+            var sourcePanels = data.panels && typeof data.panels === 'object' && !Array.isArray(data.panels)
+                ? data.panels
+                : {};
+            var providerKeys = Object.keys(sourcePanels);
+            var panelItems = providerKeys.length && Array.isArray(sourcePanels[providerKeys[0]])
+                ? sourcePanels[providerKeys[0]]
+                : [];
+            data.panels = {};
+            data.panels[providerKey] = panelItems;
+            return JSON.stringify(data, null, 4);
+        }
+
         function applyRemoteConfigData(data, options) {
             options = options || {};
             var providerKeys = data && data.panels && typeof data.panels === 'object' ? Object.keys(data.panels) : [];
@@ -9132,7 +9164,7 @@
             document.getElementById('remoteConfigPanelType').value = data && data.panelType ? data.panelType : '';
             document.getElementById('remoteConfigWebsiteUrl').value = data && data.websiteUrl ? data.websiteUrl : '';
             document.getElementById('remoteConfigProviderKey').value = providerKey;
-            updateProviderConsistencyState({ source: 'remote' });
+            syncDerivedProviderName();
             remoteConfigPanels = panelItems.length ? panelItems.map(function(item) {
                 return {
                     url: item && item.url ? item.url : '',
@@ -9180,7 +9212,7 @@
                 html += '<div class="remote-config-history-title">' + escapeHtml(recordTitle) + '</div>';
                 html += '<div class="remote-config-history-time">' + escapeHtml(formatRemoteConfigHistoryTime(record.saved_at)) + '</div>';
                 html += '</div>';
-                html += '<div class="remote-config-history-meta">面板类型：' + escapeHtml(record.panel_type || '-') + ' · 站点分组名称：' + escapeHtml(record.provider_key || '-') + ' · 站点数：' + escapeHtml(String(record.site_count || 0)) + ' · 更新项：' + escapeHtml(String(record.update_count || 0)) + ' · 客服数：' + escapeHtml(String(record.support_count || 0)) + '</div>';
+                html += '<div class="remote-config-history-meta">面板类型：' + escapeHtml(record.panel_type || '-') + ' · 站点名称：' + escapeHtml(record.provider_key || '-') + ' · 站点数：' + escapeHtml(String(record.site_count || 0)) + ' · 更新项：' + escapeHtml(String(record.update_count || 0)) + ' · 客服数：' + escapeHtml(String(record.support_count || 0)) + '</div>';
                 if (record.website_url) {
                     html += '<div class="remote-config-history-meta">官网地址：' + escapeHtml(record.website_url) + '</div>';
                 }
@@ -9287,7 +9319,13 @@
                 showAppAlert('未找到对应的远程配置记录。', '提示');
                 return;
             }
-            downloadRemoteConfigContent('remote.config.json', record.content, 'application/json');
+            var content = record.content;
+            try {
+                content = normalizeRemoteConfigContentProvider(record.content);
+            } catch (e) {
+                console.log('归一化远程配置记录失败:', e.message);
+            }
+            downloadRemoteConfigContent('remote.config.json', content, 'application/json');
             setRemoteConfigStatus('已下载所选远程配置记录。', 'success');
         }
 
@@ -9699,8 +9737,10 @@
             } else {
                 document.getElementById('provider').value = '';
             }
+            syncDerivedProviderName();
             document.getElementById('appTitle').value = getValue('title');
             syncProfileBoundAppTitle();
+            syncDerivedProviderName();
             var iconMatch = yaml.match(/app_icon:[\s\S]*?image_url:[^\S\n]*(.*)/);
             document.getElementById('appIconUrl').value = iconMatch ? iconMatch[1].trim().replace(/^["']|["']$/g, '') : '';
             updateAppIconPreview(document.getElementById('appIconUrl').value);
@@ -9970,7 +10010,7 @@
 
             renderSupportItems();
             syncAllCustomSelects(document);
-            updateProviderConsistencyState({ source: 'basic' });
+            syncDerivedProviderName();
             syncRemoteConfigJsonPreview({ silentStatus: true });
         }
 
@@ -9978,7 +10018,7 @@
             collectSources();
             collectSupportItems();
             collectPopularApps();
-            updateProviderConsistencyState();
+            syncDerivedProviderName();
             var editor = document.getElementById('editor');
             if (editor) {
                 currentProfileBaseYaml = cleanNexGenProfileYaml(editor.value || currentProfileBaseYaml || getDefaultYamlTemplate());
