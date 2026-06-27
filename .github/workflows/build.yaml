@@ -899,15 +899,54 @@ jobs:
           which ISCC || echo "ISCC not in PATH"
           ls -la "/c/Program Files (x86)/Inno Setup 6/" 2>/dev/null || echo "Inno Setup dir not found"
           echo ""
-          echo "=== Build Command ==="
-          echo "Running: dart setup.dart ${{ matrix.build_platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ matrix.build_flavor && format('--flavor {0}', matrix.build_flavor) || '' }} ${{ matrix.build_target && format('--flutter-target {0}', matrix.build_target) || '' }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} --version ${{ github.event.inputs.tag }}"
-          echo ""
-          echo "=== Build Output ==="
+          run_setup_build() {
+            local label="$1"
+            shift
+            local command=(dart setup.dart "${{ matrix.build_platform }}")
+            if [ "$#" -gt 0 ]; then
+              command+=("$@")
+            fi
+            if [ -n "${{ matrix.build_flavor || '' }}" ]; then
+              command+=(--flavor "${{ matrix.build_flavor }}")
+            fi
+            if [ -n "${{ matrix.build_target || '' }}" ]; then
+              command+=(--flutter-target "${{ matrix.build_target }}")
+            fi
+            if [ "${IS_STABLE:-}" = "true" ]; then
+              command+=(--env stable)
+            fi
+            command+=(--version "${{ github.event.inputs.tag }}")
+
+            echo "=== Build Command: $label ==="
+            printf 'Running:'
+            printf ' %q' "${command[@]}"
+            echo ""
+            echo ""
+            echo "=== Build Output: $label ==="
+            set +e
+            "${command[@]}" 2>&1 | tee -a build.log
+            local exit_code=${PIPESTATUS[0]}
+            set -e
+            echo ""
+            echo "=== Build Exit Code ($label): $exit_code ==="
+            return "$exit_code"
+          }
+
           set -o pipefail
-          dart setup.dart ${{ matrix.build_platform }} ${{ matrix.arch && format('--arch {0}', matrix.arch) }} ${{ matrix.build_flavor && format('--flavor {0}', matrix.build_flavor) || '' }} ${{ matrix.build_target && format('--flutter-target {0}', matrix.build_target) || '' }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} --version ${{ github.event.inputs.tag }} 2>&1 | tee build.log
-          BUILD_EXIT_CODE=${PIPESTATUS[0]}
-          echo ""
-          echo "=== Build Exit Code: $BUILD_EXIT_CODE ==="
+          : > build.log
+          BUILD_EXIT_CODE=0
+          if [ "${{ matrix.platform }}" = "android-tv" ]; then
+            run_setup_build "android-tv arm64-v8a" --arch arm64 || BUILD_EXIT_CODE=$?
+            if [ "$BUILD_EXIT_CODE" -eq 0 ]; then
+              run_setup_build "android-tv armeabi-v7a" --arch arm || BUILD_EXIT_CODE=$?
+            fi
+          else
+            default_arch_args=()
+            if [ -n "${{ matrix.arch || '' }}" ]; then
+              default_arch_args=(--arch "${{ matrix.arch }}")
+            fi
+            run_setup_build "${{ matrix.platform }} ${{ matrix.arch || '' }}" "${default_arch_args[@]}" || BUILD_EXIT_CODE=$?
+          fi
 
           if [ $BUILD_EXIT_CODE -ne 0 ]; then
             echo ""

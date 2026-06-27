@@ -292,7 +292,7 @@ jobs:
             { platform: "macos-amd64", os: "macos-15-intel", family: "macos", arch: "amd64" },
             { platform: "macos-arm64", os: "macos-14", family: "macos", arch: "arm64" },
             { platform: "android", os: "ubuntu-latest", family: "android", arch: "" },
-            { platform: "android-tv", os: "ubuntu-latest", family: "android", arch: "arm64" },
+            { platform: "android-tv", os: "ubuntu-latest", family: "android", arch: "arm64+armv7" },
           ];
           const normalizePlatformToken = (value) => {
             const token = String(value || "")
@@ -864,7 +864,9 @@ jobs:
           rm -f dist/*.apk
           if [ "${{ matrix.platform }}" = "android-tv" ]; then
             build_android_apk "aarch64" "tv-arm64-v8a.apk" "arm64-v8a" '/arm64/release/.*\.apk$|app-arm64-release.*\.apk$' "1"
+            build_android_apk "armv7" "tv-armeabi-v7a.apk" "armeabi-v7a" '/arm/release/.*\.apk$|app-arm-release.*\.apk$|armeabi.*\.apk$' "1"
             cp "$ANDROID_APK_STAGE_DIR/tv-arm64-v8a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-tv-arm64-v8a.apk"
+            cp "$ANDROID_APK_STAGE_DIR/tv-armeabi-v7a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-tv-armeabi-v7a.apk"
           else
             build_android_apk "aarch64" "arm64-v8a.apk" "arm64-v8a" '/arm64/release/.*\.apk$|app-arm64-release.*\.apk$' "1"
             build_android_apk "armv7" "armeabi-v7a.apk" "armeabi-v7a" '/arm/release/.*\.apk$|app-arm-release.*\.apk$|armeabi.*\.apk$' "1"
@@ -875,7 +877,7 @@ jobs:
           fi
           expected_apk_count="3"
           if [ "${{ matrix.platform }}" = "android-tv" ]; then
-            expected_apk_count="1"
+            expected_apk_count="2"
           fi
           apk_count="$(find dist -maxdepth 1 -type f -name "*.apk" | wc -l | tr -d ' ')"
           if [ "$apk_count" != "$expected_apk_count" ]; then
@@ -1031,6 +1033,7 @@ jobs:
                 *macos-amd64*.pkg) prefix="$SAFE_APP_NAME"; suffix="macos-amd64.pkg" ;;
                 *macos-arm64*.pkg) prefix="$SAFE_APP_NAME"; suffix="macos-arm64.pkg" ;;
                 *android-tv-arm64-v8a*.apk|*tv-arm64-v8a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-tv-arm64-v8a.apk" ;;
+                *android-tv-armeabi-v7a*.apk|*tv-armeabi-v7a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-tv-armeabi-v7a.apk" ;;
                 *android-arm64-v8a*.apk|*arm64-v8a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-arm64-v8a.apk" ;;
                 *android-armeabi-v7a*.apk|*armeabi-v7a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-armeabi-v7a.apk" ;;
                 *android-universal*.apk|*universal*.apk) prefix="$SAFE_APP_NAME"; suffix="android-universal.apk" ;;
