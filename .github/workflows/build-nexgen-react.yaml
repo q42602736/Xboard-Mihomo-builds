@@ -640,6 +640,7 @@ jobs:
         env:
           GOMAXPROCS: '2'
           GOFLAGS: '-p=1'
+          NEXGEN_TARGET_PLATFORM: android
           NEXGEN_SKIP_DESKTOP_CORE_RESOURCE: '1'
           NEXGEN_ANDROID_SIGNING_BUNDLE: ${{ secrets.NEXGEN_ANDROID_SIGNING_BUNDLE }}
         run: |
