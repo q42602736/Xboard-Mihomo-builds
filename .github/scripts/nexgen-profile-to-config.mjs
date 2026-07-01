@@ -22,6 +22,7 @@ fs.writeFileSync(outputPath, toYaml({ nexgen }));
 
 function convertNexgenProfile(nexgen) {
   const converted = record(nexgen);
+  normalizeSettingsOverride(converted);
   normalizeCloudDispatchOverride(converted);
   converted.ui = {
     ...record(converted.ui),
@@ -46,6 +47,7 @@ function convertXboardToNexgen(xboard) {
     subscription_cache: record(xboard.subscription_cache),
     auto_offline: record(xboard.auto_offline || xboard.offline_mode),
     subscription: record(xboard.subscription),
+    settings: getSettingsOverride(xboard),
     security: record(xboard.security),
     cloud_dispatch: getCloudDispatchOverride(xboard),
     registration_invite: record(xboard.registration_invite ?? xboard.registrationInvite),
@@ -105,6 +107,20 @@ function getCloudDispatchOverride(config) {
 function normalizeCloudDispatchOverride(config) {
   config.cloud_dispatch = getCloudDispatchOverride(config);
   delete config.cloudDispatch;
+}
+
+function getSettingsOverride(config) {
+  const settings = {
+    ...record(config.settings),
+  };
+  normalizeAlias(settings, "dnsOverrideDefault", "dns_override_default");
+  settings.dns_override_default = typeof settings.dns_override_default === "boolean" ? settings.dns_override_default : false;
+  delete settings.dnsOverrideDefault;
+  return settings;
+}
+
+function normalizeSettingsOverride(config) {
+  config.settings = getSettingsOverride(config);
 }
 
 function disabledCloudDispatchOverride() {
@@ -171,6 +187,7 @@ function normalizeTelegramOverride(value) {
 
 function normalizeNexgenConfigDefaults(config) {
   const nexgen = record(config);
+  normalizeSettingsOverride(nexgen);
   const ui = {
     ...record(nexgen.ui),
   };
