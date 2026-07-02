@@ -936,10 +936,7 @@ jobs:
           : > build.log
           BUILD_EXIT_CODE=0
           if [ "${{ matrix.platform }}" = "android-tv" ]; then
-            run_setup_build "android-tv arm64-v8a" --arch arm64 || BUILD_EXIT_CODE=$?
-            if [ "$BUILD_EXIT_CODE" -eq 0 ]; then
-              run_setup_build "android-tv armeabi-v7a" --arch arm || BUILD_EXIT_CODE=$?
-            fi
+            run_setup_build "android-tv all-abi" || BUILD_EXIT_CODE=$?
           else
             default_arch_args=()
             if [ -n "${{ matrix.arch || '' }}" ]; then
