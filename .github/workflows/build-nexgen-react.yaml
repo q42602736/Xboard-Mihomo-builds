@@ -852,9 +852,46 @@ jobs:
             cp "$apk_file" "$ANDROID_APK_STAGE_DIR/$output_name"
           }
 
+          find_android_tv_package_apk() {
+            local abi="$1"
+            find dist/android-tv -maxdepth 1 -type f -name "*-${abi}.apk" | sort | tail -1 || true
+          }
+
+          build_android_tv_apks() {
+            clean_android_apk_outputs
+            rm -rf dist/android-tv
+            set +e
+            TAURI_CLI_VERBOSITY=1 \
+              NEXGEN_ANDROID_MIN_SDK=22 \
+              NEXGEN_ANDROID_NDK_API=22 \
+              NEXGEN_ANDROID_SYNC_FRONTEND_ASSETS=1 \
+              npm --ignore-scripts run package:android-tv 2>&1 | tee -a build.log
+            BUILD_EXIT_CODE=${PIPESTATUS[0]}
+            set -e
+            if [ "$BUILD_EXIT_CODE" -ne 0 ]; then
+              echo "::error::NexGen Android TV APK 打包失败，下面输出完整诊断日志。"
+              print_android_diagnostics
+              exit "$BUILD_EXIT_CODE"
+            fi
+
+            local arm64_apk armv7_apk
+            arm64_apk="$(find_android_tv_package_apk "arm64-v8a")"
+            armv7_apk="$(find_android_tv_package_apk "armeabi-v7a")"
+            if [ -z "$arm64_apk" ] || [ -z "$armv7_apk" ]; then
+              echo "::error::Android TV APK 产物缺失。"
+              find dist/android-tv -maxdepth 1 -type f -name "*.apk" -print 2>/dev/null || true
+              exit 1
+            fi
+
+            assert_android_apk_abi "$arm64_apk" "arm64-v8a"
+            assert_android_apk_abi "$armv7_apk" "armeabi-v7a"
+            assert_android_apk_signed "$arm64_apk"
+            assert_android_apk_signed "$armv7_apk"
+            cp "$arm64_apk" "$ANDROID_APK_STAGE_DIR/tv-arm64-v8a.apk"
+            cp "$armv7_apk" "$ANDROID_APK_STAGE_DIR/tv-armeabi-v7a.apk"
+          }
+
           : > build.log
-          npm run build
-          disable_tauri_before_build_command
 
           SAFE_APP_NAME="${{ needs.prepare-release.outputs.safe_app_name }}"
           if [ -z "$SAFE_APP_NAME" ]; then
@@ -864,11 +901,12 @@ jobs:
 
           rm -f dist/*.apk
           if [ "${{ matrix.platform }}" = "android-tv" ]; then
-            build_android_apk "aarch64" "tv-arm64-v8a.apk" "arm64-v8a" '/arm64/release/.*\.apk$|app-arm64-release.*\.apk$' "1"
-            build_android_apk "armv7" "tv-armeabi-v7a.apk" "armeabi-v7a" '/arm/release/.*\.apk$|app-arm-release.*\.apk$|armeabi.*\.apk$' "1"
+            build_android_tv_apks
             cp "$ANDROID_APK_STAGE_DIR/tv-arm64-v8a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-tv-arm64-v8a.apk"
             cp "$ANDROID_APK_STAGE_DIR/tv-armeabi-v7a.apk" "dist/${SAFE_APP_NAME}-${{ github.event.inputs.tag }}-android-tv-armeabi-v7a.apk"
           else
+            npm run build
+            disable_tauri_before_build_command
             build_android_apk "aarch64" "arm64-v8a.apk" "arm64-v8a" '/arm64/release/.*\.apk$|app-arm64-release.*\.apk$' "1"
             build_android_apk "armv7" "armeabi-v7a.apk" "armeabi-v7a" '/arm/release/.*\.apk$|app-arm-release.*\.apk$|armeabi.*\.apk$' "1"
             build_android_apk "universal" "universal.apk" "universal" '/universal/release/.*\.apk$|app-universal-release.*\.apk$' "0"
