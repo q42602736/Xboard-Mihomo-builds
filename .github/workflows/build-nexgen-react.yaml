@@ -1166,7 +1166,7 @@ jobs:
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: $content_type" \
               -H "Expect:" \
-              --data-binary @"$upload_source" \
+              --upload-file "$upload_source" \
               "${UPLOAD_URL}?name=${encoded_name}")
 
             uploaded_asset_id=$(printf '%s' "$upload_response" | node -e "
@@ -1424,7 +1424,7 @@ jobs:
               -H "Authorization: token $GH_TOKEN" \
               -H "Content-Type: $content_type" \
               -H "Expect:" \
-              --data-binary @"$file_path" \
+              --upload-file "$file_path" \
               "${RELEASE_UPLOAD_URL}?name=${encoded_name}")
 
             local uploaded_asset_id uploaded_asset_name uploaded_asset_state
