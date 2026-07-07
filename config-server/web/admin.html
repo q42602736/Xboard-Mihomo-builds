@@ -1,0 +1,2455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexGen Client 管理后台</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        .container { max-width: 1280px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 20px; color: #00d4ff; }
+        .user-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .user-bar a {
+            padding: 5px 14px;
+            border: 1px solid rgba(0,212,255,0.4);
+            border-radius: 4px;
+            background: transparent;
+            color: #00d4ff;
+            cursor: pointer;
+            font-size: 12px;
+            text-decoration: none;
+        }
+        .user-bar a:hover { background: rgba(0,212,255,0.1); }
+        .user-bar .btn-logout {
+            padding: 5px 14px;
+            border: 1px solid rgba(255,68,68,0.4);
+            border-radius: 4px;
+            background: transparent;
+            color: #ff6b6b;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .panel {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .panel h3 { color: #00d4ff; margin-bottom: 15px; }
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #aaa; font-size: 13px; }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #00d4ff; }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .btn-primary { background: linear-gradient(135deg, #00d4ff, #0099cc); color: #000; }
+        .btn-warn {
+            background: rgba(255,193,7,0.18);
+            color: #ffc107;
+            border: 1px solid rgba(255,193,7,0.34);
+        }
+        .btn-warn:hover { background: rgba(255,193,7,0.3); }
+        .btn-danger {
+            background: rgba(255,68,68,0.2);
+            color: #ff4444;
+            border: 1px solid rgba(255,68,68,0.3);
+            padding: 5px 12px;
+            font-size: 12px;
+        }
+        .btn-danger:hover { background: rgba(255,68,68,0.4); }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            text-align: left;
+            padding: 10px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            color: #888;
+            font-weight: 500;
+        }
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .code-text {
+            font-family: Monaco, monospace;
+            background: rgba(0,212,255,0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: #00d4ff;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        .code-text:hover { background: rgba(0,212,255,0.2); }
+        .table-scroll {
+            width: 100%;
+            overflow-x: visible;
+        }
+        .codes-table {
+            width: 100%;
+            table-layout: fixed;
+        }
+        .codes-table th,
+        .codes-table td {
+            vertical-align: middle;
+        }
+        .codes-table th {
+            white-space: nowrap;
+        }
+        .codes-table .col-select { width: 34px; text-align: center; }
+        .codes-table .col-code { width: 15%; }
+        .codes-table .col-name { width: 10%; }
+        .codes-table .col-profile { width: 13%; }
+        .codes-table .col-clients { width: 11%; }
+        .codes-table .col-platforms { width: 12%; }
+        .codes-table .col-usage { width: 8%; }
+        .codes-table .col-expire { width: 9%; }
+        .codes-table .col-created { width: 11%; }
+        .codes-table .col-actions { width: 9%; }
+        .codes-table .cell-code,
+        .codes-table .cell-select,
+        .codes-table .cell-usage,
+        .codes-table .cell-expire,
+        .codes-table .cell-created,
+        .codes-table .cell-actions {
+            white-space: nowrap;
+        }
+        .codes-table .cell-name,
+        .codes-table .cell-profile,
+        .codes-table .cell-clients,
+        .codes-table .cell-platforms {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .code-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: nowrap;
+        }
+        .batch-toolbar {
+            display: grid;
+            grid-template-columns: minmax(220px, 1fr) auto;
+            gap: 14px;
+            align-items: end;
+            margin: 12px 0 16px;
+            padding: 14px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .batch-toolbar-title {
+            color: #ddd;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .batch-toolbar .platform-permission-grid {
+            margin-top: 0;
+        }
+        .batch-toolbar-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .batch-selected-count {
+            color: #888;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        @media (max-width: 760px) {
+            .batch-toolbar {
+                grid-template-columns: 1fr;
+            }
+            .batch-toolbar-actions {
+                justify-content: flex-start;
+            }
+            .codes-table,
+            .codes-table thead,
+            .codes-table tbody,
+            .codes-table tr,
+            .codes-table td {
+                display: block;
+                width: 100%;
+            }
+            .codes-table thead {
+                display: none;
+            }
+            .codes-table tr {
+                margin-bottom: 14px;
+                padding: 12px;
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 10px;
+                background: rgba(255,255,255,0.035);
+            }
+            .codes-table td {
+                display: grid;
+                grid-template-columns: 86px minmax(0, 1fr);
+                gap: 10px;
+                padding: 7px 0;
+                border-bottom: none;
+                white-space: normal !important;
+            }
+            .codes-table td::before {
+                content: attr(data-label);
+                color: #788394;
+                font-size: 12px;
+            }
+            .codes-table .cell-select {
+                grid-template-columns: 1fr;
+            }
+            .codes-table .cell-select::before {
+                content: "";
+                display: none;
+            }
+            .codes-table .cell-name,
+            .codes-table .cell-profile,
+            .codes-table .cell-clients,
+            .codes-table .cell-platforms {
+                overflow: visible;
+                text-overflow: clip;
+                white-space: normal;
+            }
+        }
+        .code-actions .btn {
+            padding: 5px 8px !important;
+            font-size: 12px !important;
+            white-space: nowrap;
+        }
+        .status-msg {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            display: none;
+        }
+        .status-msg.success { display: block; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); color: #00ff88; }
+        .status-msg.error { display: block; background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: #ff4444; }
+        .tabs { display: flex; gap: 0; margin-bottom: 20px; }
+        .tab-btn {
+            padding: 10px 24px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #888;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .tab-btn:first-child { border-radius: 8px 0 0 8px; }
+        .tab-btn:last-child { border-radius: 0 8px 8px 0; }
+        .tab-btn.active { background: rgba(0,212,255,0.1); border-color: rgba(0,212,255,0.3); color: #00d4ff; }
+        .tab-page { display: none; }
+        .tab-page.active { display: block; }
+        .empty { color: #555; text-align: center; padding: 30px; }
+        .log-action { font-weight: 500; color: #00d4ff; }
+        .log-time { color: #666; font-size: 12px; }
+        .github-api-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin: 12px 0;
+        }
+        .github-api-card {
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.22);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .github-api-card-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+        .github-api-card-value { font-size: 18px; color: #00d4ff; font-weight: 700; word-break: break-all; }
+        .github-api-card-value.is-path { font-size: 12px; line-height: 1.45; font-family: Monaco, monospace; }
+        .table-scroll.github-api-table-scroll {
+            max-height: 420px;
+            overflow: auto;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+        }
+        .github-api-table {
+            min-width: 900px;
+        }
+        .github-api-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: #0f1419;
+        }
+        .github-api-table td,
+        .github-api-table th { vertical-align: top; }
+        .github-api-path {
+            max-width: 520px;
+            word-break: break-all;
+            color: #dbeafe;
+            font-family: Monaco, monospace;
+            font-size: 12px;
+        }
+        .github-api-muted { color: #777; font-size: 12px; }
+        .custom-feature-group-item {
+            padding: 14px 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.03);
+            margin-top: 12px;
+        }
+        .custom-feature-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .custom-feature-group-title {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .custom-feature-group-meta {
+            margin-top: 4px;
+            color: #8ea1b5;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .custom-feature-group-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .custom-feature-group-features-panel {
+            margin-top: 10px;
+        }
+        .custom-feature-group-item.is-collapsed .custom-feature-group-features-panel {
+            display: none;
+        }
+        .custom-feature-group-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 10px;
+        }
+        .custom-feature-option {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.16);
+            cursor: pointer;
+            transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+        }
+        .custom-feature-option:hover {
+            border-color: rgba(0,212,255,0.22);
+            background: rgba(0,212,255,0.08);
+        }
+        .custom-feature-option .custom-feature-group-feature {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            width: 0;
+            height: 0;
+            margin: 0;
+            padding: 0;
+            border: 0;
+        }
+        .custom-feature-option-box {
+            width: 18px;
+            height: 18px;
+            border-radius: 5px;
+            border: 1px solid rgba(255,255,255,0.26);
+            background: rgba(255,255,255,0.04);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: transparent;
+            font-size: 12px;
+            font-weight: 700;
+            transition: all 0.18s ease;
+        }
+        .custom-feature-option-label {
+            color: #ddd;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .custom-feature-option .custom-feature-group-feature:checked + .custom-feature-option-box {
+            border-color: rgba(0,212,255,0.9);
+            background: linear-gradient(135deg, rgba(0,212,255,0.95), rgba(0,153,204,0.92));
+            color: #04101d;
+            box-shadow: 0 0 0 3px rgba(0,212,255,0.14);
+        }
+        .custom-feature-option .custom-feature-group-feature:checked ~ .custom-feature-option-label {
+            color: #f3fbff;
+        }
+
+        .app-dialog-overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(3, 8, 15, 0.72);
+            backdrop-filter: blur(6px);
+            z-index: 10000;
+        }
+        .app-dialog-overlay.show { display: flex; }
+        .app-dialog {
+            width: min(440px, 100%);
+            background: linear-gradient(180deg, rgba(17,24,39,0.98), rgba(9,13,24,0.98));
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+            padding: 20px;
+        }
+        .app-dialog-title {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .app-dialog-message {
+            color: #b8c0cc;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .app-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+        .app-dialog-btn-cancel {
+            background: rgba(255,255,255,0.08);
+            color: #d7dce4;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .app-dialog-btn-cancel:hover {
+            background: rgba(255,255,255,0.14);
+        }
+
+        .profile-picker {
+            position: relative;
+            margin-top: 8px;
+        }
+        .profile-picker-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            text-align: left;
+        }
+        .profile-picker-toggle:hover,
+        .profile-picker.open .profile-picker-toggle {
+            border-color: rgba(0,212,255,0.45);
+            background: rgba(0,212,255,0.08);
+        }
+        .profile-picker-summary {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #dfe7f3;
+        }
+        .profile-picker-arrow {
+            flex-shrink: 0;
+            color: #8adfff;
+            transition: transform 0.18s ease;
+        }
+        .profile-picker.open .profile-picker-arrow {
+            transform: rotate(180deg);
+        }
+        .profile-picker-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            display: none;
+            z-index: 50;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(17,24,39,0.98), rgba(9,13,24,0.98));
+            box-shadow: 0 18px 48px rgba(0,0,0,0.32);
+        }
+        .profile-picker.open .profile-picker-dropdown {
+            display: block;
+        }
+        .profile-picker-search {
+            margin-bottom: 10px;
+        }
+        .profile-picker-options {
+            max-height: 260px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .profile-picker-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.03);
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .profile-picker-option:hover {
+            background: rgba(0,212,255,0.08);
+        }
+        .profile-picker-option input {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .profile-picker-empty {
+            color: #666;
+            font-size: 13px;
+            padding: 8px 4px;
+        }
+        .platform-permission-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .platform-permission-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.03);
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .platform-permission-option:hover {
+            background: rgba(0,212,255,0.08);
+        }
+        .platform-permission-option input {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- 管理员登录框 -->
+    <div class="container" id="loginView" style="display:none;">
+        <div style="max-width:400px;margin:120px auto;">
+            <h1 style="text-align:center;color:#00d4ff;margin-bottom:8px;">NexGen Client 管理后台</h1>
+            <p style="text-align:center;color:#666;margin-bottom:30px;font-size:14px;">请输入管理员密码</p>
+            <div id="loginError" class="status-msg" style="margin-bottom:15px;"></div>
+            <div class="form-group" style="margin-bottom:20px;">
+                <input type="password" id="adminPassword" placeholder="管理员密码" style="text-align:center;font-size:16px;padding:14px;">
+            </div>
+            <button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" onclick="adminLogin()">登 录</button>
+        </div>
+    </div>
+
+    <!-- 管理后台主界面 -->
+    <div class="container" id="mainView" style="display:none;">
+        <div class="user-bar">
+            <a href="/editor.html">配置编辑器</a>
+            <button class="btn-logout" onclick="logout()">退出登录</button>
+        </div>
+
+        <h1>NexGen Client 管理后台</h1>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('codes')">激活码管理</button>
+            <button class="tab-btn" onclick="switchTab('logs')">操作日志</button>
+            <button class="tab-btn" onclick="switchTab('settings')">系统设置</button>
+        </div>
+
+        <div id="codesTab" class="tab-page active">
+            <div class="panel">
+                <h3>配置档案管理</h3>
+                <div id="profileManageStatus" class="status-msg"></div>
+                <div class="form-row" style="grid-template-columns: 220px 1fr 1fr 180px; align-items:end;">
+                    <div class="form-group">
+                        <label>作用项目</label>
+                        <select id="renameProfileClient" onchange="renderRenameProfileSelect()">
+                            <option value="all">全部项目</option>
+                            <option value="xboard_mihomo_sub">旧版客户端</option>
+                            <option value="nexgen_react">NexGen 客户端</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>当前档案</label>
+                        <select id="renameProfileSelect">
+                            <option value="">加载档案列表中...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>新档案名称</label>
+                        <input type="text" id="renameProfileName" placeholder="输入新的档案名称">
+                    </div>
+                    <div class="form-group">
+                        <button class="btn btn-warn" style="width:100%;" onclick="renameProfileFromAdmin()">重命名档案</button>
+                    </div>
+                </div>
+                <div style="font-size:12px;color:#666;margin-top:-8px;">选择“全部项目”会同步重命名新旧客户端中存在的同名档案；选择单个项目则只重命名对应项目档案。绑定关系、打包记录和档案资源历史会同步更新。</div>
+            </div>
+
+            <div class="panel">
+                <h3>创建激活码</h3>
+                <div id="createStatus" class="status-msg"></div>
+                <div class="form-row" style="grid-template-columns: 2fr 1fr 1.3fr;">
+                    <div class="form-group">
+                        <label>备注名称</label>
+                        <input type="text" id="codeName" placeholder="如：客户A、测试用">
+                    </div>
+                    <div class="form-group">
+                        <label>可打包次数 (-1=无限)</label>
+                        <input type="number" id="codeMaxUses" value="-1" min="-1">
+                    </div>
+                    <div class="form-group">
+                        <label>到期时间</label>
+                        <input type="text" id="codeExpiresAt" placeholder="支持 2026-3-7、2026/3/7、2026.3.7">
+                        <div style="font-size:12px;color:#666;margin-top:5px;">直接输入日期即可，留空表示不过期</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>绑定配置档案（用户只能看到绑定的档案）</label>
+                    <div class="profile-picker" id="profilePicker" data-manual-input-id="manualProfiles" data-checkbox-class="profile-cb">
+                        <button type="button" class="profile-picker-toggle" onclick="toggleProfilePicker('profilePicker')">
+                            <span class="profile-picker-summary">加载档案列表中...</span>
+                            <span class="profile-picker-arrow">▾</span>
+                        </button>
+                        <div class="profile-picker-dropdown">
+                            <input type="text" class="profile-picker-search" placeholder="搜索已有档案..." oninput="filterProfileOptions('profileCheckboxes', this.value)">
+                            <div id="profileCheckboxes" class="profile-picker-options">
+                                <span class="profile-picker-empty">加载档案列表中...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <input type="text" id="manualProfiles" placeholder="手动输入档案名称，多个用逗号分隔（如：软件云,企鹅云）" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:#fff;font-size:14px;">
+                        <div style="font-size:12px;color:#666;margin-top:5px;">可与下拉多选配合使用，适用于尚未创建的档案</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>允许客户端（不选择表示全部客户端可访问）</label>
+                    <div id="codeAllowedClients" class="platform-permission-grid"></div>
+                    <div style="font-size:12px;color:#666;margin-top:5px;">可限制激活码只显示和访问老客户端或新客户端。</div>
+                </div>
+                <div class="form-group">
+                    <label>允许打包平台（不选择表示全部平台可打包）</label>
+                    <div id="codeAllowedPlatforms" class="platform-permission-grid"></div>
+                    <div style="font-size:12px;color:#666;margin-top:5px;">平台选项与编辑器“软件打包”页面一致；老激活码为空时默认全平台可打包。</div>
+                </div>
+                <button class="btn btn-primary" onclick="createCode()">生成激活码</button>
+            </div>
+
+            <div class="panel" id="editCodePanel" style="display:none;">
+                <h3>编辑激活码</h3>
+                <div id="editStatus" class="status-msg"></div>
+                <input type="hidden" id="editCodeId">
+                <div class="form-row" style="grid-template-columns: 2fr 1fr 1fr 1.3fr;">
+                    <div class="form-group">
+                        <label>备注名称</label>
+                        <input type="text" id="editCodeName" placeholder="如：客户A、测试用">
+                    </div>
+                    <div class="form-group">
+                        <label>可打包次数 (-1=无限)</label>
+                        <input type="number" id="editCodeMaxUses" value="-1" min="-1">
+                    </div>
+                    <div class="form-group">
+                        <label>已打包次数</label>
+                        <input type="number" id="editCodeUsedCount" value="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>到期时间</label>
+                        <input type="text" id="editCodeExpiresAt" placeholder="支持 2026-3-7、2026/3/7、2026.3.7">
+                        <div style="font-size:12px;color:#666;margin-top:5px;">直接输入日期即可，留空表示不过期</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>绑定配置档案（用户只能看到绑定的档案）</label>
+                    <div class="profile-picker" id="editProfilePicker" data-manual-input-id="editManualProfiles" data-checkbox-class="edit-profile-cb">
+                        <button type="button" class="profile-picker-toggle" onclick="toggleProfilePicker('editProfilePicker')">
+                            <span class="profile-picker-summary">加载档案列表中...</span>
+                            <span class="profile-picker-arrow">▾</span>
+                        </button>
+                        <div class="profile-picker-dropdown">
+                            <input type="text" class="profile-picker-search" placeholder="搜索已有档案..." oninput="filterProfileOptions('editProfileCheckboxes', this.value)">
+                            <div id="editProfileCheckboxes" class="profile-picker-options">
+                                <span class="profile-picker-empty">加载档案列表中...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <input type="text" id="editManualProfiles" placeholder="手动输入档案名称，多个用逗号分隔（如：软件云,企鹅云）" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:#fff;font-size:14px;">
+                        <div style="font-size:12px;color:#666;margin-top:5px;">可与下拉多选配合使用，适用于尚未创建的档案</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>允许客户端（不选择表示全部客户端可访问）</label>
+                    <div id="editCodeAllowedClients" class="platform-permission-grid"></div>
+                    <div style="font-size:12px;color:#666;margin-top:5px;">保存为空时表示不限制，兼容旧激活码。</div>
+                </div>
+                <div class="form-group">
+                    <label>允许打包平台（不选择表示全部平台可打包）</label>
+                    <div id="editCodeAllowedPlatforms" class="platform-permission-grid"></div>
+                    <div style="font-size:12px;color:#666;margin-top:5px;">保存为空时表示不限制，兼容旧激活码。</div>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="saveCodeEdit()">保存修改</button>
+                    <button class="btn" style="background:rgba(255,255,255,0.08);color:#ddd;" onclick="cancelEditCode()">取消</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>激活码列表</h3>
+                <div class="batch-toolbar">
+                    <div>
+                        <div class="batch-toolbar-title">批量设置允许客户端（不选择表示全部客户端可访问）</div>
+                        <div id="batchCodeAllowedClients" class="platform-permission-grid"></div>
+                    </div>
+                    <div class="batch-toolbar-actions">
+                        <span id="batchSelectedCount" class="batch-selected-count">已选择 0 个激活码</span>
+                        <button class="btn btn-primary" onclick="batchUpdateCodeClients()">批量应用客户端权限</button>
+                    </div>
+                </div>
+                <div class="table-scroll">
+                    <table class="codes-table">
+                        <thead>
+                            <tr>
+                                <th class="col-select"><input type="checkbox" id="selectAllCodes" onchange="toggleSelectAllCodes(this.checked)"></th>
+                                <th class="col-code">激活码</th>
+                                <th class="col-name">备注</th>
+                                <th class="col-profile">绑定档案</th>
+                                <th class="col-clients">允许客户端</th>
+                                <th class="col-platforms">允许平台</th>
+                                <th class="col-usage">打包次数</th>
+                                <th class="col-expire">到期时间</th>
+                                <th class="col-created">创建时间</th>
+                                <th class="col-actions">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="codesTable">
+                            <tr><td colspan="10" class="empty">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="logsTab" class="tab-page">
+            <div class="panel">
+                <h3>操作日志</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>用户</th>
+                            <th>操作</th>
+                            <th>详情</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTable">
+                        <tr><td colspan="5" class="empty">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="settingsTab" class="tab-page">
+            <div class="panel">
+                <h3>系统设置</h3>
+                <div id="settingsStatus" class="status-msg"></div>
+                <div class="form-row" style="grid-template-columns: 1fr 220px; align-items:end; margin-bottom:0;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>更新记录显示条数</label>
+                        <input type="number" id="clientUpdatesLimit" value="10" min="1" max="50">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; display:flex; align-items:flex-end;">
+                        <button class="btn btn-primary" style="width:100%;" onclick="saveSettings()">保存设置</button>
+                    </div>
+                </div>
+                <div style="font-size:12px;color:#666;margin-top:5px;">用户侧“更新记录”页面最多显示最近多少条 GitHub 提交，建议 10 或 20，最大 50。</div>
+                <div style="margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+                        <div>
+                            <div style="color:#00d4ff;font-size:14px;font-weight:600;">GitHub API 调用统计</div>
+                            <div style="font-size:12px;color:#666;margin-top:4px;">用于排查 GitHub API 额度快速下降。统计从服务启动后开始累计；额度只在明细行展示为“该接口最后一次调用时”的响应头快照，不代表当前实时总额度，也不记录 Token。</div>
+                        </div>
+                        <button class="btn btn-primary" type="button" onclick="loadGitHubApiStats()" style="padding:8px 14px;font-size:12px;">刷新统计</button>
+                    </div>
+                    <div id="githubApiStatsStatus" class="status-msg"></div>
+                    <div id="githubApiStatsSummary" class="github-api-summary">
+                        <div class="github-api-card">
+                            <div class="github-api-card-label">累计调用</div>
+                            <div class="github-api-card-value">-</div>
+                        </div>
+                        <div class="github-api-card">
+                            <div class="github-api-card-label">接口数量</div>
+                            <div class="github-api-card-value">-</div>
+                        </div>
+                        <div class="github-api-card">
+                            <div class="github-api-card-label">最近记录</div>
+                            <div class="github-api-card-value">-</div>
+                        </div>
+                        <div class="github-api-card">
+                            <div class="github-api-card-label">最高频接口</div>
+                            <div class="github-api-card-value is-path">-</div>
+                        </div>
+                    </div>
+                    <div class="table-scroll github-api-table-scroll">
+                        <table class="github-api-table">
+                            <thead>
+                                <tr>
+                                    <th>次数</th>
+                                    <th>方法</th>
+                                    <th>状态</th>
+                                    <th>GitHub API 路径</th>
+                                    <th>最近调用</th>
+                                    <th>额度快照</th>
+                                </tr>
+                            </thead>
+                            <tbody id="githubApiStatsTable">
+                                <tr><td colspan="6" class="empty">点击“刷新统计”查看调用明细</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div style="margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+                        <div>
+                            <div style="color:#00d4ff;font-size:14px;font-weight:600;">自定义功能绑定</div>
+                            <div style="font-size:12px;color:#666;margin-top:4px;">给“自定义功能1 / 2 / 3 ...”设置对接码，并勾选它能开启哪些具体功能。每个功能都可以单独勾选，后续继续新增也不影响现有对接码。</div>
+                        </div>
+                        <button class="btn btn-primary" type="button" onclick="addCustomFeatureGroup()" style="padding:8px 14px;font-size:12px;">新增功能组</button>
+                    </div>
+                    <div id="customFeatureGroupsContainer"></div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap;">
+                        <div style="font-size:12px;color:#8b95a7;">这里的修改和上方“系统设置”共用同一保存接口，编辑完成后点击这里或上方按钮都可以保存。</div>
+                        <button class="btn btn-primary" type="button" onclick="saveSettings()" style="padding:8px 16px;font-size:12px;">保存自定义功能设置</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="appDialogOverlay" class="app-dialog-overlay" aria-hidden="true">
+        <div class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+            <div id="appDialogTitle" class="app-dialog-title">提示</div>
+            <div id="appDialogMessage" class="app-dialog-message"></div>
+            <div class="app-dialog-actions">
+                <button type="button" class="btn app-dialog-btn-cancel" id="appDialogCancelBtn" style="display:none;">取消</button>
+                <button type="button" class="btn btn-primary" id="appDialogConfirmBtn">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var SESSION_KEY = 'xboard_admin_session';
+
+        function getSession() {
+            try { return JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch(e) { return null; }
+        }
+
+        function getToken() {
+            var s = getSession();
+            if (!s || !s.token || s.permissions !== 'admin') {
+                return null;
+            }
+            return s.token;
+        }
+
+        function showLogin() {
+            document.getElementById('loginView').style.display = 'block';
+            document.getElementById('mainView').style.display = 'none';
+        }
+
+        function showMain() {
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('mainView').style.display = 'block';
+        }
+
+        function logout() {
+            sessionStorage.removeItem(SESSION_KEY);
+            showLogin();
+        }
+
+
+        var appDialogResolver = null;
+        var appDialogMode = 'alert';
+        var appDialogInitialized = false;
+
+        function initAppDialog() {
+            if (appDialogInitialized) return;
+            var overlay = document.getElementById('appDialogOverlay');
+            var confirmBtn = document.getElementById('appDialogConfirmBtn');
+            var cancelBtn = document.getElementById('appDialogCancelBtn');
+            if (!overlay || !confirmBtn || !cancelBtn) return;
+
+            confirmBtn.addEventListener('click', function() {
+                closeAppDialog(true);
+            });
+            cancelBtn.addEventListener('click', function() {
+                closeAppDialog(false);
+            });
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay && appDialogMode === 'confirm') {
+                    closeAppDialog(false);
+                }
+            });
+            document.addEventListener('keydown', function(e) {
+                if (!overlay.classList.contains('show')) return;
+                if (e.key === 'Escape') {
+                    closeAppDialog(appDialogMode === 'confirm' ? false : true);
+                }
+            });
+            appDialogInitialized = true;
+        }
+
+        function closeAppDialog(result) {
+            var overlay = document.getElementById('appDialogOverlay');
+            if (!overlay) return;
+            overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden', 'true');
+            var resolver = appDialogResolver;
+            appDialogResolver = null;
+            if (resolver) resolver(result);
+        }
+
+        function showAppDialog(options) {
+            initAppDialog();
+            var overlay = document.getElementById('appDialogOverlay');
+            var titleEl = document.getElementById('appDialogTitle');
+            var messageEl = document.getElementById('appDialogMessage');
+            var confirmBtn = document.getElementById('appDialogConfirmBtn');
+            var cancelBtn = document.getElementById('appDialogCancelBtn');
+            if (!overlay || !titleEl || !messageEl || !confirmBtn || !cancelBtn) {
+                return Promise.resolve(false);
+            }
+
+            appDialogMode = options && options.showCancel ? 'confirm' : 'alert';
+            titleEl.textContent = options && options.title ? options.title : (appDialogMode === 'confirm' ? '请确认' : '提示');
+            messageEl.textContent = options && options.message ? options.message : '';
+            confirmBtn.textContent = options && options.confirmText ? options.confirmText : '确定';
+            cancelBtn.textContent = options && options.cancelText ? options.cancelText : '取消';
+            cancelBtn.style.display = appDialogMode === 'confirm' ? 'inline-flex' : 'none';
+            overlay.classList.add('show');
+            overlay.setAttribute('aria-hidden', 'false');
+
+            return new Promise(function(resolve) {
+                appDialogResolver = resolve;
+                setTimeout(function() {
+                    (appDialogMode === 'confirm' ? cancelBtn : confirmBtn).focus();
+                }, 0);
+            });
+        }
+
+        function showAppAlert(message, title, confirmText) {
+            return showAppDialog({
+                message: message,
+                title: title || '提示',
+                confirmText: confirmText || '知道了'
+            });
+        }
+
+        function showAppConfirm(message, title, confirmText, cancelText) {
+            return showAppDialog({
+                message: message,
+                title: title || '请确认',
+                confirmText: confirmText || '确定',
+                cancelText: cancelText || '取消',
+                showCancel: true
+            });
+        }
+
+        async function loadAdminData() {
+            await loadProfileList();
+            loadCodes();
+            loadSettings();
+        }
+
+        async function adminLogin() {
+            var password = document.getElementById('adminPassword').value.trim();
+            if (!password) return;
+            var errorEl = document.getElementById('loginError');
+            errorEl.className = 'status-msg';
+
+            try {
+                var response = await fetch('/api/auth/admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: password })
+                });
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '登录失败');
+                }
+                sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+                    token: data.token,
+                    name: data.name,
+                    permissions: data.permissions
+                }));
+                showMain();
+                loadAdminData();
+            } catch (e) {
+                errorEl.className = 'status-msg error';
+                errorEl.textContent = e.message;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('adminPassword').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') adminLogin();
+            });
+            bindProfilePicker('profileCheckboxes');
+            bindProfilePicker('editProfileCheckboxes');
+            renderClientPermissionCheckboxes('codeAllowedClients', 'client-permission-cb', []);
+            renderClientPermissionCheckboxes('editCodeAllowedClients', 'edit-client-permission-cb', []);
+            renderClientPermissionCheckboxes('batchCodeAllowedClients', 'batch-client-permission-cb', []);
+            renderPlatformPermissionCheckboxes('codeAllowedPlatforms', 'platform-permission-cb', []);
+            renderPlatformPermissionCheckboxes('editCodeAllowedPlatforms', 'edit-platform-permission-cb', []);
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.profile-picker')) {
+                    closeAllProfilePickers();
+                }
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeAllProfilePickers();
+                }
+            });
+        });
+
+        async function api(method, path, body) {
+            var token = getToken();
+            if (!token) { showLogin(); return null; }
+            var options = {
+                method: method,
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+            };
+            if (body) options.body = JSON.stringify(body);
+            var response = await fetch('/api' + path, options);
+            if (response.status === 401 || response.status === 403) {
+                sessionStorage.removeItem(SESSION_KEY);
+                showLogin();
+                return null;
+            }
+            return response;
+        }
+
+        function switchTab(name) {
+            document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            document.querySelectorAll('.tab-page').forEach(function(p) { p.classList.remove('active'); });
+            document.getElementById(name + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+            if (name === 'logs') loadLogs();
+            if (name === 'settings') {
+                loadSettings();
+                loadGitHubApiStats();
+            }
+        }
+
+        function copyCode(code) {
+            navigator.clipboard.writeText(code).then(function() {
+                showAppAlert('已复制: ' + code, '复制成功');
+            }).catch(function() {
+                showAppAlert('复制失败，请手动复制该激活码。', '复制失败');
+            });
+        }
+
+        var allProfiles = [];
+        var allProfileItems = [];
+        var profileItemsByClient = {};
+        var profileKeysByClient = {};
+        var codesCache = [];
+        var editUnknownProfileKeys = [];
+        var buildPlatformCatalog = [
+            { value: 'windows-arm64', label: 'Windows ARM64' },
+            { value: 'windows-amd64', label: 'Windows AMD64' },
+            { value: 'android', label: 'Android（手机）' },
+            { value: 'android-tv', label: 'Android TV' },
+            { value: 'linux-arm64', label: 'Linux ARM64' },
+            { value: 'linux-amd64', label: 'Linux AMD64' },
+            { value: 'macos-arm64', label: 'macOS ARM64' },
+            { value: 'macos-amd64', label: 'macOS AMD64' }
+        ];
+        var buildClientCatalog = [
+            { value: 'xboard_mihomo_sub', label: '老客户端 Xboard-Mihomo_sub', shortLabel: '老客户端' },
+            { value: 'nexgen_react', label: '新客户端 NexGen Client React', shortLabel: '新客户端' }
+        ];
+
+        function getProfileKey(profile) {
+            return String((profile && (profile.key || profile.name)) || '').trim();
+        }
+
+        function getProfileDisplayName(profile) {
+            return String((profile && (profile.display_name || profile.name || profile.key)) || '').trim();
+        }
+
+        function findProfileItemByKey(key) {
+            key = String(key || '').trim();
+            for (var i = 0; i < allProfileItems.length; i++) {
+                if (getProfileKey(allProfileItems[i]) === key) {
+                    return allProfileItems[i];
+                }
+            }
+            return null;
+        }
+
+        function formatProfileLabel(key) {
+            var item = findProfileItemByKey(key);
+            var displayName = getProfileDisplayName(item) || key;
+            return displayName && key && displayName !== key ? displayName + ' [' + key + ']' : displayName;
+        }
+
+        function getRenameProfileClient() {
+            var select = document.getElementById('renameProfileClient');
+            return String((select && select.value) || 'all').trim() || 'all';
+        }
+
+        function profileItemsForRenameClient() {
+            var client = getRenameProfileClient();
+            if (client === 'all') {
+                return allProfileItems;
+            }
+            return profileItemsByClient[client] || [];
+        }
+
+        function profileKeysForRenameClient() {
+            return profileItemsForRenameClient().map(function(p) { return getProfileKey(p); }).filter(Boolean);
+        }
+
+        function formatRenameProfileLabel(key) {
+            var client = getRenameProfileClient();
+            if (client === 'all') {
+                return formatProfileLabel(key);
+            }
+            var items = profileItemsByClient[client] || [];
+            for (var i = 0; i < items.length; i++) {
+                if (getProfileKey(items[i]) === key) {
+                    var displayName = getProfileDisplayName(items[i]) || key;
+                    return displayName && key && displayName !== key ? displayName + ' [' + key + ']' : displayName;
+                }
+            }
+            return formatProfileLabel(key);
+        }
+        var customFeatureGroupsCache = [];
+        var customFeatureOptionCatalog = [
+            { key: 'traffic_bar_color', label: '流量条自定义' },
+            { key: 'notice_dialog_icon_background_color', label: '公告弹窗图标背景自定义' },
+            { key: 'subscription_website_icon_color', label: '官网按钮图标自定义' },
+            { key: 'subscription_refresh_icon_color', label: '刷新按钮图标自定义' },
+            { key: 'subscription_notice_icon_color', label: '公告按钮图标自定义' },
+            { key: 'login_button_color', label: '登录按钮颜色自定义' },
+            { key: 'plans_subscribe_button_color', label: '套餐订阅按钮颜色自定义' },
+            { key: 'plans_filter_tab_color', label: '套餐筛选按钮颜色自定义' },
+            { key: 'invite_code_text_color', label: '邀请码文本颜色自定义' },
+            { key: 'invite_code_background_color', label: '邀请码卡片背景颜色自定义' },
+            { key: 'commission_balance_card_background_color', label: '可用佣金卡片背景颜色自定义' },
+            { key: 'invite_stats_total_invites_icon_color', label: '邀请统计总邀请图标颜色自定义' },
+            { key: 'invite_stats_commission_rate_icon_color', label: '邀请统计返佣比例图标颜色自定义' },
+            { key: 'invite_stats_total_commission_icon_color', label: '邀请统计总佣金图标颜色自定义' },
+            { key: 'subscription_status_popup', label: '登录窗口套餐状态拦截' },
+            { key: 'main_policy_nodes_only', label: '节点弹窗仅显示主策略节点' },
+            { key: 'hide_invite_promotion', label: '隐藏邀请推广页面' },
+            { key: 'hide_current_node_label', label: '隐藏连接卡片当前节点标签' },
+            { key: 'cloud_dispatch', label: '云端调度' },
+            { key: 'sspanel_node_page_parse', label: 'SSPanel 节点页面解析' },
+            { key: 'registration_invite', label: '注册邀请绑定' },
+            { key: 'custom_invite_link', label: '自定义邀请链接' }
+        ];
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function buildDefaultCustomFeatureGroupName(index) {
+            return '自定义功能' + index;
+        }
+
+        function formatCustomFeatureGroupSummary(featureKeys) {
+            featureKeys = Array.isArray(featureKeys) ? featureKeys : [];
+            var labels = featureKeys.map(function(key) {
+                var matched = customFeatureOptionCatalog.find(function(option) {
+                    return option.key === key;
+                });
+                return matched ? matched.label : key;
+            }).filter(Boolean);
+            if (!labels.length) {
+                return '未绑定功能';
+            }
+            return '已绑定 ' + labels.length + ' 项：' + labels.join('、');
+        }
+
+        function normalizeCustomFeatureGroups(groups) {
+            if (!Array.isArray(groups)) return [];
+            var result = [];
+            groups.forEach(function(group, index) {
+                group = group || {};
+                var name = String(group.name || '').trim();
+                var integrationCode = String(group.integration_code || '').trim();
+                var featureKeys = Array.isArray(group.feature_keys)
+                    ? group.feature_keys.map(function(item) { return String(item || '').trim(); }).filter(Boolean)
+                    : [];
+                featureKeys = Array.from(new Set(featureKeys));
+                if (!name && !integrationCode && featureKeys.length === 0) {
+                    return;
+                }
+                result.push({
+                    name: name || buildDefaultCustomFeatureGroupName(result.length + 1),
+                    integration_code: integrationCode,
+                    feature_keys: featureKeys
+                });
+            });
+            return result;
+        }
+
+        function renderCustomFeatureGroups() {
+            var container = document.getElementById('customFeatureGroupsContainer');
+            if (!container) return;
+            var groups = normalizeCustomFeatureGroups(customFeatureGroupsCache);
+            customFeatureGroupsCache = groups;
+
+            if (!groups.length) {
+                container.innerHTML = '<div class="empty" style="padding:24px 12px;">暂未配置自定义功能组，点击“新增功能组”开始配置。</div>';
+                return;
+            }
+
+            container.innerHTML = groups.map(function(group, index) {
+                var featuresPanelId = 'customFeatureGroupFeaturesPanel_' + index;
+                var featureOptionsHtml = customFeatureOptionCatalog.map(function(option) {
+                    var checkboxId = 'customFeatureGroup_' + index + '_' + option.key;
+                    var checked = group.feature_keys.indexOf(option.key) !== -1 ? ' checked' : '';
+                    return [
+                        '<label for="' + checkboxId + '" class="custom-feature-option">',
+                            '<input type="checkbox" id="' + checkboxId + '" class="custom-feature-group-feature" value="' + escapeHtml(option.key) + '"' + checked + ' onchange="syncCustomFeatureGroupSummary(' + index + ')">',
+                            '<span class="custom-feature-option-box">✓</span>',
+                            '<span class="custom-feature-option-label">' + escapeHtml(option.label) + '</span>',
+                        '</label>'
+                    ].join('');
+                }).join('');
+
+                return [
+                    '<div class="custom-feature-group-item is-collapsed">',
+                        '<div class="custom-feature-group-header">',
+                            '<div>',
+                                '<div class="custom-feature-group-title">' + escapeHtml(group.name || buildDefaultCustomFeatureGroupName(index + 1)) + '</div>',
+                                '<div class="custom-feature-group-meta">' + escapeHtml(formatCustomFeatureGroupSummary(group.feature_keys)) + '</div>',
+                            '</div>',
+                            '<div class="custom-feature-group-actions">',
+                                '<button class="btn btn-secondary custom-feature-group-toggle" type="button" style="padding:6px 10px;font-size:12px;" aria-expanded="false" aria-controls="' + featuresPanelId + '" onclick="toggleCustomFeatureGroupFeatures(' + index + ')">展开功能</button>',
+                                '<button class="btn btn-danger" type="button" style="padding:6px 10px;font-size:12px;" onclick="removeCustomFeatureGroup(' + index + ')">删除</button>',
+                            '</div>',
+                        '</div>',
+                        '<div class="form-row" style="grid-template-columns:1fr 1fr; margin-bottom:12px;">',
+                            '<div class="form-group" style="margin-bottom:0;">',
+                                '<label>功能组名称</label>',
+                                '<input type="text" class="custom-feature-group-name" value="' + escapeHtml(group.name) + '" placeholder="' + escapeHtml(buildDefaultCustomFeatureGroupName(index + 1)) + '">',
+                            '</div>',
+                            '<div class="form-group" style="margin-bottom:0;">',
+                                '<label>对接码</label>',
+                                '<input type="text" class="custom-feature-group-code" value="' + escapeHtml(group.integration_code) + '" placeholder="请输入该功能组对接码">',
+                            '</div>',
+                        '</div>',
+                        '<div class="form-group custom-feature-group-features-panel" id="' + featuresPanelId + '" style="margin-bottom:0;">',
+                            '<label>绑定的具体功能（可多选）</label>',
+                            '<div class="custom-feature-group-features">' + featureOptionsHtml + '</div>',
+                        '</div>',
+                    '</div>'
+                ].join('');
+            }).join('');
+        }
+
+        function syncCustomFeatureGroupSummary(index) {
+            var items = document.querySelectorAll('#customFeatureGroupsContainer .custom-feature-group-item');
+            var item = items[index];
+            if (!item) return;
+            var summary = item.querySelector('.custom-feature-group-meta');
+            if (!summary) return;
+            var featureKeys = Array.from(item.querySelectorAll('.custom-feature-group-feature:checked')).map(function(checkbox) {
+                return String(checkbox.value || '').trim();
+            }).filter(Boolean);
+            summary.textContent = formatCustomFeatureGroupSummary(featureKeys);
+        }
+
+        function toggleCustomFeatureGroupFeatures(index) {
+            var items = document.querySelectorAll('#customFeatureGroupsContainer .custom-feature-group-item');
+            var item = items[index];
+            if (!item) return;
+            var collapsed = item.classList.toggle('is-collapsed');
+            var toggleButton = item.querySelector('.custom-feature-group-toggle');
+            if (toggleButton) {
+                toggleButton.textContent = collapsed ? '展开功能' : '收起功能';
+                toggleButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            }
+        }
+
+        function addCustomFeatureGroup() {
+            var currentGroups = normalizeCustomFeatureGroups(customFeatureGroupsCache);
+            currentGroups.push({
+                name: buildDefaultCustomFeatureGroupName(currentGroups.length + 1),
+                integration_code: '',
+                feature_keys: []
+            });
+            customFeatureGroupsCache = currentGroups;
+            renderCustomFeatureGroups();
+        }
+
+        function removeCustomFeatureGroup(index) {
+            var groups = normalizeCustomFeatureGroups(collectCustomFeatureGroups());
+            groups.splice(index, 1);
+            customFeatureGroupsCache = groups;
+            renderCustomFeatureGroups();
+        }
+
+        function collectCustomFeatureGroups() {
+            var items = document.querySelectorAll('#customFeatureGroupsContainer .custom-feature-group-item');
+            var groups = [];
+            items.forEach(function(item, index) {
+                var nameInput = item.querySelector('.custom-feature-group-name');
+                var codeInput = item.querySelector('.custom-feature-group-code');
+                var featureKeys = Array.from(item.querySelectorAll('.custom-feature-group-feature:checked')).map(function(checkbox) {
+                    return String(checkbox.value || '').trim();
+                }).filter(Boolean);
+                groups.push({
+                    name: String(nameInput ? nameInput.value : '').trim() || buildDefaultCustomFeatureGroupName(index + 1),
+                    integration_code: String(codeInput ? codeInput.value : '').trim(),
+                    feature_keys: Array.from(new Set(featureKeys))
+                });
+            });
+            return normalizeCustomFeatureGroups(groups);
+        }
+
+        function validateCustomFeatureGroups(groups) {
+            for (var i = 0; i < groups.length; i++) {
+                var group = groups[i];
+                if (!group.integration_code) {
+                    return '第 ' + (i + 1) + ' 个自定义功能组还没有填写对接码';
+                }
+                if (!group.feature_keys || group.feature_keys.length === 0) {
+                    return '第 ' + (i + 1) + ' 个自定义功能组至少要绑定一个具体功能';
+                }
+            }
+            return '';
+        }
+
+        async function loadProfilesForClient(client) {
+            var response = await api('GET', '/profiles?light=1&client=' + encodeURIComponent(client));
+            if (!response) return [];
+            var data = await response.json();
+            if (!response.ok) {
+                throw new Error((data && data.error) || '加载档案列表失败');
+            }
+            return data.profiles || [];
+        }
+
+        async function loadProfileList() {
+            try {
+                profileItemsByClient = {};
+                profileKeysByClient = {};
+                var profileLists = await Promise.all(buildClientCatalog.map(function(client) {
+                    return loadProfilesForClient(client.value).then(function(profiles) {
+                        profileItemsByClient[client.value] = profiles || [];
+                        profileKeysByClient[client.value] = profileItemsByClient[client.value].map(function(p) { return getProfileKey(p); }).filter(Boolean);
+                        return profileItemsByClient[client.value];
+                    }).catch(function(e) {
+                        console.log('加载' + client.shortLabel + '档案列表失败:', e);
+                        profileItemsByClient[client.value] = [];
+                        profileKeysByClient[client.value] = [];
+                        return [];
+                    });
+                }));
+                var profileMap = {};
+                profileLists.forEach(function(list) {
+                    (list || []).forEach(function(profile) {
+                        var key = getProfileKey(profile);
+                        if (!key) return;
+                        if (!profileMap[key]) {
+                            profileMap[key] = profile;
+                            return;
+                        }
+                        if (!getProfileDisplayName(profileMap[key]) && getProfileDisplayName(profile)) {
+                            profileMap[key] = profile;
+                        }
+                    });
+                });
+                allProfileItems = Object.keys(profileMap).sort().map(function(key) {
+                    return profileMap[key];
+                });
+                allProfiles = allProfileItems.map(function(p) { return getProfileKey(p); }).filter(Boolean);
+                renderRenameProfileSelect();
+                renderProfileCheckboxes('profileCheckboxes', 'profile-cb', getSelectedProfiles('.profile-cb:checked', 'manualProfiles'));
+                renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', getSelectedProfiles('.edit-profile-cb:checked', 'editManualProfiles'));
+            } catch (e) {
+                console.log('加载档案列表失败:', e);
+            }
+        }
+
+        function renderRenameProfileSelect() {
+            var select = document.getElementById('renameProfileSelect');
+            if (!select) return;
+            var currentValue = select.value;
+            var renameProfiles = profileKeysForRenameClient();
+            select.innerHTML = '';
+            if (!renameProfiles.length) {
+                var emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = '暂无已有档案';
+                select.appendChild(emptyOption);
+                return;
+            }
+            var placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = '请选择要重命名的档案';
+            select.appendChild(placeholder);
+            renameProfiles.forEach(function(name) {
+                var option = document.createElement('option');
+                option.value = name;
+                option.textContent = formatRenameProfileLabel(name);
+                select.appendChild(option);
+            });
+            if (currentValue && renameProfiles.indexOf(currentValue) !== -1) {
+                select.value = currentValue;
+            }
+        }
+
+        function getManualProfiles(manualInputId) {
+            var result = [];
+            var seen = {};
+            var input = document.getElementById(manualInputId);
+            var manual = input ? String(input.value || '').split(/[,，]/) : [];
+            manual.forEach(function(s) {
+                var v = s.trim();
+                if (v && !seen[v]) {
+                    result.push(v);
+                    seen[v] = true;
+                }
+            });
+            return result;
+        }
+
+        function getSelectedProfiles(checkboxSelector, manualInputId) {
+            var result = [];
+            var seen = {};
+            document.querySelectorAll(checkboxSelector).forEach(function(cb) {
+                var v = cb.value.trim();
+                if (v && !seen[v]) {
+                    result.push(v);
+                    seen[v] = true;
+                }
+            });
+            getManualProfiles(manualInputId).forEach(function(v) {
+                if (!seen[v]) {
+                    result.push(v);
+                    seen[v] = true;
+                }
+            });
+            return result;
+        }
+
+        function getCheckedProfiles(checkboxSelector) {
+            var result = [];
+            var seen = {};
+            document.querySelectorAll(checkboxSelector).forEach(function(cb) {
+                var v = cb.value.trim();
+                if (v && !seen[v]) {
+                    result.push(v);
+                    seen[v] = true;
+                }
+            });
+            return result;
+        }
+
+        function mergeProfileValues() {
+            var result = [];
+            var seen = {};
+            for (var i = 0; i < arguments.length; i++) {
+                (arguments[i] || []).forEach(function(v) {
+                    v = String(v || '').trim();
+                    if (v && !seen[v]) {
+                        result.push(v);
+                        seen[v] = true;
+                    }
+                });
+            }
+            return result;
+        }
+
+        function getProfilePickerByContainer(containerId) {
+            var container = document.getElementById(containerId);
+            return container ? container.closest('.profile-picker') : null;
+        }
+
+        function updateProfilePickerSummary(containerId) {
+            var picker = getProfilePickerByContainer(containerId);
+            if (!picker) return;
+
+            var summaryEl = picker.querySelector('.profile-picker-summary');
+            var checkboxClass = picker.getAttribute('data-checkbox-class');
+            var manualInputId = picker.getAttribute('data-manual-input-id');
+            var selected = getSelectedProfiles('.' + checkboxClass + ':checked', manualInputId);
+            var manualCount = getManualProfiles(manualInputId).length;
+
+            if (!selected.length) {
+                summaryEl.textContent = allProfiles.length === 0 ? '暂无已有档案，请手动输入' : '请选择已有档案';
+                return;
+            }
+            if (selected.length <= 3) {
+                summaryEl.textContent = selected.map(formatProfileLabel).join('、');
+                return;
+            }
+            summaryEl.textContent = '已选择 ' + selected.length + ' 个档案' + (manualCount ? '（含 ' + manualCount + ' 个手动输入）' : '');
+        }
+
+        function closeAllProfilePickers(exceptId) {
+            document.querySelectorAll('.profile-picker.open').forEach(function(picker) {
+                if (!exceptId || picker.id !== exceptId) {
+                    picker.classList.remove('open');
+                }
+            });
+        }
+
+        function toggleProfilePicker(pickerId) {
+            var picker = document.getElementById(pickerId);
+            if (!picker) return;
+
+            var shouldOpen = !picker.classList.contains('open');
+            closeAllProfilePickers(pickerId);
+            if (!shouldOpen) {
+                picker.classList.remove('open');
+                return;
+            }
+
+            picker.classList.add('open');
+            var searchInput = picker.querySelector('.profile-picker-search');
+            if (searchInput) {
+                filterProfileOptions(picker.querySelector('.profile-picker-options').id, searchInput.value);
+                searchInput.focus();
+            }
+        }
+
+        function filterProfileOptions(containerId, keyword) {
+            var container = document.getElementById(containerId);
+            if (!container) return;
+
+            var normalized = String(keyword || '').trim().toLowerCase();
+            var visibleCount = 0;
+            container.querySelectorAll('.profile-picker-option').forEach(function(option) {
+                var matched = !normalized || option.getAttribute('data-profile-name').indexOf(normalized) !== -1;
+                option.style.display = matched ? 'flex' : 'none';
+                if (matched) visibleCount += 1;
+            });
+
+            var emptyEl = container.querySelector('.profile-picker-empty');
+            if (emptyEl && allProfiles.length > 0) {
+                emptyEl.style.display = visibleCount ? 'none' : 'block';
+                emptyEl.textContent = normalized ? '未找到匹配的已有档案' : '暂无已有档案，请在下方手动输入';
+            }
+        }
+
+        function bindProfilePicker(containerId) {
+            var picker = getProfilePickerByContainer(containerId);
+            if (!picker || picker.dataset.bound === '1') return;
+
+            picker.dataset.bound = '1';
+            var manualInputId = picker.getAttribute('data-manual-input-id');
+            var manualInput = document.getElementById(manualInputId);
+            if (manualInput) {
+                manualInput.addEventListener('input', function() {
+                    updateProfilePickerSummary(containerId);
+                });
+            }
+        }
+
+        function renderProfileCheckboxes(containerId, checkboxClass, selectedProfiles) {
+            var container = document.getElementById(containerId);
+            if (!container) return;
+
+            bindProfilePicker(containerId);
+            selectedProfiles = selectedProfiles || [];
+
+            var selectedMap = {};
+            selectedProfiles.forEach(function(name) {
+                if (name) selectedMap[name] = true;
+            });
+
+            container.innerHTML = '';
+            if (allProfiles.length === 0) {
+                var empty = document.createElement('span');
+                empty.className = 'profile-picker-empty';
+                empty.textContent = '暂无已有档案，请在下方手动输入';
+                container.appendChild(empty);
+                updateProfilePickerSummary(containerId);
+                return;
+            }
+
+	            allProfiles.forEach(function(name) {
+	                var label = document.createElement('label');
+	                label.className = 'profile-picker-option';
+	                label.setAttribute('data-profile-name', (name + ' ' + formatProfileLabel(name)).toLowerCase());
+
+                var input = document.createElement('input');
+                input.type = 'checkbox';
+                input.className = checkboxClass;
+                input.value = name;
+                input.checked = !!selectedMap[name];
+                input.addEventListener('change', function() {
+                    updateProfilePickerSummary(containerId);
+                });
+
+	                var text = document.createElement('span');
+	                text.textContent = formatProfileLabel(name);
+	                text.style.whiteSpace = 'nowrap';
+
+                label.appendChild(input);
+                label.appendChild(text);
+                container.appendChild(label);
+            });
+
+            var emptyState = document.createElement('span');
+            emptyState.className = 'profile-picker-empty';
+            emptyState.style.display = 'none';
+            container.appendChild(emptyState);
+
+            var picker = getProfilePickerByContainer(containerId);
+            var searchInput = picker ? picker.querySelector('.profile-picker-search') : null;
+            filterProfileOptions(containerId, searchInput ? searchInput.value : '');
+            updateProfilePickerSummary(containerId);
+        }
+
+        function parseMaxUsesValue(inputId) {
+            var raw = document.getElementById(inputId).value.trim();
+            if (raw === '') return -1;
+            var value = parseInt(raw, 10);
+            return isNaN(value) ? -1 : value;
+        }
+
+        function parseUsedCountValue(inputId) {
+            var raw = document.getElementById(inputId).value.trim();
+            if (raw === '') return 0;
+            var value = parseInt(raw, 10);
+            return isNaN(value) ? -1 : value;
+        }
+
+        function normalizeExpiresAtText(value) {
+            if (!value) return '';
+            var normalized = String(value).replace('T', ' ').trim();
+            var parts = normalized.split(/\s+/);
+            if (parts.length < 2) {
+                return parts[0] || '';
+            }
+            if (parts[1] === '23:59:59' || parts[1] === '23:59') {
+                return parts[0];
+            }
+            return parts[0] + ' ' + parts[1];
+        }
+
+        function formatExpiresAtDisplay(value) {
+            if (!value) {
+                return '<span style="color:#555">不过期</span>';
+            }
+            return normalizeExpiresAtText(value);
+        }
+
+        function formatTableDateTime(value) {
+            if (!value) return '';
+            var normalized = String(value).replace('T', ' ').replace(/Z$/, '').trim();
+            var parts = normalized.split(/\s+/);
+            if (parts.length < 2) return normalized;
+            return parts[0].slice(5) + ' ' + parts[1].replace(/\.\d+$/, '').slice(0, 5);
+        }
+
+        function renderPlatformPermissionCheckboxes(containerId, checkboxClass, selectedPlatforms) {
+            var container = document.getElementById(containerId);
+            if (!container) return;
+
+            var selectedMap = {};
+            (selectedPlatforms || []).forEach(function(platform) {
+                platform = String(platform || '').trim();
+                if (platform) selectedMap[platform] = true;
+            });
+
+            container.innerHTML = '';
+            buildPlatformCatalog.forEach(function(platform) {
+                var label = document.createElement('label');
+                label.className = 'platform-permission-option';
+
+                var input = document.createElement('input');
+                input.type = 'checkbox';
+                input.className = checkboxClass;
+                input.value = platform.value;
+                input.checked = !!selectedMap[platform.value];
+
+                var text = document.createElement('span');
+                text.textContent = platform.label;
+
+                label.appendChild(input);
+                label.appendChild(text);
+                container.appendChild(label);
+            });
+        }
+
+        function getSelectedBuildPlatformPermissions(checkboxSelector) {
+            var result = [];
+            var seen = {};
+            document.querySelectorAll(checkboxSelector).forEach(function(cb) {
+                var value = String(cb.value || '').trim();
+                if (cb.checked && value && !seen[value]) {
+                    result.push(value);
+                    seen[value] = true;
+                }
+            });
+            return result;
+        }
+
+        function normalizeBuildClient(client) {
+            client = String(client || '').trim();
+            if (client === 'legacy' || client === 'xboard') return 'xboard_mihomo_sub';
+            if (client === 'nexgen' || client === 'nexgen-react') return 'nexgen_react';
+            return client;
+        }
+
+        function renderClientPermissionCheckboxes(containerId, checkboxClass, selectedClients) {
+            var container = document.getElementById(containerId);
+            if (!container) return;
+
+            var selectedMap = {};
+            (selectedClients || []).forEach(function(client) {
+                client = normalizeBuildClient(client);
+                if (client) selectedMap[client] = true;
+            });
+
+            container.innerHTML = '';
+            buildClientCatalog.forEach(function(client) {
+                var label = document.createElement('label');
+                label.className = 'platform-permission-option';
+
+                var input = document.createElement('input');
+                input.type = 'checkbox';
+                input.className = checkboxClass;
+                input.value = client.value;
+                input.checked = !!selectedMap[client.value];
+
+                var text = document.createElement('span');
+                text.textContent = client.label;
+
+                label.appendChild(input);
+                label.appendChild(text);
+                container.appendChild(label);
+            });
+        }
+
+        function getSelectedClientPermissions(checkboxSelector) {
+            var result = [];
+            var seen = {};
+            document.querySelectorAll(checkboxSelector).forEach(function(cb) {
+                var value = normalizeBuildClient(cb.value);
+                if (cb.checked && value && !seen[value]) {
+                    result.push(value);
+                    seen[value] = true;
+                }
+            });
+            return result;
+        }
+
+        function getClientPermissionLabelMap(useShortLabel) {
+            var labelMap = {};
+            buildClientCatalog.forEach(function(client) {
+                labelMap[client.value] = useShortLabel ? client.shortLabel : client.label;
+            });
+            return labelMap;
+        }
+
+        function getClientShortLabel(client) {
+            var labelMap = getClientPermissionLabelMap(true);
+            client = normalizeBuildClient(client);
+            return labelMap[client] || client;
+        }
+
+        function formatAllowedClientsDisplay(clients) {
+            if (!clients || clients.length === 0) {
+                return '<span style="color:#555">全部客户端</span>';
+            }
+            var labelMap = getClientPermissionLabelMap(false);
+            return clients.map(function(client) {
+                client = normalizeBuildClient(client);
+                return escapeHtml(labelMap[client] || client);
+            }).join(', ');
+        }
+
+        function formatAllowedClientsShort(clients) {
+            if (!clients || clients.length === 0) {
+                return '<span style="color:#555">全部客户端</span>';
+            }
+            var labelMap = getClientPermissionLabelMap(true);
+            return clients.map(function(client) {
+                client = normalizeBuildClient(client);
+                return escapeHtml(labelMap[client] || client);
+            }).join(', ');
+        }
+
+        function formatAllowedPlatformsDisplay(platforms) {
+            if (!platforms || platforms.length === 0) {
+                return '<span style="color:#555">全部平台</span>';
+            }
+            var labelMap = {};
+            buildPlatformCatalog.forEach(function(platform) {
+                labelMap[platform.value] = platform.label;
+            });
+            return platforms.map(function(platform) {
+                return escapeHtml(labelMap[platform] || platform);
+            }).join(', ');
+        }
+
+        function formatAllowedPlatformsShort(platforms) {
+            if (!platforms || platforms.length === 0) {
+                return '<span style="color:#555">全部平台</span>';
+            }
+            var shortLabelMap = {
+                'windows': 'Win 全架构',
+                'windows-arm64': 'Win ARM64',
+                'windows-amd64': 'Win AMD64',
+                'android': 'Android',
+                'android-tv': 'TV',
+                'linux-arm64': 'Linux ARM64',
+                'linux-amd64': 'Linux AMD64',
+                'macos-arm64': 'macOS ARM64',
+                'macos-amd64': 'macOS AMD64'
+            };
+            return platforms.map(function(platform) {
+                return escapeHtml(shortLabelMap[platform] || platform);
+            }).join(', ');
+        }
+
+        function resetCreateForm() {
+            document.getElementById('codeName').value = '';
+            document.getElementById('codeMaxUses').value = '-1';
+            document.getElementById('codeExpiresAt').value = '';
+            document.getElementById('manualProfiles').value = '';
+            renderProfileCheckboxes('profileCheckboxes', 'profile-cb', []);
+            renderClientPermissionCheckboxes('codeAllowedClients', 'client-permission-cb', []);
+            renderPlatformPermissionCheckboxes('codeAllowedPlatforms', 'platform-permission-cb', []);
+        }
+
+        async function renameProfileFromAdmin() {
+            var renameClient = getRenameProfileClient();
+            var renameProfiles = profileKeysForRenameClient();
+            var renameClientLabel = renameClient === 'all' ? '全部项目' : getClientShortLabel(renameClient);
+            var oldName = String(document.getElementById('renameProfileSelect').value || '').trim();
+            var newName = String(document.getElementById('renameProfileName').value || '').trim();
+            var oldLabel = formatRenameProfileLabel(oldName) || oldName;
+            var statusEl = document.getElementById('profileManageStatus');
+            statusEl.className = 'status-msg';
+            statusEl.textContent = '';
+
+            if (!oldName) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '请选择要重命名的档案';
+                return;
+            }
+            if (!newName) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '请输入新的档案名称';
+                return;
+            }
+            if (newName === oldName) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '新档案名称不能与原名称相同';
+                return;
+            }
+            if (renameProfiles.indexOf(newName) !== -1) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '新档案名称已存在';
+                return;
+            }
+            if (!await showAppConfirm('确定在“' + renameClientLabel + '”中将档案 "' + oldLabel + '" 重命名为 "' + newName + '" 吗？绑定关系和历史记录会同步更新。', '重命名档案', '确认重命名')) {
+                return;
+            }
+
+            statusEl.className = 'status-msg success';
+            statusEl.textContent = '正在重命名...';
+            try {
+                var renamePath = '/admin/profiles/' + encodeURIComponent(oldName) + '/rename?client=' + encodeURIComponent(renameClient);
+                var response = await api('PUT', renamePath, {
+                    new_name: newName
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '重命名失败');
+                }
+                document.getElementById('renameProfileName').value = '';
+                await loadProfileList();
+                document.getElementById('renameProfileSelect').value = newName;
+                await loadCodes();
+                statusEl.className = 'status-msg success';
+                statusEl.textContent = '已重命名（' + renameClientLabel + '）: ' + oldLabel + ' -> ' + newName;
+            } catch (e) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '重命名失败: ' + e.message;
+            }
+        }
+
+        function cancelEditCode() {
+            document.getElementById('editCodePanel').style.display = 'none';
+            editUnknownProfileKeys = [];
+            document.getElementById('editStatus').className = 'status-msg';
+            document.getElementById('editStatus').textContent = '';
+            document.getElementById('editCodeId').value = '';
+            document.getElementById('editCodeName').value = '';
+            document.getElementById('editCodeMaxUses').value = '-1';
+            document.getElementById('editCodeUsedCount').value = '0';
+            document.getElementById('editCodeExpiresAt').value = '';
+            document.getElementById('editManualProfiles').value = '';
+            renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', []);
+            renderClientPermissionCheckboxes('editCodeAllowedClients', 'edit-client-permission-cb', []);
+            renderPlatformPermissionCheckboxes('editCodeAllowedPlatforms', 'edit-platform-permission-cb', []);
+        }
+
+        function openEditCode(id) {
+            var code = null;
+            codesCache.forEach(function(item) {
+                if (item.id === id) code = item;
+            });
+            if (!code) {
+                showAppAlert('未找到该激活码', '提示');
+                return;
+            }
+
+            var selectedProfiles = code.allowed_profiles || [];
+            var selectedClients = code.allowed_clients || [];
+            var selectedPlatforms = code.allowed_platforms || [];
+            var manualProfiles = selectedProfiles.filter(function(name) {
+                return allProfiles.indexOf(name) === -1;
+            });
+            editUnknownProfileKeys = manualProfiles.slice();
+
+            document.getElementById('editCodeId').value = String(code.id);
+            document.getElementById('editCodeName').value = code.name || '';
+            document.getElementById('editCodeMaxUses').value = String(code.max_uses);
+            document.getElementById('editCodeUsedCount').value = String(code.used_count || 0);
+            document.getElementById('editCodeExpiresAt').value = normalizeExpiresAtText(code.expires_at);
+            document.getElementById('editManualProfiles').value = '';
+            document.getElementById('editStatus').className = 'status-msg';
+            document.getElementById('editStatus').textContent = '';
+            renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', selectedProfiles);
+            renderClientPermissionCheckboxes('editCodeAllowedClients', 'edit-client-permission-cb', selectedClients);
+            renderPlatformPermissionCheckboxes('editCodeAllowedPlatforms', 'edit-platform-permission-cb', selectedPlatforms);
+            document.getElementById('editCodePanel').style.display = 'block';
+            document.getElementById('editCodePanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function getSelectedCodeIds() {
+            var ids = [];
+            document.querySelectorAll('.code-select-cb:checked').forEach(function(cb) {
+                var id = parseInt(cb.value, 10);
+                if (id > 0) ids.push(id);
+            });
+            return ids;
+        }
+
+        function updateSelectedCodeCount() {
+            var selectedCount = getSelectedCodeIds().length;
+            var countEl = document.getElementById('batchSelectedCount');
+            if (countEl) {
+                countEl.textContent = '已选择 ' + selectedCount + ' 个激活码';
+            }
+            var selectAll = document.getElementById('selectAllCodes');
+            if (selectAll) {
+                var total = document.querySelectorAll('.code-select-cb').length;
+                selectAll.checked = total > 0 && selectedCount === total;
+                selectAll.indeterminate = selectedCount > 0 && selectedCount < total;
+            }
+        }
+
+        function toggleSelectAllCodes(checked) {
+            document.querySelectorAll('.code-select-cb').forEach(function(cb) {
+                cb.checked = checked;
+            });
+            updateSelectedCodeCount();
+        }
+
+        async function loadCodes() {
+            try {
+                var response = await api('GET', '/admin/codes');
+                if (!response) return;
+                var codes = await response.json();
+                codesCache = Array.isArray(codes) ? codes : [];
+                var tbody = document.getElementById('codesTable');
+
+                if (!codesCache.length) {
+                    tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无激活码</td></tr>';
+                    updateSelectedCodeCount();
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                codesCache.forEach(function(c) {
+                    var maxUsesText = c.max_uses === -1 ? '无限' : c.max_uses;
+	                    var profileLabels = (c.allowed_profiles || []).map(formatProfileLabel);
+	                    var profilesText = profileLabels.length > 0
+                        ? escapeHtml(profileLabels.join(', '))
+                        : '<span style="color:#555">未绑定</span>';
+                    var clientsText = formatAllowedClientsShort(c.allowed_clients || []);
+                    var clientsTitle = (c.allowed_clients && c.allowed_clients.length > 0)
+                        ? formatAllowedClientsDisplay(c.allowed_clients)
+                        : '全部客户端';
+                    var platformsText = formatAllowedPlatformsShort(c.allowed_platforms || []);
+                    var platformsTitle = (c.allowed_platforms && c.allowed_platforms.length > 0)
+                        ? formatAllowedPlatformsDisplay(c.allowed_platforms)
+                        : '全部平台';
+                    var createdAtText = formatTableDateTime(c.created_at);
+                    var expiresAtText = c.expires_at ? formatExpiresAtDisplay(c.expires_at) : '<span style="color:#555">不过期</span>';
+
+                    var tr = document.createElement('tr');
+                    tr.innerHTML =
+                        '<td class="cell-select" data-label="选择"><input type="checkbox" class="code-select-cb" value="' + c.id + '" onchange="updateSelectedCodeCount()"></td>' +
+                        '<td class="cell-code" data-label="激活码"><span class="code-text" data-code="' + escapeHtml(c.code) + '" title="点击复制">' + escapeHtml(c.code) + '</span></td>' +
+                        '<td class="cell-name" data-label="备注" title="' + escapeHtml(c.name || '-') + '">' + escapeHtml(c.name || '-') + '</td>' +
+	                        '<td class="cell-profile" data-label="绑定档案" title="' + escapeHtml(profileLabels.length > 0 ? profileLabels.join(', ') : '未绑定') + '" style="font-size:12px;">' + profilesText + '</td>' +
+                        '<td class="cell-clients" data-label="允许客户端" title="' + escapeHtml(clientsTitle) + '" style="font-size:12px;">' + clientsText + '</td>' +
+                        '<td class="cell-platforms" data-label="允许平台" title="' + escapeHtml(platformsTitle) + '" style="font-size:12px;">' + platformsText + '</td>' +
+                        '<td class="cell-usage" data-label="打包次数">' + c.used_count + ' / ' + maxUsesText + '</td>' +
+                        '<td class="cell-expire" data-label="到期时间" style="font-size:12px;color:#888;">' + expiresAtText + '</td>' +
+                        '<td class="cell-created" data-label="创建时间" style="font-size:12px;color:#888;">' + escapeHtml(createdAtText) + '</td>' +
+                        '<td class="cell-actions" data-label="操作">' +
+                            '<div class="code-actions">' +
+                                '<button class="btn btn-primary" title="编辑" onclick="openEditCode(' + c.id + ')">改</button>' +
+                                '<button class="btn btn-danger" title="删除" onclick="deleteCode(' + c.id + ')">删</button>' +
+                            '</div>' +
+                        '</td>';
+                    var codeEl = tr.querySelector('.code-text');
+                    if (codeEl) {
+                        codeEl.addEventListener('click', function() {
+                            copyCode(this.getAttribute('data-code') || '');
+                        });
+                    }
+                    tbody.appendChild(tr);
+                });
+                updateSelectedCodeCount();
+            } catch (e) {
+                console.log('加载激活码失败:', e);
+            }
+        }
+
+        async function createCode() {
+            var name = document.getElementById('codeName').value.trim();
+            var maxUses = parseMaxUsesValue('codeMaxUses');
+            var expiresAt = document.getElementById('codeExpiresAt').value.trim();
+            var selectedProfiles = getCheckedProfiles('.profile-cb:checked');
+            var manualProfiles = getManualProfiles('manualProfiles');
+            var profileLabels = selectedProfiles.concat(manualProfiles);
+            var selectedClients = getSelectedClientPermissions('.client-permission-cb:checked');
+            var selectedPlatforms = getSelectedBuildPlatformPermissions('.platform-permission-cb:checked');
+            var statusEl = document.getElementById('createStatus');
+
+            if (profileLabels.length === 0) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '请至少绑定一个档案（下拉多选或手动输入）';
+                return;
+            }
+
+            try {
+                var response = await api('POST', '/admin/codes', {
+                    name: name,
+                    max_uses: maxUses,
+                    allowed_profiles: selectedProfiles,
+                    manual_profiles: manualProfiles,
+                    allowed_clients: selectedClients,
+                    allowed_platforms: selectedPlatforms,
+                    expires_at: expiresAt
+                });
+                if (!response) return;
+                var data = await response.json();
+
+                if (!response.ok) {
+                    statusEl.className = 'status-msg error';
+                    statusEl.textContent = data.error || '创建失败';
+                    return;
+                }
+
+                statusEl.className = 'status-msg success';
+                statusEl.textContent = '激活码已创建: ' + data.code + ' (绑定: ' + profileLabels.join(', ') + '，客户端: ' + (selectedClients.length ? selectedClients.join(', ') : '全部客户端') + '，平台: ' + (selectedPlatforms.length ? selectedPlatforms.join(', ') : '全部平台') + ')';
+                resetCreateForm();
+                await loadProfileList();
+                loadCodes();
+            } catch (e) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '创建失败: ' + e.message;
+            }
+        }
+
+        async function saveCodeEdit() {
+            var id = parseInt(document.getElementById('editCodeId').value, 10);
+            var name = document.getElementById('editCodeName').value.trim();
+            var maxUses = parseMaxUsesValue('editCodeMaxUses');
+            var usedCount = parseUsedCountValue('editCodeUsedCount');
+            var expiresAt = document.getElementById('editCodeExpiresAt').value.trim();
+            var selectedProfiles = mergeProfileValues(getCheckedProfiles('.edit-profile-cb:checked'), editUnknownProfileKeys);
+            var manualProfiles = getManualProfiles('editManualProfiles');
+            var profileLabels = selectedProfiles.concat(manualProfiles);
+            var selectedClients = getSelectedClientPermissions('.edit-client-permission-cb:checked');
+            var selectedPlatforms = getSelectedBuildPlatformPermissions('.edit-platform-permission-cb:checked');
+            var statusEl = document.getElementById('editStatus');
+
+            if (!id) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '缺少激活码 ID';
+                return;
+            }
+            if (profileLabels.length === 0) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '请至少绑定一个档案（下拉多选或手动输入）';
+                return;
+            }
+            if (usedCount < 0) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '已打包次数不能小于 0';
+                return;
+            }
+
+            try {
+                var response = await api('PUT', '/admin/codes/' + id, {
+                    name: name,
+                    max_uses: maxUses,
+                    used_count: usedCount,
+                    allowed_profiles: selectedProfiles,
+                    manual_profiles: manualProfiles,
+                    allowed_clients: selectedClients,
+                    allowed_platforms: selectedPlatforms,
+                    expires_at: expiresAt
+                });
+                if (!response) return;
+                var data = await response.json();
+
+                if (!response.ok) {
+                    statusEl.className = 'status-msg error';
+                    statusEl.textContent = data.error || '更新失败';
+                    return;
+                }
+
+                cancelEditCode();
+                await loadProfileList();
+                loadCodes();
+            } catch (e) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '更新失败: ' + e.message;
+            }
+        }
+
+        async function batchUpdateCodeClients() {
+            var ids = getSelectedCodeIds();
+            var selectedClients = getSelectedClientPermissions('.batch-client-permission-cb:checked');
+            if (ids.length === 0) {
+                showAppAlert('请先勾选要批量编辑的激活码', '提示');
+                return;
+            }
+            var clientText = selectedClients.length ? selectedClients.join(', ') : '全部客户端';
+            if (!await showAppConfirm('确定将 ' + ids.length + ' 个激活码的允许客户端设置为“' + clientText + '”吗？', '批量设置客户端权限', '确认批量设置')) {
+                return;
+            }
+            try {
+                var response = await api('PUT', '/admin/codes/batch/clients', {
+                    ids: ids,
+                    allowed_clients: selectedClients
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '批量更新失败');
+                }
+                showAppAlert('已更新 ' + (data.updated_count || ids.length) + ' 个激活码的客户端权限。', '批量更新成功');
+                renderClientPermissionCheckboxes('batchCodeAllowedClients', 'batch-client-permission-cb', []);
+                await loadCodes();
+            } catch (e) {
+                showAppAlert('批量更新失败: ' + e.message, '错误');
+            }
+        }
+
+        async function deleteCode(id) {
+            if (!await showAppConfirm('确定要删除这个激活码吗？', '删除激活码', '确认删除')) return;
+            try {
+                var response = await api('DELETE', '/admin/codes/' + id);
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '删除失败');
+                }
+                if (parseInt(document.getElementById('editCodeId').value, 10) === id) {
+                    cancelEditCode();
+                }
+                loadCodes();
+                showAppAlert('激活码已删除', '删除成功');
+            } catch (e) {
+                showAppAlert('删除失败: ' + e.message, '删除失败');
+            }
+        }
+
+        var actionLabels = {
+            'login': '登录',
+            'load_profile': '加载档案',
+            'save_profile': '保存档案',
+            'delete_profile': '删除档案',
+            'rename_profile': '重命名档案',
+            'trigger_build': '触发构建',
+            'create_code': '创建激活码',
+            'update_code': '编辑激活码',
+            'delete_code': '删除激活码',
+            'update_settings': '修改系统设置'
+        };
+
+        async function loadLogs() {
+            try {
+                var response = await api('GET', '/admin/logs?limit=200');
+                if (!response) return;
+                var logs = await response.json();
+                var tbody = document.getElementById('logsTable');
+
+                if (!logs || logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty">暂无日志</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                logs.forEach(function(log) {
+                    var tr = document.createElement('tr');
+                    tr.innerHTML =
+                        '<td class="log-time">' + (log.created_at || '') + '</td>' +
+                        '<td>' + (log.code_name || '-') + '</td>' +
+                        '<td class="log-action">' + (actionLabels[log.action] || log.action) + '</td>' +
+                        '<td style="font-size:12px;">' + (log.details || '-') + '</td>' +
+                        '<td style="font-size:12px;color:#666;">' + (log.ip || '-') + '</td>';
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.log('加载日志失败:', e);
+            }
+        }
+
+
+        function renderGitHubApiStatsSummary(items) {
+            var container = document.getElementById('githubApiStatsSummary');
+            if (!container) return;
+            items = Array.isArray(items) ? items : [];
+            var cards = container.querySelectorAll('.github-api-card-value');
+            var total = 0;
+            var latest = null;
+            var busiest = null;
+            items.forEach(function(item) {
+                var count = Number(item.count || 0);
+                total += count;
+                if (!latest || Number(item.last_at_unix_nano || item.last_at_unix || 0) > Number(latest.last_at_unix_nano || latest.last_at_unix || 0)) {
+                    latest = item;
+                }
+                if (!busiest || count > Number(busiest.count || 0)) {
+                    busiest = item;
+                }
+            });
+
+            var latestText = '-';
+            if (latest) {
+                latestText = latest.last_at || '-';
+            }
+
+            var busiestText = '-';
+            if (busiest) {
+                busiestText = (busiest.count || 0) + ' 次 · ' + [busiest.method || 'GET', busiest.path || ''].filter(Boolean).join(' ');
+            }
+            if (cards[0]) cards[0].textContent = total || '-';
+            if (cards[1]) cards[1].textContent = items.length || '-';
+            if (cards[2]) cards[2].textContent = latestText;
+            if (cards[3]) {
+                cards[3].textContent = busiestText;
+                cards[3].title = busiestText;
+            }
+        }
+
+        function renderGitHubApiStatsTable(items) {
+            var tbody = document.getElementById('githubApiStatsTable');
+            if (!tbody) return;
+            items = Array.isArray(items) ? items : [];
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无 GitHub API 调用记录。统计从服务启动后开始累计。</td></tr>';
+                return;
+            }
+            tbody.innerHTML = '';
+            items.slice(0, 80).forEach(function(item) {
+                var tr = document.createElement('tr');
+                var rateParts = [];
+                rateParts.push('剩余 ' + (item.rate_remaining || '-'));
+                rateParts.push('已用 ' + (item.rate_used || '-'));
+                if (item.rate_limit) {
+                    rateParts.push('上限 ' + item.rate_limit);
+                }
+                var rateText = rateParts.join(' / ');
+                var pathHtml = '<div class="github-api-path">' + escapeHtml(item.path || '-') + '</div>';
+                if (item.last_request_id) {
+                    pathHtml += '<div class="github-api-muted">Request ID: ' + escapeHtml(item.last_request_id) + '</div>';
+                }
+                if (item.last_error) {
+                    pathHtml += '<div style="color:#ff6b6b;font-size:12px;margin-top:4px;">' + escapeHtml(item.last_error) + '</div>';
+                }
+                tr.innerHTML =
+                    '<td>' + (item.count || 0) + '</td>' +
+                    '<td>' + escapeHtml(item.method || '-') + '</td>' +
+                    '<td>' + (item.status || 0) + '</td>' +
+                    '<td>' + pathHtml + '</td>' +
+                    '<td><div>' + escapeHtml(item.last_at || '-') + '</div><div class="github-api-muted">' + escapeHtml(item.rate_resource || '') + '</div></td>' +
+                    '<td><div>' + escapeHtml(rateText) + '</div><div class="github-api-muted">该接口最后调用时 · 恢复：' + escapeHtml(item.rate_reset_local || item.rate_reset || '-') + '</div></td>';
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadGitHubApiStats() {
+            var statusEl = document.getElementById('githubApiStatsStatus');
+            if (statusEl) {
+                statusEl.className = 'status-msg';
+                statusEl.textContent = '';
+            }
+            try {
+                var response = await api('GET', '/admin/github/api-stats');
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '加载 GitHub API 统计失败');
+                }
+                renderGitHubApiStatsSummary(data.items || []);
+                renderGitHubApiStatsTable(data.items || []);
+            } catch (e) {
+                if (statusEl) {
+                    statusEl.className = 'status-msg error';
+                    statusEl.textContent = '加载 GitHub API 统计失败: ' + e.message;
+                }
+            }
+        }
+
+        async function loadSettings() {
+            var statusEl = document.getElementById('settingsStatus');
+            try {
+                var response = await api('GET', '/admin/settings');
+                if (!response) return;
+                var data = await response.json();
+                document.getElementById('clientUpdatesLimit').value = data.client_updates_limit || 10;
+                customFeatureGroupsCache = normalizeCustomFeatureGroups(data.custom_feature_groups || []);
+                renderCustomFeatureGroups();
+                statusEl.className = 'status-msg';
+                statusEl.textContent = '';
+            } catch (e) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '加载设置失败: ' + e.message;
+            }
+        }
+
+        async function saveSettings() {
+            var statusEl = document.getElementById('settingsStatus');
+            var limit = parseInt(document.getElementById('clientUpdatesLimit').value, 10);
+            var customFeatureGroups = collectCustomFeatureGroups();
+            if (!limit || limit < 1) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '显示条数必须大于 0';
+                return;
+            }
+            var groupsValidationMessage = validateCustomFeatureGroups(customFeatureGroups);
+            if (groupsValidationMessage) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = groupsValidationMessage;
+                return;
+            }
+            try {
+                var response = await api('PUT', '/admin/settings', {
+                    client_updates_limit: limit,
+                    custom_feature_groups: customFeatureGroups
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    statusEl.className = 'status-msg error';
+                    statusEl.textContent = data.error || '保存失败';
+                    return;
+                }
+                document.getElementById('clientUpdatesLimit').value = data.client_updates_limit || limit;
+                customFeatureGroupsCache = normalizeCustomFeatureGroups(data.custom_feature_groups || customFeatureGroups);
+                renderCustomFeatureGroups();
+                statusEl.className = 'status-msg success';
+                statusEl.textContent = '系统设置已保存';
+            } catch (e) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '保存失败: ' + e.message;
+            }
+        }
+
+        window.onload = function() {
+            if (getToken()) {
+                showMain();
+                loadAdminData();
+            } else {
+                showLogin();
+                renderCustomFeatureGroups();
+            }
+        };
+    </script>
+</body>
+</html>
