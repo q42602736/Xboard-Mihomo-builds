@@ -643,6 +643,7 @@ jobs:
           NEXGEN_TARGET_PLATFORM: android
           NEXGEN_SKIP_DESKTOP_CORE_RESOURCE: '1'
           NEXGEN_ANDROID_SIGNING_BUNDLE: ${{ secrets.NEXGEN_ANDROID_SIGNING_BUNDLE }}
+          RUST_BACKTRACE: full
         run: |
           set -o pipefail
 
@@ -688,10 +689,104 @@ jobs:
             echo "已配置 NexGen Android 固定签名。"
           }
 
+          android_gradle_package_task_for_abi() {
+            case "$1" in
+              arm64-v8a) echo ":app:packageArm64Release" ;;
+              armeabi-v7a) echo ":app:packageArmRelease" ;;
+              universal) echo ":app:packageUniversalRelease" ;;
+              android-tv) echo ":app:assembleRelease" ;;
+              *) echo "" ;;
+            esac
+          }
+
+          rerun_android_gradle_diagnostics() {
+            local abi="$1"
+            local gradle_task
+            gradle_task="$(android_gradle_package_task_for_abi "$abi")"
+            if [ -z "$gradle_task" ]; then
+              echo "跳过 Gradle 详细诊断，未知 Android ABI：$abi"
+              return 0
+            fi
+            if [ ! -f src-tauri/gen/android/gradlew ]; then
+              echo "跳过 Gradle 详细诊断，未找到 src-tauri/gen/android/gradlew。"
+              return 0
+            fi
+
+            echo ""
+            echo "=== Android Build Debug: Gradle rerun with --stacktrace --info ($gradle_task) ==="
+            (
+              cd src-tauri/gen/android
+              chmod +x gradlew gradlew-real.sh 2>/dev/null || true
+              ./gradlew \
+                --no-daemon \
+                --stacktrace \
+                --info \
+                --warning-mode all \
+                -Dorg.gradle.parallel=false \
+                -Dorg.gradle.workers.max=1 \
+                -Dkotlin.compiler.execution.strategy=in-process \
+                "$gradle_task"
+            ) 2>&1 | tee -a build.log || true
+            echo "=== Android Build Debug: Gradle rerun finished ($gradle_task) ==="
+            echo ""
+          }
+
+          print_android_jni_libs() {
+            local jni_root="src-tauri/gen/android/app/src/main/jniLibs"
+            if [ ! -d "$jni_root" ]; then
+              echo "No jniLibs"
+              return 0
+            fi
+            find "$jni_root" -maxdepth 3 \( -type f -o -type l \) -print 2>/dev/null | sort | while read -r item; do
+              ls -lh "$item" || true
+              if [ -L "$item" ]; then
+                echo "  -> $(readlink "$item" || true)"
+                if [ -e "$item" ]; then
+                  echo "  symlink target exists"
+                else
+                  echo "  symlink target missing"
+                fi
+              fi
+              case "$item" in
+                *.so) file "$item" || true ;;
+              esac
+            done
+          }
+
+          print_android_apk_entries() {
+            find src-tauri/gen/android src-tauri/target -type f -name "*.apk" -print 2>/dev/null | sort | while read -r apk_file; do
+              echo ""
+              echo "--- APK lib entries: $apk_file ---"
+              unzip -Z1 "$apk_file" 2>/dev/null | grep -E '^(lib/|assets/core/)' | sort || true
+            done || true
+          }
+
+          print_android_gradle_config() {
+            echo "=== Android Build Debug: Gradle config snippets ==="
+            for config_file in \
+              src-tauri/gen/android/settings.gradle.kts \
+              src-tauri/gen/android/gradle.properties \
+              src-tauri/gen/android/app/tauri.properties \
+              src-tauri/gen/android/app/build.gradle.kts \
+              src-tauri/gen/android/buildSrc/src/main/java/com/nexgen/client/kotlin/RustPlugin.kt; do
+              if [ -f "$config_file" ]; then
+                echo ""
+                echo "--- $config_file ---"
+                sed -n '1,220p' "$config_file" || true
+              fi
+            done
+            if [ -f src-tauri/gen/android/local.properties ]; then
+              echo ""
+              echo "--- src-tauri/gen/android/local.properties ---"
+              echo "local.properties exists; content hidden because it can contain signing secrets."
+            fi
+            echo ""
+          }
+
           print_android_diagnostics() {
             echo ""
-            echo "=== Android Build Debug: build.log last 500 lines ==="
-            tail -500 build.log 2>/dev/null || echo "No build.log"
+            echo "=== Android Build Debug: build.log last 1200 lines ==="
+            tail -1200 build.log 2>/dev/null || echo "No build.log"
             echo ""
 
             echo "=== Android Build Debug: dist files ==="
@@ -704,8 +799,10 @@ jobs:
             echo ""
 
             echo "=== Android Build Debug: jniLibs ==="
-            find src-tauri/gen/android/app/src/main/jniLibs -maxdepth 3 -type f -exec ls -lh {} \; 2>/dev/null || echo "No jniLibs"
+            print_android_jni_libs
             echo ""
+
+            print_android_gradle_config
 
             echo "=== Android Build Debug: generated project files ==="
             find src-tauri/gen/android -maxdepth 5 -type f -print 2>/dev/null | tail -120 || echo "No Android generated project files"
@@ -731,6 +828,7 @@ jobs:
 
             echo "=== Android Build Debug: APK candidates ==="
             find src-tauri/gen/android src-tauri/target -type f -name "*.apk" -print 2>/dev/null || echo "No APK files"
+            print_android_apk_entries
           }
 
           sync_nexgen_build_inputs
@@ -763,36 +861,43 @@ jobs:
             entries="$(unzip -Z1 "$apk_file")"
             if printf '%s\n' "$entries" | grep -q '^assets/core/'; then
               echo "::error::Android APK 混入桌面核心资源：$apk_file"
+              print_android_diagnostics
               exit 1
             fi
             case "$abi" in
               arm64-v8a)
                 if ! printf '%s\n' "$entries" | grep -q '^lib/arm64-v8a/'; then
                   echo "::error::Android arm64-v8a APK 缺少 arm64-v8a 原生库：$apk_file"
+                  print_android_diagnostics
                   exit 1
                 fi
                 if printf '%s\n' "$entries" | grep -q '^lib/armeabi-v7a/'; then
                   echo "::error::Android arm64-v8a APK 混入 armeabi-v7a 原生库：$apk_file"
+                  print_android_diagnostics
                   exit 1
                 fi
                 ;;
               armeabi-v7a)
                 if ! printf '%s\n' "$entries" | grep -q '^lib/armeabi-v7a/'; then
                   echo "::error::Android armeabi-v7a APK 缺少 armeabi-v7a 原生库：$apk_file"
+                  print_android_diagnostics
                   exit 1
                 fi
                 if printf '%s\n' "$entries" | grep -q '^lib/arm64-v8a/'; then
                   echo "::error::Android armeabi-v7a APK 混入 arm64-v8a 原生库：$apk_file"
+                  print_android_diagnostics
                   exit 1
                 fi
                 ;;
               universal)
                 if ! printf '%s\n' "$entries" | grep -q '^lib/arm64-v8a/'; then
                   echo "::error::Android universal APK 缺少 arm64-v8a 原生库：$apk_file"
+                  print_android_diagnostics
                   exit 1
                 fi
                 if ! printf '%s\n' "$entries" | grep -q '^lib/armeabi-v7a/'; then
                   echo "::error::Android universal APK 缺少 armeabi-v7a 原生库：$apk_file"
+                  print_android_diagnostics
                   exit 1
                 fi
                 ;;
@@ -813,6 +918,7 @@ jobs:
             if ! "$apksigner" verify --verbose "$apk_file" > apksigner.log 2>&1; then
               cat apksigner.log
               echo "::error::Android APK 未通过签名验证：$apk_file"
+              print_android_diagnostics
               exit 1
             fi
           }
@@ -835,6 +941,7 @@ jobs:
             set -e
             if [ "$BUILD_EXIT_CODE" -ne 0 ]; then
               echo "::error::NexGen Android ${abi} APK 打包失败，下面输出完整诊断日志。"
+              rerun_android_gradle_diagnostics "$abi"
               print_android_diagnostics
               exit "$BUILD_EXIT_CODE"
             fi
@@ -844,6 +951,7 @@ jobs:
             if [ -z "$apk_file" ]; then
               echo "::error::未找到 Android ${abi} APK"
               find src-tauri/gen/android -type f -name "*.apk" -print 2>/dev/null || true
+              print_android_diagnostics
               exit 1
             fi
 
@@ -870,6 +978,7 @@ jobs:
             set -e
             if [ "$BUILD_EXIT_CODE" -ne 0 ]; then
               echo "::error::NexGen Android TV APK 打包失败，下面输出完整诊断日志。"
+              rerun_android_gradle_diagnostics "android-tv"
               print_android_diagnostics
               exit "$BUILD_EXIT_CODE"
             fi
@@ -880,6 +989,7 @@ jobs:
             if [ -z "$arm64_apk" ] || [ -z "$armv7_apk" ]; then
               echo "::error::Android TV APK 产物缺失。"
               find dist/android-tv -maxdepth 1 -type f -name "*.apk" -print 2>/dev/null || true
+              print_android_diagnostics
               exit 1
             fi
 
@@ -922,6 +1032,7 @@ jobs:
           if [ "$apk_count" != "$expected_apk_count" ]; then
             echo "::error::Android APK 产物数量异常，预期 $expected_apk_count 个，实际 $apk_count 个。"
             find dist "$ANDROID_APK_STAGE_DIR" -maxdepth 1 -type f -name "*.apk" -print 2>/dev/null || true
+            print_android_diagnostics
             exit 1
           fi
 
