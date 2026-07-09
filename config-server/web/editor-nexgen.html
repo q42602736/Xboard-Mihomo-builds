@@ -3286,6 +3286,16 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">隐藏页面顶部标题文案</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="hidePageHeaderText"><span class="slider"></span></label>
+                                        <span id="hidePageHeaderTextLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">启用后，隐藏购买套餐、节点状态、实时连接等功能页面顶部标题和描述文案，但保留原有占位避免布局偏移。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">延迟显示调整</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="latencyReductionEnabled"><span class="slider"></span></label>
@@ -5542,6 +5552,7 @@
             'main_policy_nodes_only',
             'hide_invite_promotion',
             'hide_current_node_label',
+            'hide_page_header_text',
             'sspanel_node_page_parse',
             'registration_invite',
             'custom_invite_link',
@@ -5759,6 +5770,16 @@
                         '</div>',
                     '</div>',
                     '<div class="help-text">开启后，仅隐藏普通连接状态卡片里节点名称上方的“当前节点”文本。</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="hide_page_header_text" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">隐藏页面顶部标题文案</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customHidePageHeaderText"><span class="slider"></span></label>',
+                            '<span id="customHidePageHeaderTextLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="help-text">开启后，隐藏购买套餐、节点状态、实时连接等功能页面顶部标题和描述文案，并保留原布局占位。</div>',
                 '</div>',
                 '<div class="switch-card" data-custom-feature-key="sspanel_node_page_parse" style="margin-top:16px;">',
                     '<div class="switch-card-header">',
@@ -6009,6 +6030,7 @@
                 'customProxyGroupsMainPolicyNodesOnly',
                 'customHideInvitePromotion',
                 'customHideCurrentNodeLabel',
+                'customHidePageHeaderText',
                 'customSSPanelNodePageParseEnabled',
                 'customRegistrationInviteEnabled',
                 'customRegistrationInviteLinkEnabled',
@@ -6082,6 +6104,7 @@
             setCustomFeatureSwitchValue('customProxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
             setCustomFeatureSwitchValue('customHideInvitePromotion', !!data.hide_invite_promotion);
             setCustomFeatureSwitchValue('customHideCurrentNodeLabel', !!data.hide_current_node_label);
+            setCustomFeatureSwitchValue('customHidePageHeaderText', !!data.hide_page_header_text);
             setCustomFeatureSwitchValue('customSSPanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
             setCustomFeatureSwitchValue('customRegistrationInviteEnabled', !!data.registration_invite_enabled);
             setCustomFeatureSwitchValue('customRegistrationInviteLinkEnabled', !!data.registration_invite_link_enabled);
@@ -6231,6 +6254,7 @@
             var proxyGroupsMainPolicyNodesOnly = getCustomInputChecked('customProxyGroupsMainPolicyNodesOnly');
             var hideInvitePromotion = getCustomInputChecked('customHideInvitePromotion');
             var hideCurrentNodeLabel = getCustomInputChecked('customHideCurrentNodeLabel');
+            var hidePageHeaderText = getCustomInputChecked('customHidePageHeaderText');
             var sspanelNodePageParseEnabled = getCustomInputChecked('customSSPanelNodePageParseEnabled');
             var registrationInviteEnabled = getCustomInputChecked('customRegistrationInviteEnabled');
             var registrationInviteMode = getCustomInputValue('customRegistrationInviteMode') || 'default_when_empty';
@@ -6320,6 +6344,7 @@
                     proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly,
                     hide_invite_promotion: hideInvitePromotion,
                     hide_current_node_label: hideCurrentNodeLabel,
+                    hide_page_header_text: hidePageHeaderText,
                     sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
                     registration_invite_enabled: registrationInviteEnabled,
                     registration_invite_mode: registrationInviteMode,
@@ -6612,6 +6637,7 @@
                 '    hide_node_status: false',
                 '    hide_invite_promotion: false',
                 '    hide_current_node_label: false',
+                '    hide_page_header_text: false',
                 '    latency_reduction:',
                 '      enabled: false',
                 '      value: 0',
@@ -6917,6 +6943,7 @@
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
                 hide_invite_promotion: document.getElementById('hideInvitePromotion').checked,
                 hide_current_node_label: document.getElementById('hideCurrentNodeLabel').checked,
+                hide_page_header_text: document.getElementById('hidePageHeaderText').checked,
                 latency_reduction_enabled: document.getElementById('latencyReductionEnabled').checked,
                 latency_reduction_value: normalizeLatencyReductionValue(document.getElementById('latencyReductionValue').value),
                 notice_auto_open_on_startup: document.getElementById('noticeAutoOpenOnStartup').checked,
@@ -7933,7 +7960,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -9921,6 +9948,10 @@
             var hideCurrentNodeLabel = hideCurrentNodeLabelMatch ? hideCurrentNodeLabelMatch[1] === 'true' : false;
             document.getElementById('hideCurrentNodeLabel').checked = hideCurrentNodeLabel;
             document.getElementById('hideCurrentNodeLabelLabel').textContent = hideCurrentNodeLabel ? '开启' : '关闭';
+            var hidePageHeaderTextMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_page_header_text:\s*(true|false)/);
+            var hidePageHeaderText = hidePageHeaderTextMatch ? hidePageHeaderTextMatch[1] === 'true' : false;
+            document.getElementById('hidePageHeaderText').checked = hidePageHeaderText;
+            document.getElementById('hidePageHeaderTextLabel').textContent = hidePageHeaderText ? '开启' : '关闭';
             var latencyReductionEnabledMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}latency_reduction:\s*\n(?:[\s\S]*?)^\s{6}enabled:\s*(true|false)/m) ||
                 yaml.match(/latency_reduction:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);

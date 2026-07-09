@@ -47,6 +47,7 @@ type ProfileFormState struct {
 	HideNodeStatus                    bool                      `json:"hide_node_status"`
 	HideInvitePromotion               bool                      `json:"hide_invite_promotion"`
 	HideCurrentNodeLabel              bool                      `json:"hide_current_node_label"`
+	HidePageHeaderText                bool                      `json:"hide_page_header_text"`
 	ShowIPInfo                        *bool                     `json:"show_ip_info"`
 	HomePanelDefaultLayout            string                    `json:"home_panel_default_layout"`
 	LatencyReductionEnabled           bool                      `json:"latency_reduction_enabled"`
@@ -242,6 +243,7 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 		removeMapKeys(ui, "hide_invite_promotion", "hideInvitePromotion")
 	}
 	setMapBoolValue(ui, "hide_current_node_label", form.HideCurrentNodeLabel)
+	setMapBoolValue(ui, "hide_page_header_text", form.HidePageHeaderText)
 	showIPInfo := true
 	if form.ShowIPInfo != nil {
 		showIPInfo = *form.ShowIPInfo

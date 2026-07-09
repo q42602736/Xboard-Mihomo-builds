@@ -33,6 +33,7 @@ type UIColorCustomConfig struct {
 	ProxyGroupsMainPolicyNodesOnly       bool     `json:"proxy_groups_main_policy_nodes_only"`
 	HideInvitePromotion                  bool     `json:"hide_invite_promotion"`
 	HideCurrentNodeLabel                 bool     `json:"hide_current_node_label"`
+	HidePageHeaderText                   bool     `json:"hide_page_header_text"`
 	CloudDispatchEnabled                 bool     `json:"cloud_dispatch_enabled"`
 	CloudDispatchQueryURL                string   `json:"cloud_dispatch_query_url"`
 	CloudDispatchQuerySecret             string   `json:"cloud_dispatch_query_secret"`
@@ -69,6 +70,7 @@ const (
 	customFeatureMainPolicyNodesOnly                  = "main_policy_nodes_only"
 	customFeatureHideInvitePromotion                  = "hide_invite_promotion"
 	customFeatureHideCurrentNodeLabel                 = "hide_current_node_label"
+	customFeatureHidePageHeaderText                   = "hide_page_header_text"
 	customFeatureCloudDispatch                        = "cloud_dispatch"
 	customFeatureSSPanelNodePageParse                 = "sspanel_node_page_parse"
 	customFeatureRegistrationInvite                   = "registration_invite"
@@ -98,6 +100,7 @@ var (
 		customFeatureMainPolicyNodesOnly,
 		customFeatureHideInvitePromotion,
 		customFeatureHideCurrentNodeLabel,
+		customFeatureHidePageHeaderText,
 		customFeatureCloudDispatch,
 		customFeatureSSPanelNodePageParse,
 		customFeatureRegistrationInvite,
@@ -385,7 +388,7 @@ func filterAllowedUIColorFeatureKeysForClient(featureKeys []string, client strin
 	}
 	result := allowed[:0]
 	for _, featureKey := range allowed {
-		if featureKey == customFeatureHideInvitePromotion || featureKey == customFeatureHideCurrentNodeLabel {
+		if featureKey == customFeatureHideInvitePromotion || featureKey == customFeatureHideCurrentNodeLabel || featureKey == customFeatureHidePageHeaderText {
 			continue
 		}
 		if client == buildClientLegacy {
@@ -543,6 +546,11 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 		} else if enabledNode := getMapValueNode(ui, "hideCurrentNodeLabel"); enabledNode != nil {
 			result.HideCurrentNodeLabel = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
 		}
+		if enabledNode := getMapValueNode(ui, "hide_page_header_text"); enabledNode != nil {
+			result.HidePageHeaderText = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "hidePageHeaderText"); enabledNode != nil {
+			result.HidePageHeaderText = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
 	}
 
 	cloudDispatch := getMapValueNode(profileRoot, "cloud_dispatch")
@@ -670,6 +678,8 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	}
 	setMapBoolValue(ui, "hide_current_node_label", config.HideCurrentNodeLabel)
 	removeMapKeys(ui, "hideCurrentNodeLabel")
+	setMapBoolValue(ui, "hide_page_header_text", config.HidePageHeaderText)
+	removeMapKeys(ui, "hidePageHeaderText")
 	setMapBoolValue(proxyGroups, "main_policy_nodes_only", config.ProxyGroupsMainPolicyNodesOnly)
 	removeMapKeys(proxyGroups, "mainPolicyNodesOnly")
 	removeMapKeys(ui, "proxyGroups")
@@ -798,6 +808,7 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"proxy_groups_main_policy_nodes_only":      config.ProxyGroupsMainPolicyNodesOnly,
 		"hide_invite_promotion":                    config.HideInvitePromotion,
 		"hide_current_node_label":                  config.HideCurrentNodeLabel,
+		"hide_page_header_text":                    config.HidePageHeaderText,
 		"cloud_dispatch_enabled":                   config.CloudDispatchEnabled,
 		"cloud_dispatch_query_url":                 config.CloudDispatchQueryURL,
 		"cloud_dispatch_query_secret":              config.CloudDispatchQuerySecret,
@@ -841,6 +852,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		ProxyGroupsMainPolicyNodesOnly       bool     `json:"proxy_groups_main_policy_nodes_only"`
 		HideInvitePromotion                  bool     `json:"hide_invite_promotion"`
 		HideCurrentNodeLabel                 bool     `json:"hide_current_node_label"`
+		HidePageHeaderText                   bool     `json:"hide_page_header_text"`
 		CloudDispatchEnabled                 bool     `json:"cloud_dispatch_enabled"`
 		CloudDispatchQueryURL                string   `json:"cloud_dispatch_query_url"`
 		CloudDispatchQuerySecret             string   `json:"cloud_dispatch_query_secret"`
@@ -1075,6 +1087,9 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureHideCurrentNodeLabel) {
 		targetConfig.HideCurrentNodeLabel = req.HideCurrentNodeLabel
 	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureHidePageHeaderText) {
+		targetConfig.HidePageHeaderText = req.HidePageHeaderText
+	}
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureCloudDispatch) {
 		targetConfig.CloudDispatchEnabled = req.CloudDispatchEnabled
 		targetConfig.CloudDispatchQueryURL = normalizedCloudDispatchQueryURL
@@ -1159,6 +1174,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"proxy_groups_main_policy_nodes_only":      targetConfig.ProxyGroupsMainPolicyNodesOnly,
 		"hide_invite_promotion":                    targetConfig.HideInvitePromotion,
 		"hide_current_node_label":                  targetConfig.HideCurrentNodeLabel,
+		"hide_page_header_text":                    targetConfig.HidePageHeaderText,
 		"cloud_dispatch_enabled":                   targetConfig.CloudDispatchEnabled,
 		"cloud_dispatch_query_url":                 targetConfig.CloudDispatchQueryURL,
 		"cloud_dispatch_query_secret":              targetConfig.CloudDispatchQuerySecret,

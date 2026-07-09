@@ -55,6 +55,7 @@ function convertXboardToNexgen(xboard) {
       hide_traffic_details: boolOrUndefined(ui.hide_traffic_details),
       hide_node_status: boolOrUndefined(ui.hide_node_status),
       hide_current_node_label: boolOrUndefined(ui.hide_current_node_label ?? ui.hideCurrentNodeLabel),
+      hide_page_header_text: boolOrUndefined(ui.hide_page_header_text ?? ui.hidePageHeaderText),
       latency_reduction: record(ui.latency_reduction),
       notice: record(ui.notice),
       checkin: record(ui.checkin),
