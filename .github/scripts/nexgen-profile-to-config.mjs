@@ -115,8 +115,11 @@ function getSettingsOverride(config) {
     ...record(config.settings),
   };
   normalizeAlias(settings, "dnsOverrideDefault", "dns_override_default");
+  normalizeAlias(settings, "autoConnectOnStartup", "auto_connect_on_startup");
   settings.dns_override_default = typeof settings.dns_override_default === "boolean" ? settings.dns_override_default : false;
+  settings.auto_connect_on_startup = typeof settings.auto_connect_on_startup === "boolean" ? settings.auto_connect_on_startup : false;
   delete settings.dnsOverrideDefault;
+  delete settings.autoConnectOnStartup;
   return settings;
 }
 

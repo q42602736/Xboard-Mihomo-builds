@@ -3246,6 +3246,16 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">启动后自动连接代理</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="autoConnectOnStartup"><span class="slider"></span></label>
+                                        <span id="autoConnectOnStartupLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">开启后，桌面端启动时会使用上次记住的节点并自动开启代理；旧配置缺少该字段时默认关闭。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">隐藏流量详情标签页</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="hideTrafficDetails"><span class="slider"></span></label>
@@ -6606,6 +6616,7 @@
                 '    decrypt_key: ""',
                 '  settings:',
                 '    dns_override_default: false',
+                '    auto_connect_on_startup: false',
                 '  auto_offline:',
                 '    enabled: false',
                 '    force_on_startup: false',
@@ -6923,6 +6934,7 @@
                 use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
                 dns_override_default: document.getElementById('dnsOverrideDefault').checked,
+                auto_connect_on_startup: document.getElementById('autoConnectOnStartup').checked,
                 auto_offline_enabled: document.getElementById('autoOfflineEnabled').checked,
                 auto_offline_force_on_startup: document.getElementById('autoOfflineForceOnStartup').checked,
                 auto_offline_interval_hours: normalizeAutoOfflineIntervalHours(document.getElementById('autoOfflineIntervalHours').value),
@@ -7960,7 +7972,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoConnectOnStartup', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -9857,6 +9869,12 @@
             var dnsOverrideDefault = dnsOverrideDefaultMatch ? dnsOverrideDefaultMatch[1] === 'true' : false;
             document.getElementById('dnsOverrideDefault').checked = dnsOverrideDefault;
             document.getElementById('dnsOverrideDefaultLabel').textContent = dnsOverrideDefault ? '开启' : '关闭';
+            var autoConnectOnStartupMatch =
+                yaml.match(/settings:\s*\n(?:[\s\S]*?)^\s{4}auto_connect_on_startup:\s*(true|false)/m) ||
+                yaml.match(/settings:\s*\n(?:[\s\S]*?)^\s{4}autoConnectOnStartup:\s*(true|false)/m);
+            var autoConnectOnStartup = autoConnectOnStartupMatch ? autoConnectOnStartupMatch[1] === 'true' : false;
+            document.getElementById('autoConnectOnStartup').checked = autoConnectOnStartup;
+            document.getElementById('autoConnectOnStartupLabel').textContent = autoConnectOnStartup ? '开启' : '关闭';
             var autoOfflineMatch = yaml.match(/auto_offline:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var autoOfflineEnabled = autoOfflineMatch ? autoOfflineMatch[1] === 'true' : false;
             document.getElementById('autoOfflineEnabled').checked = autoOfflineEnabled;
