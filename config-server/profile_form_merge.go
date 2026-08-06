@@ -44,6 +44,8 @@ type ProfileFormState struct {
 	RegistrationInviteLinkBaseURL     string                    `json:"registration_invite_link_base_url"`
 	SubscriptionCacheEnabled          bool                      `json:"subscription_cache_enabled"`
 	SubscriptionCacheTTL              int                       `json:"subscription_cache_ttl"`
+	UiVariant                         string                    `json:"ui_variant"`
+	UiColorScheme                     string                    `json:"ui_color_scheme"`
 	HideTrafficDetails                bool                      `json:"hide_traffic_details"`
 	HideNodeStatus                    bool                      `json:"hide_node_status"`
 	HideInvitePromotion               bool                      `json:"hide_invite_promotion"`
@@ -237,6 +239,24 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	removeMapKeys(profileRoot, "registrationInvite")
 	setMapBoolValue(subscriptionCache, "enabled", form.SubscriptionCacheEnabled)
 	setMapIntValue(subscriptionCache, "ttl_hours", form.SubscriptionCacheTTL)
+	if rootKey == "nexgen" {
+		uiVariant := strings.TrimSpace(form.UiVariant)
+		if uiVariant == "" {
+			if existingVariant := getMapValueNode(ui, "variant"); existingVariant != nil {
+				uiVariant = existingVariant.Value
+			}
+		}
+		setMapStringValue(ui, "variant", normalizeNexGenUiVariant(uiVariant))
+		uiColorScheme := strings.TrimSpace(form.UiColorScheme)
+		if uiColorScheme == "" {
+			if existingColorScheme := getMapValueNode(ui, "color_scheme"); existingColorScheme != nil {
+				uiColorScheme = existingColorScheme.Value
+			}
+		}
+		setMapStringValue(ui, "color_scheme", normalizeNexGenUiColorScheme(uiColorScheme))
+	} else {
+		removeMapKeys(ui, "variant", "uiVariant", "color_scheme", "colorScheme")
+	}
 	setMapBoolValue(ui, "hide_traffic_details", form.HideTrafficDetails)
 	setMapBoolValue(ui, "hide_node_status", form.HideNodeStatus)
 	if rootKey == "nexgen" {
@@ -456,6 +476,26 @@ func normalizeLatencyReductionValue(value int) int {
 		return 90
 	}
 	return value
+}
+
+func normalizeNexGenUiVariant(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "legacy":
+		return "legacy"
+	case "new":
+		return "new"
+	default:
+		return "legacy"
+	}
+}
+
+func normalizeNexGenUiColorScheme(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "green", "blue", "purple", "orange", "teal", "cyan", "rose", "indigo":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return "green"
+	}
 }
 
 func normalizeNoticeAutoOpenIntervalHours(value int) int {

@@ -3234,6 +3234,28 @@
                     <div class="editor-container">
                         <div class="section">
                             <div class="section-title">界面行为</div>
+                            <div class="form-group" style="margin-top:16px;">
+                                <label for="uiVariant">UI 构建变体</label>
+                                <select id="uiVariant" data-custom-select>
+                                    <option value="legacy">旧 UI（legacy）</option>
+                                    <option value="new">新 UI（new）</option>
+                                </select>
+                                <div class="help-text">默认使用旧 UI；只有选择新 UI 后，重新打包的客户端才会使用新入口。</div>
+                            </div>
+                            <div class="form-group" id="uiColorSchemeField" style="margin-top:16px; display:none;">
+                                <label for="uiColorScheme">新 UI 品牌色系</label>
+                                <select id="uiColorScheme" data-custom-select>
+                                    <option value="green">绿色</option>
+                                    <option value="blue">蓝色</option>
+                                    <option value="purple">紫色</option>
+                                    <option value="orange">橙色</option>
+                                    <option value="teal">青绿色</option>
+                                    <option value="cyan">青色</option>
+                                    <option value="rose">玫红色</option>
+                                    <option value="indigo">靛蓝色</option>
+                                </select>
+                                <div class="help-text">仅新 UI 使用；缺少或无效值时默认使用绿色。</div>
+                            </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
                                     <span class="switch-card-label">默认启用 DNS 覆写</span>
@@ -6644,6 +6666,8 @@
                 '      - name: redirect',
                 '        url: ""',
                 '  ui:',
+                '    variant: legacy',
+                '    color_scheme: green',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
                 '    hide_invite_promotion: false',
@@ -6951,6 +6975,8 @@
                 registration_invite_link_base_url: getCustomInputValue('customRegistrationInviteLinkBaseUrl'),
                 subscription_cache_enabled: document.getElementById('subscriptionCacheEnabled').checked,
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
+                ui_variant: document.getElementById('uiVariant').value === 'legacy' ? 'legacy' : 'new',
+                ui_color_scheme: normalizeUiColorScheme(document.getElementById('uiColorScheme').value),
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
                 hide_invite_promotion: document.getElementById('hideInvitePromotion').checked,
@@ -8008,6 +8034,37 @@
                 this.value = normalizeAutoOfflineIntervalHours(this.value);
                 formToYaml();
             });
+            var uiVariant = document.getElementById('uiVariant');
+            if (uiVariant) {
+                uiVariant.addEventListener('change', function() {
+                    this.value = this.value === 'legacy' ? 'legacy' : 'new';
+                    syncUiColorSchemeVisibility();
+                    formToYaml();
+                    scheduleAutoSaveCurrentProfile('UI 构建变体已自动保存');
+                });
+            }
+            var uiColorScheme = document.getElementById('uiColorScheme');
+            if (uiColorScheme) {
+                uiColorScheme.addEventListener('change', function() {
+                    this.value = normalizeUiColorScheme(this.value);
+                    formToYaml();
+                    scheduleAutoSaveCurrentProfile('新 UI 品牌色系已自动保存');
+                });
+            }
+        }
+
+        function normalizeUiColorScheme(value) {
+            var normalized = String(value || '').trim().toLowerCase();
+            return ['green', 'blue', 'purple', 'orange', 'teal', 'cyan', 'rose', 'indigo'].indexOf(normalized) >= 0
+                ? normalized
+                : 'green';
+        }
+
+        function syncUiColorSchemeVisibility() {
+            var variant = document.getElementById('uiVariant');
+            var field = document.getElementById('uiColorSchemeField');
+            if (!field) return;
+            field.style.display = variant && variant.value === 'new' ? '' : 'none';
         }
 
         function normalizeMinuteIntervalValue(value, fallback) {
@@ -9950,6 +10007,17 @@
             var subCacheTtlMatch = yaml.match(/subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*(\d+)/);
             var subCacheTtl = subCacheTtlMatch ? parseInt(subCacheTtlMatch[1]) : 24;
             document.getElementById('subscriptionCacheTtl').value = subCacheTtl;
+            var uiVariantMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}variant:[^\S\n]*(.*)/m);
+            var uiVariantValue = uiVariantMatch
+                ? uiVariantMatch[1].trim().replace(/^['\"]|['\"]$/g, '').toLowerCase()
+                : 'legacy';
+            document.getElementById('uiVariant').value = uiVariantValue === 'legacy' ? 'legacy' : 'new';
+            var uiColorSchemeMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}color_scheme:[^\S\n]*(.*)/m);
+            var uiColorSchemeValue = uiColorSchemeMatch
+                ? uiColorSchemeMatch[1].trim().replace(/^['\"]|['\"]$/g, '')
+                : 'green';
+            document.getElementById('uiColorScheme').value = normalizeUiColorScheme(uiColorSchemeValue);
+            syncUiColorSchemeVisibility();
             var hideTrafficDetailsMatch = yaml.match(/ui:\s*\n(?:\s*#[^\n]*\n)*\s*hide_traffic_details:\s*(true|false)/);
             var hideTrafficDetails = hideTrafficDetailsMatch ? hideTrafficDetailsMatch[1] === 'true' : false;
             document.getElementById('hideTrafficDetails').checked = hideTrafficDetails;

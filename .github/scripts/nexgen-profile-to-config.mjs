@@ -13,10 +13,22 @@ const profile = parseSimpleYaml(fs.readFileSync(profilePath, "utf8"));
 const defaultConfig = parseSimpleYaml(fs.readFileSync(defaultConfigPath, "utf8"));
 const profileConfig = record(profile.nexgen);
 const legacyXboard = record(profile.xboard);
+const profileUi = record(profileConfig.ui);
+const profileUiVariant = Object.prototype.hasOwnProperty.call(profileUi, "variant")
+  ? profileUi.variant
+  : "legacy";
+const profileUiColorScheme = Object.prototype.hasOwnProperty.call(profileUi, "color_scheme")
+  ? profileUi.color_scheme
+  : Object.prototype.hasOwnProperty.call(profileUi, "colorScheme")
+    ? profileUi.colorScheme
+    : "green";
 const nexgen = normalizeNexgenConfigDefaults(deepMerge(
   record(defaultConfig.nexgen),
   Object.keys(profileConfig).length > 0 ? convertNexgenProfile(profileConfig) : convertXboardToNexgen(legacyXboard),
-));
+), {
+  uiVariant: profileUiVariant,
+  uiColorScheme: profileUiColorScheme,
+});
 
 fs.writeFileSync(outputPath, toYaml({ nexgen }));
 
@@ -24,8 +36,14 @@ function convertNexgenProfile(nexgen) {
   const converted = record(nexgen);
   normalizeSettingsOverride(converted);
   normalizeCloudDispatchOverride(converted);
-  converted.ui = {
+  const ui = {
     ...record(converted.ui),
+  };
+  if (Object.prototype.hasOwnProperty.call(ui, "variant")) {
+    ui.variant = normalizeUiVariant(ui.variant);
+  }
+  converted.ui = {
+    ...ui,
     telegram: normalizeTelegramOverride(record(converted.ui).telegram),
     utilities: normalizeUtilitiesOverride(record(converted.ui).utilities),
   };
@@ -189,15 +207,34 @@ function normalizeTelegramOverride(value) {
   };
 }
 
-function normalizeNexgenConfigDefaults(config) {
+function normalizeNexgenConfigDefaults(config, options = {}) {
   const nexgen = record(config);
   normalizeSettingsOverride(nexgen);
   const ui = {
     ...record(nexgen.ui),
   };
+  ui.variant = normalizeUiVariant(
+    Object.prototype.hasOwnProperty.call(options, "uiVariant") ? options.uiVariant : ui.variant,
+  );
+  const uiColorSchemeValue = Object.prototype.hasOwnProperty.call(options, "uiColorScheme")
+    ? options.uiColorScheme
+    : (ui.color_scheme ?? ui.colorScheme);
+  ui.color_scheme = normalizeUiColorScheme(uiColorSchemeValue);
+  delete ui.colorScheme;
   ui.telegram = normalizeTelegramOverride(ui.telegram);
   nexgen.ui = ui;
   return nexgen;
+}
+
+function normalizeUiVariant(value) {
+  return text(value).toLowerCase() === "new" ? "new" : "legacy";
+}
+
+function normalizeUiColorScheme(value) {
+  const normalized = text(value).toLowerCase();
+  return ["green", "blue", "purple", "orange", "teal", "cyan", "rose", "indigo"].includes(normalized)
+    ? normalized
+    : "green";
 }
 
 function normalizeCfSpeedOverride(value) {
