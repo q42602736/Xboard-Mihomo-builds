@@ -3278,6 +3278,16 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">记录应用日志文件</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="logFileEnabled"><span class="slider"></span></label>
+                                        <span id="logFileEnabledLabel">开启</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">关闭后停止写入应用日志文件，但不影响必要的控制台和系统诊断日志。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">隐藏流量详情标签页</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="hideTrafficDetails"><span class="slider"></span></label>
@@ -4002,9 +4012,9 @@
 	                            <div class="form-group">
 	                                <label>源码分支</label>
                                 <select id="buildBranch">
-                                    <option value="main">main</option>
+                                    <option value="xiaov2board/Xboard">xiaov2board/Xboard</option>
                                 </select>
-                                <div class="help-text error" style="font-weight: 600;">请选择与你当前面板类型对应的源码分支：XBoard、V2Board 和 xiaov2board 请选择 <code>main</code>，SSPanel 请选择对应分支。</div>
+                                <div class="help-text error" style="font-weight: 600;">请选择与你当前面板类型对应的源码分支：XBoard、V2Board 和 xiaov2board 请选择 <code>xiaov2board/Xboard</code>，SSPanel 请选择对应分支。</div>
                             </div>
                             <div class="form-group">
                                 <label for="buildTag">版本</label>
@@ -4126,6 +4136,7 @@
         var BUILD_CLIENT_LEGACY = 'xboard_mihomo_sub';
         var BUILD_CLIENT_NEXGEN_REACT = 'nexgen_react';
         var BUILD_CLIENT = BUILD_CLIENT_NEXGEN_REACT;
+        var DEFAULT_BUILD_BRANCH = 'xiaov2board/Xboard';
 
         function appendBuildClientQuery(path) {
             var separator = path.indexOf('?') === -1 ? '?' : '&';
@@ -6639,6 +6650,7 @@
                 '  settings:',
                 '    dns_override_default: false',
                 '    auto_connect_on_startup: false',
+                '    log_file_enabled: true',
                 '  auto_offline:',
                 '    enabled: false',
                 '    force_on_startup: false',
@@ -6959,6 +6971,7 @@
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
                 dns_override_default: document.getElementById('dnsOverrideDefault').checked,
                 auto_connect_on_startup: document.getElementById('autoConnectOnStartup').checked,
+                log_file_enabled: document.getElementById('logFileEnabled').checked,
                 auto_offline_enabled: document.getElementById('autoOfflineEnabled').checked,
                 auto_offline_force_on_startup: document.getElementById('autoOfflineForceOnStartup').checked,
                 auto_offline_interval_hours: normalizeAutoOfflineIntervalHours(document.getElementById('autoOfflineIntervalHours').value),
@@ -7231,7 +7244,7 @@
 
                 fillBranchSelect(document.getElementById('buildBranch'), buildBranches.filter(function(branch) {
                     return branch && !isHiddenBuildSourceBranch(branch.name);
-                }), 'main', false);
+                }), DEFAULT_BUILD_BRANCH, false);
                 fillBranchSelect(document.getElementById('updatesBranch'), updateBranches.filter(function(branch) {
                     return branch && !isHiddenClientUpdatesBranch(branch.name);
                 }), '', true, isNexGenClient() ? [] : [
@@ -7697,7 +7710,7 @@
             return {
                 profile: record.profile,
                 tag: record.tag || '',
-                branch: record.branch || 'main',
+                branch: record.branch || DEFAULT_BUILD_BRANCH,
                 core: record.core || getSelectedBuildCore(),
                 platforms: record.platforms || 'all',
                 requestId: record.request_id || String(record.id),
@@ -7742,7 +7755,7 @@
                 updated_at: record.updated_at || '',
                 inputs: {
                     tag: record.tag || '',
-                    branch: record.branch || 'main',
+                    branch: record.branch || DEFAULT_BUILD_BRANCH,
                     core: record.core || getSelectedBuildCore(),
                     platforms: record.platforms || 'all'
                 }
@@ -7919,7 +7932,7 @@
 
 	            var profileName = getSelectedProfileKey();
 	            var profileDisplayName = getSelectedProfileDisplayName();
-            var buildBranch = document.getElementById('buildBranch').value.trim() || 'main';
+            var buildBranch = document.getElementById('buildBranch').value.trim() || DEFAULT_BUILD_BRANCH;
             var buildTag = document.getElementById('buildTag').value.trim();
             var buildCore = getSelectedBuildCore();
 
@@ -7998,7 +8011,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoConnectOnStartup', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -9932,6 +9945,12 @@
             var autoConnectOnStartup = autoConnectOnStartupMatch ? autoConnectOnStartupMatch[1] === 'true' : false;
             document.getElementById('autoConnectOnStartup').checked = autoConnectOnStartup;
             document.getElementById('autoConnectOnStartupLabel').textContent = autoConnectOnStartup ? '开启' : '关闭';
+            var logFileEnabledMatch =
+                yaml.match(/settings:\s*\n(?:[\s\S]*?)^\s{4}log_file_enabled:\s*(true|false)/m) ||
+                yaml.match(/settings:\s*\n(?:[\s\S]*?)^\s{4}logFileEnabled:\s*(true|false)/m);
+            var logFileEnabled = logFileEnabledMatch ? logFileEnabledMatch[1] === 'true' : true;
+            document.getElementById('logFileEnabled').checked = logFileEnabled;
+            document.getElementById('logFileEnabledLabel').textContent = logFileEnabled ? '开启' : '关闭';
             var autoOfflineMatch = yaml.match(/auto_offline:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var autoOfflineEnabled = autoOfflineMatch ? autoOfflineMatch[1] === 'true' : false;
             document.getElementById('autoOfflineEnabled').checked = autoOfflineEnabled;
@@ -10249,7 +10268,7 @@
                 return {
                     profile: context,
                     tag: '',
-                    branch: 'main',
+                    branch: DEFAULT_BUILD_BRANCH,
                     core: getSelectedBuildCore(),
                     platforms: 'all',
                     requestId: '',
@@ -10263,7 +10282,7 @@
             return {
                 profile: context.profile,
                 tag: context.tag || '',
-                branch: context.branch || 'main',
+                branch: context.branch || DEFAULT_BUILD_BRANCH,
                 core: context.core || getSelectedBuildCore(),
                 platforms: context.platforms || 'all',
                 requestId: context.requestId || context.request_id || '',

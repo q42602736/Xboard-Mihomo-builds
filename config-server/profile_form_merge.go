@@ -36,6 +36,7 @@ type ProfileFormState struct {
 	CloudDispatchFallbackRetry        int                       `json:"cloud_dispatch_fallback_retry_minutes"`
 	DNSOverrideDefault                bool                      `json:"dns_override_default"`
 	AutoConnectOnStartup              bool                      `json:"auto_connect_on_startup"`
+	LogFileEnabled                    bool                      `json:"log_file_enabled"`
 	PanelAPIPathPrefix                string                    `json:"api_path_prefix"`
 	RegistrationInviteEnabled         bool                      `json:"registration_invite_enabled"`
 	RegistrationInviteMode            string                    `json:"registration_invite_mode"`
@@ -176,7 +177,8 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	if rootKey == "nexgen" {
 		setMapBoolValue(settings, "dns_override_default", form.DNSOverrideDefault)
 		setMapBoolValue(settings, "auto_connect_on_startup", form.AutoConnectOnStartup)
-		removeMapKeys(settings, "dnsOverrideDefault", "autoConnectOnStartup")
+		setMapBoolValue(settings, "log_file_enabled", form.LogFileEnabled)
+		removeMapKeys(settings, "dnsOverrideDefault", "autoConnectOnStartup", "logFileEnabled")
 	} else {
 		removeMapKeys(profileRoot, "settings")
 	}

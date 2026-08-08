@@ -150,6 +150,7 @@ func defaultProfileYaml(displayName string) string {
   settings:
     dns_override_default: false
     auto_connect_on_startup: false
+    log_file_enabled: true
   auto_offline:
     enabled: false
     force_on_startup: false

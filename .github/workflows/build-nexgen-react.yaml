@@ -25,7 +25,7 @@ on:
         description: 'NexGen-client-React 源码分支'
         required: false
         type: string
-        default: 'main'
+        default: 'xiaov2board/Xboard'
       core:
         description: '固定为 nexgen'
         required: false
@@ -130,7 +130,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.NEXGEN_SOURCE_REPO }}
-          ref: ${{ github.event.inputs.branch || 'main' }}
+          ref: ${{ github.event.inputs.branch || 'xiaov2board/Xboard' }}
           token: ${{ secrets.WORKFLOW_TOKEN }}
           submodules: recursive
           path: source
@@ -409,7 +409,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.NEXGEN_SOURCE_REPO }}
-          ref: ${{ github.event.inputs.branch || 'main' }}
+          ref: ${{ github.event.inputs.branch || 'xiaov2board/Xboard' }}
           token: ${{ secrets.WORKFLOW_TOKEN }}
           submodules: recursive
           path: source
