@@ -179,6 +179,7 @@ func defaultProfileYaml(displayName string) string {
   ui:
     hide_traffic_details: false
     hide_node_status: false
+    hide_purchase_coupon: false
     hide_current_node_label: false
     hide_page_header_text: false
     show_ip_info: true

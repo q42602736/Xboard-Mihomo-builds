@@ -3793,6 +3793,16 @@
                                     </div>
                                     <div class="help-text">开启后，选择节点弹窗直接显示主策略组节点，不再先显示其他分流组。</div>
                                 </div>
+                                <div class="switch-card" data-custom-feature-key="hide_purchase_coupon" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">隐藏购买页优惠码</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="hidePurchaseCoupon"><span class="slider"></span></label>
+                                            <span id="hidePurchaseCouponLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="help-text">开启后，购买套餐页面默认隐藏优惠码使用区域及输入框。</div>
+                                </div>
                                 <div class="switch-card" data-custom-feature-key="sspanel_node_page_parse" style="margin-top:16px;">
                                     <div class="switch-card-header">
                                         <span class="switch-card-label">SSPanel 节点页面解析</span>
@@ -5933,6 +5943,7 @@
             applyCustomUIColorTextValue('inviteStatsTotalCommissionIconColor', data.invite_stats_total_commission_icon_color || '');
             setCustomFeatureSwitchValue('subscriptionStatusPopupEnabled', !!data.subscription_status_popup_enabled);
             setCustomFeatureSwitchValue('proxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
+            setCustomFeatureSwitchValue('hidePurchaseCoupon', !!data.hide_purchase_coupon);
             setCustomFeatureSwitchValue('sspanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
             setCustomFeatureSwitchValue('registrationInviteEnabled', !!data.registration_invite_enabled);
             setCustomFeatureSwitchValue('cloudDispatchEnabled', !!data.cloud_dispatch_enabled);
@@ -6055,6 +6066,7 @@
             [
                 'subscriptionStatusPopupEnabled',
                 'proxyGroupsMainPolicyNodesOnly',
+                'hidePurchaseCoupon',
                 'sspanelNodePageParseEnabled',
                 'registrationInviteEnabled',
                 'cloudDispatchEnabled',
@@ -6186,6 +6198,7 @@
             var subscriptionStatusPopupEnabled = !!document.getElementById('subscriptionStatusPopupEnabled').checked;
             var subscriptionStatusOfficialUrl = String(document.getElementById('subscriptionStatusOfficialUrl').value || '').trim();
             var proxyGroupsMainPolicyNodesOnly = !!document.getElementById('proxyGroupsMainPolicyNodesOnly').checked;
+            var hidePurchaseCoupon = !!document.getElementById('hidePurchaseCoupon').checked;
             var sspanelNodePageParseEnabled = !!document.getElementById('sspanelNodePageParseEnabled').checked;
             var registrationInviteEnabled = !!document.getElementById('registrationInviteEnabled').checked;
             var registrationInviteMode = String(document.getElementById('registrationInviteMode').value || 'default_when_empty').trim();
@@ -6264,6 +6277,7 @@
                     subscription_status_popup_enabled: subscriptionStatusPopupEnabled,
                     subscription_status_official_url: subscriptionStatusOfficialUrl,
                     proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly,
+                    hide_purchase_coupon: hidePurchaseCoupon,
                     sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
                     registration_invite_enabled: registrationInviteEnabled,
                     registration_invite_mode: registrationInviteMode,
@@ -6321,6 +6335,7 @@
             'invite_stats_total_commission_icon_color',
             'subscription_status_popup',
             'main_policy_nodes_only',
+            'hide_purchase_coupon',
             'sspanel_node_page_parse',
             'registration_invite',
             'cloud_dispatch'
@@ -7047,6 +7062,7 @@
                 '  ui:',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
+                '    hide_purchase_coupon: false',
                 '    show_ip_info: true',
                 '    custom_colors:',
                 '      notice_dialog_icon_background_color: ""',

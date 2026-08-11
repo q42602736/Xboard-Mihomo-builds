@@ -72,6 +72,7 @@ function convertXboardToNexgen(xboard) {
     ui: {
       hide_traffic_details: boolOrUndefined(ui.hide_traffic_details),
       hide_node_status: boolOrUndefined(ui.hide_node_status),
+      hide_purchase_coupon: boolOrUndefined(ui.hide_purchase_coupon ?? ui.hidePurchaseCoupon),
       hide_current_node_label: boolOrUndefined(ui.hide_current_node_label ?? ui.hideCurrentNodeLabel),
       hide_page_header_text: boolOrUndefined(ui.hide_page_header_text ?? ui.hidePageHeaderText),
       latency_reduction: record(ui.latency_reduction),

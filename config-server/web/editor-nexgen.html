@@ -5596,6 +5596,7 @@
             'hide_invite_promotion',
             'hide_current_node_label',
             'hide_page_header_text',
+            'hide_purchase_coupon',
             'sspanel_node_page_parse',
             'registration_invite',
             'custom_invite_link',
@@ -5823,6 +5824,16 @@
                         '</div>',
                     '</div>',
                     '<div class="help-text">开启后，隐藏购买套餐、节点状态、实时连接等功能页面顶部标题和描述文案，并保留原布局占位。</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="hide_purchase_coupon" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">隐藏购买页优惠码</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customHidePurchaseCoupon"><span class="slider"></span></label>',
+                            '<span id="customHidePurchaseCouponLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="help-text">开启后，购买套餐页面默认隐藏优惠码使用区域及输入框。</div>',
                 '</div>',
                 '<div class="switch-card" data-custom-feature-key="sspanel_node_page_parse" style="margin-top:16px;">',
                     '<div class="switch-card-header">',
@@ -6074,6 +6085,7 @@
                 'customHideInvitePromotion',
                 'customHideCurrentNodeLabel',
                 'customHidePageHeaderText',
+                'customHidePurchaseCoupon',
                 'customSSPanelNodePageParseEnabled',
                 'customRegistrationInviteEnabled',
                 'customRegistrationInviteLinkEnabled',
@@ -6148,6 +6160,7 @@
             setCustomFeatureSwitchValue('customHideInvitePromotion', !!data.hide_invite_promotion);
             setCustomFeatureSwitchValue('customHideCurrentNodeLabel', !!data.hide_current_node_label);
             setCustomFeatureSwitchValue('customHidePageHeaderText', !!data.hide_page_header_text);
+            setCustomFeatureSwitchValue('customHidePurchaseCoupon', !!data.hide_purchase_coupon);
             setCustomFeatureSwitchValue('customSSPanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
             setCustomFeatureSwitchValue('customRegistrationInviteEnabled', !!data.registration_invite_enabled);
             setCustomFeatureSwitchValue('customRegistrationInviteLinkEnabled', !!data.registration_invite_link_enabled);
@@ -6298,6 +6311,7 @@
             var hideInvitePromotion = getCustomInputChecked('customHideInvitePromotion');
             var hideCurrentNodeLabel = getCustomInputChecked('customHideCurrentNodeLabel');
             var hidePageHeaderText = getCustomInputChecked('customHidePageHeaderText');
+            var hidePurchaseCoupon = getCustomInputChecked('customHidePurchaseCoupon');
             var sspanelNodePageParseEnabled = getCustomInputChecked('customSSPanelNodePageParseEnabled');
             var registrationInviteEnabled = getCustomInputChecked('customRegistrationInviteEnabled');
             var registrationInviteMode = getCustomInputValue('customRegistrationInviteMode') || 'default_when_empty';
@@ -6388,6 +6402,7 @@
                     hide_invite_promotion: hideInvitePromotion,
                     hide_current_node_label: hideCurrentNodeLabel,
                     hide_page_header_text: hidePageHeaderText,
+                    hide_purchase_coupon: hidePurchaseCoupon,
                     sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
                     registration_invite_enabled: registrationInviteEnabled,
                     registration_invite_mode: registrationInviteMode,
@@ -6685,6 +6700,7 @@
                 '    hide_invite_promotion: false',
                 '    hide_current_node_label: false',
                 '    hide_page_header_text: false',
+                '    hide_purchase_coupon: false',
                 '    latency_reduction:',
                 '      enabled: false',
                 '      value: 0',
