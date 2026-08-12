@@ -3622,9 +3622,10 @@
                                 <input type="text" id="exclusiveSubscriptionUserAgent" placeholder="留空时默认使用 XBoardMihomo/1.0">
                                 <div class="help-text">仅在开启“专用客户端模式”后显示，选填。不填写时会回退到默认值 XBoardMihomo/1.0。可完全自定义，但必须与你给后端补丁脚本输入的专用客户端 UA/标识保持一致。</div>
                             </div>
-                            <div class="form-group config-control-hidden">
+                            <div class="form-group">
                                 <label>订阅解密密钥</label>
                                 <input type="text" id="decryptKey" placeholder="your_secret_decrypt_key_here">
+                                <div class="help-text">可选。用于解密订阅服务端返回的加密内容；必须与服务端或远程配置约定的 <code>decrypt_key</code> 完全一致。留空表示不启用订阅解密。</div>
                             </div>
                         </div>
                         <div class="section" id="sspanelMetronConfigSection">
@@ -6559,7 +6560,7 @@
                 syncDerivedProviderName({ updateRemotePreview: true });
                 formToYaml();
             });
-            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'cloudDispatchQueryUrl', 'cloudDispatchQuerySecret', 'cloudDispatchAutoIntervalMinutes', 'cloudDispatchFallbackRetryMinutes', 'telegramUrl', 'utilityCfSpeedTargetDomains', 'utilityCfSpeedAutoReplaceIntervalMinutes', 'apiPathPrefix'].forEach(function(id) {
+            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'decryptKey', 'cloudDispatchQueryUrl', 'cloudDispatchQuerySecret', 'cloudDispatchAutoIntervalMinutes', 'cloudDispatchFallbackRetryMinutes', 'telegramUrl', 'utilityCfSpeedTargetDomains', 'utilityCfSpeedAutoReplaceIntervalMinutes', 'apiPathPrefix'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (!el) return;
                 el.addEventListener('input', formToYaml);
