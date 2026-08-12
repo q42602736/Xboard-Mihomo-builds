@@ -3344,7 +3344,7 @@
                                         <span id="hidePlanSpeedLabel">关闭</span>
                                     </div>
                                 </div>
-                                <div class="help-text">启用后，新 UI 套餐卡片和购买详情隐藏速率信息。</div>
+                                <div class="help-text">启用后，老板 UI 和新 UI 的套餐卡片、购买详情均隐藏速率信息。</div>
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
@@ -5854,7 +5854,7 @@
                             '<span id="customHidePlanSpeedLabel">关闭</span>',
                         '</div>',
                     '</div>',
-                    '<div class="help-text">开启后，新 UI 套餐卡片和购买详情隐藏速率信息。</div>',
+                    '<div class="help-text">开启后，老板 UI 和新 UI 的套餐卡片、购买详情均隐藏速率信息。</div>',
                 '</div>',
                 '<div class="switch-card" data-custom-feature-key="sspanel_node_page_parse" style="margin-top:16px;">',
                     '<div class="switch-card-header">',
@@ -6107,6 +6107,7 @@
                 'customHideCurrentNodeLabel',
                 'customHidePageHeaderText',
                 'customHidePurchaseCoupon',
+                'customHidePlanSpeed',
                 'customSSPanelNodePageParseEnabled',
                 'customRegistrationInviteEnabled',
                 'customRegistrationInviteLinkEnabled',
@@ -7036,6 +7037,7 @@
                 hide_invite_promotion: document.getElementById('hideInvitePromotion').checked,
                 hide_current_node_label: document.getElementById('hideCurrentNodeLabel').checked,
                 hide_page_header_text: document.getElementById('hidePageHeaderText').checked,
+                hide_purchase_coupon: getCustomInputChecked('customHidePurchaseCoupon'),
                 hide_plan_speed: document.getElementById('hidePlanSpeed').checked,
                 latency_reduction_enabled: document.getElementById('latencyReductionEnabled').checked,
                 latency_reduction_value: normalizeLatencyReductionValue(document.getElementById('latencyReductionValue').value),
@@ -10099,6 +10101,10 @@
             var hidePageHeaderText = hidePageHeaderTextMatch ? hidePageHeaderTextMatch[1] === 'true' : false;
             document.getElementById('hidePageHeaderText').checked = hidePageHeaderText;
             document.getElementById('hidePageHeaderTextLabel').textContent = hidePageHeaderText ? '开启' : '关闭';
+            var hidePurchaseCouponMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_purchase_coupon:\s*(true|false)/) ||
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)hidePurchaseCoupon:\s*(true|false)/);
+            setCustomFeatureSwitchValue('customHidePurchaseCoupon', hidePurchaseCouponMatch ? hidePurchaseCouponMatch[1] === 'true' : false);
             var hidePlanSpeedMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_plan_speed:\s*(true|false)/);
             var hidePlanSpeed = hidePlanSpeedMatch ? hidePlanSpeedMatch[1] === 'true' : false;
             document.getElementById('hidePlanSpeed').checked = hidePlanSpeed;

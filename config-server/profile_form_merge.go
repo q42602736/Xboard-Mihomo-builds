@@ -52,6 +52,7 @@ type ProfileFormState struct {
 	HideInvitePromotion               bool                      `json:"hide_invite_promotion"`
 	HideCurrentNodeLabel              bool                      `json:"hide_current_node_label"`
 	HidePageHeaderText                bool                      `json:"hide_page_header_text"`
+	HidePurchaseCoupon                *bool                     `json:"hide_purchase_coupon"`
 	HidePlanSpeed                     bool                      `json:"hide_plan_speed"`
 	ShowIPInfo                        *bool                     `json:"show_ip_info"`
 	HomePanelDefaultLayout            string                    `json:"home_panel_default_layout"`
@@ -269,6 +270,10 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	}
 	setMapBoolValue(ui, "hide_current_node_label", form.HideCurrentNodeLabel)
 	setMapBoolValue(ui, "hide_page_header_text", form.HidePageHeaderText)
+	if form.HidePurchaseCoupon != nil {
+		setMapBoolValue(ui, "hide_purchase_coupon", *form.HidePurchaseCoupon)
+		removeMapKeys(ui, "hidePurchaseCoupon")
+	}
 	setMapBoolValue(ui, "hide_plan_speed", form.HidePlanSpeed)
 	showIPInfo := true
 	if form.ShowIPInfo != nil {

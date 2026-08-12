@@ -7576,6 +7576,7 @@
                 api_path_prefix: document.getElementById('apiPathPrefix') ? document.getElementById('apiPathPrefix').value.trim() : '/api/v1',
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
+                hide_purchase_coupon: document.getElementById('hidePurchaseCoupon') ? document.getElementById('hidePurchaseCoupon').checked : false,
                 hide_plan_speed: document.getElementById('hidePlanSpeed') ? document.getElementById('hidePlanSpeed').checked : false,
                 show_ip_info: document.getElementById('showIpInfo').checked,
                 home_panel_default_layout: document.getElementById('homePanelDefaultLayout').value,
@@ -10082,6 +10083,10 @@
             var hideNodeStatus = hideNodeStatusMatch ? hideNodeStatusMatch[1] === 'true' : false;
             document.getElementById('hideNodeStatus').checked = hideNodeStatus;
             document.getElementById('hideNodeStatusLabel').textContent = hideNodeStatus ? '开启' : '关闭';
+            var hidePurchaseCouponMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_purchase_coupon:\s*(true|false)/) ||
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)hidePurchaseCoupon:\s*(true|false)/);
+            setCustomFeatureSwitchValue('hidePurchaseCoupon', hidePurchaseCouponMatch ? hidePurchaseCouponMatch[1] === 'true' : false);
             var hidePlanSpeedMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_plan_speed:\s*(true|false)/) ||
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)hidePlanSpeed:\s*(true|false)/);
