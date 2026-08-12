@@ -3338,6 +3338,16 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">隐藏购买套餐速率</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="hidePlanSpeed"><span class="slider"></span></label>
+                                        <span id="hidePlanSpeedLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">启用后，新 UI 套餐卡片和购买详情隐藏速率信息。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">延迟显示调整</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="latencyReductionEnabled"><span class="slider"></span></label>
@@ -5597,6 +5607,7 @@
             'hide_current_node_label',
             'hide_page_header_text',
             'hide_purchase_coupon',
+            'hide_plan_speed',
             'sspanel_node_page_parse',
             'registration_invite',
             'custom_invite_link',
@@ -5834,6 +5845,16 @@
                         '</div>',
                     '</div>',
                     '<div class="help-text">开启后，购买套餐页面默认隐藏优惠码使用区域及输入框。</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="hide_plan_speed" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">隐藏购买套餐速率</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customHidePlanSpeed"><span class="slider"></span></label>',
+                            '<span id="customHidePlanSpeedLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="help-text">开启后，新 UI 套餐卡片和购买详情隐藏速率信息。</div>',
                 '</div>',
                 '<div class="switch-card" data-custom-feature-key="sspanel_node_page_parse" style="margin-top:16px;">',
                     '<div class="switch-card-header">',
@@ -6161,6 +6182,7 @@
             setCustomFeatureSwitchValue('customHideCurrentNodeLabel', !!data.hide_current_node_label);
             setCustomFeatureSwitchValue('customHidePageHeaderText', !!data.hide_page_header_text);
             setCustomFeatureSwitchValue('customHidePurchaseCoupon', !!data.hide_purchase_coupon);
+            setCustomFeatureSwitchValue('customHidePlanSpeed', !!data.hide_plan_speed);
             setCustomFeatureSwitchValue('customSSPanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
             setCustomFeatureSwitchValue('customRegistrationInviteEnabled', !!data.registration_invite_enabled);
             setCustomFeatureSwitchValue('customRegistrationInviteLinkEnabled', !!data.registration_invite_link_enabled);
@@ -6312,6 +6334,7 @@
             var hideCurrentNodeLabel = getCustomInputChecked('customHideCurrentNodeLabel');
             var hidePageHeaderText = getCustomInputChecked('customHidePageHeaderText');
             var hidePurchaseCoupon = getCustomInputChecked('customHidePurchaseCoupon');
+            var hidePlanSpeed = getCustomInputChecked('customHidePlanSpeed');
             var sspanelNodePageParseEnabled = getCustomInputChecked('customSSPanelNodePageParseEnabled');
             var registrationInviteEnabled = getCustomInputChecked('customRegistrationInviteEnabled');
             var registrationInviteMode = getCustomInputValue('customRegistrationInviteMode') || 'default_when_empty';
@@ -6403,6 +6426,7 @@
                     hide_current_node_label: hideCurrentNodeLabel,
                     hide_page_header_text: hidePageHeaderText,
                     hide_purchase_coupon: hidePurchaseCoupon,
+                    hide_plan_speed: hidePlanSpeed,
                     sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
                     registration_invite_enabled: registrationInviteEnabled,
                     registration_invite_mode: registrationInviteMode,
@@ -6701,6 +6725,7 @@
                 '    hide_current_node_label: false',
                 '    hide_page_header_text: false',
                 '    hide_purchase_coupon: false',
+                '    hide_plan_speed: false',
                 '    latency_reduction:',
                 '      enabled: false',
                 '      value: 0',
@@ -7011,6 +7036,7 @@
                 hide_invite_promotion: document.getElementById('hideInvitePromotion').checked,
                 hide_current_node_label: document.getElementById('hideCurrentNodeLabel').checked,
                 hide_page_header_text: document.getElementById('hidePageHeaderText').checked,
+                hide_plan_speed: document.getElementById('hidePlanSpeed').checked,
                 latency_reduction_enabled: document.getElementById('latencyReductionEnabled').checked,
                 latency_reduction_value: normalizeLatencyReductionValue(document.getElementById('latencyReductionValue').value),
                 notice_auto_open_on_startup: document.getElementById('noticeAutoOpenOnStartup').checked,
@@ -8027,7 +8053,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'hidePlanSpeed', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -10073,6 +10099,10 @@
             var hidePageHeaderText = hidePageHeaderTextMatch ? hidePageHeaderTextMatch[1] === 'true' : false;
             document.getElementById('hidePageHeaderText').checked = hidePageHeaderText;
             document.getElementById('hidePageHeaderTextLabel').textContent = hidePageHeaderText ? '开启' : '关闭';
+            var hidePlanSpeedMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_plan_speed:\s*(true|false)/);
+            var hidePlanSpeed = hidePlanSpeedMatch ? hidePlanSpeedMatch[1] === 'true' : false;
+            document.getElementById('hidePlanSpeed').checked = hidePlanSpeed;
+            document.getElementById('hidePlanSpeedLabel').textContent = hidePlanSpeed ? '开启' : '关闭';
             var latencyReductionEnabledMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}latency_reduction:\s*\n(?:[\s\S]*?)^\s{6}enabled:\s*(true|false)/m) ||
                 yaml.match(/latency_reduction:\s*\n(?:[\s\S]*?)enabled:\s*(true|false)/);

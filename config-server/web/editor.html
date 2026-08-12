@@ -1523,6 +1523,119 @@
         .custom-feature-grid .switch-card-extra .form-row {
             margin-top: 0;
         }
+        .custom-feature-overview {
+            margin: 16px 0 24px;
+            padding: 16px;
+            border: 1px solid rgba(0,212,255,0.18);
+            border-radius: 8px;
+            background: rgba(0,212,255,0.055);
+        }
+        .custom-feature-overview-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+        }
+        .custom-feature-overview-kicker {
+            color: #7f8b98;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+        .custom-feature-overview-title {
+            margin-top: 4px;
+            color: #e8f7fa;
+            font-size: 16px;
+            font-weight: 650;
+            line-height: 1.4;
+        }
+        .custom-feature-overview-stats {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-shrink: 0;
+        }
+        .custom-feature-overview-stat {
+            min-width: 56px;
+            text-align: right;
+        }
+        .custom-feature-overview-stat strong {
+            display: block;
+            color: #e8f7fa;
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .custom-feature-overview-stat span {
+            color: #7f8b98;
+            font-size: 11px;
+        }
+        .custom-feature-overview-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 8px;
+            margin-top: 14px;
+        }
+        .custom-feature-overview-item {
+            min-width: 0;
+            padding: 9px 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.14);
+            color: #cfd7df;
+            font: inherit;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            text-align: left;
+            transition: border-color 0.16s ease, background 0.16s ease;
+        }
+        .custom-feature-overview-item:hover,
+        .custom-feature-overview-item:focus-visible {
+            outline: none;
+            border-color: rgba(0,212,255,0.36);
+            background: rgba(0,212,255,0.08);
+        }
+        .custom-feature-overview-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+        .custom-feature-overview-state {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0;
+            color: #84909c;
+            font-size: 11px;
+        }
+        .custom-feature-overview-state::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #66717d;
+        }
+        .custom-feature-overview-state.active {
+            color: #67e2a5;
+        }
+        .custom-feature-overview-state.active::before {
+            background: #21c77a;
+        }
+        .custom-feature-overview-state.pending {
+            color: #d8b565;
+        }
+        .custom-feature-overview-state.pending::before {
+            background: #d5a83f;
+        }
+        .custom-feature-focus {
+            outline: 2px solid rgba(0,212,255,0.58);
+            outline-offset: 3px;
+        }
         .cloud-dispatch-extra {
             display: grid;
             gap: 16px;
@@ -1583,6 +1696,21 @@
             }
         }
         @media (max-width: 560px) {
+            .custom-feature-overview-head {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .custom-feature-overview-stats {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .custom-feature-overview-stat {
+                min-width: 0;
+                text-align: left;
+            }
+            .custom-feature-overview-list {
+                grid-template-columns: 1fr;
+            }
             .cloud-dispatch-auto-header {
                 align-items: flex-start;
                 flex-direction: column;
@@ -3456,6 +3584,29 @@
                                 </div>
                             </div>
                             <div id="customTrafficBarEditorPanel" style="display:none;">
+                                <div class="custom-feature-overview" id="customFeatureOverview">
+                                    <div class="custom-feature-overview-head">
+                                        <div>
+                                            <div class="custom-feature-overview-kicker" id="customFeatureOverviewKicker">当前对接码</div>
+                                            <div class="custom-feature-overview-title" id="customFeatureOverviewTitle" aria-live="polite">已授权 0 项功能</div>
+                                        </div>
+                                        <div class="custom-feature-overview-stats">
+                                            <div class="custom-feature-overview-stat">
+                                                <strong id="customFeatureAuthorizedCount">0</strong>
+                                                <span>已授权</span>
+                                            </div>
+                                            <div class="custom-feature-overview-stat">
+                                                <strong id="customFeatureActiveCount">--</strong>
+                                                <span>已开启/配置</span>
+                                            </div>
+                                            <div class="custom-feature-overview-stat">
+                                                <strong id="customFeaturePendingCount">--</strong>
+                                                <span>待开启/配置</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="custom-feature-overview-list" id="customFeatureOverviewList"></div>
+                                </div>
                                 <div class="section-title">自定义功能配置</div>
                                 <div class="help-text">只会显示当前对接码已绑定的功能。保存后会直接写入当前档案对应的公共 YAML 配置。</div>
                                 <div class="custom-feature-grid">
@@ -3803,6 +3954,16 @@
                                     </div>
                                     <div class="help-text">开启后，购买套餐页面默认隐藏优惠码使用区域及输入框。</div>
                                 </div>
+                                <div class="switch-card" data-custom-feature-key="hide_plan_speed" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">隐藏购买套餐速率</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="hidePlanSpeed"><span class="slider"></span></label>
+                                            <span id="hidePlanSpeedLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="help-text">开启后，购买套餐卡片和购买详情隐藏速率信息。</div>
+                                </div>
                                 <div class="switch-card" data-custom-feature-key="sspanel_node_page_parse" style="margin-top:16px;">
                                     <div class="switch-card-header">
                                         <span class="switch-card-label">SSPanel 节点页面解析</span>
@@ -4002,6 +4163,14 @@
                                     </div>
                                 </div>
                                 <div class="help-text">启用后，订阅配置将被缓存，在有效期内不会重复拉取。设置为0表示禁用缓存。</div>
+                            </div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">面板 API 配置</div>
+                            <div class="form-group">
+                                <label>自定义 API 逻辑前缀</label>
+                                <input type="text" id="apiPathPrefix" value="/api/v1" placeholder="/api/v1">
+                                <div class="help-text">客户端会用这里配置的 API 逻辑前缀替换默认 <code>/api/v1</code>，站点域名仍从配置文件获取。</div>
                             </div>
                         </div>
                     </div>
@@ -5888,12 +6057,121 @@
             return getVisibleCustomUIColorFeatureKeys().indexOf(featureKey) !== -1;
         }
 
+        function findCustomFeatureSection(featureKey) {
+            var result = null;
+            document.querySelectorAll('[data-custom-feature-key]').forEach(function(section) {
+                if (String(section.getAttribute('data-custom-feature-key') || '').trim() === featureKey) {
+                    result = section;
+                }
+            });
+            return result;
+        }
+
+        function getCustomFeatureDisplayName(featureKey, section) {
+            var label = section ? section.querySelector('.switch-card-label') : null;
+            return label && String(label.textContent || '').trim()
+                ? String(label.textContent || '').trim()
+                : featureKey;
+        }
+
+        function getCustomFeatureCurrentState(section) {
+            if (!customUIColorConfigLoaded) {
+                return { label: '已授权', tone: '', active: false };
+            }
+            var checkbox = section ? section.querySelector('.switch-card-header input[type="checkbox"]') : null;
+            if (checkbox) {
+                return checkbox.checked
+                    ? { label: '已开启', tone: 'active', active: true }
+                    : { label: '未开启', tone: 'pending', active: false };
+            }
+            var valueInput = section ? section.querySelector('input[type="text"]') : null;
+            var configured = !!(valueInput && String(valueInput.value || '').trim());
+            return configured
+                ? { label: '已配置', tone: 'active', active: true }
+                : { label: '待配置', tone: 'pending', active: false };
+        }
+
+        function focusCustomFeatureSection(featureKey) {
+            var section = findCustomFeatureSection(featureKey);
+            if (!section) return;
+            var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            section.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
+            section.classList.add('custom-feature-focus');
+            window.setTimeout(function() {
+                section.classList.remove('custom-feature-focus');
+            }, 1400);
+        }
+
+        function refreshCustomFeatureOverview() {
+            var title = document.getElementById('customFeatureOverviewTitle');
+            var kicker = document.getElementById('customFeatureOverviewKicker');
+            var authorizedCount = document.getElementById('customFeatureAuthorizedCount');
+            var activeCount = document.getElementById('customFeatureActiveCount');
+            var pendingCount = document.getElementById('customFeaturePendingCount');
+            var list = document.getElementById('customFeatureOverviewList');
+            if (!title || !kicker || !authorizedCount || !activeCount || !pendingCount || !list) return;
+
+            var features = getVisibleCustomUIColorFeatureKeys().map(function(featureKey) {
+                var section = findCustomFeatureSection(featureKey);
+                if (!section) return null;
+                return {
+                    key: featureKey,
+                    name: getCustomFeatureDisplayName(featureKey, section),
+                    state: getCustomFeatureCurrentState(section)
+                };
+            }).filter(Boolean);
+            var enabledCount = features.filter(function(feature) { return feature.state.active; }).length;
+            var profileName = getSelectedCustomTrafficBarProfile() ? getSelectedProfileDisplayName() : '未选择档案';
+
+            kicker.textContent = profileName + (isAdminSession() ? ' · 管理员可用功能' : ' · 当前对接码');
+            title.textContent = customUIColorConfigLoaded
+                ? '已授权 ' + features.length + ' 项，其中 ' + enabledCount + ' 项已开启或配置'
+                : '已授权 ' + features.length + ' 项，读取配置后显示启用状态';
+            authorizedCount.textContent = String(features.length);
+            activeCount.textContent = customUIColorConfigLoaded ? String(enabledCount) : '--';
+            pendingCount.textContent = customUIColorConfigLoaded ? String(features.length - enabledCount) : '--';
+            list.replaceChildren();
+
+            features.forEach(function(feature) {
+                var item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'custom-feature-overview-item';
+                item.setAttribute('aria-label', feature.name + '，' + feature.state.label + '，点击定位到配置项');
+                item.addEventListener('click', function() {
+                    focusCustomFeatureSection(feature.key);
+                });
+
+                var name = document.createElement('span');
+                name.className = 'custom-feature-overview-name';
+                name.textContent = feature.name;
+                name.title = feature.name;
+
+                var state = document.createElement('span');
+                state.className = 'custom-feature-overview-state' + (feature.state.tone ? ' ' + feature.state.tone : '');
+                state.textContent = feature.state.label;
+
+                item.appendChild(name);
+                item.appendChild(state);
+                list.appendChild(item);
+            });
+        }
+
+        function getCustomFeatureOverviewStatusText(prefix) {
+            var features = getVisibleCustomUIColorFeatureKeys().map(function(featureKey) {
+                var section = findCustomFeatureSection(featureKey);
+                return section ? getCustomFeatureCurrentState(section) : null;
+            }).filter(Boolean);
+            var activeCount = features.filter(function(state) { return state.active; }).length;
+            return prefix + '：已授权 ' + features.length + ' 项，已开启或配置 ' + activeCount + ' 项';
+        }
+
         function syncCustomUIColorFeatureVisibility() {
             var visibleFeatureKeys = getVisibleCustomUIColorFeatureKeys();
             document.querySelectorAll('[data-custom-feature-key]').forEach(function(section) {
                 var featureKey = String(section.getAttribute('data-custom-feature-key') || '').trim();
                 section.style.display = visibleFeatureKeys.indexOf(featureKey) !== -1 ? 'block' : 'none';
             });
+            refreshCustomFeatureOverview();
         }
 
         function syncCustomTrafficBarAccessView() {
@@ -5924,6 +6202,7 @@
             customUIColorAvailableFeatures = Array.isArray(data.feature_keys)
                 ? data.feature_keys.map(function(item) { return String(item || '').trim(); }).filter(Boolean)
                 : [];
+            customUIColorConfigLoaded = true;
             applyCustomUIColorTextValue(
                 'customTrafficBarColor',
                 data.traffic_bar_enabled ? (data.traffic_bar_color || '') : ''
@@ -5944,6 +6223,7 @@
             setCustomFeatureSwitchValue('subscriptionStatusPopupEnabled', !!data.subscription_status_popup_enabled);
             setCustomFeatureSwitchValue('proxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
             setCustomFeatureSwitchValue('hidePurchaseCoupon', !!data.hide_purchase_coupon);
+            setCustomFeatureSwitchValue('hidePlanSpeed', !!data.hide_plan_speed);
             setCustomFeatureSwitchValue('sspanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
             setCustomFeatureSwitchValue('registrationInviteEnabled', !!data.registration_invite_enabled);
             setCustomFeatureSwitchValue('cloudDispatchEnabled', !!data.cloud_dispatch_enabled);
@@ -5977,6 +6257,7 @@
                 cloudDispatchFallbackRetryMinutes.value = data.cloud_dispatch_fallback_retry_minutes || 5;
             }
             syncCustomUIColorFeatureVisibility();
+            refreshCustomFeatureOverview();
         }
 
         function updateCustomTrafficBarCodeHint() {
@@ -6045,6 +6326,7 @@
             if (picker && picker.dataset.defaultColor) {
                 picker.value = picker.dataset.defaultColor;
             }
+            refreshCustomFeatureOverview();
         }
 
         function syncCustomFeatureSwitchLabel(id) {
@@ -6067,6 +6349,7 @@
                 'subscriptionStatusPopupEnabled',
                 'proxyGroupsMainPolicyNodesOnly',
                 'hidePurchaseCoupon',
+                'hidePlanSpeed',
                 'sspanelNodePageParseEnabled',
                 'registrationInviteEnabled',
                 'cloudDispatchEnabled',
@@ -6076,6 +6359,7 @@
                 if (!input) return;
                 input.addEventListener('change', function() {
                     syncCustomFeatureSwitchLabel(id);
+                    refreshCustomFeatureOverview();
                 });
                 syncCustomFeatureSwitchLabel(id);
             });
@@ -6121,10 +6405,11 @@
                 applyCustomTrafficBarConfig(data);
                 sessionStorage.setItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY, integrationCode);
                 syncCustomTrafficBarAccessView();
-                setCustomTrafficBarStatus('对接码验证通过，已显示当前绑定的自定义功能', 'success');
+                setCustomTrafficBarStatus(getCustomFeatureOverviewStatusText('对接码验证通过'), 'success');
             } catch (e) {
                 customTrafficBarAccessVerified = false;
                 customUIColorAvailableFeatures = [];
+                customUIColorConfigLoaded = false;
                 syncCustomTrafficBarAccessView();
                 setCustomTrafficBarStatus('验证失败: ' + e.message, 'error');
             }
@@ -6166,11 +6451,12 @@
                     customTrafficBarAccessVerified = true;
                     syncCustomTrafficBarAccessView();
                 }
-                setCustomTrafficBarStatus('已读取当前自定义功能配置', 'success');
+                setCustomTrafficBarStatus(getCustomFeatureOverviewStatusText('已读取当前配置'), 'success');
             } catch (e) {
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
                     customUIColorAvailableFeatures = [];
+                    customUIColorConfigLoaded = false;
                     syncCustomTrafficBarAccessView();
                 }
                 setCustomTrafficBarStatus('读取失败: ' + e.message, 'error');
@@ -6199,6 +6485,7 @@
             var subscriptionStatusOfficialUrl = String(document.getElementById('subscriptionStatusOfficialUrl').value || '').trim();
             var proxyGroupsMainPolicyNodesOnly = !!document.getElementById('proxyGroupsMainPolicyNodesOnly').checked;
             var hidePurchaseCoupon = !!document.getElementById('hidePurchaseCoupon').checked;
+            var hidePlanSpeed = !!document.getElementById('hidePlanSpeed').checked;
             var sspanelNodePageParseEnabled = !!document.getElementById('sspanelNodePageParseEnabled').checked;
             var registrationInviteEnabled = !!document.getElementById('registrationInviteEnabled').checked;
             var registrationInviteMode = String(document.getElementById('registrationInviteMode').value || 'default_when_empty').trim();
@@ -6278,6 +6565,7 @@
                     subscription_status_official_url: subscriptionStatusOfficialUrl,
                     proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly,
                     hide_purchase_coupon: hidePurchaseCoupon,
+                    hide_plan_speed: hidePlanSpeed,
                     sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
                     registration_invite_enabled: registrationInviteEnabled,
                     registration_invite_mode: registrationInviteMode,
@@ -6302,11 +6590,12 @@
                 if (profileName === getSelectedCustomTrafficBarProfile()) {
                     await loadProfile();
                 }
-                setCustomTrafficBarStatus('自定义功能配置已保存', 'success');
+                setCustomTrafficBarStatus(getCustomFeatureOverviewStatusText('自定义功能配置已保存'), 'success');
             } catch (e) {
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
                     customUIColorAvailableFeatures = [];
+                    customUIColorConfigLoaded = false;
                     syncCustomTrafficBarAccessView();
                 }
                 setCustomTrafficBarStatus('保存失败: ' + e.message, 'error');
@@ -6318,6 +6607,7 @@
         var currentUserInfo = null;
         var customTrafficBarAccessVerified = false;
         var customUIColorAvailableFeatures = [];
+        var customUIColorConfigLoaded = false;
         var customUIColorFeatureKeys = [
             'traffic_bar_color',
             'notice_dialog_icon_background_color',
@@ -6336,6 +6626,7 @@
             'subscription_status_popup',
             'main_policy_nodes_only',
             'hide_purchase_coupon',
+            'hide_plan_speed',
             'sspanel_node_page_parse',
             'registration_invite',
             'cloud_dispatch'
@@ -6823,6 +7114,7 @@
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
                     customUIColorAvailableFeatures = [];
+                    customUIColorConfigLoaded = false;
                 }
                 syncCustomTrafficBarProfileName();
                 updateCustomTrafficBarCodeHint();
@@ -6899,7 +7191,7 @@
             document.getElementById('provider').addEventListener('change', function() {
                 updateProviderConsistencyState({ source: 'basic' });
             });
-            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix'].forEach(function(id) {
+            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'apiPathPrefix'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (!el) return;
                 el.addEventListener('input', formToYaml);
@@ -6917,6 +7209,8 @@
                 syncCustomTrafficBarProfileName();
                 updateSecureLogPathHint();
                 setCustomTrafficBarStatus('', 'info');
+                customUIColorConfigLoaded = false;
+                refreshCustomFeatureOverview();
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
                     customUIColorAvailableFeatures = [];
@@ -6931,6 +7225,7 @@
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
                     customUIColorAvailableFeatures = [];
+                    customUIColorConfigLoaded = false;
                     syncCustomTrafficBarAccessView();
                 }
             });
@@ -6961,11 +7256,13 @@
                 if (picker) {
                     picker.addEventListener('input', function() {
                         syncCustomUIColorTextFromPicker(inputId);
+                        refreshCustomFeatureOverview();
                     });
                 }
                 if (input) {
                     input.addEventListener('input', function() {
                         syncCustomUIColorPickerFromText(inputId);
+                        refreshCustomFeatureOverview();
                     });
                 }
             });
@@ -7054,6 +7351,7 @@
                 '    mode: default_when_empty',
                 '    invite_code: ""',
                 '  remote_config:',
+                '    api_path_prefix: /api/v1',
                 '    sources:',
                 '      - name: redirect',
                 '        url: ""',
@@ -7063,6 +7361,7 @@
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
                 '    hide_purchase_coupon: false',
+                '    hide_plan_speed: false',
                 '    show_ip_info: true',
                 '    custom_colors:',
                 '      notice_dialog_icon_background_color: ""',
@@ -7274,8 +7573,10 @@
                 registration_invite_code: document.getElementById('registrationInviteCode') ? document.getElementById('registrationInviteCode').value.trim() : '',
                 subscription_cache_enabled: document.getElementById('subscriptionCacheEnabled').checked,
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
+                api_path_prefix: document.getElementById('apiPathPrefix') ? document.getElementById('apiPathPrefix').value.trim() : '/api/v1',
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
+                hide_plan_speed: document.getElementById('hidePlanSpeed') ? document.getElementById('hidePlanSpeed').checked : false,
                 show_ip_info: document.getElementById('showIpInfo').checked,
                 home_panel_default_layout: document.getElementById('homePanelDefaultLayout').value,
                 latency_reduction_enabled: document.getElementById('latencyReductionEnabled').checked,
@@ -9765,6 +10066,14 @@
             var subCacheTtlMatch = yaml.match(/subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*(\d+)/);
             var subCacheTtl = subCacheTtlMatch ? parseInt(subCacheTtlMatch[1]) : 24;
             document.getElementById('subscriptionCacheTtl').value = subCacheTtl;
+            var apiPathPrefixMatch =
+                yaml.match(/remote_config:\s*\n(?:[\s\S]*?)^\s{4}api_path_prefix:[^\S\n]*(.*)/m) ||
+                yaml.match(/remoteConfig:\s*\n(?:[\s\S]*?)apiPathPrefix:[^\S\n]*(.*)/);
+            if (document.getElementById('apiPathPrefix')) {
+                document.getElementById('apiPathPrefix').value = apiPathPrefixMatch
+                    ? apiPathPrefixMatch[1].trim().replace(/^["']|["']$/g, '')
+                    : '/api/v1';
+            }
             var hideTrafficDetailsMatch = yaml.match(/ui:\s*\n(?:\s*#[^\n]*\n)*\s*hide_traffic_details:\s*(true|false)/);
             var hideTrafficDetails = hideTrafficDetailsMatch ? hideTrafficDetailsMatch[1] === 'true' : false;
             document.getElementById('hideTrafficDetails').checked = hideTrafficDetails;
@@ -9773,6 +10082,10 @@
             var hideNodeStatus = hideNodeStatusMatch ? hideNodeStatusMatch[1] === 'true' : false;
             document.getElementById('hideNodeStatus').checked = hideNodeStatus;
             document.getElementById('hideNodeStatusLabel').textContent = hideNodeStatus ? '开启' : '关闭';
+            var hidePlanSpeedMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_plan_speed:\s*(true|false)/) ||
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)hidePlanSpeed:\s*(true|false)/);
+            setCustomFeatureSwitchValue('hidePlanSpeed', hidePlanSpeedMatch ? hidePlanSpeedMatch[1] === 'true' : false);
             var showIpInfoMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)show_ip_info:\s*(true|false)/) ||
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)showIpInfo:\s*(true|false)/);

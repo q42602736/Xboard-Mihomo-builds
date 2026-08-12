@@ -35,6 +35,7 @@ type UIColorCustomConfig struct {
 	HideCurrentNodeLabel                 bool     `json:"hide_current_node_label"`
 	HidePageHeaderText                   bool     `json:"hide_page_header_text"`
 	HidePurchaseCoupon                   bool     `json:"hide_purchase_coupon"`
+	HidePlanSpeed                        bool     `json:"hide_plan_speed"`
 	CloudDispatchEnabled                 bool     `json:"cloud_dispatch_enabled"`
 	CloudDispatchQueryURL                string   `json:"cloud_dispatch_query_url"`
 	CloudDispatchQuerySecret             string   `json:"cloud_dispatch_query_secret"`
@@ -73,6 +74,7 @@ const (
 	customFeatureHideCurrentNodeLabel                 = "hide_current_node_label"
 	customFeatureHidePageHeaderText                   = "hide_page_header_text"
 	customFeatureHidePurchaseCoupon                   = "hide_purchase_coupon"
+	customFeatureHidePlanSpeed                        = "hide_plan_speed"
 	customFeatureCloudDispatch                        = "cloud_dispatch"
 	customFeatureSSPanelNodePageParse                 = "sspanel_node_page_parse"
 	customFeatureRegistrationInvite                   = "registration_invite"
@@ -104,6 +106,7 @@ var (
 		customFeatureHideCurrentNodeLabel,
 		customFeatureHidePageHeaderText,
 		customFeatureHidePurchaseCoupon,
+		customFeatureHidePlanSpeed,
 		customFeatureCloudDispatch,
 		customFeatureSSPanelNodePageParse,
 		customFeatureRegistrationInvite,
@@ -559,6 +562,11 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 		} else if enabledNode := getMapValueNode(ui, "hidePurchaseCoupon"); enabledNode != nil {
 			result.HidePurchaseCoupon = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
 		}
+		if enabledNode := getMapValueNode(ui, "hide_plan_speed"); enabledNode != nil {
+			result.HidePlanSpeed = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "hidePlanSpeed"); enabledNode != nil {
+			result.HidePlanSpeed = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
 	}
 
 	cloudDispatch := getMapValueNode(profileRoot, "cloud_dispatch")
@@ -690,6 +698,8 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	removeMapKeys(ui, "hidePageHeaderText")
 	setMapBoolValue(ui, "hide_purchase_coupon", config.HidePurchaseCoupon)
 	removeMapKeys(ui, "hidePurchaseCoupon")
+	setMapBoolValue(ui, "hide_plan_speed", config.HidePlanSpeed)
+	removeMapKeys(ui, "hidePlanSpeed")
 	setMapBoolValue(proxyGroups, "main_policy_nodes_only", config.ProxyGroupsMainPolicyNodesOnly)
 	removeMapKeys(proxyGroups, "mainPolicyNodesOnly")
 	removeMapKeys(ui, "proxyGroups")
@@ -820,6 +830,7 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"hide_current_node_label":                  config.HideCurrentNodeLabel,
 		"hide_page_header_text":                    config.HidePageHeaderText,
 		"hide_purchase_coupon":                     config.HidePurchaseCoupon,
+		"hide_plan_speed":                          config.HidePlanSpeed,
 		"cloud_dispatch_enabled":                   config.CloudDispatchEnabled,
 		"cloud_dispatch_query_url":                 config.CloudDispatchQueryURL,
 		"cloud_dispatch_query_secret":              config.CloudDispatchQuerySecret,
@@ -865,6 +876,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		HideCurrentNodeLabel                 bool     `json:"hide_current_node_label"`
 		HidePageHeaderText                   bool     `json:"hide_page_header_text"`
 		HidePurchaseCoupon                   bool     `json:"hide_purchase_coupon"`
+		HidePlanSpeed                        bool     `json:"hide_plan_speed"`
 		CloudDispatchEnabled                 bool     `json:"cloud_dispatch_enabled"`
 		CloudDispatchQueryURL                string   `json:"cloud_dispatch_query_url"`
 		CloudDispatchQuerySecret             string   `json:"cloud_dispatch_query_secret"`
@@ -1105,6 +1117,9 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureHidePurchaseCoupon) {
 		targetConfig.HidePurchaseCoupon = req.HidePurchaseCoupon
 	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureHidePlanSpeed) {
+		targetConfig.HidePlanSpeed = req.HidePlanSpeed
+	}
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureCloudDispatch) {
 		targetConfig.CloudDispatchEnabled = req.CloudDispatchEnabled
 		targetConfig.CloudDispatchQueryURL = normalizedCloudDispatchQueryURL
@@ -1191,6 +1206,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"hide_current_node_label":                  targetConfig.HideCurrentNodeLabel,
 		"hide_page_header_text":                    targetConfig.HidePageHeaderText,
 		"hide_purchase_coupon":                     targetConfig.HidePurchaseCoupon,
+		"hide_plan_speed":                          targetConfig.HidePlanSpeed,
 		"cloud_dispatch_enabled":                   targetConfig.CloudDispatchEnabled,
 		"cloud_dispatch_query_url":                 targetConfig.CloudDispatchQueryURL,
 		"cloud_dispatch_query_secret":              targetConfig.CloudDispatchQuerySecret,

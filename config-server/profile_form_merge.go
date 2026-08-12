@@ -52,6 +52,7 @@ type ProfileFormState struct {
 	HideInvitePromotion               bool                      `json:"hide_invite_promotion"`
 	HideCurrentNodeLabel              bool                      `json:"hide_current_node_label"`
 	HidePageHeaderText                bool                      `json:"hide_page_header_text"`
+	HidePlanSpeed                     bool                      `json:"hide_plan_speed"`
 	ShowIPInfo                        *bool                     `json:"show_ip_info"`
 	HomePanelDefaultLayout            string                    `json:"home_panel_default_layout"`
 	LatencyReductionEnabled           bool                      `json:"latency_reduction_enabled"`
@@ -268,6 +269,7 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	}
 	setMapBoolValue(ui, "hide_current_node_label", form.HideCurrentNodeLabel)
 	setMapBoolValue(ui, "hide_page_header_text", form.HidePageHeaderText)
+	setMapBoolValue(ui, "hide_plan_speed", form.HidePlanSpeed)
 	showIPInfo := true
 	if form.ShowIPInfo != nil {
 		showIPInfo = *form.ShowIPInfo
@@ -314,11 +316,8 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	removeMapKeys(profileRoot, "proxy_groups", "proxyGroups")
 	removeMapKeys(onlineSupport, "auth_pages", "authPages")
 
-	if rootKey == "nexgen" {
-		setMapStringValue(remoteConfig, "api_path_prefix", normalizePanelAPIPathPrefix(form.PanelAPIPathPrefix))
-	} else {
-		removeMapKeys(remoteConfig, "api_path_prefix", "apiPathPrefix")
-	}
+	setMapStringValue(remoteConfig, "api_path_prefix", normalizePanelAPIPathPrefix(form.PanelAPIPathPrefix))
+	removeMapKeys(remoteConfig, "apiPathPrefix")
 	setMapNodeValue(remoteConfig, "sources", mergeProfileSources(getSequenceValueNode(remoteConfig, "sources"), form.Sources))
 	setMapNodeValue(onlineSupport, "items", mergeProfileSupportItems(getSequenceValueNode(onlineSupport, "items"), form.OnlineSupportItems))
 

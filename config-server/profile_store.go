@@ -171,6 +171,7 @@ func defaultProfileYaml(displayName string) string {
     mode: default_when_empty
     invite_code: ""
   remote_config:
+    api_path_prefix: /api/v1
     sources:
       - name: redirect
         url: ""
@@ -180,6 +181,7 @@ func defaultProfileYaml(displayName string) string {
     hide_traffic_details: false
     hide_node_status: false
     hide_purchase_coupon: false
+    hide_plan_speed: false
     hide_current_node_label: false
     hide_page_header_text: false
     show_ip_info: true
