@@ -178,8 +178,8 @@ func defaultProfileYaml(displayName string) string {
   online_support:
     items: []
   ui:
-    show_color_scheme_button: true
-    show_online_support_button: true
+    hide_color_scheme_button: false
+    hide_online_support_button: false
     hide_traffic_details: false
     hide_node_status: false
     hide_purchase_coupon: false

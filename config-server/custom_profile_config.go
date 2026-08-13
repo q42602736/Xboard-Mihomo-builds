@@ -31,6 +31,8 @@ type UIColorCustomConfig struct {
 	SubscriptionStatusPopupEnabled       bool     `json:"subscription_status_popup_enabled"`
 	SubscriptionStatusOfficialURL        string   `json:"subscription_status_official_url"`
 	ProxyGroupsMainPolicyNodesOnly       bool     `json:"proxy_groups_main_policy_nodes_only"`
+	HideColorSchemeButton                bool     `json:"hide_color_scheme_button"`
+	HideOnlineSupportButton              bool     `json:"hide_online_support_button"`
 	HideInvitePromotion                  bool     `json:"hide_invite_promotion"`
 	HideCurrentNodeLabel                 bool     `json:"hide_current_node_label"`
 	HidePageHeaderText                   bool     `json:"hide_page_header_text"`
@@ -70,6 +72,8 @@ const (
 	customFeatureInviteStatsTotalCommissionIconColor  = "invite_stats_total_commission_icon_color"
 	customFeatureSubscriptionStatusPopup              = "subscription_status_popup"
 	customFeatureMainPolicyNodesOnly                  = "main_policy_nodes_only"
+	customFeatureHideColorSchemeButton                = "hide_color_scheme_button"
+	customFeatureHideOnlineSupportButton              = "hide_online_support_button"
 	customFeatureHideInvitePromotion                  = "hide_invite_promotion"
 	customFeatureHideCurrentNodeLabel                 = "hide_current_node_label"
 	customFeatureHidePageHeaderText                   = "hide_page_header_text"
@@ -102,6 +106,8 @@ var (
 		customFeatureInviteStatsTotalCommissionIconColor,
 		customFeatureSubscriptionStatusPopup,
 		customFeatureMainPolicyNodesOnly,
+		customFeatureHideColorSchemeButton,
+		customFeatureHideOnlineSupportButton,
 		customFeatureHideInvitePromotion,
 		customFeatureHideCurrentNodeLabel,
 		customFeatureHidePageHeaderText,
@@ -542,6 +548,24 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 		}
 	}
 	if ui != nil {
+		if enabledNode := getMapValueNode(ui, "hide_color_scheme_button"); enabledNode != nil {
+			result.HideColorSchemeButton = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "hideColorSchemeButton"); enabledNode != nil {
+			result.HideColorSchemeButton = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "show_color_scheme_button"); enabledNode != nil {
+			result.HideColorSchemeButton = !strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "showColorSchemeButton"); enabledNode != nil {
+			result.HideColorSchemeButton = !strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
+		if enabledNode := getMapValueNode(ui, "hide_online_support_button"); enabledNode != nil {
+			result.HideOnlineSupportButton = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "hideOnlineSupportButton"); enabledNode != nil {
+			result.HideOnlineSupportButton = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "show_online_support_button"); enabledNode != nil {
+			result.HideOnlineSupportButton = !strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "showOnlineSupportButton"); enabledNode != nil {
+			result.HideOnlineSupportButton = !strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
 		if enabledNode := getMapValueNode(ui, "hide_invite_promotion"); enabledNode != nil {
 			result.HideInvitePromotion = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
 		} else if enabledNode := getMapValueNode(ui, "hideInvitePromotion"); enabledNode != nil {
@@ -700,6 +724,10 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	removeMapKeys(ui, "hidePurchaseCoupon")
 	setMapBoolValue(ui, "hide_plan_speed", config.HidePlanSpeed)
 	removeMapKeys(ui, "hidePlanSpeed")
+	setMapBoolValue(ui, "hide_color_scheme_button", config.HideColorSchemeButton)
+	removeMapKeys(ui, "hideColorSchemeButton", "show_color_scheme_button", "showColorSchemeButton")
+	setMapBoolValue(ui, "hide_online_support_button", config.HideOnlineSupportButton)
+	removeMapKeys(ui, "hideOnlineSupportButton", "show_online_support_button", "showOnlineSupportButton")
 	setMapBoolValue(proxyGroups, "main_policy_nodes_only", config.ProxyGroupsMainPolicyNodesOnly)
 	removeMapKeys(proxyGroups, "mainPolicyNodesOnly")
 	removeMapKeys(ui, "proxyGroups")
@@ -826,6 +854,8 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"subscription_status_popup_enabled":        config.SubscriptionStatusPopupEnabled,
 		"subscription_status_official_url":         config.SubscriptionStatusOfficialURL,
 		"proxy_groups_main_policy_nodes_only":      config.ProxyGroupsMainPolicyNodesOnly,
+		"hide_color_scheme_button":                 config.HideColorSchemeButton,
+		"hide_online_support_button":               config.HideOnlineSupportButton,
 		"hide_invite_promotion":                    config.HideInvitePromotion,
 		"hide_current_node_label":                  config.HideCurrentNodeLabel,
 		"hide_page_header_text":                    config.HidePageHeaderText,
@@ -872,6 +902,8 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		SubscriptionStatusPopupEnabled       bool     `json:"subscription_status_popup_enabled"`
 		SubscriptionStatusOfficialURL        string   `json:"subscription_status_official_url"`
 		ProxyGroupsMainPolicyNodesOnly       bool     `json:"proxy_groups_main_policy_nodes_only"`
+		HideColorSchemeButton                bool     `json:"hide_color_scheme_button"`
+		HideOnlineSupportButton              bool     `json:"hide_online_support_button"`
 		HideInvitePromotion                  bool     `json:"hide_invite_promotion"`
 		HideCurrentNodeLabel                 bool     `json:"hide_current_node_label"`
 		HidePageHeaderText                   bool     `json:"hide_page_header_text"`
@@ -1105,6 +1137,12 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureMainPolicyNodesOnly) {
 		targetConfig.ProxyGroupsMainPolicyNodesOnly = req.ProxyGroupsMainPolicyNodesOnly
 	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureHideColorSchemeButton) {
+		targetConfig.HideColorSchemeButton = req.HideColorSchemeButton
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureHideOnlineSupportButton) {
+		targetConfig.HideOnlineSupportButton = req.HideOnlineSupportButton
+	}
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureHideInvitePromotion) {
 		targetConfig.HideInvitePromotion = req.HideInvitePromotion
 	}
@@ -1202,6 +1240,8 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"subscription_status_popup_enabled":        targetConfig.SubscriptionStatusPopupEnabled,
 		"subscription_status_official_url":         targetConfig.SubscriptionStatusOfficialURL,
 		"proxy_groups_main_policy_nodes_only":      targetConfig.ProxyGroupsMainPolicyNodesOnly,
+		"hide_color_scheme_button":                 targetConfig.HideColorSchemeButton,
+		"hide_online_support_button":               targetConfig.HideOnlineSupportButton,
 		"hide_invite_promotion":                    targetConfig.HideInvitePromotion,
 		"hide_current_node_label":                  targetConfig.HideCurrentNodeLabel,
 		"hide_page_header_text":                    targetConfig.HidePageHeaderText,

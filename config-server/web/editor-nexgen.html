@@ -3256,8 +3256,8 @@
                                 </select>
                                 <div class="help-text">仅新 UI 使用；缺少或无效值时默认使用绿色。</div>
                             </div>
-                            <div class="switch-card" style="margin-top:16px;"><div class="switch-card-header"><span class="switch-card-label">显示品牌色系切换入口</span><div class="switch-group"><label class="switch"><input type="checkbox" id="showColorSchemeButton" checked><span class="slider"></span></label><span id="showColorSchemeButtonLabel">开启</span></div></div><div class="help-text">控制新 UI 首页的品牌色系调色板按钮；关闭后仍使用上方已配置的固定品牌色。</div></div>
-                            <div class="switch-card" style="margin-top:16px;"><div class="switch-card-header"><span class="switch-card-label">显示第三方客服入口</span><div class="switch-group"><label class="switch"><input type="checkbox" id="showOnlineSupportButton" checked><span class="slider"></span></label><span id="showOnlineSupportButtonLabel">开启</span></div></div><div class="help-text">控制新旧 UI 登录后的第三方客服组件入口；不影响登录注册页客服配置。</div></div>
+                            <div class="switch-card" style="margin-top:16px;"><div class="switch-card-header"><span class="switch-card-label">隐藏品牌色系切换入口</span><div class="switch-group"><label class="switch"><input type="checkbox" id="hideColorSchemeButton"><span class="slider"></span></label><span id="hideColorSchemeButtonLabel">关闭</span></div></div><div class="help-text">开启后隐藏新 UI 首页的品牌色系调色板按钮，仍使用上方已配置的固定品牌色。</div></div>
+                            <div class="switch-card" style="margin-top:16px;"><div class="switch-card-header"><span class="switch-card-label">隐藏第三方客服入口</span><div class="switch-group"><label class="switch"><input type="checkbox" id="hideOnlineSupportButton"><span class="slider"></span></label><span id="hideOnlineSupportButtonLabel">关闭</span></div></div><div class="help-text">开启后隐藏新旧 UI 登录后的第三方客服组件入口；不影响 Telegram 频道入口。</div></div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
                                     <span class="switch-card-label">默认启用 DNS 覆写</span>
@@ -5606,6 +5606,8 @@
             'invite_stats_total_commission_icon_color',
             'subscription_status_popup',
             'main_policy_nodes_only',
+            'hide_color_scheme_button',
+            'hide_online_support_button',
             'hide_invite_promotion',
             'hide_current_node_label',
             'hide_page_header_text',
@@ -5808,6 +5810,26 @@
                         '</div>',
                     '</div>',
                     '<div class="help-text">开启后，选择节点弹窗直接显示主策略组节点，不再先显示其他分流组。</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="hide_color_scheme_button" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">隐藏品牌色系切换入口</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customHideColorSchemeButton"><span class="slider"></span></label>',
+                            '<span id="customHideColorSchemeButtonLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="help-text">开启后隐藏新 UI 首页的品牌色系调色板按钮，仍使用已配置的固定品牌色。</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="hide_online_support_button" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">隐藏第三方客服入口</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customHideOnlineSupportButton"><span class="slider"></span></label>',
+                            '<span id="customHideOnlineSupportButtonLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="help-text">开启后隐藏新旧 UI 登录后的第三方客服组件入口；不影响 Telegram 频道入口。</div>',
                 '</div>',
                 '<div class="switch-card" data-custom-feature-key="hide_invite_promotion" style="margin-top:16px;">',
                     '<div class="switch-card-header">',
@@ -6106,6 +6128,8 @@
             [
                 'customSubscriptionStatusPopupEnabled',
                 'customProxyGroupsMainPolicyNodesOnly',
+                'customHideColorSchemeButton',
+                'customHideOnlineSupportButton',
                 'customHideInvitePromotion',
                 'customHideCurrentNodeLabel',
                 'customHidePageHeaderText',
@@ -6182,6 +6206,8 @@
             applyCustomUIColorTextValue('customInviteStatsTotalCommissionIconColor', data.invite_stats_total_commission_icon_color || '');
             setCustomFeatureSwitchValue('customSubscriptionStatusPopupEnabled', !!data.subscription_status_popup_enabled);
             setCustomFeatureSwitchValue('customProxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
+            setCustomFeatureSwitchValue('customHideColorSchemeButton', !!data.hide_color_scheme_button);
+            setCustomFeatureSwitchValue('customHideOnlineSupportButton', !!data.hide_online_support_button);
             setCustomFeatureSwitchValue('customHideInvitePromotion', !!data.hide_invite_promotion);
             setCustomFeatureSwitchValue('customHideCurrentNodeLabel', !!data.hide_current_node_label);
             setCustomFeatureSwitchValue('customHidePageHeaderText', !!data.hide_page_header_text);
@@ -6334,6 +6360,8 @@
             var subscriptionStatusPopupEnabled = getCustomInputChecked('customSubscriptionStatusPopupEnabled');
             var subscriptionStatusOfficialUrl = getCustomInputValue('customSubscriptionStatusOfficialUrl');
             var proxyGroupsMainPolicyNodesOnly = getCustomInputChecked('customProxyGroupsMainPolicyNodesOnly');
+            var hideColorSchemeButton = getCustomInputChecked('customHideColorSchemeButton');
+            var hideOnlineSupportButton = getCustomInputChecked('customHideOnlineSupportButton');
             var hideInvitePromotion = getCustomInputChecked('customHideInvitePromotion');
             var hideCurrentNodeLabel = getCustomInputChecked('customHideCurrentNodeLabel');
             var hidePageHeaderText = getCustomInputChecked('customHidePageHeaderText');
@@ -6426,6 +6454,8 @@
                     subscription_status_popup_enabled: subscriptionStatusPopupEnabled,
                     subscription_status_official_url: subscriptionStatusOfficialUrl,
                     proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly,
+                    hide_color_scheme_button: hideColorSchemeButton,
+                    hide_online_support_button: hideOnlineSupportButton,
                     hide_invite_promotion: hideInvitePromotion,
                     hide_current_node_label: hideCurrentNodeLabel,
                     hide_page_header_text: hidePageHeaderText,
@@ -6723,8 +6753,8 @@
                 '  ui:',
                 '    variant: legacy',
                 '    color_scheme: green',
-                '    show_color_scheme_button: true',
-                '    show_online_support_button: true',
+                '    hide_color_scheme_button: false',
+                '    hide_online_support_button: false',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
                 '    hide_invite_promotion: false',
@@ -7037,8 +7067,8 @@
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 ui_variant: document.getElementById('uiVariant').value === 'legacy' ? 'legacy' : 'new',
                 ui_color_scheme: normalizeUiColorScheme(document.getElementById('uiColorScheme').value),
-                show_color_scheme_button: document.getElementById('showColorSchemeButton').checked,
-                show_online_support_button: document.getElementById('showOnlineSupportButton').checked,
+                hide_color_scheme_button: document.getElementById('hideColorSchemeButton').checked,
+                hide_online_support_button: document.getElementById('hideOnlineSupportButton').checked,
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
                 hide_invite_promotion: document.getElementById('hideInvitePromotion').checked,
@@ -8062,7 +8092,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'showColorSchemeButton', 'showOnlineSupportButton', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'hidePlanSpeed', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideColorSchemeButton', 'hideOnlineSupportButton', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'hidePlanSpeed', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -10087,14 +10117,14 @@
                 ? uiColorSchemeMatch[1].trim().replace(/^['\"]|['\"]$/g, '')
                 : 'green';
             document.getElementById('uiColorScheme').value = normalizeUiColorScheme(uiColorSchemeValue);
-            var showColorSchemeButtonMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}show_color_scheme_button:\s*(true|false)/m);
-            var showColorSchemeButton = showColorSchemeButtonMatch ? showColorSchemeButtonMatch[1] === 'true' : true;
-            document.getElementById('showColorSchemeButton').checked = showColorSchemeButton;
-            document.getElementById('showColorSchemeButtonLabel').textContent = showColorSchemeButton ? '开启' : '关闭';
-            var showOnlineSupportButtonMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}show_online_support_button:\s*(true|false)/m);
-            var showOnlineSupportButton = showOnlineSupportButtonMatch ? showOnlineSupportButtonMatch[1] === 'true' : true;
-            document.getElementById('showOnlineSupportButton').checked = showOnlineSupportButton;
-            document.getElementById('showOnlineSupportButtonLabel').textContent = showOnlineSupportButton ? '开启' : '关闭';
+            var hideColorSchemeButtonMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}hide_color_scheme_button:\s*(true|false)/m);
+            var hideColorSchemeButton = hideColorSchemeButtonMatch ? hideColorSchemeButtonMatch[1] === 'true' : false;
+            document.getElementById('hideColorSchemeButton').checked = hideColorSchemeButton;
+            document.getElementById('hideColorSchemeButtonLabel').textContent = hideColorSchemeButton ? '开启' : '关闭';
+            var hideOnlineSupportButtonMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}hide_online_support_button:\s*(true|false)/m);
+            var hideOnlineSupportButton = hideOnlineSupportButtonMatch ? hideOnlineSupportButtonMatch[1] === 'true' : false;
+            document.getElementById('hideOnlineSupportButton').checked = hideOnlineSupportButton;
+            document.getElementById('hideOnlineSupportButtonLabel').textContent = hideOnlineSupportButton ? '开启' : '关闭';
             syncUiColorSchemeVisibility();
             var hideTrafficDetailsMatch = yaml.match(/ui:\s*\n(?:\s*#[^\n]*\n)*\s*hide_traffic_details:\s*(true|false)/);
             var hideTrafficDetails = hideTrafficDetailsMatch ? hideTrafficDetailsMatch[1] === 'true' : false;

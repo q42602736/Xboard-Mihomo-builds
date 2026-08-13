@@ -3944,6 +3944,26 @@
                                     </div>
                                     <div class="help-text">开启后，选择节点弹窗直接显示主策略组节点，不再先显示其他分流组。</div>
                                 </div>
+                                <div class="switch-card" data-custom-feature-key="hide_color_scheme_button" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">隐藏品牌色系切换入口</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="hideColorSchemeButton"><span class="slider"></span></label>
+                                            <span id="hideColorSchemeButtonLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="help-text">开启后隐藏新 UI 首页的品牌色系调色板按钮，仍使用已配置的固定品牌色。</div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="hide_online_support_button" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">隐藏第三方客服入口</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="hideOnlineSupportButton"><span class="slider"></span></label>
+                                            <span id="hideOnlineSupportButtonLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="help-text">开启后隐藏新旧 UI 登录后的第三方客服组件入口；不影响 Telegram 频道入口。</div>
+                                </div>
                                 <div class="switch-card" data-custom-feature-key="hide_purchase_coupon" style="margin-top:16px;">
                                     <div class="switch-card-header">
                                         <span class="switch-card-label">隐藏购买页优惠码</span>
@@ -6223,6 +6243,8 @@
             applyCustomUIColorTextValue('inviteStatsTotalCommissionIconColor', data.invite_stats_total_commission_icon_color || '');
             setCustomFeatureSwitchValue('subscriptionStatusPopupEnabled', !!data.subscription_status_popup_enabled);
             setCustomFeatureSwitchValue('proxyGroupsMainPolicyNodesOnly', !!data.proxy_groups_main_policy_nodes_only);
+            setCustomFeatureSwitchValue('hideColorSchemeButton', !!data.hide_color_scheme_button);
+            setCustomFeatureSwitchValue('hideOnlineSupportButton', !!data.hide_online_support_button);
             setCustomFeatureSwitchValue('hidePurchaseCoupon', !!data.hide_purchase_coupon);
             setCustomFeatureSwitchValue('hidePlanSpeed', !!data.hide_plan_speed);
             setCustomFeatureSwitchValue('sspanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
@@ -6349,6 +6371,8 @@
             [
                 'subscriptionStatusPopupEnabled',
                 'proxyGroupsMainPolicyNodesOnly',
+                'hideColorSchemeButton',
+                'hideOnlineSupportButton',
                 'hidePurchaseCoupon',
                 'hidePlanSpeed',
                 'sspanelNodePageParseEnabled',
@@ -6485,6 +6509,8 @@
             var subscriptionStatusPopupEnabled = !!document.getElementById('subscriptionStatusPopupEnabled').checked;
             var subscriptionStatusOfficialUrl = String(document.getElementById('subscriptionStatusOfficialUrl').value || '').trim();
             var proxyGroupsMainPolicyNodesOnly = !!document.getElementById('proxyGroupsMainPolicyNodesOnly').checked;
+            var hideColorSchemeButton = !!document.getElementById('hideColorSchemeButton').checked;
+            var hideOnlineSupportButton = !!document.getElementById('hideOnlineSupportButton').checked;
             var hidePurchaseCoupon = !!document.getElementById('hidePurchaseCoupon').checked;
             var hidePlanSpeed = !!document.getElementById('hidePlanSpeed').checked;
             var sspanelNodePageParseEnabled = !!document.getElementById('sspanelNodePageParseEnabled').checked;
@@ -6565,6 +6591,8 @@
                     subscription_status_popup_enabled: subscriptionStatusPopupEnabled,
                     subscription_status_official_url: subscriptionStatusOfficialUrl,
                     proxy_groups_main_policy_nodes_only: proxyGroupsMainPolicyNodesOnly,
+                    hide_color_scheme_button: hideColorSchemeButton,
+                    hide_online_support_button: hideOnlineSupportButton,
                     hide_purchase_coupon: hidePurchaseCoupon,
                     hide_plan_speed: hidePlanSpeed,
                     sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
@@ -6626,6 +6654,8 @@
             'invite_stats_total_commission_icon_color',
             'subscription_status_popup',
             'main_policy_nodes_only',
+            'hide_color_scheme_button',
+            'hide_online_support_button',
             'hide_purchase_coupon',
             'hide_plan_speed',
             'sspanel_node_page_parse',
