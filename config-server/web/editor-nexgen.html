@@ -3256,6 +3256,8 @@
                                 </select>
                                 <div class="help-text">仅新 UI 使用；缺少或无效值时默认使用绿色。</div>
                             </div>
+                            <div class="switch-card" style="margin-top:16px;"><div class="switch-card-header"><span class="switch-card-label">显示品牌色系切换入口</span><div class="switch-group"><label class="switch"><input type="checkbox" id="showColorSchemeButton" checked><span class="slider"></span></label><span id="showColorSchemeButtonLabel">开启</span></div></div><div class="help-text">控制新 UI 首页的品牌色系调色板按钮；关闭后仍使用上方已配置的固定品牌色。</div></div>
+                            <div class="switch-card" style="margin-top:16px;"><div class="switch-card-header"><span class="switch-card-label">显示第三方客服入口</span><div class="switch-group"><label class="switch"><input type="checkbox" id="showOnlineSupportButton" checked><span class="slider"></span></label><span id="showOnlineSupportButtonLabel">开启</span></div></div><div class="help-text">控制新旧 UI 登录后的第三方客服组件入口；不影响登录注册页客服配置。</div></div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
                                     <span class="switch-card-label">默认启用 DNS 覆写</span>
@@ -6721,6 +6723,8 @@
                 '  ui:',
                 '    variant: legacy',
                 '    color_scheme: green',
+                '    show_color_scheme_button: true',
+                '    show_online_support_button: true',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
                 '    hide_invite_promotion: false',
@@ -7033,6 +7037,8 @@
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 ui_variant: document.getElementById('uiVariant').value === 'legacy' ? 'legacy' : 'new',
                 ui_color_scheme: normalizeUiColorScheme(document.getElementById('uiColorScheme').value),
+                show_color_scheme_button: document.getElementById('showColorSchemeButton').checked,
+                show_online_support_button: document.getElementById('showOnlineSupportButton').checked,
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
                 hide_invite_promotion: document.getElementById('hideInvitePromotion').checked,
@@ -8056,7 +8062,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'hidePlanSpeed', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'showColorSchemeButton', 'showOnlineSupportButton', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'hidePlanSpeed', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -10081,6 +10087,14 @@
                 ? uiColorSchemeMatch[1].trim().replace(/^['\"]|['\"]$/g, '')
                 : 'green';
             document.getElementById('uiColorScheme').value = normalizeUiColorScheme(uiColorSchemeValue);
+            var showColorSchemeButtonMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}show_color_scheme_button:\s*(true|false)/m);
+            var showColorSchemeButton = showColorSchemeButtonMatch ? showColorSchemeButtonMatch[1] === 'true' : true;
+            document.getElementById('showColorSchemeButton').checked = showColorSchemeButton;
+            document.getElementById('showColorSchemeButtonLabel').textContent = showColorSchemeButton ? '开启' : '关闭';
+            var showOnlineSupportButtonMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}show_online_support_button:\s*(true|false)/m);
+            var showOnlineSupportButton = showOnlineSupportButtonMatch ? showOnlineSupportButtonMatch[1] === 'true' : true;
+            document.getElementById('showOnlineSupportButton').checked = showOnlineSupportButton;
+            document.getElementById('showOnlineSupportButtonLabel').textContent = showOnlineSupportButton ? '开启' : '关闭';
             syncUiColorSchemeVisibility();
             var hideTrafficDetailsMatch = yaml.match(/ui:\s*\n(?:\s*#[^\n]*\n)*\s*hide_traffic_details:\s*(true|false)/);
             var hideTrafficDetails = hideTrafficDetailsMatch ? hideTrafficDetailsMatch[1] === 'true' : false;

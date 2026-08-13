@@ -47,6 +47,8 @@ type ProfileFormState struct {
 	SubscriptionCacheTTL              int                       `json:"subscription_cache_ttl"`
 	UiVariant                         string                    `json:"ui_variant"`
 	UiColorScheme                     string                    `json:"ui_color_scheme"`
+	ShowColorSchemeButton             bool                      `json:"show_color_scheme_button"`
+	ShowOnlineSupportButton           bool                      `json:"show_online_support_button"`
 	HideTrafficDetails                bool                      `json:"hide_traffic_details"`
 	HideNodeStatus                    bool                      `json:"hide_node_status"`
 	HideInvitePromotion               bool                      `json:"hide_invite_promotion"`
@@ -258,8 +260,10 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 			}
 		}
 		setMapStringValue(ui, "color_scheme", normalizeNexGenUiColorScheme(uiColorScheme))
+		setMapBoolValue(ui, "show_color_scheme_button", form.ShowColorSchemeButton)
+		setMapBoolValue(ui, "show_online_support_button", form.ShowOnlineSupportButton)
 	} else {
-		removeMapKeys(ui, "variant", "uiVariant", "color_scheme", "colorScheme")
+		removeMapKeys(ui, "variant", "uiVariant", "color_scheme", "colorScheme", "show_color_scheme_button", "showColorSchemeButton", "show_online_support_button", "showOnlineSupportButton")
 	}
 	setMapBoolValue(ui, "hide_traffic_details", form.HideTrafficDetails)
 	setMapBoolValue(ui, "hide_node_status", form.HideNodeStatus)
