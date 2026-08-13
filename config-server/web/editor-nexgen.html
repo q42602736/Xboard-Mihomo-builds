@@ -8936,10 +8936,10 @@
         }
 
         function syncRemoteConfigSupportActions() {
-            var input = document.getElementById('remoteConfigAuthPagesSupportShowButton');
+            var authPagesInput = document.getElementById('remoteConfigAuthPagesSupportShowButton');
             var actions = document.getElementById('remoteConfigSupportActions');
             if (!actions) return;
-            actions.style.display = input && input.checked ? '' : 'none';
+            actions.style.display = authPagesInput && authPagesInput.checked ? '' : 'none';
         }
 
         function syncDerivedProviderName(options) {

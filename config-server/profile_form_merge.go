@@ -224,22 +224,18 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	} else {
 		setMapStringValue(registrationInvite, "invite_code", normalizedRegistrationInviteCode)
 	}
-	if rootKey == "nexgen" {
-		normalizedRegistrationInviteLinkBaseURL, err := normalizeRegistrationInviteLinkBaseURL(form.RegistrationInviteLinkBaseURL)
-		if err != nil {
-			return "", err
-		}
-		if form.RegistrationInviteLinkEnabled && normalizedRegistrationInviteLinkBaseURL == "" {
-			return "", fmt.Errorf("开启复制完整邀请链接时必须填写注册地址根地址")
-		}
-		setMapBoolValue(registrationInvite, "link_enabled", form.RegistrationInviteLinkEnabled)
-		if normalizedRegistrationInviteLinkBaseURL == "" {
-			removeMapKeys(registrationInvite, "link_base_url")
-		} else {
-			setMapStringValue(registrationInvite, "link_base_url", normalizedRegistrationInviteLinkBaseURL)
-		}
+	normalizedRegistrationInviteLinkBaseURL, err := normalizeRegistrationInviteLinkBaseURL(form.RegistrationInviteLinkBaseURL)
+	if err != nil {
+		return "", err
+	}
+	if form.RegistrationInviteLinkEnabled && normalizedRegistrationInviteLinkBaseURL == "" {
+		return "", fmt.Errorf("开启自定义邀请链接时必须填写邀请链接地址")
+	}
+	setMapBoolValue(registrationInvite, "link_enabled", form.RegistrationInviteLinkEnabled)
+	if normalizedRegistrationInviteLinkBaseURL == "" {
+		removeMapKeys(registrationInvite, "link_base_url")
 	} else {
-		removeMapKeys(registrationInvite, "link_enabled", "link_base_url")
+		setMapStringValue(registrationInvite, "link_base_url", normalizedRegistrationInviteLinkBaseURL)
 	}
 	removeMapKeys(registrationInvite, "inviteCode", "invite_link", "inviteLink", "linkEnabled", "linkBaseUrl", "invite_link_enabled", "inviteLinkEnabled", "invite_link_base_url", "inviteLinkBaseUrl")
 	removeMapKeys(profileRoot, "registrationInvite")
