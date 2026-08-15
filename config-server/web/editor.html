@@ -4121,28 +4121,24 @@
                                     </div>
                                     <div class="exclusive-mode-notice">
                                         <div class="exclusive-mode-notice-title">开启前请先完成后端面板对接</div>
-                                        <div class="exclusive-mode-notice-body">此开关只会让客户端进入“客服端专用模式”，不会自动修改 XBoard/V2Board 后端订阅逻辑。请先在服务器完成后端补丁、节点标签配置与缓存清理，再回来开启此项。</div>
+                                        <div class="exclusive-mode-notice-body">此开关仅让客户端使用专用订阅标识，不会自动修改后端逻辑。请先完成面板对接和节点标签配置，再开启此项。</div>
 
                                         <div class="exclusive-mode-notice-section-title">完成改造后会有什么作用</div>
                                         <ul class="exclusive-mode-notice-list">
-                                            <li>开启专用模式的客户端会使用专用客户端标识拉取订阅，只获取带 <code>客服端专用</code> 标签的节点。</li>
-                                            <li>普通第三方客户端继续走普通订阅逻辑，只获取未打 <code>客服端专用</code> 标签的节点。</li>
-                                            <li>可以把客服端入口与普通入口分开，降低第三方客户端误用、分享扩散或入口泄露的风险。</li>
-                                            <li>适合把内部客服端、定制客户端、专用节点与普通公开节点隔离管理。</li>
+                                            <li>专用客户端只获取带 <code>客户端专用</code> 标签的节点。</li>
+                                            <li>普通第三方客户端只获取未带该标签的节点，便于隔离专用与公开节点。</li>
                                         </ul>
 
-                                        <div class="exclusive-mode-notice-section-title">后端如何开启专用客服端模式</div>
+                                        <div class="exclusive-mode-notice-section-title">后端配置</div>
                                         <ol class="exclusive-mode-notice-list">
-                                            <li>登录部署面板的服务器，执行一键脚本：<code>bash &lt;(curl -fsSL https://raw.githubusercontent.com/q42602736/scripts/main/panel_patch.sh)</code></li>
-                                            <li>按提示选择面板类型和站点目录，例如 <code>/www/wwwroot/你的站点目录</code>。</li>
-                                            <li>等待脚本自动打补丁并清理 Laravel 缓存；如果仍未生效，再手动重载 PHP-FPM 或重启容器刷新 OPcache。</li>
-                                            <li>进入你的面板后台，把需要仅给客服端使用的节点打上标签 <code>客服端专用</code>。</li>
-                                            <li>需要给普通第三方客户端继续使用的节点，不要打这个标签；这样两类客户端拉取到的节点会自动分开。</li>
-                                            <li>完成以上步骤后，再回到这里打开“专用客户端模式”，重新生成配置并打包客户端。</li>
+                                            <li><strong>XBoard：</strong>联系群主获取对应插件并完成安装。</li>
+                                            <li><strong>xiaov2board：</strong>在服务器执行 <code>bash &lt;(curl -fsSL https://raw.githubusercontent.com/q42602736/scripts/main/panel_patch.sh)</code>，按提示选择面板和站点目录。</li>
+                                            <li>在面板后台给专用节点打上 <code>客户端专用</code> 标签，普通节点不要添加。</li>
+                                            <li>完成后再开启此项并重新打包；脚本未生效时再清理缓存或重载服务。</li>
                                         </ol>
 
                                         <div class="exclusive-mode-notice-section-title">重要提醒</div>
-                                        <div class="exclusive-mode-notice-foot">未完成后端改造前请不要直接开启，否则可能出现订阅失败、返回错误格式配置、专用节点不生效等问题。当前补丁脚本仅支持 XBoard 与 V2Board，暂不支持 SSPanel 系面板。</div>
+                                        <div class="exclusive-mode-notice-foot">未完成后端改造前不要开启，否则可能订阅失败或专用节点不生效。当前脚本仅用于 xiaov2board，暂不支持 SSPanel 系面板。</div>
                                     </div>
                                 </div>
                             </div>

@@ -149,6 +149,7 @@ func defaultProfileYaml(displayName string) string {
     decrypt_key: ""
   settings:
     dns_override_default: false
+    auto_test_after_login: false
     auto_connect_on_startup: false
     log_file_enabled: true
   auto_offline:

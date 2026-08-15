@@ -3270,6 +3270,16 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">登录后自动测速并选择最低延迟节点</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="autoTestAfterLogin"><span class="slider"></span></label>
+                                        <span id="autoTestAfterLoginLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">开启后，登录成功并加载分流组后自动测速主策略节点，并切换到延迟最低的节点；旧配置缺少该字段时默认关闭。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">启动后自动连接代理</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="autoConnectOnStartup"><span class="slider"></span></label>
@@ -3589,28 +3599,24 @@
                                     </div>
                                     <div class="exclusive-mode-notice">
                                         <div class="exclusive-mode-notice-title">开启前请先完成后端面板对接</div>
-                                        <div class="exclusive-mode-notice-body">此开关只会让客户端进入“客服端专用模式”，不会自动修改 XBoard/V2Board 后端订阅逻辑。请先在服务器完成后端补丁、节点标签配置与缓存清理，再回来开启此项。</div>
+                                        <div class="exclusive-mode-notice-body">此开关仅让客户端使用专用订阅标识，不会自动修改后端逻辑。请先完成面板对接和节点标签配置，再开启此项。</div>
 
                                         <div class="exclusive-mode-notice-section-title">完成改造后会有什么作用</div>
                                         <ul class="exclusive-mode-notice-list">
-                                            <li>开启专用模式的客户端会使用专用客户端标识拉取订阅，只获取带 <code>客服端专用</code> 标签的节点。</li>
-                                            <li>普通第三方客户端继续走普通订阅逻辑，只获取未打 <code>客服端专用</code> 标签的节点。</li>
-                                            <li>可以把客服端入口与普通入口分开，降低第三方客户端误用、分享扩散或入口泄露的风险。</li>
-                                            <li>适合把内部客服端、定制客户端、专用节点与普通公开节点隔离管理。</li>
+                                            <li>专用客户端只获取带 <code>客户端专用</code> 标签的节点。</li>
+                                            <li>普通第三方客户端只获取未带该标签的节点，便于隔离专用与公开节点。</li>
                                         </ul>
 
-                                        <div class="exclusive-mode-notice-section-title">后端如何开启专用客服端模式</div>
+                                        <div class="exclusive-mode-notice-section-title">后端配置</div>
                                         <ol class="exclusive-mode-notice-list">
-                                            <li>登录部署面板的服务器，执行一键脚本：<code>bash &lt;(curl -fsSL https://raw.githubusercontent.com/q42602736/scripts/main/panel_patch.sh)</code></li>
-                                            <li>按提示选择面板类型和站点目录，例如 <code>/www/wwwroot/你的站点目录</code>。</li>
-                                            <li>等待脚本自动打补丁并清理 Laravel 缓存；如果仍未生效，再手动重载 PHP-FPM 或重启容器刷新 OPcache。</li>
-                                            <li>进入你的面板后台，把需要仅给客服端使用的节点打上标签 <code>客服端专用</code>。</li>
-                                            <li>需要给普通第三方客户端继续使用的节点，不要打这个标签；这样两类客户端拉取到的节点会自动分开。</li>
-                                            <li>完成以上步骤后，再回到这里打开“专用客户端模式”，重新生成配置并打包客户端。</li>
+                                            <li><strong>XBoard：</strong>联系群主获取对应插件并完成安装。</li>
+                                            <li><strong>xiaov2board：</strong>在服务器执行 <code>bash &lt;(curl -fsSL https://raw.githubusercontent.com/q42602736/scripts/main/panel_patch.sh)</code>，按提示选择面板和站点目录。</li>
+                                            <li>在面板后台给专用节点打上 <code>客户端专用</code> 标签，普通节点不要添加。</li>
+                                            <li>完成后再开启此项并重新打包；脚本未生效时再清理缓存或重载服务。</li>
                                         </ol>
 
                                         <div class="exclusive-mode-notice-section-title">重要提醒</div>
-                                        <div class="exclusive-mode-notice-foot">未完成后端改造前请不要直接开启，否则可能出现订阅失败、返回错误格式配置、专用节点不生效等问题。当前补丁脚本仅支持 XBoard 与 V2Board，暂不支持 SSPanel 系面板。</div>
+                                        <div class="exclusive-mode-notice-foot">未完成后端改造前不要开启，否则可能订阅失败或专用节点不生效。当前脚本仅用于 xiaov2board，暂不支持 SSPanel 系面板。</div>
                                     </div>
                                 </div>
                             </div>
@@ -6722,6 +6728,7 @@
                 '    decrypt_key: ""',
                 '  settings:',
                 '    dns_override_default: false',
+                '    auto_test_after_login: false',
                 '    auto_connect_on_startup: false',
                 '    log_file_enabled: true',
                 '  auto_offline:',
@@ -7047,6 +7054,7 @@
                 use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
                 dns_override_default: document.getElementById('dnsOverrideDefault').checked,
+                auto_test_after_login: document.getElementById('autoTestAfterLogin').checked,
                 auto_connect_on_startup: document.getElementById('autoConnectOnStartup').checked,
                 log_file_enabled: document.getElementById('logFileEnabled').checked,
                 auto_offline_enabled: document.getElementById('autoOfflineEnabled').checked,
@@ -8092,7 +8100,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideColorSchemeButton', 'hideOnlineSupportButton', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'hidePlanSpeed', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoTestAfterLogin', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideColorSchemeButton', 'hideOnlineSupportButton', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'hidePlanSpeed', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -10020,6 +10028,12 @@
             var dnsOverrideDefault = dnsOverrideDefaultMatch ? dnsOverrideDefaultMatch[1] === 'true' : false;
             document.getElementById('dnsOverrideDefault').checked = dnsOverrideDefault;
             document.getElementById('dnsOverrideDefaultLabel').textContent = dnsOverrideDefault ? '开启' : '关闭';
+            var autoTestAfterLoginMatch =
+                yaml.match(/settings:\s*\n(?:[\s\S]*?)^\s{4}auto_test_after_login:\s*(true|false)/m) ||
+                yaml.match(/settings:\s*\n(?:[\s\S]*?)^\s{4}autoTestAfterLogin:\s*(true|false)/m);
+            var autoTestAfterLogin = autoTestAfterLoginMatch ? autoTestAfterLoginMatch[1] === 'true' : false;
+            document.getElementById('autoTestAfterLogin').checked = autoTestAfterLogin;
+            document.getElementById('autoTestAfterLoginLabel').textContent = autoTestAfterLogin ? '开启' : '关闭';
             var autoConnectOnStartupMatch =
                 yaml.match(/settings:\s*\n(?:[\s\S]*?)^\s{4}auto_connect_on_startup:\s*(true|false)/m) ||
                 yaml.match(/settings:\s*\n(?:[\s\S]*?)^\s{4}autoConnectOnStartup:\s*(true|false)/m);
