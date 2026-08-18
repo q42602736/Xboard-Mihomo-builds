@@ -582,8 +582,14 @@ jobs:
         run: |
           case "${{ runner.os }}" in
             Linux)
-              retry sudo apt-get update -y
-              retry sudo apt-get install -y --no-install-recommends imagemagick
+              while IFS= read -r -d '' source_file; do
+                sudo sed -i \
+                  -e 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' \
+                  -e 's|https://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' \
+                  "$source_file"
+              done < <(sudo find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) -print0)
+              RETRY_LABEL="apt-get update" retry timeout --signal=TERM 120s sudo apt-get update -y
+              RETRY_LABEL="apt-get install imagemagick" retry timeout --signal=TERM 120s sudo apt-get install -y --no-install-recommends imagemagick
               ;;
             macOS)
               retry brew install imagemagick
