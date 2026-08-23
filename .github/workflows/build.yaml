@@ -58,7 +58,7 @@ env:
   PROFILE_REPO: q42602736/Xboard-Mihomo_sub
   MIHOMO_SOURCE_REPO: q42602736/Xboard-Mihomo_sub
   XRAY_SOURCE_REPO: q42602736/NexGen-client-xray
-  FLUTTER_VERSION: "3.41.4"
+  FLUTTER_VERSION: "3.47.1"
 
 jobs:
   prepare-release:
