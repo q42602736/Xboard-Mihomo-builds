@@ -3330,6 +3330,16 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">显示专用节点</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="hideDedicatedNodes"><span class="slider"></span></label>
+                                        <span id="hideDedicatedNodesLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">默认关闭并隐藏专用节点页面；开启后，新客户端会显示专用节点入口和页面。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">隐藏连接卡片当前节点标签</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="hideCurrentNodeLabel"><span class="slider"></span></label>
@@ -5615,6 +5625,7 @@
             'hide_color_scheme_button',
             'hide_online_support_button',
             'hide_invite_promotion',
+            'hide_dedicated_nodes',
             'hide_current_node_label',
             'hide_page_header_text',
             'hide_purchase_coupon',
@@ -5846,6 +5857,16 @@
                         '</div>',
                     '</div>',
                     '<div class="help-text">开启后，隐藏左侧/底部导航中的邀请推广入口，直接访问该页面也会回到首页。</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="hide_dedicated_nodes" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">显示专用节点（仅新客户端）</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customHideDedicatedNodes"><span class="slider"></span></label>',
+                            '<span id="customHideDedicatedNodesLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="help-text">默认关闭并隐藏专用节点页面；开启后，新客户端会显示专用节点入口和页面。旧客户端不会应用此功能。</div>',
                 '</div>',
                 '<div class="switch-card" data-custom-feature-key="hide_current_node_label" style="margin-top:16px;">',
                     '<div class="switch-card-header">',
@@ -6137,6 +6158,7 @@
                 'customHideColorSchemeButton',
                 'customHideOnlineSupportButton',
                 'customHideInvitePromotion',
+                'customHideDedicatedNodes',
                 'customHideCurrentNodeLabel',
                 'customHidePageHeaderText',
                 'customHidePurchaseCoupon',
@@ -6215,6 +6237,7 @@
             setCustomFeatureSwitchValue('customHideColorSchemeButton', !!data.hide_color_scheme_button);
             setCustomFeatureSwitchValue('customHideOnlineSupportButton', !!data.hide_online_support_button);
             setCustomFeatureSwitchValue('customHideInvitePromotion', !!data.hide_invite_promotion);
+            setCustomFeatureSwitchValue('customHideDedicatedNodes', !!data.hide_dedicated_nodes);
             setCustomFeatureSwitchValue('customHideCurrentNodeLabel', !!data.hide_current_node_label);
             setCustomFeatureSwitchValue('customHidePageHeaderText', !!data.hide_page_header_text);
             setCustomFeatureSwitchValue('customHidePurchaseCoupon', !!data.hide_purchase_coupon);
@@ -6369,6 +6392,7 @@
             var hideColorSchemeButton = getCustomInputChecked('customHideColorSchemeButton');
             var hideOnlineSupportButton = getCustomInputChecked('customHideOnlineSupportButton');
             var hideInvitePromotion = getCustomInputChecked('customHideInvitePromotion');
+            var hideDedicatedNodes = getCustomInputChecked('customHideDedicatedNodes');
             var hideCurrentNodeLabel = getCustomInputChecked('customHideCurrentNodeLabel');
             var hidePageHeaderText = getCustomInputChecked('customHidePageHeaderText');
             var hidePurchaseCoupon = getCustomInputChecked('customHidePurchaseCoupon');
@@ -6463,6 +6487,7 @@
                     hide_color_scheme_button: hideColorSchemeButton,
                     hide_online_support_button: hideOnlineSupportButton,
                     hide_invite_promotion: hideInvitePromotion,
+                    hide_dedicated_nodes: hideDedicatedNodes,
                     hide_current_node_label: hideCurrentNodeLabel,
                     hide_page_header_text: hidePageHeaderText,
                     hide_purchase_coupon: hidePurchaseCoupon,
@@ -6765,6 +6790,7 @@
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
                 '    hide_invite_promotion: false',
+                '    hide_dedicated_nodes: false',
                 '    hide_current_node_label: false',
                 '    hide_page_header_text: false',
                 '    hide_purchase_coupon: false',
@@ -7080,6 +7106,7 @@
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
                 hide_invite_promotion: document.getElementById('hideInvitePromotion').checked,
+                hide_dedicated_nodes: document.getElementById('hideDedicatedNodes').checked,
                 hide_current_node_label: document.getElementById('hideCurrentNodeLabel').checked,
                 hide_page_header_text: document.getElementById('hidePageHeaderText').checked,
                 hide_purchase_coupon: getCustomInputChecked('customHidePurchaseCoupon'),
@@ -8100,7 +8127,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoTestAfterLogin', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideColorSchemeButton', 'hideOnlineSupportButton', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'hidePlanSpeed', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoTestAfterLogin', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideColorSchemeButton', 'hideOnlineSupportButton', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideDedicatedNodes', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'hidePlanSpeed', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -10152,6 +10179,10 @@
             var hideInvitePromotion = hideInvitePromotionMatch ? hideInvitePromotionMatch[1] === 'true' : false;
             document.getElementById('hideInvitePromotion').checked = hideInvitePromotion;
             document.getElementById('hideInvitePromotionLabel').textContent = hideInvitePromotion ? '开启' : '关闭';
+            var hideDedicatedNodesMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_dedicated_nodes:\s*(true|false)/);
+            var hideDedicatedNodes = hideDedicatedNodesMatch ? hideDedicatedNodesMatch[1] === 'true' : false;
+            document.getElementById('hideDedicatedNodes').checked = hideDedicatedNodes;
+            document.getElementById('hideDedicatedNodesLabel').textContent = hideDedicatedNodes ? '开启' : '关闭';
             var hideCurrentNodeLabelMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_current_node_label:\s*(true|false)/);
             var hideCurrentNodeLabel = hideCurrentNodeLabelMatch ? hideCurrentNodeLabelMatch[1] === 'true' : false;
             document.getElementById('hideCurrentNodeLabel').checked = hideCurrentNodeLabel;

@@ -53,6 +53,7 @@ type ProfileFormState struct {
 	HideTrafficDetails                bool                      `json:"hide_traffic_details"`
 	HideNodeStatus                    bool                      `json:"hide_node_status"`
 	HideInvitePromotion               bool                      `json:"hide_invite_promotion"`
+	HideDedicatedNodes                bool                      `json:"hide_dedicated_nodes"`
 	HideCurrentNodeLabel              bool                      `json:"hide_current_node_label"`
 	HidePageHeaderText                bool                      `json:"hide_page_header_text"`
 	HidePurchaseCoupon                *bool                     `json:"hide_purchase_coupon"`
@@ -267,8 +268,9 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	setMapBoolValue(ui, "hide_node_status", form.HideNodeStatus)
 	if rootKey == "nexgen" {
 		setMapBoolValue(ui, "hide_invite_promotion", form.HideInvitePromotion)
+		setMapBoolValue(ui, "hide_dedicated_nodes", form.HideDedicatedNodes)
 	} else {
-		removeMapKeys(ui, "hide_invite_promotion", "hideInvitePromotion")
+		removeMapKeys(ui, "hide_invite_promotion", "hideInvitePromotion", "hide_dedicated_nodes", "hideDedicatedNodes", "show_dedicated_nodes", "showDedicatedNodes")
 	}
 	setMapBoolValue(ui, "hide_current_node_label", form.HideCurrentNodeLabel)
 	setMapBoolValue(ui, "hide_page_header_text", form.HidePageHeaderText)

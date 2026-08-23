@@ -34,6 +34,7 @@ type UIColorCustomConfig struct {
 	HideColorSchemeButton                bool     `json:"hide_color_scheme_button"`
 	HideOnlineSupportButton              bool     `json:"hide_online_support_button"`
 	HideInvitePromotion                  bool     `json:"hide_invite_promotion"`
+	HideDedicatedNodes                   bool     `json:"hide_dedicated_nodes"`
 	HideCurrentNodeLabel                 bool     `json:"hide_current_node_label"`
 	HidePageHeaderText                   bool     `json:"hide_page_header_text"`
 	HidePurchaseCoupon                   bool     `json:"hide_purchase_coupon"`
@@ -75,6 +76,7 @@ const (
 	customFeatureHideColorSchemeButton                = "hide_color_scheme_button"
 	customFeatureHideOnlineSupportButton              = "hide_online_support_button"
 	customFeatureHideInvitePromotion                  = "hide_invite_promotion"
+	customFeatureHideDedicatedNodes                   = "hide_dedicated_nodes"
 	customFeatureHideCurrentNodeLabel                 = "hide_current_node_label"
 	customFeatureHidePageHeaderText                   = "hide_page_header_text"
 	customFeatureHidePurchaseCoupon                   = "hide_purchase_coupon"
@@ -109,6 +111,7 @@ var (
 		customFeatureHideColorSchemeButton,
 		customFeatureHideOnlineSupportButton,
 		customFeatureHideInvitePromotion,
+		customFeatureHideDedicatedNodes,
 		customFeatureHideCurrentNodeLabel,
 		customFeatureHidePageHeaderText,
 		customFeatureHidePurchaseCoupon,
@@ -400,6 +403,9 @@ func filterAllowedUIColorFeatureKeysForClient(featureKeys []string, client strin
 	}
 	result := allowed[:0]
 	for _, featureKey := range allowed {
+		if featureKey == customFeatureHideDedicatedNodes {
+			continue
+		}
 		if featureKey == customFeatureHideInvitePromotion || featureKey == customFeatureHideCurrentNodeLabel || featureKey == customFeatureHidePageHeaderText {
 			continue
 		}
@@ -567,6 +573,15 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 		} else if enabledNode := getMapValueNode(ui, "hideInvitePromotion"); enabledNode != nil {
 			result.HideInvitePromotion = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
 		}
+		if enabledNode := getMapValueNode(ui, "hide_dedicated_nodes"); enabledNode != nil {
+			result.HideDedicatedNodes = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "hideDedicatedNodes"); enabledNode != nil {
+			result.HideDedicatedNodes = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "show_dedicated_nodes"); enabledNode != nil {
+			result.HideDedicatedNodes = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "showDedicatedNodes"); enabledNode != nil {
+			result.HideDedicatedNodes = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
 		if enabledNode := getMapValueNode(ui, "hide_current_node_label"); enabledNode != nil {
 			result.HideCurrentNodeLabel = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
 		} else if enabledNode := getMapValueNode(ui, "hideCurrentNodeLabel"); enabledNode != nil {
@@ -709,8 +724,10 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	if profileRootKey == "nexgen" {
 		setMapBoolValue(ui, "hide_invite_promotion", config.HideInvitePromotion)
 		removeMapKeys(ui, "hideInvitePromotion")
+		setMapBoolValue(ui, "hide_dedicated_nodes", config.HideDedicatedNodes)
+		removeMapKeys(ui, "hideDedicatedNodes", "show_dedicated_nodes", "showDedicatedNodes")
 	} else {
-		removeMapKeys(ui, "hide_invite_promotion", "hideInvitePromotion")
+		removeMapKeys(ui, "hide_invite_promotion", "hideInvitePromotion", "hide_dedicated_nodes", "hideDedicatedNodes", "show_dedicated_nodes", "showDedicatedNodes")
 	}
 	setMapBoolValue(ui, "hide_current_node_label", config.HideCurrentNodeLabel)
 	removeMapKeys(ui, "hideCurrentNodeLabel")
@@ -849,6 +866,7 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"hide_color_scheme_button":                 config.HideColorSchemeButton,
 		"hide_online_support_button":               config.HideOnlineSupportButton,
 		"hide_invite_promotion":                    config.HideInvitePromotion,
+		"hide_dedicated_nodes":                     config.HideDedicatedNodes,
 		"hide_current_node_label":                  config.HideCurrentNodeLabel,
 		"hide_page_header_text":                    config.HidePageHeaderText,
 		"hide_purchase_coupon":                     config.HidePurchaseCoupon,
@@ -897,6 +915,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		HideColorSchemeButton                bool     `json:"hide_color_scheme_button"`
 		HideOnlineSupportButton              bool     `json:"hide_online_support_button"`
 		HideInvitePromotion                  bool     `json:"hide_invite_promotion"`
+		HideDedicatedNodes                   bool     `json:"hide_dedicated_nodes"`
 		HideCurrentNodeLabel                 bool     `json:"hide_current_node_label"`
 		HidePageHeaderText                   bool     `json:"hide_page_header_text"`
 		HidePurchaseCoupon                   bool     `json:"hide_purchase_coupon"`
@@ -1138,6 +1157,9 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureHideInvitePromotion) {
 		targetConfig.HideInvitePromotion = req.HideInvitePromotion
 	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureHideDedicatedNodes) {
+		targetConfig.HideDedicatedNodes = req.HideDedicatedNodes
+	}
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureHideCurrentNodeLabel) {
 		targetConfig.HideCurrentNodeLabel = req.HideCurrentNodeLabel
 	}
@@ -1235,6 +1257,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"hide_color_scheme_button":                 targetConfig.HideColorSchemeButton,
 		"hide_online_support_button":               targetConfig.HideOnlineSupportButton,
 		"hide_invite_promotion":                    targetConfig.HideInvitePromotion,
+		"hide_dedicated_nodes":                     targetConfig.HideDedicatedNodes,
 		"hide_current_node_label":                  targetConfig.HideCurrentNodeLabel,
 		"hide_page_header_text":                    targetConfig.HidePageHeaderText,
 		"hide_purchase_coupon":                     targetConfig.HidePurchaseCoupon,

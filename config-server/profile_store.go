@@ -187,6 +187,7 @@ func defaultProfileYaml(displayName string) string {
     hide_plan_speed: false
     hide_current_node_label: false
     hide_page_header_text: false
+    hide_dedicated_nodes: false
     show_ip_info: true
     custom_colors:
       notice_dialog_icon_background_color: ""
