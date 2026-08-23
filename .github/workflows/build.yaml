@@ -664,6 +664,47 @@ jobs:
           cd source
           flutter pub get
 
+      - name: 修补 flutter_inappwebview_macos 部署版本
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'macos'
+        run: |
+          set -euo pipefail
+
+          cd source
+          patched_files=()
+
+          patch_package_manifest() {
+            local package_file="$1"
+            if [ ! -f "$package_file" ]; then
+              return 0
+            fi
+
+            perl -0pi -e 's/\.macOS\("10\.14"\)/.macOS("10.15")/g' "$package_file"
+            if grep -q '.macOS("10.14")' "$package_file"; then
+              echo "::error::macOS 插件部署版本修补失败：$package_file"
+              exit 1
+            fi
+            patched_files+=("$package_file")
+          }
+
+          patch_package_manifest \
+            ".symlinks/plugins/flutter_inappwebview_macos/macos/Package.swift"
+
+          while IFS= read -r package_file; do
+            patch_package_manifest "$package_file"
+          done < <(
+            find "${PUB_CACHE:-$HOME/.pub-cache}" -type f \
+              -path '*flutter_inappwebview_macos-*/macos/Package.swift' \
+              -print
+          )
+
+          if [ "${#patched_files[@]}" -eq 0 ]; then
+            echo "::error::找不到 flutter_inappwebview_macos 的 Package.swift"
+            exit 1
+          fi
+
+          printf '已修补 flutter_inappwebview_macos 部署版本：%s\n' \
+            "${patched_files[@]}"
+
       - name: Generate Executable Names
         if: steps.check.outputs.should_run == 'true'
         id: executable_names
