@@ -1485,6 +1485,14 @@ jobs:
           architecture: "${{ matrix.flutter_arch }}"
           cache: true
 
+      - name: Mark Flutter SDK as safe git directory
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          FLUTTER_BIN="$(command -v flutter)"
+          FLUTTER_ROOT="$(dirname "$(dirname "$(readlink -f "$FLUTTER_BIN")")")"
+          git config --global --add safe.directory "$FLUTTER_ROOT"
+          echo "Configured git safe.directory: $FLUTTER_ROOT"
+
       - name: Verify Flutter and Dart version
         if: steps.check.outputs.should_run == 'true'
         run: |
@@ -1512,14 +1520,6 @@ jobs:
 
           echo "Flutter 版本校验通过：$actual_flutter"
           echo "Dart SDK 版本校验通过：$dart_version"
-
-      - name: Mark Flutter SDK as safe git directory
-        if: steps.check.outputs.should_run == 'true'
-        run: |
-          FLUTTER_BIN="$(command -v flutter)"
-          FLUTTER_ROOT="$(dirname "$(dirname "$(readlink -f "$FLUTTER_BIN")")")"
-          git config --global --add safe.directory "$FLUTTER_ROOT"
-          echo "Configured git safe.directory: $FLUTTER_ROOT"
 
       - name: Get Flutter Dependency
         if: steps.check.outputs.should_run == 'true'
