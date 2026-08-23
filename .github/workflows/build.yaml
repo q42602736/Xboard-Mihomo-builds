@@ -630,6 +630,34 @@ jobs:
           architecture: "arm64"
           cache: true
 
+      - name: Verify Flutter and Dart version
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          set -euo pipefail
+
+          expected_flutter="${FLUTTER_VERSION}"
+          actual_flutter="$(flutter --version | sed -nE 's/^Flutter ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' | head -n 1)"
+          dart_version="$(dart --version 2>&1 | sed -nE 's/.*Dart SDK version: ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p')"
+
+          if [ -z "$actual_flutter" ] || [ "$actual_flutter" != "$expected_flutter" ]; then
+            echo "::error::Flutter 版本不匹配：期望 $expected_flutter，实际 ${actual_flutter:-无法识别}"
+            exit 1
+          fi
+
+          if [ -z "$dart_version" ]; then
+            echo "::error::无法识别 Dart SDK 版本"
+            exit 1
+          fi
+
+          IFS=. read -r dart_major dart_minor dart_patch <<< "$dart_version"
+          if (( dart_major < 3 || (dart_major == 3 && dart_minor < 12) )); then
+            echo "::error::Dart SDK 版本过低：$dart_version，源码要求 >= 3.12.0"
+            exit 1
+          fi
+
+          echo "Flutter 版本校验通过：$actual_flutter"
+          echo "Dart SDK 版本校验通过：$dart_version"
+
       - name: Get Flutter Dependency
         if: steps.check.outputs.should_run == 'true'
         run: |
@@ -657,13 +685,13 @@ jobs:
         run: |
           cd source/lib/sdk/flutter_xboard_sdk
           flutter pub get
-          dart run build_runner build --delete-conflicting-outputs
+          dart run build_runner build
 
       - name: Generate Main Project Code
         if: steps.check.outputs.should_run == 'true'
         run: |
           cd source
-          dart run build_runner build --delete-conflicting-outputs
+          dart run build_runner build
 
       - name: Generate XBoard Config
         if: steps.check.outputs.should_run == 'true'
@@ -1457,6 +1485,34 @@ jobs:
           architecture: "${{ matrix.flutter_arch }}"
           cache: true
 
+      - name: Verify Flutter and Dart version
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          set -euo pipefail
+
+          expected_flutter="${FLUTTER_VERSION}"
+          actual_flutter="$(flutter --version | sed -nE 's/^Flutter ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' | head -n 1)"
+          dart_version="$(dart --version 2>&1 | sed -nE 's/.*Dart SDK version: ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p')"
+
+          if [ -z "$actual_flutter" ] || [ "$actual_flutter" != "$expected_flutter" ]; then
+            echo "::error::Flutter 版本不匹配：期望 $expected_flutter，实际 ${actual_flutter:-无法识别}"
+            exit 1
+          fi
+
+          if [ -z "$dart_version" ]; then
+            echo "::error::无法识别 Dart SDK 版本"
+            exit 1
+          fi
+
+          IFS=. read -r dart_major dart_minor dart_patch <<< "$dart_version"
+          if (( dart_major < 3 || (dart_major == 3 && dart_minor < 12) )); then
+            echo "::error::Dart SDK 版本过低：$dart_version，源码要求 >= 3.12.0"
+            exit 1
+          fi
+
+          echo "Flutter 版本校验通过：$actual_flutter"
+          echo "Dart SDK 版本校验通过：$dart_version"
+
       - name: Mark Flutter SDK as safe git directory
         if: steps.check.outputs.should_run == 'true'
         run: |
@@ -1510,13 +1566,13 @@ jobs:
         run: |
           cd source/lib/sdk/flutter_xboard_sdk
           flutter pub get
-          dart run build_runner build --delete-conflicting-outputs
+          dart run build_runner build
 
       - name: Generate Main Project Code
         if: steps.check.outputs.should_run == 'true'
         run: |
           cd source
-          dart run build_runner build --delete-conflicting-outputs
+          dart run build_runner build
 
       - name: Generate XBoard Config
         if: steps.check.outputs.should_run == 'true'
