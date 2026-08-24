@@ -664,59 +664,78 @@ jobs:
           cd source
           flutter pub get
 
-      - name: 修补 dynamic_color Android 编译版本
+      - name: 修补 Flutter Android 插件编译版本
         if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'android'
         run: |
           set -euo pipefail
 
           cd source
-          plugin_root=""
+          plugin_files=()
+          patched_files=()
+
+          add_plugin_file() {
+            local package_file="$1"
+            if [ ! -f "$package_file" ]; then
+              return 0
+            fi
+            plugin_files+=("$package_file")
+          }
+
           if [ -f ".flutter-plugins-dependencies" ]; then
-            plugin_root="$(node -e '
+            while IFS= read -r plugin_root; do
+              [ -n "$plugin_root" ] || continue
+              add_plugin_file "$plugin_root/android/build.gradle"
+              add_plugin_file "$plugin_root/android/build.gradle.kts"
+            done < <(node -e '
               const fs = require("fs");
               try {
                 const data = JSON.parse(fs.readFileSync(".flutter-plugins-dependencies", "utf8"));
-                const plugin = (data.plugins?.android || []).find((item) => item && item.name === "dynamic_color");
-                process.stdout.write(plugin?.path || "");
+                for (const plugin of (data.plugins?.android || [])) {
+                  if (plugin?.path) console.log(plugin.path);
+                }
               } catch (_) {}
-            ')"
+            ')
           fi
 
-          package_file=""
-          for candidate in \
-            "$plugin_root/android/build.gradle" \
-            "$plugin_root/android/build.gradle.kts" \
-            ".symlinks/plugins/dynamic_color/android/build.gradle" \
-            ".symlinks/plugins/dynamic_color/android/build.gradle.kts"; do
-            if [ -n "$candidate" ] && [ -f "$candidate" ]; then
-              package_file="$candidate"
-              break
+          if [ "${#plugin_files[@]}" -eq 0 ] && [ -d ".symlinks/plugins" ]; then
+            while IFS= read -r package_file; do
+              add_plugin_file "$package_file"
+            done < <(
+              find .symlinks/plugins -type f \( \
+                -name 'build.gradle' -o \
+                -name 'build.gradle.kts' \
+              \) -print
+            )
+          fi
+
+          if [ "${#plugin_files[@]}" -eq 0 ]; then
+            echo "::error::找不到 Flutter Android 插件 Gradle 配置"
+            exit 1
+          fi
+
+          echo "扫描 Flutter Android 插件 Gradle 配置：${#plugin_files[@]} 个"
+          for package_file in "${plugin_files[@]}"; do
+            before="$(grep -nE 'compileSdkVersion|compileSdk' "$package_file" || true)"
+            perl -0pi -e \
+              's/(compileSdkVersion\s+)(?:[12][0-9]|3[0-5]|[1-9])/${1}36/g; s/(compileSdk\s*=\s*)(?:[12][0-9]|3[0-5]|[1-9])/${1}36/g; s/(compileSdk\s+)(?:[12][0-9]|3[0-5]|[1-9])/${1}36/g' \
+              "$package_file"
+            after="$(grep -nE 'compileSdkVersion|compileSdk' "$package_file" || true)"
+
+            if grep -Eq \
+              'compileSdkVersion[[:space:]]+([12][0-9]|3[0-5]|[1-9])([[:space:]]|$)|compileSdk[[:space:]]*=[[:space:]]*([12][0-9]|3[0-5]|[1-9])([[:space:]]|$)|compileSdk[[:space:]]+([12][0-9]|3[0-5]|[1-9])([[:space:]]|$)' \
+              "$package_file"; then
+              echo "::error::Flutter Android 插件 compileSdk 修补失败：$package_file"
+              exit 1
+            fi
+
+            if [ "$before" != "$after" ]; then
+              echo "已修补 Flutter Android 插件：$package_file"
+              printf '%s\n' "$before" "$after"
+              patched_files+=("$package_file")
             fi
           done
 
-          if [ -z "$package_file" ]; then
-            package_file="$(find "${PUB_CACHE:-$HOME/.pub-cache}" -type f \( \
-              -path '*/dynamic_color-*/android/build.gradle' -o \
-              -path '*/dynamic_color-*/android/build.gradle.kts' \
-            \) -print | sort | head -1)"
-          fi
-
-          if [ -z "$package_file" ] || [ ! -f "$package_file" ]; then
-            echo "::error::找不到 dynamic_color 的 Android Gradle 配置"
-            exit 1
-          fi
-
-          echo "修补 dynamic_color Android 编译版本：$package_file"
-          perl -0pi -e \
-            's/compileSdkVersion\s+31/compileSdkVersion 36/g; s/compileSdk\s*=\s*31/compileSdk = 36/g; s/compileSdk\s+31/compileSdk 36/g' \
-            "$package_file"
-
-          if grep -Eq 'compileSdkVersion[[:space:]]+31|compileSdk[[:space:]]*=?[[:space:]]*31([[:space:]]|$)' "$package_file"; then
-            echo "::error::dynamic_color Android compileSdk 修补失败：$package_file"
-            exit 1
-          fi
-
-          grep -nE 'compileSdkVersion|compileSdk' "$package_file"
+          echo "完成 Flutter Android 插件 compileSdk 检查，修补文件：${#patched_files[@]} 个"
 
       - name: 修补 flutter_inappwebview_macos 部署版本
         if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'macos'
