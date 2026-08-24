@@ -717,12 +717,12 @@ jobs:
           for package_file in "${plugin_files[@]}"; do
             before="$(grep -nE 'compileSdkVersion|compileSdk' "$package_file" || true)"
             perl -0pi -e \
-              's/(compileSdkVersion\s+)(?:[12][0-9]|3[0-5]|[1-9])/${1}36/g; s/(compileSdk\s*=\s*)(?:[12][0-9]|3[0-5]|[1-9])/${1}36/g; s/(compileSdk\s+)(?:[12][0-9]|3[0-5]|[1-9])/${1}36/g' \
+              's/(compileSdkVersion\s+)(?:[1-9]|[12][0-9]|3[0-5]|36[0-9]+)(?=\s|$)/${1}36/g; s/(compileSdk\s*=\s*)(?:[1-9]|[12][0-9]|3[0-5]|36[0-9]+)(?=\s|$)/${1}36/g; s/(compileSdk\s+)(?:[1-9]|[12][0-9]|3[0-5]|36[0-9]+)(?=\s|$)/${1}36/g' \
               "$package_file"
             after="$(grep -nE 'compileSdkVersion|compileSdk' "$package_file" || true)"
 
             if grep -Eq \
-              'compileSdkVersion[[:space:]]+([12][0-9]|3[0-5]|[1-9])([[:space:]]|$)|compileSdk[[:space:]]*=[[:space:]]*([12][0-9]|3[0-5]|[1-9])([[:space:]]|$)|compileSdk[[:space:]]+([12][0-9]|3[0-5]|[1-9])([[:space:]]|$)' \
+              'compileSdkVersion[[:space:]]+([1-9]|[12][0-9]|3[0-5])([[:space:]]|$)|compileSdk[[:space:]]*=[[:space:]]*([1-9]|[12][0-9]|3[0-5])([[:space:]]|$)|compileSdk[[:space:]]+([1-9]|[12][0-9]|3[0-5])([[:space:]]|$)' \
               "$package_file"; then
               echo "::error::Flutter Android 插件 compileSdk 修补失败：$package_file"
               exit 1
