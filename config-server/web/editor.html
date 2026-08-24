@@ -3537,7 +3537,7 @@
                                 </div>
                                 <div class="help-text">控制桌面端和 Android 手机分流组弹窗里的“自定义规则”入口显示；关闭后会隐藏该入口。</div>
                             </div>
-                            <div class="switch-card" style="margin-top:16px;">
+                            <div class="switch-card" data-ui-variant="legacy-only" style="margin-top:16px;">
                                 <div class="switch-card-header">
                                     <span class="switch-card-label">显示登录注册页客服入口</span>
                                     <div class="switch-group">
@@ -6094,9 +6094,15 @@
         }
 
         function getVisibleCustomUIColorFeatureKeys() {
-            return isAdminSession()
+            var featureKeys = isAdminSession()
                 ? customUIColorFeatureKeys.slice()
                 : customUIColorAvailableFeatures.slice();
+            if (!isNewUiVariant()) {
+                return featureKeys;
+            }
+            return featureKeys.filter(function(featureKey) {
+                return NEW_UI_UNSUPPORTED_CUSTOM_FEATURE_KEYS.indexOf(featureKey) === -1;
+            });
         }
 
         function isCustomUIColorFeatureVisible(featureKey) {
@@ -6676,6 +6682,21 @@
         var customTrafficBarAccessVerified = false;
         var customUIColorAvailableFeatures = [];
         var customUIColorConfigLoaded = false;
+        var NEW_UI_UNSUPPORTED_CUSTOM_FEATURE_KEYS = [
+            'traffic_bar_color',
+            'notice_dialog_icon_background_color',
+            'subscription_website_icon_color',
+            'subscription_refresh_icon_color',
+            'subscription_notice_icon_color',
+            'plans_subscribe_button_color',
+            'invite_code_text_color',
+            'invite_code_background_color',
+            'commission_balance_card_background_color',
+            'invite_stats_total_invites_icon_color',
+            'invite_stats_commission_rate_icon_color',
+            'invite_stats_total_commission_icon_color',
+            'subscription_status_popup'
+        ];
         var customUIColorFeatureKeys = [
             'traffic_bar_color',
             'notice_dialog_icon_background_color',
@@ -8738,19 +8759,30 @@
             return String(value || '').trim().toLowerCase() === 'new' ? 'new' : 'legacy';
         }
 
+        function isNewUiVariant() {
+            var variant = document.getElementById('uiVariant');
+            return !!variant && normalizeUiVariant(variant.value) === 'new';
+        }
+
         function syncUiVariantVisibility() {
             var variant = document.getElementById('uiVariant');
             var layoutControls = document.getElementById('homePanelLayoutControls');
-            var supportsHomePanelLayout = !variant || normalizeUiVariant(variant.value) === 'legacy';
+            var supportsLegacyOnlyControls = !isNewUiVariant();
+            var supportsHomePanelLayout = supportsLegacyOnlyControls;
             if (variant) {
                 variant.value = normalizeUiVariant(variant.value);
             }
+            document.querySelectorAll('[data-ui-variant]').forEach(function(section) {
+                var rule = String(section.getAttribute('data-ui-variant') || '').trim();
+                section.style.display = rule === 'legacy-only' && !supportsLegacyOnlyControls ? 'none' : '';
+            });
             if (layoutControls) {
                 layoutControls.style.display = supportsHomePanelLayout ? '' : 'none';
             }
             if (!supportsHomePanelLayout) {
                 homePanelPreviewTarget = '';
             }
+            syncCustomUIColorFeatureVisibility();
             renderHomePanelPreview();
         }
 
