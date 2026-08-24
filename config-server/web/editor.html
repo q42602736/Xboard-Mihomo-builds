@@ -3423,7 +3423,19 @@
                     </div>
                     <div class="editor-container">
                         <div class="section">
+                            <div class="section-title">界面行为</div>
+                            <div class="form-group" style="margin-top:16px;">
+                                <label for="uiVariant">UI 构建变体</label>
+                                <select id="uiVariant" data-custom-select>
+                                    <option value="legacy">旧 UI（legacy）</option>
+                                    <option value="new">新 UI（new）</option>
+                                </select>
+                                <div class="help-text">默认使用旧 UI；选择新 UI 后，重新打包的客户端将使用新入口。</div>
+                            </div>
+                        </div>
+                        <div class="section">
                             <div class="section-title">首页与界面布局</div>
+                            <div id="homePanelLayoutControls">
                             <div class="form-group">
                                 <label>首页面板布局</label>
                                 <select id="homePanelDefaultLayout">
@@ -3454,6 +3466,7 @@
                                         <div class="home-preview-stage" id="homePanelPreviewStage"></div>
                                     </div>
                                 </div>
+                            </div>
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
@@ -7418,6 +7431,7 @@
                 '  online_support:',
                 '    items: []',
                 '  ui:',
+                '    variant: legacy',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
                 '    hide_purchase_coupon: false',
@@ -7636,6 +7650,7 @@
                 subscription_cache_enabled: document.getElementById('subscriptionCacheEnabled').checked,
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 api_path_prefix: document.getElementById('apiPathPrefix') ? document.getElementById('apiPathPrefix').value.trim() : '/api/v1',
+                ui_variant: normalizeUiVariant(document.getElementById('uiVariant').value),
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
                 hide_purchase_coupon: document.getElementById('hidePurchaseCoupon') ? document.getElementById('hidePurchaseCoupon').checked : false,
@@ -8700,6 +8715,16 @@
                     scheduleAutoSaveCurrentProfile('UI 配置已自动保存');
                 });
             }
+            var uiVariant = document.getElementById('uiVariant');
+            if (uiVariant) {
+                uiVariant.addEventListener('change', function() {
+                    this.value = normalizeUiVariant(this.value);
+                    syncUiVariantVisibility();
+                    formToYaml();
+                    scheduleAutoSaveCurrentProfile('UI 构建变体已自动保存');
+                });
+            }
+            syncUiVariantVisibility();
             document.getElementById('subscriptionCacheTtl').addEventListener('change', function() {
                 formToYaml();
             });
@@ -8707,6 +8732,26 @@
                 this.value = normalizeLatencyReductionValue(this.value);
                 formToYaml();
             });
+        }
+
+        function normalizeUiVariant(value) {
+            return String(value || '').trim().toLowerCase() === 'new' ? 'new' : 'legacy';
+        }
+
+        function syncUiVariantVisibility() {
+            var variant = document.getElementById('uiVariant');
+            var layoutControls = document.getElementById('homePanelLayoutControls');
+            var supportsHomePanelLayout = !variant || normalizeUiVariant(variant.value) === 'legacy';
+            if (variant) {
+                variant.value = normalizeUiVariant(variant.value);
+            }
+            if (layoutControls) {
+                layoutControls.style.display = supportsHomePanelLayout ? '' : 'none';
+            }
+            if (!supportsHomePanelLayout) {
+                homePanelPreviewTarget = '';
+            }
+            renderHomePanelPreview();
         }
 
         function syncExclusiveSubscriptionUserAgentVisibility(enabled) {
@@ -10136,6 +10181,13 @@
             var subCacheTtlMatch = yaml.match(/subscription_cache:\s*\n(?:[\s\S]*?)ttl_hours:\s*(\d+)/);
             var subCacheTtl = subCacheTtlMatch ? parseInt(subCacheTtlMatch[1]) : 24;
             document.getElementById('subscriptionCacheTtl').value = subCacheTtl;
+            var uiVariantMatch = yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}variant:[^\S\n]*(.*)/m);
+            var uiVariantValue = uiVariantMatch
+                ? uiVariantMatch[1].trim().replace(/^["']|["']$/g, '').toLowerCase()
+                : 'legacy';
+            document.getElementById('uiVariant').value = normalizeUiVariant(uiVariantValue);
+            syncAllCustomSelects(document.getElementById('uiVariant'));
+            syncUiVariantVisibility();
             var apiPathPrefixMatch =
                 yaml.match(/remote_config:\s*\n(?:[\s\S]*?)^\s{4}api_path_prefix:[^\S\n]*(.*)/m) ||
                 yaml.match(/remoteConfig:\s*\n(?:[\s\S]*?)apiPathPrefix:[^\S\n]*(.*)/);

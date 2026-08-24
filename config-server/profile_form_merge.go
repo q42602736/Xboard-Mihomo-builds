@@ -244,14 +244,16 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	removeMapKeys(profileRoot, "registrationInvite")
 	setMapBoolValue(subscriptionCache, "enabled", form.SubscriptionCacheEnabled)
 	setMapIntValue(subscriptionCache, "ttl_hours", form.SubscriptionCacheTTL)
-	if rootKey == "nexgen" {
-		uiVariant := strings.TrimSpace(form.UiVariant)
-		if uiVariant == "" {
-			if existingVariant := getMapValueNode(ui, "variant"); existingVariant != nil {
-				uiVariant = existingVariant.Value
-			}
+	uiVariant := strings.TrimSpace(form.UiVariant)
+	if uiVariant == "" {
+		if existingVariant := getMapValueNode(ui, "variant"); existingVariant != nil {
+			uiVariant = existingVariant.Value
 		}
+	}
+	if uiVariant != "" || rootKey == "nexgen" {
 		setMapStringValue(ui, "variant", normalizeNexGenUiVariant(uiVariant))
+	}
+	if rootKey == "nexgen" {
 		uiColorScheme := strings.TrimSpace(form.UiColorScheme)
 		if uiColorScheme == "" {
 			if existingColorScheme := getMapValueNode(ui, "color_scheme"); existingColorScheme != nil {
@@ -262,7 +264,7 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 		setMapBoolValue(ui, "hide_color_scheme_button", form.HideColorSchemeButton)
 		setMapBoolValue(ui, "hide_online_support_button", form.HideOnlineSupportButton)
 	} else {
-		removeMapKeys(ui, "variant", "uiVariant", "color_scheme", "colorScheme", "hide_color_scheme_button", "hideColorSchemeButton", "hide_online_support_button", "hideOnlineSupportButton", "show_color_scheme_button", "showColorSchemeButton", "show_online_support_button", "showOnlineSupportButton")
+		removeMapKeys(ui, "uiVariant", "colorScheme", "hideColorSchemeButton", "hideOnlineSupportButton", "show_color_scheme_button", "showColorSchemeButton", "show_online_support_button", "showOnlineSupportButton")
 	}
 	setMapBoolValue(ui, "hide_traffic_details", form.HideTrafficDetails)
 	setMapBoolValue(ui, "hide_node_status", form.HideNodeStatus)

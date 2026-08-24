@@ -179,6 +179,7 @@ func defaultProfileYaml(displayName string) string {
   online_support:
     items: []
   ui:
+    variant: legacy
     hide_color_scheme_button: false
     hide_online_support_button: false
     hide_traffic_details: false
