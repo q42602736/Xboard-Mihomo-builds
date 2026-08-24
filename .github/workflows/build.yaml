@@ -664,6 +664,60 @@ jobs:
           cd source
           flutter pub get
 
+      - name: 修补 dynamic_color Android 编译版本
+        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'android'
+        run: |
+          set -euo pipefail
+
+          cd source
+          plugin_root=""
+          if [ -f ".flutter-plugins-dependencies" ]; then
+            plugin_root="$(node -e '
+              const fs = require("fs");
+              try {
+                const data = JSON.parse(fs.readFileSync(".flutter-plugins-dependencies", "utf8"));
+                const plugin = (data.plugins?.android || []).find((item) => item && item.name === "dynamic_color");
+                process.stdout.write(plugin?.path || "");
+              } catch (_) {}
+            ')"
+          fi
+
+          package_file=""
+          for candidate in \
+            "$plugin_root/android/build.gradle" \
+            "$plugin_root/android/build.gradle.kts" \
+            ".symlinks/plugins/dynamic_color/android/build.gradle" \
+            ".symlinks/plugins/dynamic_color/android/build.gradle.kts"; do
+            if [ -n "$candidate" ] && [ -f "$candidate" ]; then
+              package_file="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$package_file" ]; then
+            package_file="$(find "${PUB_CACHE:-$HOME/.pub-cache}" -type f \( \
+              -path '*/dynamic_color-*/android/build.gradle' -o \
+              -path '*/dynamic_color-*/android/build.gradle.kts' \
+            \) -print | sort | head -1)"
+          fi
+
+          if [ -z "$package_file" ] || [ ! -f "$package_file" ]; then
+            echo "::error::找不到 dynamic_color 的 Android Gradle 配置"
+            exit 1
+          fi
+
+          echo "修补 dynamic_color Android 编译版本：$package_file"
+          perl -0pi -e \
+            's/compileSdkVersion\s+31/compileSdkVersion 36/g; s/compileSdk\s*=\s*31/compileSdk = 36/g; s/compileSdk\s+31/compileSdk 36/g' \
+            "$package_file"
+
+          if grep -Eq 'compileSdkVersion[[:space:]]+31|compileSdk[[:space:]]*=?[[:space:]]*31([[:space:]]|$)' "$package_file"; then
+            echo "::error::dynamic_color Android compileSdk 修补失败：$package_file"
+            exit 1
+          fi
+
+          grep -nE 'compileSdkVersion|compileSdk' "$package_file"
+
       - name: 修补 flutter_inappwebview_macos 部署版本
         if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'macos'
         run: |
