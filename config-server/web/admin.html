@@ -138,18 +138,20 @@
             white-space: nowrap;
         }
         .codes-table .col-select { width: 34px; text-align: center; }
-        .codes-table .col-code { width: 15%; }
-        .codes-table .col-name { width: 10%; }
-        .codes-table .col-profile { width: 13%; }
-        .codes-table .col-clients { width: 11%; }
-        .codes-table .col-platforms { width: 12%; }
+        .codes-table .col-code { width: 14%; }
+        .codes-table .col-name { width: 9%; }
+        .codes-table .col-profile { width: 12%; }
+        .codes-table .col-clients { width: 10%; }
+        .codes-table .col-platforms { width: 11%; }
         .codes-table .col-usage { width: 8%; }
+        .codes-table .col-status { width: 7%; }
         .codes-table .col-expire { width: 9%; }
-        .codes-table .col-created { width: 11%; }
-        .codes-table .col-actions { width: 9%; }
+        .codes-table .col-created { width: 8%; }
+        .codes-table .col-actions { width: 8%; }
         .codes-table .cell-code,
         .codes-table .cell-select,
         .codes-table .cell-usage,
+        .codes-table .cell-status,
         .codes-table .cell-expire,
         .codes-table .cell-created,
         .codes-table .cell-actions {
@@ -588,6 +590,374 @@
             flex-shrink: 0;
             cursor: pointer;
         }
+        .build-audit-toolbar {
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 14px;
+        }
+        .build-audit-content-summary {
+            min-width: 170px;
+            max-width: 100%;
+        }
+        .build-audit-content-summary .build-audit-meta {
+            color: #8b95a7;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .build-audit-content-summary .build-audit-url {
+            margin-top: 4px;
+            overflow: hidden;
+            color: #687487;
+            font-size: 11px;
+            line-height: 1.4;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .build-audit-group-row td {
+            padding: 0 !important;
+            border-bottom: 1px solid rgba(0,212,255,0.16);
+            background: rgba(0,212,255,0.045);
+        }
+        .build-audit-group-row td::before {
+            display: none;
+        }
+        .build-audit-group {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 12px;
+        }
+        .build-audit-group-toggle {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 0;
+            border: 0;
+            background: transparent;
+            color: #dcefff;
+            cursor: pointer;
+            text-align: left;
+        }
+        .build-audit-group-toggle:focus-visible {
+            outline: 2px solid rgba(0,212,255,0.8);
+            outline-offset: 4px;
+            border-radius: 4px;
+        }
+        .build-audit-group-chevron {
+            width: 8px;
+            height: 8px;
+            flex: 0 0 8px;
+            border: solid #7ddfff;
+            border-width: 0 2px 2px 0;
+            transform: rotate(-45deg);
+            transition: transform 0.16s ease;
+        }
+        .build-audit-group-toggle[aria-expanded="true"] .build-audit-group-chevron {
+            transform: rotate(45deg);
+        }
+        .build-audit-group-main {
+            min-width: 0;
+        }
+        .build-audit-group-title {
+            overflow: hidden;
+            color: #e9f7ff;
+            font-size: 13px;
+            font-weight: 600;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .build-audit-group-subtitle {
+            margin-top: 3px;
+            overflow: hidden;
+            color: #8291a6;
+            font-size: 11px;
+            line-height: 1.4;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .build-audit-group-count {
+            flex: 0 0 auto;
+            padding: 4px 8px;
+            border: 1px solid rgba(0,212,255,0.2);
+            border-radius: 5px;
+            color: #8ce5ff;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+        .build-audit-group-toggle-label {
+            flex: 0 0 auto;
+            color: #8ce5ff;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+        .build-audit-group-action {
+            flex: 0 0 auto;
+        }
+        .build-audit-group-row > td:last-child {
+            padding: 10px 12px !important;
+            text-align: right;
+            white-space: nowrap;
+        }
+        .build-audit-detail-row.is-collapsed {
+            display: none;
+        }
+        .build-audit-detail-row td {
+            background: rgba(0,0,0,0.08);
+        }
+        .build-audit-table-scroll {
+            overflow-x: auto;
+        }
+        .build-audit-table {
+            min-width: 980px;
+            table-layout: fixed;
+        }
+        .build-audit-table th:nth-child(1),
+        .build-audit-table td:nth-child(1) { width: 10%; }
+        .build-audit-table th:nth-child(2),
+        .build-audit-table td:nth-child(2) { width: 17%; }
+        .build-audit-table th:nth-child(3),
+        .build-audit-table td:nth-child(3) { width: 11%; }
+        .build-audit-table th:nth-child(4),
+        .build-audit-table td:nth-child(4) { width: 10%; }
+        .build-audit-table th:nth-child(5),
+        .build-audit-table td:nth-child(5) { width: 13%; }
+        .build-audit-table th:nth-child(6),
+        .build-audit-table td:nth-child(6) { width: 11%; }
+        .build-audit-table th:nth-child(7),
+        .build-audit-table td:nth-child(7) { width: 20%; }
+        .build-audit-table th:nth-child(8),
+        .build-audit-table td:nth-child(8) { width: 8%; }
+        .build-audit-table td:last-child {
+            white-space: nowrap;
+        }
+        .build-audit-view-btn {
+            margin-top: 9px;
+            padding: 6px 10px !important;
+            font-size: 12px !important;
+        }
+        .build-audit-modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 10001;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(3, 8, 15, 0.78);
+            backdrop-filter: blur(8px);
+        }
+        .build-audit-modal-overlay.show { display: flex; }
+        .build-audit-modal {
+            display: flex;
+            flex-direction: column;
+            width: min(1080px, 100%);
+            max-height: min(820px, calc(100vh - 48px));
+            overflow: hidden;
+            border: 1px solid rgba(0,212,255,0.24);
+            border-radius: 12px;
+            background: linear-gradient(180deg, rgba(19,27,42,0.99), rgba(8,13,24,0.99));
+            box-shadow: 0 28px 100px rgba(0,0,0,0.58), 0 0 0 1px rgba(255,255,255,0.03);
+        }
+        .build-audit-modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 18px 20px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .build-audit-modal-kicker {
+            color: #00d4ff;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .build-audit-modal-title {
+            margin-top: 5px;
+            color: #f4f8fc;
+            font-size: 19px;
+            font-weight: 650;
+        }
+        .build-audit-modal-meta {
+            margin-top: 6px;
+            color: #8b95a7;
+            font-size: 12px;
+            line-height: 1.55;
+            word-break: break-word;
+        }
+        .build-audit-modal-close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
+            padding: 0;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.04);
+            color: #aab5c5;
+            cursor: pointer;
+            font-size: 24px;
+            line-height: 1;
+        }
+        .build-audit-modal-close:hover {
+            border-color: rgba(0,212,255,0.42);
+            background: rgba(0,212,255,0.12);
+            color: #fff;
+        }
+        .build-audit-modal-info {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px 20px;
+            padding: 13px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            background: rgba(0,0,0,0.14);
+        }
+        .build-audit-modal-source {
+            min-width: 0;
+            color: #aeb8c8;
+            font-size: 12px;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+        .build-audit-modal-source strong,
+        .build-audit-modal-hash strong {
+            color: #687487;
+            font-weight: 500;
+        }
+        .build-audit-modal-hash {
+            max-width: 390px;
+            color: #9da8b9;
+            font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            overflow-wrap: anywhere;
+            text-align: right;
+        }
+        .build-audit-modal-body {
+            min-height: 0;
+            padding: 16px 20px;
+            overflow: auto;
+        }
+        .build-audit-modal-content {
+            min-height: 260px;
+            max-height: none;
+            margin: 0;
+            padding: 16px;
+            overflow: visible;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            background: rgba(1,5,12,0.72);
+            color: #d5deea;
+            font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            tab-size: 2;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .build-audit-modal-snapshot {
+            margin-top: 14px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 12px;
+        }
+        .build-audit-modal-snapshot summary {
+            color: #8b95a7;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .build-audit-modal-snapshot pre {
+            max-height: none;
+            margin: 9px 0 0;
+            padding: 12px;
+            overflow: visible;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 7px;
+            background: rgba(0,0,0,0.24);
+            color: #9da8b9;
+            font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .build-audit-modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 13px 20px 17px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .build-audit-modal-copy-status {
+            margin-right: auto;
+            color: #6f7c90;
+            font-size: 12px;
+        }
+        .build-audit-modal-copy-status.success { color: #59d98e; }
+        .build-audit-modal-copy-status.error { color: #ff8b8b; }
+        .build-audit-modal .btn-secondary {
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.07);
+            color: #d7dce4;
+        }
+        .build-audit-modal .btn-secondary:hover {
+            border-color: rgba(0,212,255,0.38);
+            background: rgba(0,212,255,0.12);
+            color: #fff;
+        }
+        body.build-audit-modal-open { overflow: hidden; }
+        @media (max-width: 760px) {
+            .build-audit-toolbar {
+                grid-template-columns: 1fr;
+            }
+            .build-audit-modal-overlay {
+                align-items: flex-end;
+                padding: 10px;
+            }
+            .build-audit-modal {
+                max-height: calc(100vh - 20px);
+            }
+            .build-audit-modal-header,
+            .build-audit-modal-body,
+            .build-audit-modal-footer {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+            .build-audit-modal-info {
+                grid-template-columns: 1fr;
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+            .build-audit-modal-hash {
+                max-width: none;
+                text-align: left;
+            }
+            .build-audit-modal-content {
+                min-height: 220px;
+                max-height: none;
+            }
+            .build-audit-group {
+                grid-template-columns: 1fr;
+                gap: 6px;
+            }
+            .build-audit-group-row td {
+                display: block !important;
+                width: 100% !important;
+            }
+            .build-audit-group-action {
+                justify-self: start;
+            }
+            .build-audit-group-row > td:last-child {
+                text-align: left;
+            }
+            .build-audit-table-scroll {
+                overflow-x: visible;
+            }
+            .build-audit-table {
+                min-width: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -615,6 +985,7 @@
 
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('codes')">激活码管理</button>
+            <button class="tab-btn" onclick="switchTab('buildAudit')">打包审计</button>
             <button class="tab-btn" onclick="switchTab('logs')">操作日志</button>
             <button class="tab-btn" onclick="switchTab('settings')">系统设置</button>
         </div>
@@ -780,13 +1151,57 @@
                                 <th class="col-clients">允许客户端</th>
                                 <th class="col-platforms">允许平台</th>
                                 <th class="col-usage">打包次数</th>
+                                <th class="col-status">状态</th>
                                 <th class="col-expire">到期时间</th>
                                 <th class="col-created">创建时间</th>
                                 <th class="col-actions">操作</th>
                             </tr>
                         </thead>
                         <tbody id="codesTable">
-                            <tr><td colspan="10" class="empty">加载中...</td></tr>
+                            <tr><td colspan="11" class="empty">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="buildAuditTab" class="tab-page">
+            <div class="panel">
+                <h3>打包审计记录</h3>
+                <div class="build-audit-toolbar">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>激活码</label>
+                        <select id="buildAuditCodeFilter">
+                            <option value="">全部激活码</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>客户端</label>
+                        <select id="buildAuditClientFilter">
+                            <option value="">全部客户端</option>
+                            <option value="xboard_mihomo_sub">老客户端</option>
+                            <option value="nexgen_react">NexGen 客户端</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" type="button" onclick="loadBuildAuditRecords()">刷新记录</button>
+                </div>
+                <div id="buildAuditStatus" class="status-msg"></div>
+                <div class="table-scroll build-audit-table-scroll">
+                    <table class="codes-table build-audit-table">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>用户 / 激活码</th>
+                                <th>客户端</th>
+                                <th>档案</th>
+                                <th>版本 / 平台</th>
+                                <th>状态</th>
+                                <th>OSS 解密后内容 / 远程配置快照</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="buildAuditTable">
+                            <tr><td colspan="8" class="empty">点击“刷新记录”查看打包审计</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -902,6 +1317,35 @@
         </div>
     </div>
 
+    <div id="buildAuditContentModal" class="build-audit-modal-overlay" aria-hidden="true">
+        <div class="build-audit-modal" role="dialog" aria-modal="true" aria-labelledby="buildAuditModalTitle">
+            <div class="build-audit-modal-header">
+                <div>
+                    <div class="build-audit-modal-kicker">打包审计</div>
+                    <div id="buildAuditModalTitle" class="build-audit-modal-title">OSS 解密后内容</div>
+                    <div id="buildAuditModalMeta" class="build-audit-modal-meta"></div>
+                </div>
+                <button type="button" class="build-audit-modal-close" id="buildAuditModalCloseBtn" aria-label="关闭 OSS 内容弹窗" title="关闭">&times;</button>
+            </div>
+            <div class="build-audit-modal-info">
+                <div id="buildAuditModalSource" class="build-audit-modal-source"></div>
+                <div id="buildAuditModalHash" class="build-audit-modal-hash"></div>
+            </div>
+            <div class="build-audit-modal-body">
+                <pre id="buildAuditModalContent" class="build-audit-modal-content"></pre>
+                <details class="build-audit-modal-snapshot">
+                    <summary>查看档案 remote_config 快照</summary>
+                    <pre id="buildAuditModalSnapshot"></pre>
+                </details>
+            </div>
+            <div class="build-audit-modal-footer">
+                <div id="buildAuditModalCopyStatus" class="build-audit-modal-copy-status" aria-live="polite"></div>
+                <button type="button" class="btn btn-secondary" id="buildAuditModalCopyBtn">复制内容</button>
+                <button type="button" class="btn btn-primary" id="buildAuditModalDoneBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         var SESSION_KEY = 'xboard_admin_session';
 
@@ -936,6 +1380,10 @@
         var appDialogResolver = null;
         var appDialogMode = 'alert';
         var appDialogInitialized = false;
+        var buildAuditRecordsCache = {};
+        var buildAuditModalPreviousFocus = null;
+        var buildAuditModalContentValue = '';
+        var buildAuditModalInitialized = false;
 
         function initAppDialog() {
             if (appDialogInitialized) return;
@@ -1020,9 +1468,109 @@
             });
         }
 
+        function buildAuditFetchStatusText(status) {
+            return {
+                decrypted: '后端已读取并解密',
+                plaintext: '后端已读取明文',
+                fetched: '后端已读取远程文件（旧记录）',
+                client_submitted: '客户端提交（未配置远程源）',
+                not_configured: '未配置远程源'
+            }[status] || status || '历史记录未采集';
+        }
+
+        function initBuildAuditContentModal() {
+            if (buildAuditModalInitialized) return;
+            var overlay = document.getElementById('buildAuditContentModal');
+            var closeBtn = document.getElementById('buildAuditModalCloseBtn');
+            var doneBtn = document.getElementById('buildAuditModalDoneBtn');
+            var copyBtn = document.getElementById('buildAuditModalCopyBtn');
+            if (!overlay || !closeBtn || !doneBtn || !copyBtn) return;
+
+            closeBtn.addEventListener('click', closeBuildAuditContent);
+            doneBtn.addEventListener('click', closeBuildAuditContent);
+            copyBtn.addEventListener('click', copyBuildAuditModalContent);
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeBuildAuditContent();
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && overlay.classList.contains('show')) {
+                    closeBuildAuditContent();
+                }
+            });
+            buildAuditModalInitialized = true;
+        }
+
+        function openBuildAuditContent(recordID, trigger) {
+            initBuildAuditContentModal();
+            var record = buildAuditRecordsCache[String(recordID)];
+            var overlay = document.getElementById('buildAuditContentModal');
+            if (!record || !overlay) {
+                showAppAlert('未找到对应的打包审计记录。', '提示');
+                return;
+            }
+
+            var content = String(record.oss_config_content || '');
+            buildAuditModalContentValue = content;
+            document.getElementById('buildAuditModalTitle').textContent = 'OSS 解密后内容';
+            document.getElementById('buildAuditModalMeta').textContent = [
+                '用户：' + (record.code_name || '-'),
+                '激活码 ID：' + (record.code_id || '-'),
+                '记录 ID：' + (record.record_id || '-'),
+                '客户端：' + (record.client || '-'),
+                '档案：' + (record.profile || '-')
+            ].join(' · ');
+            document.getElementById('buildAuditModalSource').textContent = [
+                '获取状态：' + buildAuditFetchStatusText(String(record.oss_config_fetch_status || '')),
+                '源类型：' + (record.oss_config_source_name || '-'),
+                '远程地址：' + (record.oss_config_url || '未配置')
+            ].join('\n');
+            document.getElementById('buildAuditModalHash').textContent = 'SHA-256：' + (record.oss_config_content_sha256 || '未生成');
+            document.getElementById('buildAuditModalContent').textContent = content
+                ? formatBuildAuditJSON(content)
+                : '本次没有可展示的 OSS 解密后内容。';
+            document.getElementById('buildAuditModalSnapshot').textContent = formatBuildAuditJSON(record.remote_config_snapshot || '{}');
+            document.getElementById('buildAuditModalCopyStatus').textContent = '';
+            document.getElementById('buildAuditModalCopyStatus').className = 'build-audit-modal-copy-status';
+            document.getElementById('buildAuditModalCopyBtn').disabled = !content;
+
+            buildAuditModalPreviousFocus = trigger || document.activeElement;
+            overlay.classList.add('show');
+            overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('build-audit-modal-open');
+            document.getElementById('buildAuditModalCloseBtn').focus();
+        }
+
+        function closeBuildAuditContent() {
+            var overlay = document.getElementById('buildAuditContentModal');
+            if (!overlay) return;
+            overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('build-audit-modal-open');
+            if (buildAuditModalPreviousFocus && typeof buildAuditModalPreviousFocus.focus === 'function') {
+                buildAuditModalPreviousFocus.focus();
+            }
+            buildAuditModalPreviousFocus = null;
+        }
+
+        function copyBuildAuditModalContent() {
+            var statusEl = document.getElementById('buildAuditModalCopyStatus');
+            if (!buildAuditModalContentValue || !navigator.clipboard) {
+                statusEl.textContent = '当前浏览器不支持自动复制';
+                statusEl.className = 'build-audit-modal-copy-status error';
+                return;
+            }
+            navigator.clipboard.writeText(buildAuditModalContentValue).then(function() {
+                statusEl.textContent = '已复制解密后内容';
+                statusEl.className = 'build-audit-modal-copy-status success';
+            }).catch(function() {
+                statusEl.textContent = '复制失败，请手动选择内容';
+                statusEl.className = 'build-audit-modal-copy-status error';
+            });
+        }
+
         async function loadAdminData() {
             await loadProfileList();
-            loadCodes();
+            await loadCodes();
             loadSettings();
         }
 
@@ -1066,6 +1614,11 @@
             renderClientPermissionCheckboxes('batchCodeAllowedClients', 'batch-client-permission-cb', []);
             renderPlatformPermissionCheckboxes('codeAllowedPlatforms', 'platform-permission-cb', []);
             renderPlatformPermissionCheckboxes('editCodeAllowedPlatforms', 'edit-platform-permission-cb', []);
+            initBuildAuditContentModal();
+            ['buildAuditCodeFilter', 'buildAuditClientFilter'].forEach(function(id) {
+                var input = document.getElementById(id);
+                if (input) input.addEventListener('change', loadBuildAuditRecords);
+            });
             document.addEventListener('click', function(e) {
                 if (!e.target.closest('.profile-picker')) {
                     closeAllProfilePickers();
@@ -1100,6 +1653,7 @@
             document.querySelectorAll('.tab-page').forEach(function(p) { p.classList.remove('active'); });
             document.getElementById(name + 'Tab').classList.add('active');
             event.target.classList.add('active');
+            if (name === 'buildAudit') loadBuildAuditRecords();
             if (name === 'logs') loadLogs();
             if (name === 'settings') {
                 loadSettings();
@@ -2044,10 +2598,11 @@
                 if (!response) return;
                 var codes = await response.json();
                 codesCache = Array.isArray(codes) ? codes : [];
+                renderBuildAuditCodeFilter();
                 var tbody = document.getElementById('codesTable');
 
                 if (!codesCache.length) {
-                    tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无激活码</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="11" class="empty">暂无激活码</td></tr>';
                     updateSelectedCodeCount();
                     return;
                 }
@@ -2069,6 +2624,12 @@
                         : '全部平台';
                     var createdAtText = formatTableDateTime(c.created_at);
                     var expiresAtText = c.expires_at ? formatExpiresAtDisplay(c.expires_at) : '<span style="color:#555">不过期</span>';
+                    var isActive = c.is_active !== false;
+                    var statusText = isActive
+                        ? '<span style="color:#59d98e">正常</span>'
+                        : '<span style="color:#ff8b8b">已封禁</span>';
+                    var statusAction = isActive ? '封禁' : '解封';
+                    var statusActionClass = isActive ? 'btn-danger' : 'btn-primary';
 
                     var tr = document.createElement('tr');
                     tr.innerHTML =
@@ -2079,11 +2640,13 @@
                         '<td class="cell-clients" data-label="允许客户端" title="' + escapeHtml(clientsTitle) + '" style="font-size:12px;">' + clientsText + '</td>' +
                         '<td class="cell-platforms" data-label="允许平台" title="' + escapeHtml(platformsTitle) + '" style="font-size:12px;">' + platformsText + '</td>' +
                         '<td class="cell-usage" data-label="打包次数">' + c.used_count + ' / ' + maxUsesText + '</td>' +
+                        '<td class="cell-status" data-label="状态">' + statusText + '</td>' +
                         '<td class="cell-expire" data-label="到期时间" style="font-size:12px;color:#888;">' + expiresAtText + '</td>' +
                         '<td class="cell-created" data-label="创建时间" style="font-size:12px;color:#888;">' + escapeHtml(createdAtText) + '</td>' +
                         '<td class="cell-actions" data-label="操作">' +
                             '<div class="code-actions">' +
                                 '<button class="btn btn-primary" title="编辑" onclick="openEditCode(' + c.id + ')">改</button>' +
+                                '<button class="btn ' + statusActionClass + '" title="' + statusAction + '激活码" onclick="toggleCodeActive(' + c.id + ', ' + (!isActive) + ')">' + statusAction + '</button>' +
                                 '<button class="btn btn-danger" title="删除" onclick="deleteCode(' + c.id + ')">删</button>' +
                             '</div>' +
                         '</td>';
@@ -2098,6 +2661,241 @@
                 updateSelectedCodeCount();
             } catch (e) {
                 console.log('加载激活码失败:', e);
+            }
+        }
+
+        function findCodeById(id) {
+            id = Number(id || 0);
+            for (var i = 0; i < codesCache.length; i++) {
+                if (Number(codesCache[i].id) === id) return codesCache[i];
+            }
+            return null;
+        }
+
+        function renderBuildAuditCodeFilter() {
+            var select = document.getElementById('buildAuditCodeFilter');
+            if (!select) return;
+            var currentValue = select.value;
+            select.innerHTML = '<option value="">全部激活码</option>';
+            codesCache.forEach(function(code) {
+                var option = document.createElement('option');
+                option.value = String(code.id);
+                option.textContent = (code.name || '未命名用户') + ' · ' + (code.code || ('ID ' + code.id));
+                select.appendChild(option);
+            });
+            select.value = currentValue;
+        }
+
+        async function toggleCodeActive(id, isActive) {
+            var code = findCodeById(id);
+            var actionText = isActive ? '解封' : '封禁';
+            var codeLabel = code ? (code.name || code.code || ('ID ' + id)) : ('ID ' + id);
+            if (!await showAppConfirm('确定要' + actionText + '“' + codeLabel + '”吗？历史打包审计记录会保留。', actionText + '激活码', '确认' + actionText)) {
+                return;
+            }
+            try {
+                var response = await api('PUT', '/admin/codes/' + id + '/status', {
+                    is_active: !!isActive
+                });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || actionText + '失败');
+                }
+                await loadCodes();
+                var auditTab = document.getElementById('buildAuditTab');
+                if (auditTab && auditTab.classList.contains('active')) {
+                    loadBuildAuditRecords();
+                }
+                showAppAlert(data.message || actionText + '成功', actionText + '成功');
+            } catch (e) {
+                showAppAlert(actionText + '失败: ' + e.message, actionText + '失败');
+            }
+        }
+
+        function formatBuildAuditJSON(value) {
+            value = String(value || '');
+            if (!value) return '';
+            try {
+                return JSON.stringify(JSON.parse(value), null, 2);
+            } catch (e) {
+                return value;
+            }
+        }
+
+        function buildAuditContentHTML(record) {
+            var ossContent = String(record.oss_config_content || '');
+            var ossFormat = String(record.oss_config_content_format || '未标注');
+            var sourceName = String(record.oss_config_source_name || '历史记录未采集');
+            var sourceURL = String(record.oss_config_url || '');
+            var fetchStatusText = buildAuditFetchStatusText(String(record.oss_config_fetch_status || ''));
+            var recordID = Number(record.record_id || 0);
+            var html = '<div class="build-audit-content-summary">' +
+                '<div class="build-audit-meta">获取状态：' + escapeHtml(fetchStatusText) + '</div>' +
+                '<div class="build-audit-meta">源类型：' + escapeHtml(sourceName) + ' · 格式：' + escapeHtml(ossFormat) + '</div>';
+            if (sourceURL) {
+                html += '<div class="build-audit-url" title="' + escapeHtml(sourceURL) + '">远程地址：' + escapeHtml(sourceURL) + '</div>';
+            }
+            if (recordID > 0 && ossContent) {
+                html += '<button type="button" class="btn btn-primary build-audit-view-btn" onclick="openBuildAuditContent(' + recordID + ', this)">查看解密内容</button>';
+            } else {
+                html += '<div class="build-audit-url">' + (fetchStatusText === '历史记录未采集' ? '该记录创建时未采集 OSS 内容' : '暂无可展示的解密内容') + '</div>';
+            }
+            return html + '</div>';
+        }
+
+        function buildAuditRecordStatusText(record) {
+            var statusParts = [];
+            if (record.record_deleted) statusParts.push('普通记录已删除');
+            else if (record.status) statusParts.push(record.status);
+            if (record.conclusion) statusParts.push(record.conclusion);
+            return statusParts.join(' / ') || '-';
+        }
+
+        function groupBuildAuditRecords(records) {
+            var groupsByKey = Object.create(null);
+            var groupKeys = [];
+            records.forEach(function(record) {
+                var codeID = record.code_id === undefined || record.code_id === null
+                    ? ''
+                    : String(record.code_id);
+                var groupKey = codeID !== ''
+                    ? 'code:' + codeID
+                    : 'name:' + String(record.code_name || '未命名激活码');
+                if (!groupsByKey[groupKey]) {
+                    groupsByKey[groupKey] = {
+                        codeID: codeID,
+                        codeName: String(record.code_name || ''),
+                        records: []
+                    };
+                    groupKeys.push(groupKey);
+                }
+                groupsByKey[groupKey].records.push(record);
+            });
+            return groupKeys.map(function(groupKey) {
+                return groupsByKey[groupKey];
+            });
+        }
+
+        function buildBuildAuditGroupRow(group, groupIndex) {
+            var groupID = 'build-audit-group-' + groupIndex;
+            var latestRecord = group.records[0] || {};
+            var code = group.codeID !== '' ? findCodeById(group.codeID) : null;
+            var userName = group.codeName || latestRecord.code_name || '未命名用户';
+            var codeLabel = code && code.code
+                ? code.code
+                : '激活码 ID ' + (group.codeID || latestRecord.code_id || '-');
+            var latestSummary = [
+                '最近记录：' + (formatTableDateTime(latestRecord.created_at) || latestRecord.created_at || '-'),
+                latestRecord.client || '-',
+                latestRecord.profile || '-',
+                '状态：' + buildAuditRecordStatusText(latestRecord)
+            ].join(' · ');
+            var operationHTML = '<span style="color:#777;font-size:12px;">激活码已删除</span>';
+            if (code) {
+                var isActive = code.is_active !== false;
+                operationHTML = '<button class="btn ' + (isActive ? 'btn-danger' : 'btn-primary') + '" title="' + (isActive ? '封禁激活码' : '解封激活码') + '" onclick="toggleCodeActive(' + code.id + ', ' + (!isActive) + ')">' + (isActive ? '封禁' : '解封') + '</button>';
+            }
+
+            var row = document.createElement('tr');
+            row.className = 'build-audit-group-row';
+            row.innerHTML =
+                '<td colspan="7" class="build-audit-group-cell">' +
+                    '<div class="build-audit-group">' +
+                        '<button type="button" class="build-audit-group-toggle" aria-expanded="false" aria-controls="' + groupID + '-details" onclick="toggleBuildAuditGroup(\'' + groupID + '\', this)">' +
+                            '<span class="build-audit-group-chevron" aria-hidden="true"></span>' +
+                            '<span class="build-audit-group-main">' +
+                                '<span class="build-audit-group-title">用户：' + escapeHtml(userName) + ' · ' + escapeHtml(codeLabel) + '</span>' +
+                                '<span class="build-audit-group-subtitle">' + escapeHtml(latestSummary) + '</span>' +
+                            '</span>' +
+                            '<span class="build-audit-group-toggle-label">展开记录</span>' +
+                            '<span class="build-audit-group-count">' + group.records.length + ' 条打包记录</span>' +
+                        '</button>' +
+                    '</div>' +
+                '</td>' +
+                '<td class="build-audit-group-operation"><div class="code-actions">' + operationHTML + '</div></td>';
+            return { row: row, groupID: groupID };
+        }
+
+        function toggleBuildAuditGroup(groupID, trigger) {
+            var expanded = trigger.getAttribute('aria-expanded') === 'true';
+            var nextExpanded = !expanded;
+            var detailRows = document.querySelectorAll('[data-build-audit-group="' + groupID + '"]');
+            detailRows.forEach(function(row) {
+                row.classList.toggle('is-collapsed', !nextExpanded);
+            });
+            trigger.setAttribute('aria-expanded', nextExpanded ? 'true' : 'false');
+            var label = trigger.querySelector('.build-audit-group-toggle-label');
+            if (label) label.textContent = nextExpanded ? '收起记录' : '展开记录';
+        }
+
+        function renderBuildAuditRecords(records) {
+            var tbody = document.getElementById('buildAuditTable');
+            if (!tbody) return;
+            records = Array.isArray(records) ? records : [];
+            buildAuditRecordsCache = {};
+            if (!records.length) {
+                tbody.innerHTML = '<tr><td colspan="8" class="empty">暂无打包审计记录</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            records.forEach(function(record) {
+                buildAuditRecordsCache[String(record.record_id)] = record;
+            });
+            groupBuildAuditRecords(records).forEach(function(group, groupIndex) {
+                var groupHeader = buildBuildAuditGroupRow(group, groupIndex);
+                tbody.appendChild(groupHeader.row);
+                group.records.forEach(function(record, recordIndex) {
+                    var tr = document.createElement('tr');
+                    tr.className = 'build-audit-detail-row is-collapsed';
+                    tr.setAttribute('data-build-audit-group', groupHeader.groupID);
+                    if (recordIndex === 0) tr.id = groupHeader.groupID + '-details';
+                    tr.innerHTML =
+                        '<td data-label="时间" style="font-size:12px;color:#888;">' + escapeHtml(formatTableDateTime(record.created_at) || record.created_at || '-') + '</td>' +
+                        '<td data-label="用户 / 激活码"><div>' + escapeHtml(record.code_name || '-') + '</div><div style="font-size:11px;color:#777;">ID ' + escapeHtml(record.code_id) + ' · ' + escapeHtml(record.request_id || '-') + '</div></td>' +
+                        '<td data-label="客户端">' + escapeHtml(record.client || '-') + '</td>' +
+                        '<td data-label="档案">' + escapeHtml(record.profile || '-') + '</td>' +
+                        '<td data-label="版本 / 平台"><div>' + escapeHtml(record.tag || '-') + '</div><div style="font-size:12px;color:#888;">' + escapeHtml(record.platforms || '-') + '</div></td>' +
+                        '<td data-label="状态">' + escapeHtml(buildAuditRecordStatusText(record)) + '</td>' +
+                        '<td data-label="OSS 解密后内容 / 远程配置快照">' + buildAuditContentHTML(record) + '</td>' +
+                        '<td data-label="操作"><span style="color:#777;font-size:12px;">同组操作</span></td>';
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+
+        async function loadBuildAuditRecords() {
+            var statusEl = document.getElementById('buildAuditStatus');
+            if (statusEl) {
+                statusEl.className = 'status-msg info';
+                statusEl.textContent = '正在加载打包审计记录...';
+            }
+            var query = [];
+            var codeFilter = document.getElementById('buildAuditCodeFilter');
+            var clientFilter = document.getElementById('buildAuditClientFilter');
+            var codeID = codeFilter ? String(codeFilter.value || '').trim() : '';
+            var client = clientFilter ? String(clientFilter.value || '').trim() : '';
+            if (codeID) query.push('code_id=' + encodeURIComponent(codeID));
+            if (client) query.push('client=' + encodeURIComponent(client));
+            query.push('limit=100');
+            try {
+                var response = await api('GET', '/admin/build-records?' + query.join('&'));
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '加载打包审计记录失败');
+                }
+                renderBuildAuditRecords(data.records || []);
+                if (statusEl) {
+                    statusEl.className = 'status-msg';
+                    statusEl.textContent = '';
+                }
+            } catch (e) {
+                if (statusEl) {
+                    statusEl.className = 'status-msg error';
+                    statusEl.textContent = '加载打包审计记录失败: ' + e.message;
+                }
             }
         }
 
@@ -2263,6 +3061,8 @@
             'trigger_build': '触发构建',
             'create_code': '创建激活码',
             'update_code': '编辑激活码',
+            'ban_code': '封禁激活码',
+            'unban_code': '解封激活码',
             'delete_code': '删除激活码',
             'update_settings': '修改系统设置'
         };
