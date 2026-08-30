@@ -3490,6 +3490,16 @@
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
+                                    <span class="switch-card-label">显示 Metron 专用节点</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="showDedicatedNodes"><span class="slider"></span></label>
+                                        <span id="showDedicatedNodesLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">默认关闭并隐藏专用节点页面；开启后，Metron SSPanel 客户端会显示专用节点入口和页面。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
                                     <span class="switch-card-label">显示加速后 IP 信息</span>
                                     <div class="switch-group">
                                         <label class="switch"><input type="checkbox" id="showIpInfo" checked><span class="slider"></span></label>
@@ -3996,6 +4006,16 @@
                                         </div>
                                     </div>
                                     <div class="help-text">开启后，购买套餐卡片和购买详情隐藏速率信息。</div>
+                                </div>
+                                <div class="switch-card" data-custom-feature-key="hide_dedicated_nodes" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">显示 Metron 专用节点</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="customHideDedicatedNodes"><span class="slider"></span></label>
+                                            <span id="customHideDedicatedNodesLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="help-text">默认关闭并隐藏专用节点页面；开启后，Metron SSPanel 客户端会显示专用节点入口和页面。</div>
                                 </div>
                                 <div class="switch-card" data-custom-feature-key="sspanel_node_page_parse" style="margin-top:16px;">
                                     <div class="switch-card-header">
@@ -6278,6 +6298,7 @@
             setCustomFeatureSwitchValue('hideOnlineSupportButton', !!data.hide_online_support_button);
             setCustomFeatureSwitchValue('hidePurchaseCoupon', !!data.hide_purchase_coupon);
             setCustomFeatureSwitchValue('hidePlanSpeed', !!data.hide_plan_speed);
+            setCustomFeatureSwitchValue('customHideDedicatedNodes', !!data.hide_dedicated_nodes);
             setCustomFeatureSwitchValue('sspanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
             setCustomFeatureSwitchValue('registrationInviteEnabled', !!data.registration_invite_enabled);
             setCustomFeatureSwitchValue('registrationInviteLinkEnabled', !!data.registration_invite_link_enabled);
@@ -6411,6 +6432,7 @@
                 'hideOnlineSupportButton',
                 'hidePurchaseCoupon',
                 'hidePlanSpeed',
+                'customHideDedicatedNodes',
                 'sspanelNodePageParseEnabled',
                 'registrationInviteEnabled',
                 'registrationInviteLinkEnabled',
@@ -6550,6 +6572,7 @@
             var hideOnlineSupportButton = !!document.getElementById('hideOnlineSupportButton').checked;
             var hidePurchaseCoupon = !!document.getElementById('hidePurchaseCoupon').checked;
             var hidePlanSpeed = !!document.getElementById('hidePlanSpeed').checked;
+            var hideDedicatedNodes = !!document.getElementById('customHideDedicatedNodes').checked;
             var sspanelNodePageParseEnabled = !!document.getElementById('sspanelNodePageParseEnabled').checked;
             var registrationInviteEnabled = !!document.getElementById('registrationInviteEnabled').checked;
             var registrationInviteMode = String(document.getElementById('registrationInviteMode').value || 'default_when_empty').trim();
@@ -6638,6 +6661,7 @@
                     hide_online_support_button: hideOnlineSupportButton,
                     hide_purchase_coupon: hidePurchaseCoupon,
                     hide_plan_speed: hidePlanSpeed,
+                    hide_dedicated_nodes: hideDedicatedNodes,
                     sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
                     registration_invite_enabled: registrationInviteEnabled,
                     registration_invite_mode: registrationInviteMode,
@@ -6718,6 +6742,7 @@
             'hide_online_support_button',
             'hide_purchase_coupon',
             'hide_plan_speed',
+            'hide_dedicated_nodes',
             'sspanel_node_page_parse',
             'registration_invite',
             'custom_invite_link',
@@ -7455,6 +7480,7 @@
                 '    variant: legacy',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
+                '    hide_dedicated_nodes: false',
                 '    hide_purchase_coupon: false',
                 '    hide_plan_speed: false',
                 '    show_ip_info: true',
@@ -7674,6 +7700,7 @@
                 ui_variant: normalizeUiVariant(document.getElementById('uiVariant').value),
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
+                hide_dedicated_nodes: document.getElementById('showDedicatedNodes').checked,
                 hide_purchase_coupon: document.getElementById('hidePurchaseCoupon') ? document.getElementById('hidePurchaseCoupon').checked : false,
                 hide_plan_speed: document.getElementById('hidePlanSpeed') ? document.getElementById('hidePlanSpeed').checked : false,
                 show_ip_info: document.getElementById('showIpInfo').checked,
@@ -8737,7 +8764,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'showIpInfo', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'authPagesSupportShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'showDedicatedNodes', 'showIpInfo', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'authPagesSupportShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -10257,6 +10284,14 @@
             var hideNodeStatus = hideNodeStatusMatch ? hideNodeStatusMatch[1] === 'true' : false;
             document.getElementById('hideNodeStatus').checked = hideNodeStatus;
             document.getElementById('hideNodeStatusLabel').textContent = hideNodeStatus ? '开启' : '关闭';
+            var showDedicatedNodesMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_dedicated_nodes:\s*(true|false)/) ||
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)hideDedicatedNodes:\s*(true|false)/) ||
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)show_dedicated_nodes:\s*(true|false)/) ||
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)showDedicatedNodes:\s*(true|false)/);
+            var showDedicatedNodes = showDedicatedNodesMatch ? showDedicatedNodesMatch[1] === 'true' : false;
+            document.getElementById('showDedicatedNodes').checked = showDedicatedNodes;
+            document.getElementById('showDedicatedNodesLabel').textContent = showDedicatedNodes ? '开启' : '关闭';
             var hidePurchaseCouponMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_purchase_coupon:\s*(true|false)/) ||
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)hidePurchaseCoupon:\s*(true|false)/);

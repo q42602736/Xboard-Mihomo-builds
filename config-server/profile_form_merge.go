@@ -270,10 +270,11 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	setMapBoolValue(ui, "hide_node_status", form.HideNodeStatus)
 	if rootKey == "nexgen" {
 		setMapBoolValue(ui, "hide_invite_promotion", form.HideInvitePromotion)
-		setMapBoolValue(ui, "hide_dedicated_nodes", form.HideDedicatedNodes)
 	} else {
-		removeMapKeys(ui, "hide_invite_promotion", "hideInvitePromotion", "hide_dedicated_nodes", "hideDedicatedNodes", "show_dedicated_nodes", "showDedicatedNodes")
+		removeMapKeys(ui, "hide_invite_promotion", "hideInvitePromotion")
 	}
+	setMapBoolValue(ui, "hide_dedicated_nodes", form.HideDedicatedNodes)
+	removeMapKeys(ui, "hideDedicatedNodes", "show_dedicated_nodes", "showDedicatedNodes")
 	setMapBoolValue(ui, "hide_current_node_label", form.HideCurrentNodeLabel)
 	setMapBoolValue(ui, "hide_page_header_text", form.HidePageHeaderText)
 	if form.HidePurchaseCoupon != nil {

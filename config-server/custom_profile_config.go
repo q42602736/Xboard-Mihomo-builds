@@ -403,7 +403,7 @@ func filterAllowedUIColorFeatureKeysForClient(featureKeys []string, client strin
 	}
 	result := allowed[:0]
 	for _, featureKey := range allowed {
-		if featureKey == customFeatureHideDedicatedNodes {
+		if featureKey == customFeatureHideDedicatedNodes && client != buildClientLegacy {
 			continue
 		}
 		if featureKey == customFeatureHideInvitePromotion || featureKey == customFeatureHideCurrentNodeLabel || featureKey == customFeatureHidePageHeaderText {
@@ -724,11 +724,11 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	if profileRootKey == "nexgen" {
 		setMapBoolValue(ui, "hide_invite_promotion", config.HideInvitePromotion)
 		removeMapKeys(ui, "hideInvitePromotion")
-		setMapBoolValue(ui, "hide_dedicated_nodes", config.HideDedicatedNodes)
-		removeMapKeys(ui, "hideDedicatedNodes", "show_dedicated_nodes", "showDedicatedNodes")
 	} else {
-		removeMapKeys(ui, "hide_invite_promotion", "hideInvitePromotion", "hide_dedicated_nodes", "hideDedicatedNodes", "show_dedicated_nodes", "showDedicatedNodes")
+		removeMapKeys(ui, "hide_invite_promotion", "hideInvitePromotion")
 	}
+	setMapBoolValue(ui, "hide_dedicated_nodes", config.HideDedicatedNodes)
+	removeMapKeys(ui, "hideDedicatedNodes", "show_dedicated_nodes", "showDedicatedNodes")
 	setMapBoolValue(ui, "hide_current_node_label", config.HideCurrentNodeLabel)
 	removeMapKeys(ui, "hideCurrentNodeLabel")
 	setMapBoolValue(ui, "hide_page_header_text", config.HidePageHeaderText)
