@@ -720,10 +720,13 @@ jobs:
           echo "扫描 Flutter Android 插件 Gradle 配置：${#plugin_files[@]} 个"
           for package_file in "${plugin_files[@]}"; do
             before="$(grep -nE 'compileSdkVersion|compileSdk' "$package_file" || true)"
+            before_proguard="$(grep -nF 'proguard-android.txt' "$package_file" || true)"
             perl -0pi -e \
               's/(compileSdkVersion\s+)(?:[1-9]|[12][0-9]|3[0-5]|36[0-9]+)(?=\s|$)/${1}36/g; s/(compileSdk\s*=\s*)(?:[1-9]|[12][0-9]|3[0-5]|36[0-9]+)(?=\s|$)/${1}36/g; s/(compileSdk\s+)(?:[1-9]|[12][0-9]|3[0-5]|36[0-9]+)(?=\s|$)/${1}36/g' \
               "$package_file"
+            perl -0pi -e 's/proguard-android\.txt/proguard-android-optimize.txt/g' "$package_file"
             after="$(grep -nE 'compileSdkVersion|compileSdk' "$package_file" || true)"
+            after_proguard="$(grep -nF 'proguard-android-optimize.txt' "$package_file" || true)"
 
             if grep -Eq \
               'compileSdkVersion[[:space:]]+([1-9]|[12][0-9]|3[0-5])([[:space:]]|$)|compileSdk[[:space:]]*=[[:space:]]*([1-9]|[12][0-9]|3[0-5])([[:space:]]|$)|compileSdk[[:space:]]+([1-9]|[12][0-9]|3[0-5])([[:space:]]|$)' \
@@ -732,9 +735,17 @@ jobs:
               exit 1
             fi
 
-            if [ "$before" != "$after" ]; then
+            if grep -qF 'proguard-android.txt' "$package_file"; then
+              echo "::error::Flutter Android 插件 ProGuard 配置修补失败：$package_file"
+              exit 1
+            fi
+
+            if [ "$before" != "$after" ] || [ "$before_proguard" != "" ]; then
               echo "已修补 Flutter Android 插件：$package_file"
               printf '%s\n' "$before" "$after"
+              if [ "$before_proguard" != "" ]; then
+                printf 'ProGuard 修补前：%s\nProGuard 修补后：%s\n' "$before_proguard" "$after_proguard"
+              fi
               patched_files+=("$package_file")
             fi
           done
