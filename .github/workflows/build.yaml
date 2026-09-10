@@ -792,8 +792,8 @@ jobs:
           )
 
           if [ "${#package_files[@]}" -eq 0 ]; then
-            echo "::error::找不到 flutter_inappwebview_macos 的 Package.swift"
-            exit 1
+            echo "当前 flutter_inappwebview_macos 未使用 Swift Package Manager，跳过部署版本补丁"
+            exit 0
           fi
 
           for package_file in "${package_files[@]}"; do
@@ -1671,8 +1671,8 @@ jobs:
         run: |
           PLUGIN_FILE="$(find "${PUB_CACHE:-$HOME/.pub-cache}" -path '*flutter_inappwebview_linux-*/linux/in_app_webview/in_app_webview.cc' | head -1)"
           if [ -z "$PLUGIN_FILE" ]; then
-            echo "flutter_inappwebview_linux source file not found"
-            exit 1
+            echo "当前依赖未包含 flutter_inappwebview_linux，跳过 WebKit 兼容补丁"
+            exit 0
           fi
 
           echo "Patching plugin file: $PLUGIN_FILE"
