@@ -20,6 +20,8 @@ type ProfileFormState struct {
 	PreferEncrypt                     bool                      `json:"prefer_encrypt"`
 	SubscriptionUserAgent             string                    `json:"user_agent"`
 	SubscriptionExclusiveUserAgent    string                    `json:"exclusive_user_agent"`
+	SubscriptionCustomDomain          string                    `json:"custom_domain"`
+	SubscriptionCustomSubscribeDomain string                    `json:"custom_subscribe_domain"`
 	SubscriptionCustomQuerySuffix     string                    `json:"custom_query_suffix"`
 	UseExclusiveMode                  bool                      `json:"use_exclusive_mode"`
 	DecryptKey                        string                    `json:"decrypt_key"`
@@ -182,6 +184,13 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 		setMapStringValue(subscription, "custom_query_suffix", strings.TrimSpace(form.SubscriptionCustomQuerySuffix))
 	}
 	setMapBoolValue(subscription, "use_exclusive_mode", form.UseExclusiveMode)
+	if rootKey == "nexgen" {
+		setMapStringValue(subscription, "custom_domain", strings.TrimSpace(form.SubscriptionCustomDomain))
+		removeMapKeys(subscription, "customDomain", "custom_subscribe_domain", "customSubscribeDomain")
+	} else {
+		setMapStringValue(subscription, "custom_subscribe_domain", strings.TrimSpace(form.SubscriptionCustomSubscribeDomain))
+		removeMapKeys(subscription, "customSubscribeDomain", "custom_domain", "customDomain")
+	}
 	setMapStringValue(subscription, "decrypt_key", form.DecryptKey)
 	if form.APIEncryptedUserAgent != nil {
 		setMapStringValue(securityUserAgents, "api_encrypted", strings.TrimSpace(*form.APIEncryptedUserAgent))

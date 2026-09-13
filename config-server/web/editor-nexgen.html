@@ -3444,7 +3444,7 @@
                                 <div class="switch-card-extra">
                                     <div class="form-group" style="margin-bottom:0;">
                                         <label>Telegram 频道或群组地址</label>
-                                        <input type="text" id="telegramUrl" placeholder="@fluentboard666 或 https://t.me/fluentboard666">
+                                        <input type="text" id="telegramUrl" placeholder="@username 或 https://t.me/username">
                                     </div>
                                 </div>
                                 <div class="help-text">支持 @username 或完整 t.me 链接；关闭后隐藏顶栏 Telegram 入口。</div>
@@ -3644,6 +3644,11 @@
                                 <label>订阅解密密钥</label>
                                 <input type="text" id="decryptKey" placeholder="your_secret_decrypt_key_here">
                                 <div class="help-text">可选。用于解密订阅服务端返回的加密内容；必须与服务端或远程配置约定的 <code>decrypt_key</code> 完全一致。留空表示不启用订阅解密。</div>
+                            </div>
+                            <div class="form-group">
+                                <label>自定义订阅域名</label>
+                                <input type="text" id="subscriptionCustomDomain" placeholder="只需填写域名，带不带 https:// 均可，留空则不启用">
+                                <div class="help-text">可选。配置后，无论后端返回的订阅地址还是 OSS 站点地址拼接的订阅链接，域名部分都会替换成这里的值，路径和 token 保持不变；请求失败时仍会自动回退到原有订阅地址。留空表示不启用。</div>
                             </div>
                         </div>
                         <div class="section">
@@ -6631,7 +6636,7 @@
                 syncDerivedProviderName({ updateRemotePreview: true });
                 formToYaml();
             });
-            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'decryptKey', 'apiEncryptedUserAgent', 'cloudDispatchQueryUrl', 'cloudDispatchQuerySecret', 'cloudDispatchAutoIntervalMinutes', 'cloudDispatchFallbackRetryMinutes', 'telegramUrl', 'utilityCfSpeedTargetDomains', 'utilityCfSpeedAutoReplaceIntervalMinutes', 'apiPathPrefix'].forEach(function(id) {
+            ['subscriptionUserAgent', 'subscriptionCustomDomain', 'subscriptionCustomQuerySuffix', 'decryptKey', 'apiEncryptedUserAgent', 'cloudDispatchQueryUrl', 'cloudDispatchQuerySecret', 'cloudDispatchAutoIntervalMinutes', 'cloudDispatchFallbackRetryMinutes', 'telegramUrl', 'utilityCfSpeedTargetDomains', 'utilityCfSpeedAutoReplaceIntervalMinutes', 'apiPathPrefix'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (!el) return;
                 el.addEventListener('input', formToYaml);
@@ -6759,6 +6764,7 @@
                 '    custom_query_suffix: clash=1',
                 '    sspanel_node_page_parse_enabled: false',
                 '    decrypt_key: ""',
+                '    custom_domain: ""',
                 '  security:',
                 '    user_agents:',
                 '      api_encrypted: ""',
@@ -7090,6 +7096,7 @@
                 custom_query_suffix: document.getElementById('subscriptionCustomQuerySuffix').value.trim(),
                 use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
+                custom_domain: document.getElementById('subscriptionCustomDomain').value.trim(),
                 api_encrypted_user_agent: document.getElementById('apiEncryptedUserAgent').value.trim(),
                 dns_override_default: document.getElementById('dnsOverrideDefault').checked,
                 auto_test_after_login: document.getElementById('autoTestAfterLogin').checked,
@@ -10082,6 +10089,7 @@
             document.getElementById('useExclusiveModeLabel').textContent = getSubscriptionBool('use_exclusive_mode') ? '开启' : '关闭';
             syncExclusiveSubscriptionUserAgentVisibility(getSubscriptionBool('use_exclusive_mode'));
             document.getElementById('decryptKey').value = getSubscriptionValue('decrypt_key');
+            document.getElementById('subscriptionCustomDomain').value = getSubscriptionValue('custom_domain');
             var securityUserAgentsBlock = extractNestedYamlBlock(yaml, ['security', 'user_agents']);
             var apiEncryptedUserAgentMatch = String(securityUserAgentsBlock || '').match(/^\s*api_encrypted:[^\S\n]*(.*)$/m);
             if (!apiEncryptedUserAgentMatch) {
