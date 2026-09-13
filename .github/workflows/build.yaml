@@ -2126,6 +2126,7 @@ jobs:
               exit 1
               ;;
           esac
+          mkdir -p ../router-profile
           printf '%s\n' "$PINYIN_NAME" > ../router-profile/package_slug
           cd ..
           /usr/bin/python3 build-server/.github/scripts/prepare-router-profile.py \
