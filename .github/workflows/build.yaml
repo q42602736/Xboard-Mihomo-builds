@@ -2091,6 +2091,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libarchive-tools python3-yaml
 
+      - name: 准备应用拼音命名环境
+        if: steps.check.outputs.should_run == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
       - name: 注入软路由品牌和运行配置
         if: steps.check.outputs.should_run == 'true'
         env:
@@ -2107,8 +2113,24 @@ jobs:
           gh api --method GET "repos/$PROFILE_REPO/contents/$ENCODED_PROFILE_PATH" \
             -f ref="${PROFILE_BRANCH:-profiles}" --jq '.content' \
             | base64 --decode > router-profile.yaml
+          mkdir -p source/assets/config
+          cp router-profile.yaml source/assets/config/xboard.config.yaml
+          cd source
+          flutter pub get
+          dart run scripts/generate_executable_names.dart
+          PINYIN_NAME=$(grep "const String executableAppName = '" lib/generated/executable_names.dart | sed "s/.*const String executableAppName = '\([^']*\)'.*/\1/")
+          PINYIN_NAME=$(printf '%s' "$PINYIN_NAME" | sed 's/[^A-Za-z0-9-]//g' | tr '[:upper:]' '[:lower:]')
+          case "$PINYIN_NAME" in
+            ''|*[!a-z0-9-]*)
+              echo "::error::无法从应用品牌名生成有效的拼音包名。"
+              exit 1
+              ;;
+          esac
+          printf '%s\n' "$PINYIN_NAME" > ../router-profile/package_slug
+          cd ..
           /usr/bin/python3 build-server/.github/scripts/prepare-router-profile.py \
             router-profile.yaml source router-profile "$PROFILE_NAME"
+          printf '%s\n' "$PINYIN_NAME" > router-profile/package_slug
 
       - name: 回写软路由构建进度
         if: steps.check.outputs.should_run == 'true'

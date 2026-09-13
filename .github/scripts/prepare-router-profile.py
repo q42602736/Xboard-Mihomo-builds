@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import hashlib
 import json
 import re
 import sys
@@ -90,7 +89,7 @@ def prepare_profile(profile_path, source_dir, output_dir, profile_name):
     # 中文品牌名保留在界面中，包标识使用稳定的 ASCII 名称。
     package_slug = re.sub(r"[^a-z0-9-]", "", app_name.lower()).strip("-")
     if not package_slug:
-        package_slug = "xboard-" + hashlib.sha256(profile_name.encode("utf-8")).hexdigest()[:12]
+        package_slug = re.sub(r"[^a-z0-9-]", "", profile_name.lower()).strip("-") or "xboard"
 
     output_dir.mkdir(parents=True, exist_ok=True)
     config_path = output_dir / "config.json"
