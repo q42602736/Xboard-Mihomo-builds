@@ -35,12 +35,12 @@ on:
           - mihomo
           - xray
       platforms:
-        description: '选择要编译的平台（多选用逗号分隔，如: windows,android 或 linux-amd64）'
+        description: '选择要编译的平台（多选用逗号分隔，如: windows,android 或 openwrt）'
         required: true
         type: string
         default: 'all'
-        # 可选值: all, windows, windows-amd64, windows-arm64, android, android-tv, linux, linux-arm64, linux-amd64, macos-arm64, macos-amd64
-        # 注意: all 包含 windows/linux/macos 双架构，以及 android-tv
+        # 可选值: all, windows, windows-amd64, windows-arm64, android, android-tv, linux, linux-arm64, linux-amd64, openwrt, macos-arm64, macos-amd64
+        # 注意: all 包含 windows/linux/macos 双架构、android-tv 和软路由；openwrt 默认生成 x86_64 与 ARM64 两个 IPK 包
         # 示例: windows,android 或 windows-arm64,linux-amd64,macos-arm64
       request_id:
         description: '构建请求唯一标识（由配置服务器生成，用于匹配本次构建运行）'
@@ -2017,11 +2017,190 @@ jobs:
           printf '%s\n' "$FINAL_ASSET_COUNT"
           rm -f asset_count.txt
 
+  build-router:
+    needs: prepare-release
+    if: ${{ github.event.inputs.core != 'xray' }}
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            ipk_arch: x86_64
+            label: 软路由 x86_64
+          - arch: arm64
+            ipk_arch: aarch64_generic
+            label: 软路由 ARM64
+    env:
+      GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+      RELEASE_TAG: ${{ needs.prepare-release.outputs.release_tag }}
+      CONFIG_SERVER_URL: ${{ secrets.CONFIG_SERVER_URL }}
+      CONFIG_SERVER_EVENT_TOKEN: ${{ secrets.CONFIG_SERVER_EVENT_TOKEN }}
+      REQUEST_ID: ${{ github.event.inputs.request_id }}
+      RUN_ID: ${{ github.run_id }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      PLATFORM_KEY: openwrt-${{ matrix.arch }}
+      PLATFORM_LABEL: ${{ matrix.label }}
+    steps:
+      - name: 检查是否打包软路由
+        id: check
+        env:
+          SELECTED_PLATFORMS: ${{ github.event.inputs.platforms }}
+        run: |
+          SELECTED=$(printf '%s' "${SELECTED_PLATFORMS:-all}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+          case ",$SELECTED," in
+            *,all,*|*,openwrt,*|*,"$PLATFORM_KEY",*)
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *) echo "should_run=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: 检出打包脚本
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+        with:
+          path: build-server
+          persist-credentials: false
+
+      - name: 检出老客户端源码
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MIHOMO_SOURCE_REPO }}
+          ref: ${{ github.event.inputs.branch || github.event.inputs.tag }}
+          token: ${{ secrets.WORKFLOW_TOKEN }}
+          submodules: recursive
+          persist-credentials: false
+          path: source
+
+      - name: 准备 Go 环境
+        if: steps.check.outputs.should_run == 'true'
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          cache-dependency-path: source/core/Clash.Meta/go.sum
+
+      - name: 安装 IPK 打包依赖
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools python3-yaml
+
+      - name: 注入软路由品牌和运行配置
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          PROFILE_NAME: ${{ github.event.inputs.profile }}
+          PROFILE_BRANCH: ${{ github.event.inputs.profile_branch }}
+        run: |
+          ROUTER_SCRIPT="source/router/luci-app-xboard-openclash/build-standalone-ipk.sh"
+          if [ ! -f "$ROUTER_SCRIPT" ] || ! grep -q 'ROUTER_PROFILE_DIR' "$ROUTER_SCRIPT" || ! grep -q 'ROUTER_GOARCH' "$ROUTER_SCRIPT"; then
+            echo "::error::所选源码分支缺少软路由双架构及档案注入支持，请先同步老客户端打包脚本。"
+            exit 1
+          fi
+          PROFILE_PATH="profiles/$PROFILE_NAME.yaml"
+          ENCODED_PROFILE_PATH=$(node -e 'console.log(process.argv[1].split("/").map(encodeURIComponent).join("/"))' "$PROFILE_PATH")
+          gh api --method GET "repos/$PROFILE_REPO/contents/$ENCODED_PROFILE_PATH" \
+            -f ref="${PROFILE_BRANCH:-profiles}" --jq '.content' \
+            | base64 --decode > router-profile.yaml
+          /usr/bin/python3 build-server/.github/scripts/prepare-router-profile.py \
+            router-profile.yaml source router-profile "$PROFILE_NAME"
+
+      - name: 回写软路由构建进度
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          PAYLOAD=$(node - <<'NODE'
+          process.stdout.write(JSON.stringify({
+            request_id: process.env.REQUEST_ID,
+            run_id: Number(process.env.RUN_ID),
+            run_url: process.env.RUN_URL,
+            status: "in_progress",
+            progress_percent: 45,
+            progress_stage: "build",
+            progress_text: "",
+            progress_detail: {
+              key: process.env.PLATFORM_KEY,
+              label: process.env.PLATFORM_LABEL,
+              status: "in_progress",
+              stage: "build",
+              text: "正在编译软路由安装包"
+            }
+          }));
+          NODE
+          )
+          curl -fsS -X POST "${CONFIG_SERVER_URL%/}/api/internal/build-events/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+            -d "$PAYLOAD" || true
+
+      - name: 生成软路由 IPK
+        if: steps.check.outputs.should_run == 'true'
+        env:
+          ARCH: ${{ matrix.ipk_arch }}
+          VERSION: ${{ github.event.inputs.tag }}
+          RELEASE: ${{ github.run_number }}
+          ROUTER_PROFILE_DIR: ${{ github.workspace }}/router-profile
+        run: sh source/router/luci-app-xboard-openclash/build-standalone-ipk.sh
+
+      - name: 上传软路由安装包
+        if: steps.check.outputs.should_run == 'true'
+        run: |
+          shopt -s nullglob
+          PACKAGES=(source/dist/router/*.ipk)
+          if [ "${#PACKAGES[@]}" -ne 1 ]; then
+            echo "::error::当前软路由架构必须生成一个 IPK 安装包。"
+            exit 1
+          fi
+          gh release upload "$RELEASE_TAG" "${PACKAGES[0]}" "${PACKAGES[0]}.sha256" --clobber
+          UPLOADED_NAMES=$(gh api "repos/$GH_REPO/releases/$RELEASE_ID/assets" --paginate \
+            --jq '.[] | select(.state == "uploaded") | .name')
+          for file in "${PACKAGES[0]}" "${PACKAGES[0]}.sha256"; do
+            if ! printf '%s\n' "$UPLOADED_NAMES" | grep -Fx -- "$(basename "$file")" > /dev/null; then
+              echo "::error::软路由产物上传后校验失败。"
+              exit 1
+            fi
+          done
+
+      - name: 回写软路由构建结果
+        if: always() && steps.check.outputs.should_run == 'true'
+        env:
+          PLATFORM_RESULT: ${{ job.status }}
+        run: |
+          PAYLOAD=$(node - <<'NODE'
+          const conclusion = process.env.PLATFORM_RESULT || "failure";
+          process.stdout.write(JSON.stringify({
+            request_id: process.env.REQUEST_ID,
+            run_id: Number(process.env.RUN_ID),
+            run_url: process.env.RUN_URL,
+            status: "in_progress",
+            progress_percent: 80,
+            progress_stage: "upload",
+            progress_text: "",
+            progress_detail: {
+              key: process.env.PLATFORM_KEY,
+              label: process.env.PLATFORM_LABEL,
+              status: "completed",
+              conclusion,
+              stage: "completed",
+              text: conclusion === "success" ? "安装包已上传" : (conclusion === "cancelled" ? "已取消" : "打包失败")
+            }
+          }));
+          NODE
+          )
+          curl -fsS -X POST "${CONFIG_SERVER_URL%/}/api/internal/build-events/progress" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Event-Token: $CONFIG_SERVER_EVENT_TOKEN" \
+            -d "$PAYLOAD" || true
+
   # 从 Draft Release 汇总所有平台产物并回传合集包
   merge-artifacts:
     runs-on: ubuntu-latest
-    needs: [ prepare-release, build, build-linux ]
-    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.build-linux.result == 'success' || needs.build-linux.result == 'skipped') }}
+    needs: [ prepare-release, build, build-linux, build-router ]
+    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.build-linux.result == 'success' || needs.build-linux.result == 'skipped') && (needs.build-router.result == 'success' || needs.build-router.result == 'skipped') }}
     steps:
       - name: Report Bundle Started
         env:
@@ -2088,10 +2267,19 @@ jobs:
             # 从构建产物文件名中提取拼音应用名称
             # 例如：Qieyun-1.0.0-android-arm64-v8a.apk -> Qieyun
             FIRST_FILE=$(find ./dist -type f \( -iname "*.apk" -o -iname "*.dmg" -o -iname "*.exe" -o -iname "*.deb" -o -iname "*.appimage" -o -iname "*.rpm" \) | head -1)
+            if [ -z "$FIRST_FILE" ]; then
+              FIRST_FILE=$(find ./dist -type f -iname "*.ipk" | head -1)
+            fi
             if [ -n "$FIRST_FILE" ]; then
               FILENAME=$(basename "$FIRST_FILE")
               # 提取第一个 - 之前的部分作为拼音应用名称
-              PINYIN_NAME=$(echo "$FILENAME" | sed 's/-.*$//')
+              case "$FILENAME" in
+                luci-app-*.ipk)
+                  PINYIN_NAME=${FILENAME#luci-app-}
+                  PINYIN_NAME=${PINYIN_NAME%%_*}
+                  ;;
+                *) PINYIN_NAME=$(echo "$FILENAME" | sed 's/-.*$//') ;;
+              esac
               echo "profile_name_safe=$PINYIN_NAME" >> $GITHUB_OUTPUT
               echo "Extracted pinyin name: $PINYIN_NAME"
             else
@@ -2261,7 +2449,7 @@ jobs:
 
   notify-build-complete:
     runs-on: ubuntu-latest
-    needs: [ prepare-release, build, build-linux, merge-artifacts ]
+    needs: [ prepare-release, build, build-linux, build-router, merge-artifacts ]
     if: ${{ always() }}
     steps:
       - name: Complete Build Record
@@ -2275,6 +2463,7 @@ jobs:
           PREPARE_RESULT: ${{ needs.prepare-release.result }}
           BUILD_RESULT: ${{ needs.build.result }}
           BUILD_LINUX_RESULT: ${{ needs.build-linux.result }}
+          BUILD_ROUTER_RESULT: ${{ needs.build-router.result }}
           MERGE_RESULT: ${{ needs.merge-artifacts.result }}
         run: |
           if [ -z "$REQUEST_ID" ]; then
@@ -2291,9 +2480,9 @@ jobs:
           fi
 
           CONCLUSION="success"
-          if [ "$PREPARE_RESULT" = "failure" ] || [ "$BUILD_RESULT" = "failure" ] || [ "$BUILD_LINUX_RESULT" = "failure" ] || [ "$MERGE_RESULT" = "failure" ]; then
+          if [ "$PREPARE_RESULT" = "failure" ] || [ "$BUILD_RESULT" = "failure" ] || [ "$BUILD_LINUX_RESULT" = "failure" ] || [ "$BUILD_ROUTER_RESULT" = "failure" ] || [ "$MERGE_RESULT" = "failure" ]; then
             CONCLUSION="failure"
-          elif [ "$PREPARE_RESULT" = "cancelled" ] || [ "$BUILD_RESULT" = "cancelled" ] || [ "$BUILD_LINUX_RESULT" = "cancelled" ] || [ "$MERGE_RESULT" = "cancelled" ]; then
+          elif [ "$PREPARE_RESULT" = "cancelled" ] || [ "$BUILD_RESULT" = "cancelled" ] || [ "$BUILD_LINUX_RESULT" = "cancelled" ] || [ "$BUILD_ROUTER_RESULT" = "cancelled" ] || [ "$MERGE_RESULT" = "cancelled" ]; then
             CONCLUSION="cancelled"
           fi
 

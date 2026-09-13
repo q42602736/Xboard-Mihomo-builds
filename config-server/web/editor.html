@@ -4585,10 +4585,11 @@
 	                                <label class="platform-checkbox"><input type="checkbox" value="android-tv" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Android TV</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="linux-arm64" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Linux ARM64</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="linux-amd64" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Linux AMD64</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="openwrt" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">软路由</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">macOS ARM64</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">macOS AMD64</span></label>
 	                            </div>
-	                            <div class="help-text" id="buildPlatformHelpText">Windows、Linux 和 macOS 都只保留 ARM64 / AMD64 两个架构选项。Android TV 使用独立入口和 TV 界面，勾选后会产出 arm64-v8a 与 armeabi-v7a 两个 TV 安装包；如需全平台请直接选择“全部平台”。</div>
+	                            <div class="help-text" id="buildPlatformHelpText">勾选软路由会同时生成 x86_64、ARM64 两个 IPK 包；“全部平台”包含软路由。Android TV 会生成两个架构的 TV 安装包。</div>
 	                        </div>
                         <div id="buildQueue" style="margin-top: 15px; padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
                             <span style="color: #aaa; font-size: 13px;">打包队列：</span>
@@ -5414,6 +5415,9 @@
                 'android-tv': 'Android TV',
                 'linux-arm64': 'Linux ARM64',
                 'linux-amd64': 'Linux AMD64',
+                'openwrt': '软路由',
+                'openwrt-amd64': '软路由',
+                'openwrt-arm64': '软路由',
                 'macos-arm64': 'macOS ARM64',
                 'macos-amd64': 'macOS AMD64'
             };
@@ -5427,6 +5431,8 @@
 	                'android-tv',
 	                'linux-arm64',
 	                'linux-amd64',
+	                'openwrt-amd64',
+	                'openwrt-arm64',
 	                'macos-arm64',
 	                'macos-amd64'
 	            ];
@@ -5452,7 +5458,8 @@
 	        function getBuildPlatformCatalogValuesForCore(core) {
 	            core = core || getSelectedBuildCore();
 	            return getBuildPlatformCatalogValues().filter(function(platform) {
-	                var cb = document.querySelector('.platformItem[value="' + platform + '"]');
+	                var checkboxValue = platform.indexOf('openwrt-') === 0 ? 'openwrt' : platform;
+	                var cb = document.querySelector('.platformItem[value="' + checkboxValue + '"]');
 	                if (!cb) return true;
 	                var cores = String(cb.getAttribute('data-cores') || 'mihomo').split(',');
 	                return cores.indexOf(core) !== -1;
@@ -5469,12 +5476,15 @@
                 return '全部平台';
             }
             var labelMap = getBuildPlatformLabelMap();
-            return normalizeAllowedBuildPlatformsForCurrentClient(platforms).map(function(platform) {
+            return Array.from(new Set(normalizeAllowedBuildPlatformsForCurrentClient(platforms).map(function(platform) {
                 return escapeHtml(labelMap[platform] || platform);
-            }).join('、');
+            }))).join('、');
         }
 
 	        function isBuildPlatformAllowed(platform) {
+	            if (platform === 'openwrt') {
+	                return isBuildPlatformAllowed('openwrt-amd64') && isBuildPlatformAllowed('openwrt-arm64');
+	            }
 	            if (getBuildPlatformCatalogValuesForCore().indexOf(platform) === -1) {
 	                return false;
 	            }
@@ -5516,7 +5526,9 @@
 
 	            itemCheckboxes.forEach(function(cb) {
 	                var allowed = isBuildPlatformAllowed(cb.value);
-	                var supportedByCore = currentCatalog.indexOf(cb.value) !== -1;
+	                var supportedByCore = cb.value === 'openwrt'
+	                    ? currentCatalog.indexOf('openwrt-amd64') !== -1 && currentCatalog.indexOf('openwrt-arm64') !== -1
+	                    : currentCatalog.indexOf(cb.value) !== -1;
 	                var label = cb.closest('.platform-checkbox');
 	                cb.disabled = !allowed;
 	                if (label) {
@@ -5544,9 +5556,9 @@
 	            var help = document.getElementById('buildPlatformHelpText');
 	            if (!help) return;
 	            if (getSelectedBuildCore() === 'xray') {
-	                help.textContent = 'Xray 内核当前只支持 Windows ARM64/AMD64、Android（手机）和 macOS ARM64/AMD64；Linux 与 Android TV 已自动隐藏。';
+	                help.textContent = 'Xray 内核当前只支持 Windows ARM64/AMD64、Android（手机）和 macOS ARM64/AMD64；Linux、Android TV 与软路由已自动隐藏。';
 	            } else {
-	                help.textContent = 'Windows、Linux 和 macOS 都只保留 ARM64 / AMD64 两个架构选项。Android TV 使用独立入口和 TV 界面，勾选后会产出 arm64-v8a 与 armeabi-v7a 两个 TV 安装包；如需全平台请直接选择“全部平台”。';
+	                help.textContent = '勾选软路由会同时生成 x86_64、ARM64 两个 IPK 包；“全部平台”包含软路由。Android TV 会生成两个架构的 TV 安装包。';
 	            }
 	        }
 
@@ -5602,6 +5614,10 @@
                         addJob('linux-amd64');
                         addJob('linux-arm64');
                         break;
+                    case 'openwrt':
+                        addJob('openwrt-amd64');
+                        addJob('openwrt-arm64');
+                        break;
                     case 'macos':
                         addJob('macos-amd64');
                         addJob('macos-arm64');
@@ -5613,6 +5629,8 @@
                     case 'android-tv':
                     case 'linux-amd64':
 	                    case 'linux-arm64':
+	                    case 'openwrt-amd64':
+	                    case 'openwrt-arm64':
 	                    case 'macos-amd64':
 		                    case 'macos-arm64':
 		                        if (catalog.indexOf(token) !== -1) {
@@ -10926,6 +10944,10 @@
                     return 'Linux x64';
                 case 'linux-arm64':
                     return 'Linux ARM64';
+                case 'openwrt-amd64':
+                    return '软路由 x86_64';
+                case 'openwrt-arm64':
+                    return '软路由 ARM64';
                 case 'macos-amd64':
                     return 'macOS Intel';
                 case 'macos-arm64':

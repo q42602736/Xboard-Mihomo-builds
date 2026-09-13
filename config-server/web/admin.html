@@ -1682,6 +1682,7 @@
             { value: 'android-tv', label: 'Android TV' },
             { value: 'linux-arm64', label: 'Linux ARM64' },
             { value: 'linux-amd64', label: 'Linux AMD64' },
+            { value: 'openwrt', label: '软路由' },
             { value: 'macos-arm64', label: 'macOS ARM64' },
             { value: 'macos-amd64', label: 'macOS AMD64' }
         ];
@@ -2291,6 +2292,7 @@
                 platform = String(platform || '').trim();
                 if (platform) selectedMap[platform] = true;
             });
+            selectedMap.openwrt = selectedMap.openwrt || (selectedMap['openwrt-amd64'] && selectedMap['openwrt-arm64']);
 
             container.innerHTML = '';
             buildPlatformCatalog.forEach(function(platform) {
@@ -2419,9 +2421,11 @@
             buildPlatformCatalog.forEach(function(platform) {
                 labelMap[platform.value] = platform.label;
             });
-            return platforms.map(function(platform) {
+            labelMap['openwrt-amd64'] = '软路由';
+            labelMap['openwrt-arm64'] = '软路由';
+            return Array.from(new Set(platforms.map(function(platform) {
                 return escapeHtml(labelMap[platform] || platform);
-            }).join(', ');
+            }))).join(', ');
         }
 
         function formatAllowedPlatformsShort(platforms) {
@@ -2436,12 +2440,15 @@
                 'android-tv': 'TV',
                 'linux-arm64': 'Linux ARM64',
                 'linux-amd64': 'Linux AMD64',
+                'openwrt': '软路由',
+                'openwrt-amd64': '软路由',
+                'openwrt-arm64': '软路由',
                 'macos-arm64': 'macOS ARM64',
                 'macos-amd64': 'macOS AMD64'
             };
-            return platforms.map(function(platform) {
+            return Array.from(new Set(platforms.map(function(platform) {
                 return escapeHtml(shortLabelMap[platform] || platform);
-            }).join(', ');
+            }))).join(', ');
         }
 
         function resetCreateForm() {
