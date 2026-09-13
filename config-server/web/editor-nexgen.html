@@ -3583,7 +3583,7 @@
                     <div class="page-header">
                         <div class="page-header-content">
                             <h2>订阅设置</h2>
-                            <p class="subtitle">普通模式 UA、专用模式、离线与缓存配置</p>
+                            <p class="subtitle">普通模式 UA、专用模式、面板 API、离线与缓存配置</p>
                         </div>
                     </div>
                     <div class="editor-container">
@@ -3644,6 +3644,19 @@
                                 <label>订阅解密密钥</label>
                                 <input type="text" id="decryptKey" placeholder="your_secret_decrypt_key_here">
                                 <div class="help-text">可选。用于解密订阅服务端返回的加密内容；必须与服务端或远程配置约定的 <code>decrypt_key</code> 完全一致。留空表示不启用订阅解密。</div>
+                            </div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">面板 API 请求</div>
+                            <div class="form-group">
+                                <label>面板 API 自定义 UA</label>
+                                <input type="text" id="apiEncryptedUserAgent" placeholder="留空时不启用自定义 UA">
+                                <div class="help-text">用于面板 API 请求；留空表示不设置自定义 UA。</div>
+                            </div>
+                            <div class="form-group">
+                                <label>自定义 API 逻辑前缀</label>
+                                <input type="text" id="apiPathPrefix" value="/api/v1" placeholder="/api/v1">
+                                <div class="help-text">客户端会用这里配置的 API 逻辑前缀替换默认 <code>/api/v1</code>，站点域名仍从配置文件获取。</div>
                             </div>
                         </div>
                         <div class="section" id="sspanelMetronConfigSection">
@@ -3759,11 +3772,6 @@
                         </div>
                     </div>
                     <div class="editor-container">
-                        <div class="form-group">
-                            <label>自定义 API 逻辑前缀</label>
-                            <input type="text" id="apiPathPrefix" value="/api/v1" placeholder="/api/v1">
-                            <div class="help-text">客户端会用这里配置的 API 逻辑前缀替换默认 <code>/api/v1</code>，站点域名仍从 OSS 配置文件获取。</div>
-                        </div>
                         <div id="sourcesContainer"></div>
                         <button type="button" class="btn btn-primary" id="addSourceBtn" style="margin-top: 10px;">+ 添加配置源</button>
                     </div>
@@ -6623,7 +6631,7 @@
                 syncDerivedProviderName({ updateRemotePreview: true });
                 formToYaml();
             });
-            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'decryptKey', 'cloudDispatchQueryUrl', 'cloudDispatchQuerySecret', 'cloudDispatchAutoIntervalMinutes', 'cloudDispatchFallbackRetryMinutes', 'telegramUrl', 'utilityCfSpeedTargetDomains', 'utilityCfSpeedAutoReplaceIntervalMinutes', 'apiPathPrefix'].forEach(function(id) {
+            ['subscriptionUserAgent', 'subscriptionCustomQuerySuffix', 'decryptKey', 'apiEncryptedUserAgent', 'cloudDispatchQueryUrl', 'cloudDispatchQuerySecret', 'cloudDispatchAutoIntervalMinutes', 'cloudDispatchFallbackRetryMinutes', 'telegramUrl', 'utilityCfSpeedTargetDomains', 'utilityCfSpeedAutoReplaceIntervalMinutes', 'apiPathPrefix'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (!el) return;
                 el.addEventListener('input', formToYaml);
@@ -6751,6 +6759,9 @@
                 '    custom_query_suffix: clash=1',
                 '    sspanel_node_page_parse_enabled: false',
                 '    decrypt_key: ""',
+                '  security:',
+                '    user_agents:',
+                '      api_encrypted: ""',
                 '  settings:',
                 '    dns_override_default: false',
                 '    auto_test_after_login: false',
@@ -7079,6 +7090,7 @@
                 custom_query_suffix: document.getElementById('subscriptionCustomQuerySuffix').value.trim(),
                 use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
+                api_encrypted_user_agent: document.getElementById('apiEncryptedUserAgent').value.trim(),
                 dns_override_default: document.getElementById('dnsOverrideDefault').checked,
                 auto_test_after_login: document.getElementById('autoTestAfterLogin').checked,
                 auto_connect_on_startup: document.getElementById('autoConnectOnStartup').checked,
@@ -10070,6 +10082,14 @@
             document.getElementById('useExclusiveModeLabel').textContent = getSubscriptionBool('use_exclusive_mode') ? '开启' : '关闭';
             syncExclusiveSubscriptionUserAgentVisibility(getSubscriptionBool('use_exclusive_mode'));
             document.getElementById('decryptKey').value = getSubscriptionValue('decrypt_key');
+            var securityUserAgentsBlock = extractNestedYamlBlock(yaml, ['security', 'user_agents']);
+            var apiEncryptedUserAgentMatch = String(securityUserAgentsBlock || '').match(/^\s*api_encrypted:[^\S\n]*(.*)$/m);
+            if (!apiEncryptedUserAgentMatch) {
+                apiEncryptedUserAgentMatch = String(securityUserAgentsBlock || '').match(/^\s*apiEncrypted:[^\S\n]*(.*)$/m);
+            }
+            document.getElementById('apiEncryptedUserAgent').value = apiEncryptedUserAgentMatch
+                ? stripYamlScalarQuotes(apiEncryptedUserAgentMatch[1])
+                : '';
             var dnsOverrideDefaultMatch =
                 yaml.match(/settings:\s*\n(?:[\s\S]*?)^\s{4}dns_override_default:\s*(true|false)/m) ||
                 yaml.match(/settings:\s*\n(?:[\s\S]*?)^\s{4}dnsOverrideDefault:\s*(true|false)/m);

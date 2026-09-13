@@ -147,6 +147,9 @@ func defaultProfileYaml(displayName string) string {
     use_exclusive_mode: false
     sspanel_node_page_parse_enabled: false
     decrypt_key: ""
+  security:
+    user_agents:
+      api_encrypted: ""
   settings:
     dns_override_default: false
     auto_test_after_login: false

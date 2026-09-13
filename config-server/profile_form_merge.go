@@ -23,6 +23,7 @@ type ProfileFormState struct {
 	SubscriptionCustomQuerySuffix     string                    `json:"custom_query_suffix"`
 	UseExclusiveMode                  bool                      `json:"use_exclusive_mode"`
 	DecryptKey                        string                    `json:"decrypt_key"`
+	APIEncryptedUserAgent             *string                   `json:"api_encrypted_user_agent"`
 	AutoOfflineEnabled                bool                      `json:"auto_offline_enabled"`
 	AutoOfflineForceOnStartup         bool                      `json:"auto_offline_force_on_startup"`
 	AutoOfflineIntervalHours          int                       `json:"auto_offline_interval_hours"`
@@ -161,6 +162,8 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	authPages := ensureMapValueNode(uiOnlineSupport, "auth_pages")
 	remoteConfig := ensureMapValueNode(profileRoot, "remote_config")
 	onlineSupport := ensureMapValueNode(profileRoot, "online_support")
+	security := ensureMapValueNode(profileRoot, "security")
+	securityUserAgents := ensureMapValueNode(security, "user_agents")
 
 	setMapStringValue(profileRoot, "provider", strings.TrimSpace(form.Provider))
 	setMapStringValue(profileRoot, "title", strings.TrimSpace(form.AppTitle))
@@ -180,6 +183,10 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	}
 	setMapBoolValue(subscription, "use_exclusive_mode", form.UseExclusiveMode)
 	setMapStringValue(subscription, "decrypt_key", form.DecryptKey)
+	if form.APIEncryptedUserAgent != nil {
+		setMapStringValue(securityUserAgents, "api_encrypted", strings.TrimSpace(*form.APIEncryptedUserAgent))
+		removeMapKeys(securityUserAgents, "apiEncrypted")
+	}
 	if rootKey == "nexgen" {
 		setMapBoolValue(settings, "dns_override_default", form.DNSOverrideDefault)
 		setMapBoolValue(settings, "auto_test_after_login", form.AutoTestAfterLogin)

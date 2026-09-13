@@ -22,10 +22,12 @@ const profileUiColorScheme = Object.prototype.hasOwnProperty.call(profileUi, "co
   : Object.prototype.hasOwnProperty.call(profileUi, "colorScheme")
     ? profileUi.colorScheme
     : "green";
-const nexgen = normalizeNexgenConfigDefaults(deepMerge(
-  record(defaultConfig.nexgen),
-  Object.keys(profileConfig).length > 0 ? convertNexgenProfile(profileConfig) : convertXboardToNexgen(legacyXboard),
-), {
+const profileOverride = Object.keys(profileConfig).length > 0
+  ? convertNexgenProfile(profileConfig)
+  : convertXboardToNexgen(legacyXboard);
+const mergedNexgen = deepMerge(record(defaultConfig.nexgen), profileOverride);
+normalizeApiEncryptedUserAgent(mergedNexgen, profileOverride);
+const nexgen = normalizeNexgenConfigDefaults(mergedNexgen, {
   uiVariant: profileUiVariant,
   uiColorScheme: profileUiColorScheme,
 });
@@ -232,6 +234,28 @@ function normalizeNexgenConfigDefaults(config, options = {}) {
   ui.telegram = normalizeTelegramOverride(ui.telegram);
   nexgen.ui = ui;
   return nexgen;
+}
+
+function normalizeApiEncryptedUserAgent(config, profileOverride) {
+  const profileSecurity = record(profileOverride.security);
+  const profileUserAgents = record(profileSecurity.user_agents ?? profileSecurity.userAgents);
+  const hasSnakeCaseValue = Object.prototype.hasOwnProperty.call(profileUserAgents, "api_encrypted");
+  const hasCamelCaseValue = Object.prototype.hasOwnProperty.call(profileUserAgents, "apiEncrypted");
+  const apiEncryptedUserAgent = hasSnakeCaseValue
+    ? text(profileUserAgents.api_encrypted)
+    : hasCamelCaseValue
+      ? text(profileUserAgents.apiEncrypted)
+      : "";
+
+  const security = record(config.security);
+  const userAgents = {
+    ...record(security.user_agents ?? security.userAgents),
+    api_encrypted: apiEncryptedUserAgent,
+  };
+  delete userAgents.apiEncrypted;
+  delete security.userAgents;
+  security.user_agents = userAgents;
+  config.security = security;
 }
 
 function normalizeUiVariant(value) {
