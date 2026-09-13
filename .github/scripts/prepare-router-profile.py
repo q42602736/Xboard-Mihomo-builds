@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import base64
+import binascii
 import json
 import re
 import sys
@@ -41,15 +43,31 @@ def prepare_profile(profile_path, source_dir, output_dir, profile_name):
     if not isinstance(sources, list):
         raise ValueError("remote_config.sources 必须是列表")
     urls = []
+    remote_sources = []
     for source in sources:
         source = mapping(source, "远程配置源")
-        if text(source.get("encryption_key")):
-            raise ValueError("软路由暂不支持加密的远程配置源，请使用明文 JSON 配置源")
         url = text(source.get("url"))
-        if url and url not in urls:
+        if not url:
+            continue
+        encryption_key = text(source.get("encryption_key", source.get("encryptionKey")))
+        entry = {"url": url}
+        if encryption_key:
+            if "remote_config_sources" not in config:
+                raise ValueError("所选源码版本缺少远程配置解密支持，请同步客户端源码后重试")
+            try:
+                key_bytes = base64.b64decode(encryption_key, validate=True)
+            except (ValueError, binascii.Error):
+                raise ValueError("远程配置 encryption_key 必须是有效 Base64") from None
+            if len(key_bytes) not in (16, 24, 32):
+                raise ValueError("远程配置 AES 密钥必须为 16、24 或 32 字节")
+            entry["encryption_key"] = encryption_key
+        elif url not in urls:
             urls.append(url)
+        if entry not in remote_sources:
+            remote_sources.append(entry)
     config["remote_config_urls"] = urls
-    if not urls and not config["panel_url"]:
+    config["remote_config_sources"] = remote_sources
+    if not remote_sources and not config["panel_url"]:
         raise ValueError("软路由档案缺少远程配置源或面板地址")
 
     api_prefix = text(next((remote[key] for key in (
