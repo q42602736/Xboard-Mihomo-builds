@@ -85,6 +85,9 @@ type ProfileFormState struct {
 	AuthPagesSupportShowButton        bool                      `json:"auth_pages_support_show_button"`
 	Sources                           []ProfileSourceFormState  `json:"sources"`
 	OnlineSupportItems                []ProfileSupportFormState `json:"online_support_items"`
+	// ClientProxy 为 nil 表示页面没有提交内置代理配置，此时保持档案原有内容不动，
+	// 避免旧版页面（浏览器缓存）保存时误清空已有配置。
+	ClientProxy *ClientProxyState `json:"client_proxy"`
 }
 
 type ProfileSourceFormState struct {
@@ -348,6 +351,15 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	removeMapKeys(remoteConfig, "apiPathPrefix")
 	setMapNodeValue(remoteConfig, "sources", mergeProfileSources(getSequenceValueNode(remoteConfig, "sources"), form.Sources))
 	setMapNodeValue(onlineSupport, "items", mergeProfileSupportItems(getSequenceValueNode(onlineSupport, "items"), form.OnlineSupportItems))
+
+	// 内置代理只由老客户端（xboard_mihomo_sub）支持，NexGen 档案直接清除该配置。
+	if rootKey == "xboard" {
+		if err := mergeClientProxyConfig(profileRoot, form.ClientProxy); err != nil {
+			return "", err
+		}
+	} else {
+		removeMapKeys(profileRoot, "client_proxy", "clientProxy")
+	}
 
 	var buf bytes.Buffer
 	encoder := yaml.NewEncoder(&buf)
