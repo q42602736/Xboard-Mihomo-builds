@@ -4191,8 +4191,8 @@
                             </div>
                             <div class="form-group">
                                 <label>自定义订阅域名</label>
-                                <input type="text" id="subscriptionCustomSubscribeDomain" placeholder="只需填写域名，可带端口，留空则不启用">
-                                <div class="help-text">可选。例如 <code>sub.example.com</code> 或 <code>https://sub.example.com:8443</code>。配置后拉取订阅时优先使用该域名替换后端返回的订阅地址域名，完整订阅链接（路径与 token）仍由后端返回的订阅地址拼接而来。留空则按默认逻辑：后端返回的订阅地址优先，未返回时使用远程配置中的站点地址。</div>
+                                <textarea id="subscriptionCustomSubscribeDomains" spellcheck="false" placeholder="每行填写一个域名，例如：&#10;sub1.example.com&#10;https://sub2.example.com:8443"></textarea>
+                                <div class="help-text">可选，可填写多个，每行一个。配置后每次拉取订阅会从这些域名里随机挑一个开始尝试，某个域名超过 10 秒仍未取到内容就自动换下一个，全部失败再回退默认逻辑。替换时只改域名，完整订阅链接的路径与 token 仍由后端返回的订阅地址拼接而来。留空则按默认逻辑：后端返回的订阅地址优先，未返回时使用远程配置中的站点地址。</div>
                             </div>
                         </div>
                         <div class="section">
@@ -7332,7 +7332,7 @@
             document.getElementById('provider').addEventListener('change', function() {
                 updateProviderConsistencyState({ source: 'basic' });
             });
-            ['subscriptionUserAgent', 'subscriptionCustomSubscribeDomain', 'subscriptionCustomQuerySuffix', 'decryptKey', 'apiEncryptedUserAgent', 'apiPathPrefix'].forEach(function(id) {
+            ['subscriptionUserAgent', 'subscriptionCustomSubscribeDomains', 'subscriptionCustomQuerySuffix', 'decryptKey', 'apiEncryptedUserAgent', 'apiPathPrefix'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (!el) return;
                 el.addEventListener('input', formToYaml);
@@ -7474,7 +7474,8 @@
                 '    use_exclusive_mode: false',
                 '    sspanel_node_page_parse_enabled: false',
                 '    decrypt_key: ""',
-                '    custom_subscribe_domain: ""',
+                '    # 自定义订阅域名，可填写多个；每次拉取随机挑一个开始尝试，超时自动换下一个。',
+                '    custom_subscribe_domains: []',
                 '  security:',
                 '    user_agents:',
                 '      api_encrypted: ""',
@@ -7715,7 +7716,7 @@
                 custom_query_suffix: document.getElementById('subscriptionCustomQuerySuffix').value.trim(),
                 use_exclusive_mode: document.getElementById('useExclusiveMode').checked,
                 decrypt_key: document.getElementById('decryptKey').value.trim(),
-                custom_subscribe_domain: document.getElementById('subscriptionCustomSubscribeDomain').value.trim(),
+                custom_subscribe_domains: parseMultilineListValue(document.getElementById('subscriptionCustomSubscribeDomains').value),
                 api_encrypted_user_agent: document.getElementById('apiEncryptedUserAgent').value.trim(),
                 auto_offline_enabled: document.getElementById('autoOfflineEnabled').checked,
                 cloud_dispatch_enabled: document.getElementById('cloudDispatchEnabled') ? document.getElementById('cloudDispatchEnabled').checked : false,
@@ -10323,6 +10324,86 @@
 
         // ==================== YAML <-> 表单 转换 ====================
 
+        function stripYamlScalarQuotes(value) {
+            value = String(value || '').trim();
+            return value.replace(/^["']|["']$/g, '');
+        }
+
+        // 多行/逗号分隔输入转列表，去空白、去引号、去重并保持顺序。
+        function parseMultilineListValue(value) {
+            return String(value || '')
+                .split(/[\n,]/)
+                .map(function(item) { return stripYamlScalarQuotes(item); })
+                .filter(function(item, index, list) {
+                    return item && list.indexOf(item) === index;
+                });
+        }
+
+        // 取出某个顶层键下的 YAML 子块（按缩进退到同级为止）。
+        function extractNamedYamlBlock(source, keyName) {
+            var lines = String(source || '').split('\n');
+            var keyPattern = new RegExp('^\\s*' + keyName + ':\\s*$');
+            for (var i = 0; i < lines.length; i++) {
+                if (!keyPattern.test(lines[i])) continue;
+                var baseIndent = (lines[i].match(/^(\s*)/) || [''])[0].length;
+                var block = [];
+                for (var j = i + 1; j < lines.length; j++) {
+                    var line = lines[j];
+                    if (line.trim() === '' || /^\s*#/.test(line)) {
+                        block.push(line);
+                        continue;
+                    }
+                    var indent = (line.match(/^(\s*)/) || [''])[0].length;
+                    if (indent <= baseIndent) break;
+                    block.push(line);
+                }
+                return block.join('\n');
+            }
+            return '';
+        }
+
+        // 从 YAML 子块里读字符串列表，兼容 "key: [a, b]" 行内写法与本行一个 "- a" 的列表写法。
+        function parseYamlBlockStringList(block, keyName) {
+            var lines = String(block || '').split('\n');
+            for (var i = 0; i < lines.length; i++) {
+                var keyMatch = lines[i].match(new RegExp('^(\\s*)' + keyName + ':\\s*(.*)$'));
+                if (!keyMatch) continue;
+                var inlineValue = String(keyMatch[2] || '').trim();
+                if (/^\[.*\]$/.test(inlineValue)) {
+                    return parseMultilineListValue(inlineValue.slice(1, -1));
+                }
+                var baseIndent = keyMatch[1].length;
+                var result = [];
+                for (var j = i + 1; j < lines.length; j++) {
+                    var itemLine = lines[j];
+                    if (itemLine.trim() === '' || /^\s*#/.test(itemLine)) continue;
+                    var indent = (itemLine.match(/^(\s*)/) || [''])[0].length;
+                    if (indent <= baseIndent) break;
+                    var itemMatch = itemLine.match(/^\s*-\s*(.+?)\s*$/);
+                    if (itemMatch) {
+                        result.push(stripYamlScalarQuotes(itemMatch[1]));
+                    }
+                }
+                return parseMultilineListValue(result.join('\n'));
+            }
+            return [];
+        }
+
+        // 读取订阅域名列表；档案里只有旧的单值键时按单项处理，便于旧档案平滑迁移。
+        function readCustomSubscribeDomains(yaml) {
+            var subscriptionBlock = extractNamedYamlBlock(yaml, 'subscription');
+            var domains = parseYamlBlockStringList(subscriptionBlock, 'custom_subscribe_domains');
+            if (domains.length === 0) {
+                domains = parseMultilineListValue(parseSubscriptionBlockString(subscriptionBlock, 'custom_subscribe_domain'));
+            }
+            return domains;
+        }
+
+        function parseSubscriptionBlockString(block, key) {
+            var match = String(block || '').match(new RegExp('^\\s*' + key + ':[^\\S\\n]*(.*)$', 'm'));
+            return match ? stripYamlScalarQuotes(match[1]) : '';
+        }
+
         function yamlToForm() {
             var yaml = document.getElementById('editor').value;
             if (!yaml.trim()) return;
@@ -10374,7 +10455,7 @@
             document.getElementById('useExclusiveModeLabel').textContent = getSubscriptionBool('use_exclusive_mode') ? '开启' : '关闭';
             syncExclusiveSubscriptionUserAgentVisibility(getSubscriptionBool('use_exclusive_mode'));
             document.getElementById('decryptKey').value = getSubscriptionValue('decrypt_key');
-            document.getElementById('subscriptionCustomSubscribeDomain').value = getSubscriptionValue('custom_subscribe_domain');
+            document.getElementById('subscriptionCustomSubscribeDomains').value = readCustomSubscribeDomains(yaml).join('\n');
             var getSecurityUserAgent = function(key) {
                 var re = new RegExp('security:\\s*\\n(?:[\\s\\S]*?)^\\s{4}user_agents:\\s*\\n(?:[\\s\\S]*?)^\\s{6}' + key + ':[^\\S\\n]*(.*)', 'm');
                 var m = yaml.match(re);

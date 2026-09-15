@@ -155,7 +155,8 @@ func defaultProfileYaml(displayName string) string {
     use_exclusive_mode: false
     sspanel_node_page_parse_enabled: false
     decrypt_key: ""
-    custom_subscribe_domain: ""
+    # 自定义订阅域名，可填写多个；每次拉取随机挑一个开始尝试，超时自动换下一个。
+    custom_subscribe_domains: []
   security:
     user_agents:
       api_encrypted: ""

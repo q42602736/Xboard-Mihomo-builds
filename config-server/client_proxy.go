@@ -125,15 +125,17 @@ func readNodePort(value interface{}) (int, bool) {
 
 // clientProxyStateFromYaml 从档案 YAML 中读出 client_proxy 配置。
 //
+// rootKey 为档案根键：老客户端是 xboard，新客户端是 nexgen。
+// 两个客户端的 client_proxy 结构一致（enabled / port / nodes）。
 // 兼容三种历史写法：nodes 列表、单个 node 对象、以及旧的扁平字段。
-func clientProxyStateFromYaml(yamlContent string) ClientProxyState {
+func clientProxyStateFromYaml(yamlContent, rootKey string) ClientProxyState {
 	state := ClientProxyState{Port: defaultClientProxyPort}
 	doc, err := parseProfileYamlDocument(yamlContent)
 	if err != nil {
 		return state
 	}
 	root := ensureDocumentMappingNode(doc)
-	profileRoot := getMapValueNode(root, "xboard")
+	profileRoot := getMapValueNode(root, rootKey)
 	if profileRoot == nil {
 		return state
 	}

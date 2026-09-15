@@ -85,9 +85,11 @@ type ProfileFormState struct {
 	AuthPagesSupportShowButton        bool                      `json:"auth_pages_support_show_button"`
 	Sources                           []ProfileSourceFormState  `json:"sources"`
 	OnlineSupportItems                []ProfileSupportFormState `json:"online_support_items"`
-	// ClientProxy 为 nil 表示页面没有提交内置代理配置，此时保持档案原有内容不动，
-	// 避免旧版页面（浏览器缓存）保存时误清空已有配置。
-	ClientProxy *ClientProxyState `json:"client_proxy"`
+	// 以下字段为 nil 表示页面没有提交对应配置（旧版页面缓存），此时保持档案原有内容不动，
+	// 避免保存时误清空已经配置好的值。
+	ClientProxy                        *ClientProxyState `json:"client_proxy"`
+	SubscriptionCustomDomains          *[]string         `json:"custom_domains"`
+	SubscriptionCustomSubscribeDomains *[]string         `json:"custom_subscribe_domains"`
 }
 
 type ProfileSourceFormState struct {
@@ -188,11 +190,11 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	}
 	setMapBoolValue(subscription, "use_exclusive_mode", form.UseExclusiveMode)
 	if rootKey == "nexgen" {
-		setMapStringValue(subscription, "custom_domain", strings.TrimSpace(form.SubscriptionCustomDomain))
-		removeMapKeys(subscription, "customDomain", "custom_subscribe_domain", "customSubscribeDomain")
+		mergeCustomSubscribeDomains(subscription, "custom_domains", "custom_domain", form.SubscriptionCustomDomains, strings.TrimSpace(form.SubscriptionCustomDomain))
+		removeMapKeys(subscription, "customDomain", "custom_subscribe_domain", "customSubscribeDomain", "customDomains", "custom_subscribe_domains")
 	} else {
-		setMapStringValue(subscription, "custom_subscribe_domain", strings.TrimSpace(form.SubscriptionCustomSubscribeDomain))
-		removeMapKeys(subscription, "customSubscribeDomain", "custom_domain", "customDomain")
+		mergeCustomSubscribeDomains(subscription, "custom_subscribe_domains", "custom_subscribe_domain", form.SubscriptionCustomSubscribeDomains, strings.TrimSpace(form.SubscriptionCustomSubscribeDomain))
+		removeMapKeys(subscription, "customSubscribeDomain", "custom_domain", "customDomain", "customSubscribeDomains")
 	}
 	setMapStringValue(subscription, "decrypt_key", form.DecryptKey)
 	if form.APIEncryptedUserAgent != nil {
@@ -352,13 +354,9 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	setMapNodeValue(remoteConfig, "sources", mergeProfileSources(getSequenceValueNode(remoteConfig, "sources"), form.Sources))
 	setMapNodeValue(onlineSupport, "items", mergeProfileSupportItems(getSequenceValueNode(onlineSupport, "items"), form.OnlineSupportItems))
 
-	// 内置代理只由老客户端（xboard_mihomo_sub）支持，NexGen 档案直接清除该配置。
-	if rootKey == "xboard" {
-		if err := mergeClientProxyConfig(profileRoot, form.ClientProxy); err != nil {
-			return "", err
-		}
-	} else {
-		removeMapKeys(profileRoot, "client_proxy", "clientProxy")
+	// 内置代理：老客户端与新客户端都写 client_proxy，只是档案根键不同（xboard / nexgen）。
+	if err := mergeClientProxyConfig(profileRoot, form.ClientProxy); err != nil {
+		return "", err
 	}
 
 	var buf bytes.Buffer
@@ -561,6 +559,61 @@ func normalizeCloudDispatchIntervalValue(value int) int {
 		return 1440
 	}
 	return value
+}
+
+// mergeCustomSubscribeDomains 写入自定义订阅域名。
+//
+// listKey 是列表键（新客户端 custom_domains、老客户端 custom_subscribe_domains），
+// singleKey 是旧版单值键。list 为 nil 表示页面没提交列表（旧版页面缓存），
+// 此时只写单值；提交了列表就以列表为准，并把第一个域名同步到单值键，
+// 让尚未升级、只认单值键的旧版客户端仍能生效。
+func mergeCustomSubscribeDomains(subscription *yaml.Node, listKey, singleKey string, list *[]string, single string) {
+	if list == nil {
+		setMapStringValue(subscription, singleKey, single)
+		return
+	}
+
+	domains := normalizeCustomSubscribeDomains(*list)
+	if len(domains) == 0 {
+		removeMapKeys(subscription, listKey)
+		setMapStringValue(subscription, singleKey, "")
+		return
+	}
+	setMapNodeValue(subscription, listKey, newStringListYamlNode(domains))
+	setMapStringValue(subscription, singleKey, domains[0])
+}
+
+// normalizeCustomSubscribeDomains 归一化自定义订阅域名列表。
+//
+// 与两个客户端的解析保持一致：按空白与半角/全角逗号拆分，去空白、转小写、去重并保持顺序。
+// 条目本身允许是纯域名、带端口的域名或带 http(s):// 前缀的地址，不做进一步改写。
+func normalizeCustomSubscribeDomains(values []string) []string {
+	result := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		for _, part := range strings.FieldsFunc(value, func(r rune) bool {
+			return r == ',' || r == '，' || r == '\n' || r == '\r' || r == '\t' || r == ' '
+		}) {
+			part = strings.ToLower(strings.TrimSpace(part))
+			if part == "" {
+				continue
+			}
+			if _, ok := seen[part]; ok {
+				continue
+			}
+			seen[part] = struct{}{}
+			result = append(result, part)
+		}
+	}
+	return result
+}
+
+func newStringListYamlNode(values []string) *yaml.Node {
+	seq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+	for _, value := range values {
+		seq.Content = append(seq.Content, newStringYamlNode(value))
+	}
+	return seq
 }
 
 func normalizeStringList(values []string) []string {
