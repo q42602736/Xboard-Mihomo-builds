@@ -632,6 +632,11 @@ jobs:
           GOMAXPROCS: '2'
           GOFLAGS: '-p=1'
         run: |
+          # appdmg 的 package.json 里声明了 os: darwin，放进 devDependencies 会让
+          # ubuntu runner 的 npm ci 直接 EBADPLATFORM 失败，因此改为在 macOS runner 上全局安装。
+          retry npm install -g appdmg@0.6.6
+          export PATH="$(npm prefix -g)/bin:$PATH"
+
           npm run desktop:core
           # 这里只出 app：dmg 与 pkg 由 scripts/tauri-wrapper.mjs 在 tauri build 后追加生成。
           # dmg 走 appdmg（直接写 .DS_Store，不经过 Finder），CI 无图形会话时也能有正确布局；
