@@ -633,11 +633,24 @@ jobs:
           GOFLAGS: '-p=1'
         run: |
           npm run desktop:core
+          # 这里只出 app：dmg 与 pkg 由 scripts/tauri-wrapper.mjs 在 tauri build 后追加生成。
+          # dmg 走 appdmg（直接写 .DS_Store，不经过 Finder），CI 无图形会话时也能有正确布局；
+          # Tauri 内置的 dmg bundler 依赖 AppleScript 遥控 Finder，CI 上会被跳过导致无布局。
           if [ "${{ matrix.platform }}" = "macos-arm64" ]; then
             npm run package:macos -- --targets arm64 --bundles app
           else
             npm run package:macos -- --targets amd64 --bundles app
           fi
+
+          dmg_count="$(find dist -maxdepth 1 -type f -name "*.dmg" | wc -l | tr -d ' ')"
+          if [ "$dmg_count" = "0" ]; then
+            echo "::error::macOS DMG 产物缺失，请检查 Tauri dmg 打包是否失败或被 --bundles 配置跳过。"
+            find src-tauri/target -maxdepth 6 -type d -name dmg -print 2>/dev/null || true
+            find dist -maxdepth 1 -type f -print 2>/dev/null || true
+            exit 1
+          fi
+          echo "=== macOS artifacts ==="
+          ls -lh dist/
 
       - name: Build Android Package
         if: matrix.family == 'android'
@@ -1182,12 +1195,14 @@ jobs:
           fi
           normalize_nexgen_artifact_names() {
             local file base normalized suffix prefix
-            for file in source/dist/*.pkg source/dist/*.apk source/dist/*.exe source/dist/*.msi; do
+            for file in source/dist/*.pkg source/dist/*.dmg source/dist/*.apk source/dist/*.exe source/dist/*.msi; do
               [ -f "$file" ] || continue
               base="$(basename "$file")"
               case "$base" in
                 *macos-amd64*.pkg) prefix="$SAFE_APP_NAME"; suffix="macos-amd64.pkg" ;;
                 *macos-arm64*.pkg) prefix="$SAFE_APP_NAME"; suffix="macos-arm64.pkg" ;;
+                *macos-amd64*.dmg) prefix="$SAFE_APP_NAME"; suffix="macos-amd64.dmg" ;;
+                *macos-arm64*.dmg) prefix="$SAFE_APP_NAME"; suffix="macos-arm64.dmg" ;;
                 *android-tv-arm64-v8a*.apk|*tv-arm64-v8a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-tv-arm64-v8a.apk" ;;
                 *android-tv-armeabi-v7a*.apk|*tv-armeabi-v7a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-tv-armeabi-v7a.apk" ;;
                 *android-arm64-v8a*.apk|*arm64-v8a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-arm64-v8a.apk" ;;
@@ -1218,6 +1233,7 @@ jobs:
           trap cleanup_upload_stage EXIT
           find source/dist -maxdepth 1 -type f \( \
             -name "*.pkg" -o \
+            -name "*.dmg" -o \
             -name "*.exe" -o \
             -name "*.msi" -o \
             -name "*.apk" \
@@ -1239,6 +1255,7 @@ jobs:
             content_type="application/octet-stream"
             case "$asset_name" in
               *.pkg) content_type="application/octet-stream" ;;
+              *.dmg) content_type="application/x-apple-diskimage" ;;
               *.exe) content_type="application/vnd.microsoft.portable-executable" ;;
               *.msi) content_type="application/x-msi" ;;
               *.apk) content_type="application/vnd.android.package-archive" ;;
