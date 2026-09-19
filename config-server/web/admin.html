@@ -592,7 +592,7 @@
         }
         .build-audit-toolbar {
             display: grid;
-            grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+            grid-template-columns: repeat(3, minmax(180px, 1fr)) auto;
             gap: 10px;
             align-items: end;
             margin-bottom: 14px;
@@ -615,6 +615,103 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        .build-audit-content-summary .build-audit-error {
+            margin-top: 5px;
+            overflow: hidden;
+            color: #ff9b9b;
+            font-size: 11px;
+            line-height: 1.4;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .build-audit-risk-badge,
+        .build-audit-group-risk {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            padding: 3px 7px;
+            border: 1px solid rgba(255,184,92,0.38);
+            border-radius: 5px;
+            background: rgba(255,184,92,0.1);
+            color: #ffd08a;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.35;
+        }
+        .build-audit-risk-badge {
+            margin-bottom: 6px;
+        }
+        .build-audit-change-meta {
+            margin-top: 5px;
+            color: #d8b77c;
+            font-size: 11px;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+        .build-audit-manual-btn {
+            margin-top: 9px;
+            padding: 6px 10px !important;
+            border-color: rgba(255,184,92,0.32) !important;
+            background: rgba(255,184,92,0.08) !important;
+            color: #ffd08a !important;
+            font-size: 12px !important;
+        }
+        .build-audit-manual-btn:hover {
+            border-color: rgba(255,184,92,0.58) !important;
+            background: rgba(255,184,92,0.16) !important;
+            color: #ffe1ad !important;
+        }
+        .build-audit-manual-note {
+            margin-bottom: 14px;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,184,92,0.2);
+            border-radius: 7px;
+            background: rgba(255,184,92,0.06);
+            color: #d8b77c;
+            font-size: 12px;
+            line-height: 1.55;
+        }
+        .build-audit-manual-field {
+            margin-bottom: 14px;
+        }
+        .build-audit-manual-field label {
+            display: block;
+            margin-bottom: 7px;
+            color: #aeb8c8;
+            font-size: 12px;
+        }
+        .build-audit-manual-input {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 11px 12px;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 7px;
+            outline: none;
+            background: rgba(0,0,0,0.28);
+            color: #edf6ff;
+            font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        .build-audit-manual-input:focus {
+            border-color: rgba(0,212,255,0.56);
+            box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
+        }
+        textarea.build-audit-manual-input {
+            min-height: 220px;
+            resize: vertical;
+        }
+        .build-audit-manual-result {
+            min-height: 240px;
+        }
+        .build-audit-manual-status {
+            min-height: 18px;
+            margin: 5px 0 10px;
+            color: #8b95a7;
+            font-size: 12px;
+            overflow-wrap: anywhere;
+        }
+        .build-audit-manual-status.error { color: #ff9b9b; }
+        .build-audit-manual-status.success { color: #73e3a6; }
         .build-audit-group-row td {
             padding: 0 !important;
             border-bottom: 1px solid rgba(0,212,255,0.16);
@@ -641,6 +738,13 @@
             color: #dcefff;
             cursor: pointer;
             text-align: left;
+        }
+        .build-audit-group-controls {
+            display: flex;
+            flex: 0 0 auto;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
         }
         .build-audit-group-toggle:focus-visible {
             outline: 2px solid rgba(0,212,255,0.8);
@@ -738,6 +842,19 @@
             margin-top: 9px;
             padding: 6px 10px !important;
             font-size: 12px !important;
+        }
+        .build-audit-diff-btn {
+            margin-top: 9px;
+            padding: 6px 10px !important;
+            border: 1px solid rgba(255,184,92,0.35) !important;
+            background: rgba(255,184,92,0.1) !important;
+            color: #ffd08a !important;
+            font-size: 12px !important;
+        }
+        .build-audit-diff-btn:hover {
+            border-color: rgba(255,184,92,0.58) !important;
+            background: rgba(255,184,92,0.18) !important;
+            color: #ffe1ad !important;
         }
         .build-audit-modal-overlay {
             position: fixed;
@@ -858,6 +975,35 @@
             white-space: pre-wrap;
             word-break: break-word;
         }
+        .build-audit-diff-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .build-audit-diff-pane {
+            min-width: 0;
+        }
+        .build-audit-diff-pane-title {
+            margin-bottom: 7px;
+            color: #aeb8c8;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+        .build-audit-diff-content {
+            min-height: 260px;
+            max-height: 520px;
+            overflow: auto;
+        }
+        .build-audit-diff-status {
+            min-height: 18px;
+            margin-bottom: 12px;
+            color: #8b95a7;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .build-audit-diff-status.error { color: #ff9b9b; }
         .build-audit-modal-snapshot {
             margin-top: 14px;
             border-top: 1px solid rgba(255,255,255,0.08);
@@ -937,6 +1083,13 @@
                 min-height: 220px;
                 max-height: none;
             }
+            .build-audit-diff-grid {
+                grid-template-columns: 1fr;
+            }
+            .build-audit-diff-content {
+                min-height: 180px;
+                max-height: 320px;
+            }
             .build-audit-group {
                 grid-template-columns: 1fr;
                 gap: 6px;
@@ -956,6 +1109,208 @@
             }
             .build-audit-table {
                 min-width: 0;
+            }
+        }
+        @media (max-width: 760px) {
+            html,
+            body {
+                overflow-x: hidden;
+            }
+            body {
+                padding: 12px;
+            }
+            .container {
+                max-width: 100%;
+            }
+            h1 {
+                margin-bottom: 16px;
+                font-size: 28px;
+                line-height: 1.25;
+                overflow-wrap: anywhere;
+            }
+            .user-bar {
+                justify-content: stretch;
+                gap: 8px;
+                padding: 10px;
+            }
+            .user-bar a,
+            .user-bar .btn-logout {
+                display: flex;
+                flex: 1 1 0;
+                align-items: center;
+                justify-content: center;
+                min-height: 42px;
+                padding: 8px 10px;
+                text-align: center;
+            }
+            .panel {
+                padding: 16px;
+                border-radius: 10px;
+            }
+            .panel h3 {
+                margin-bottom: 14px;
+                line-height: 1.35;
+            }
+            .tabs {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                width: 100%;
+                margin-bottom: 16px;
+            }
+            .tab-btn {
+                min-width: 0;
+                min-height: 54px;
+                padding: 12px 8px;
+                line-height: 1.35;
+                white-space: normal;
+                overflow-wrap: anywhere;
+            }
+            .tab-btn:first-child { border-radius: 8px 0 0 0; }
+            .tab-btn:nth-child(2) { border-radius: 0 8px 0 0; }
+            .tab-btn:nth-child(3) { border-radius: 0 0 0 8px; }
+            .tab-btn:last-child { border-radius: 0 0 8px 0; }
+            .form-row,
+            .form-row[style] {
+                grid-template-columns: minmax(0, 1fr) !important;
+                gap: 0;
+            }
+            .form-row > .form-group {
+                min-width: 0;
+            }
+            .form-group label {
+                line-height: 1.45;
+            }
+            .profile-picker-toggle,
+            .profile-picker-search,
+            .form-group input,
+            .form-group select {
+                min-height: 44px;
+            }
+            .profile-picker-summary {
+                white-space: normal;
+                overflow-wrap: anywhere;
+                line-height: 1.45;
+            }
+            .platform-permission-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .platform-permission-option {
+                min-width: 0;
+                min-height: 44px;
+                align-items: flex-start;
+                line-height: 1.45;
+            }
+            .platform-permission-option span {
+                min-width: 0;
+                overflow-wrap: anywhere;
+            }
+            .batch-toolbar {
+                padding: 12px;
+                gap: 12px;
+            }
+            .batch-toolbar-actions {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                gap: 8px;
+                justify-content: stretch;
+            }
+            .batch-selected-count {
+                white-space: normal;
+                line-height: 1.45;
+            }
+            .batch-toolbar-actions .btn {
+                width: 100%;
+            }
+            .codes-table td > * {
+                min-width: 0;
+            }
+            .codes-table td {
+                grid-template-columns: 76px minmax(0, 1fr);
+                align-items: start;
+            }
+            .codes-table td::before {
+                line-height: 1.45;
+            }
+            .codes-table .cell-code .code-text {
+                max-width: 100%;
+                overflow-wrap: anywhere;
+                white-space: normal;
+            }
+            .codes-table .cell-actions .code-actions {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .codes-table .cell-actions .code-actions .btn {
+                min-height: 40px;
+            }
+            .build-audit-toolbar .btn {
+                width: 100%;
+            }
+            .build-audit-content-summary {
+                min-width: 0;
+            }
+            .build-audit-content-summary .build-audit-url,
+            .build-audit-content-summary .build-audit-error {
+                overflow-wrap: anywhere;
+                white-space: normal;
+            }
+            .build-audit-group {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 0;
+                padding: 12px;
+            }
+            .build-audit-group-toggle {
+                display: grid;
+                width: 100%;
+                grid-template-columns: 16px minmax(0, 1fr);
+                grid-template-areas:
+                    "chevron main"
+                    "chevron controls";
+                align-items: start;
+                column-gap: 10px;
+                row-gap: 8px;
+                padding: 0;
+            }
+            .build-audit-group-chevron {
+                grid-area: chevron;
+                margin-top: 6px;
+            }
+            .build-audit-group-main {
+                grid-area: main;
+                width: 100%;
+            }
+            .build-audit-group-controls {
+                grid-area: controls;
+                display: flex;
+                width: 100%;
+                min-width: 0;
+                justify-content: space-between;
+                gap: 10px;
+            }
+            .build-audit-group-title,
+            .build-audit-group-subtitle {
+                overflow: visible;
+                text-overflow: clip;
+                white-space: normal;
+                overflow-wrap: anywhere;
+            }
+            .build-audit-group-title {
+                line-height: 1.45;
+            }
+            .build-audit-group-subtitle {
+                margin-top: 4px;
+            }
+            .build-audit-group-row > td:last-child {
+                padding: 10px 12px 12px !important;
+                border-top: 1px solid rgba(0,212,255,0.12);
+                text-align: left;
+                white-space: normal;
+            }
+            .build-audit-group-operation .code-actions {
+                flex-wrap: wrap;
+            }
+            .build-audit-group-operation .btn {
+                min-height: 40px;
             }
         }
     </style>
@@ -1017,6 +1372,11 @@
                         <button class="btn btn-warn" style="width:100%;" onclick="renameProfileFromAdmin()">重命名档案</button>
                     </div>
                 </div>
+                <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <button class="btn" onclick="detectDuplicateProfiles()">检测重复档案</button>
+                    <span style="font-size:12px;color:#666;">按显示名分组列出重复档案（含历史上自动加后缀产生的），并显示各档案被多少激活码绑定。</span>
+                </div>
+                <div id="duplicateProfilesResult" style="margin-top:12px;"></div>
                 <div style="font-size:12px;color:#666;margin-top:-8px;">选择“全部项目”会同步重命名新旧客户端中存在的同名档案；选择单个项目则只重命名对应项目档案。绑定关系、打包记录和档案资源历史会同步更新。</div>
             </div>
 
@@ -1054,7 +1414,7 @@
                     </div>
                     <div style="margin-top:10px;">
                         <input type="text" id="manualProfiles" placeholder="手动输入档案名称，多个用逗号分隔（如：软件云,企鹅云）" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:#fff;font-size:14px;">
-                        <div style="font-size:12px;color:#666;margin-top:5px;">可与下拉多选配合使用，适用于尚未创建的档案</div>
+                        <div style="font-size:12px;color:#666;margin-top:5px;">可与下拉多选配合使用：名称能对上已有档案时直接绑定该档案，只有尚未创建的档案才会新建。</div>
                     </div>
                 </div>
                 <div class="form-group">
@@ -1109,7 +1469,7 @@
                     </div>
                     <div style="margin-top:10px;">
                         <input type="text" id="editManualProfiles" placeholder="手动输入档案名称，多个用逗号分隔（如：软件云,企鹅云）" style="width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(0,0,0,0.3);color:#fff;font-size:14px;">
-                        <div style="font-size:12px;color:#666;margin-top:5px;">可与下拉多选配合使用，适用于尚未创建的档案</div>
+                        <div style="font-size:12px;color:#666;margin-top:5px;">可与下拉多选配合使用：名称能对上已有档案时直接绑定该档案，只有尚未创建的档案才会新建。</div>
                     </div>
                 </div>
                 <div class="form-group">
@@ -1181,6 +1541,13 @@
                             <option value="">全部客户端</option>
                             <option value="xboard_mihomo_sub">老客户端</option>
                             <option value="nexgen_react">NexGen 客户端</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>OSS 变化</label>
+                        <select id="buildAuditOSSChangeFilter">
+                            <option value="changed" selected>仅显示后端地址变化（风险）</option>
+                            <option value="">全部记录</option>
                         </select>
                     </div>
                     <button class="btn btn-primary" type="button" onclick="loadBuildAuditRecords()">刷新记录</button>
@@ -1317,6 +1684,28 @@
         </div>
     </div>
 
+    <div id="codeProfileDeleteModal" class="build-audit-modal-overlay" aria-hidden="true">
+        <div class="build-audit-modal" role="dialog" aria-modal="true" aria-labelledby="codeProfileDeleteTitle">
+            <div class="build-audit-modal-header">
+                <div>
+                    <div class="build-audit-modal-kicker">删除激活码</div>
+                    <div id="codeProfileDeleteTitle" class="build-audit-modal-title">选择要一并删除的档案</div>
+                    <div id="codeProfileDeleteMeta" class="build-audit-modal-meta"></div>
+                </div>
+                <button type="button" class="build-audit-modal-close" id="codeProfileDeleteCloseBtn" aria-label="关闭" title="关闭">&times;</button>
+            </div>
+            <div class="build-audit-modal-body">
+                <div id="codeProfileDeleteList"></div>
+                <div id="codeProfileDeleteHint" class="build-audit-modal-note" style="margin-top:12px;"></div>
+            </div>
+            <div class="build-audit-modal-footer">
+                <div id="codeProfileDeleteStatus" class="build-audit-modal-copy-status" aria-live="polite"></div>
+                <button type="button" class="btn btn-secondary" id="codeProfileDeleteSkipBtn">只删激活码</button>
+                <button type="button" class="btn btn-primary" id="codeProfileDeleteConfirmBtn">删除选中档案</button>
+            </div>
+        </div>
+    </div>
+
     <div id="buildAuditContentModal" class="build-audit-modal-overlay" aria-hidden="true">
         <div class="build-audit-modal" role="dialog" aria-modal="true" aria-labelledby="buildAuditModalTitle">
             <div class="build-audit-modal-header">
@@ -1342,6 +1731,66 @@
                 <div id="buildAuditModalCopyStatus" class="build-audit-modal-copy-status" aria-live="polite"></div>
                 <button type="button" class="btn btn-secondary" id="buildAuditModalCopyBtn">复制内容</button>
                 <button type="button" class="btn btn-primary" id="buildAuditModalDoneBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="buildAuditDiffModal" class="build-audit-modal-overlay" aria-hidden="true">
+        <div class="build-audit-modal" role="dialog" aria-modal="true" aria-labelledby="buildAuditDiffModalTitle">
+            <div class="build-audit-modal-header">
+                <div>
+                    <div class="build-audit-modal-kicker">打包审计</div>
+                    <div id="buildAuditDiffModalTitle" class="build-audit-modal-title">panels 后端地址变化</div>
+                    <div id="buildAuditDiffModalMeta" class="build-audit-modal-meta"></div>
+                </div>
+                <button type="button" class="build-audit-modal-close" id="buildAuditDiffModalCloseBtn" aria-label="关闭 OSS 变化弹窗" title="关闭">&times;</button>
+            </div>
+            <div class="build-audit-modal-body">
+                <div id="buildAuditDiffStatus" class="build-audit-diff-status" aria-live="polite">正在加载上一版本...</div>
+                <div class="build-audit-diff-grid">
+                    <section class="build-audit-diff-pane">
+                        <div id="buildAuditDiffPreviousTitle" class="build-audit-diff-pane-title">上一版本</div>
+                        <pre id="buildAuditDiffPreviousContent" class="build-audit-modal-content build-audit-diff-content"></pre>
+                    </section>
+                    <section class="build-audit-diff-pane">
+                        <div id="buildAuditDiffCurrentTitle" class="build-audit-diff-pane-title">当前版本</div>
+                        <pre id="buildAuditDiffCurrentContent" class="build-audit-modal-content build-audit-diff-content"></pre>
+                    </section>
+                </div>
+            </div>
+            <div class="build-audit-modal-footer">
+                <button type="button" class="btn btn-primary" id="buildAuditDiffModalDoneBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="buildAuditManualDecryptModal" class="build-audit-modal-overlay" aria-hidden="true">
+        <div class="build-audit-modal" role="dialog" aria-modal="true" aria-labelledby="buildAuditManualModalTitle">
+            <div class="build-audit-modal-header">
+                <div>
+                    <div class="build-audit-modal-kicker">打包审计</div>
+                    <div id="buildAuditManualModalTitle" class="build-audit-modal-title">手动解密 OSS 内容</div>
+                    <div id="buildAuditManualModalMeta" class="build-audit-modal-meta"></div>
+                </div>
+                <button type="button" class="build-audit-modal-close" id="buildAuditManualModalCloseBtn" aria-label="关闭手动解密弹窗" title="关闭">&times;</button>
+            </div>
+            <div class="build-audit-modal-body">
+                <div class="build-audit-manual-note">密钥自动使用该审计记录配置中的密钥，仅在当前浏览器本地解密，不会上传。</div>
+                <div class="build-audit-manual-field">
+                    <label for="buildAuditManualEncryptedContent">加密内容（Base64）</label>
+                    <textarea id="buildAuditManualEncryptedContent" class="build-audit-manual-input" autocomplete="off" spellcheck="false" placeholder="将 OSS 返回的加密内容粘贴到这里"></textarea>
+                </div>
+                <div id="buildAuditManualStatus" class="build-audit-manual-status" aria-live="polite"></div>
+                <div class="build-audit-manual-field">
+                    <label>解密结果</label>
+                    <pre id="buildAuditManualResult" class="build-audit-modal-content build-audit-manual-result"></pre>
+                </div>
+            </div>
+            <div class="build-audit-modal-footer">
+                <div id="buildAuditManualCopyStatus" class="build-audit-modal-copy-status" aria-live="polite"></div>
+                <button type="button" class="btn btn-secondary" id="buildAuditManualCopyBtn" disabled>复制结果</button>
+                <button type="button" class="btn btn-primary" id="buildAuditManualDecryptBtn">解密内容</button>
+                <button type="button" class="btn btn-primary" id="buildAuditManualDoneBtn">关闭</button>
             </div>
         </div>
     </div>
@@ -1384,6 +1833,12 @@
         var buildAuditModalPreviousFocus = null;
         var buildAuditModalContentValue = '';
         var buildAuditModalInitialized = false;
+        var buildAuditManualDecryptPreviousFocus = null;
+        var buildAuditManualDecryptContentValue = '';
+        var buildAuditManualDecryptRecord = null;
+        var buildAuditManualDecryptInitialized = false;
+        var buildAuditDiffPreviousFocus = null;
+        var buildAuditDiffInitialized = false;
 
         function initAppDialog() {
             if (appDialogInitialized) return;
@@ -1473,6 +1928,7 @@
                 decrypted: '后端已读取并解密',
                 plaintext: '后端已读取明文',
                 fetched: '后端已读取远程文件（旧记录）',
+                fetch_failed: '后端读取失败（不阻断打包）',
                 client_submitted: '客户端提交（未配置远程源）',
                 not_configured: '未配置远程源'
             }[status] || status || '历史记录未采集';
@@ -1568,6 +2024,301 @@
             });
         }
 
+        function initBuildAuditDiffModal() {
+            if (buildAuditDiffInitialized) return;
+            var overlay = document.getElementById('buildAuditDiffModal');
+            var closeBtn = document.getElementById('buildAuditDiffModalCloseBtn');
+            var doneBtn = document.getElementById('buildAuditDiffModalDoneBtn');
+            if (!overlay || !closeBtn || !doneBtn) return;
+
+            closeBtn.addEventListener('click', closeBuildAuditDiff);
+            doneBtn.addEventListener('click', closeBuildAuditDiff);
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeBuildAuditDiff();
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && overlay.classList.contains('show')) {
+                    closeBuildAuditDiff();
+                }
+            });
+            buildAuditDiffInitialized = true;
+        }
+
+        function getBuildAuditDiffVersionTitle(label, version) {
+            if (!version) return label + '：无可比较记录';
+            var parts = [label, formatTableDateTime(version.created_at) || version.created_at || '-'];
+            if (version.record_id) parts.push('记录 ID ' + version.record_id);
+            if (version.sha256) parts.push('SHA-256 ' + version.sha256);
+            return parts.join(' · ');
+        }
+
+        async function openBuildAuditDiff(recordID, trigger) {
+            initBuildAuditDiffModal();
+            var record = buildAuditRecordsCache[String(recordID)];
+            var overlay = document.getElementById('buildAuditDiffModal');
+            if (!record || !overlay) {
+                showAppAlert('未找到对应的打包审计记录。', '提示');
+                return;
+            }
+            if (!record.oss_config_changed) {
+                showAppAlert('该记录与上一条同地址的 panels 后端地址一致。', '提示');
+                return;
+            }
+
+            var statusEl = document.getElementById('buildAuditDiffStatus');
+            var previousTitleEl = document.getElementById('buildAuditDiffPreviousTitle');
+            var currentTitleEl = document.getElementById('buildAuditDiffCurrentTitle');
+            var previousContentEl = document.getElementById('buildAuditDiffPreviousContent');
+            var currentContentEl = document.getElementById('buildAuditDiffCurrentContent');
+            document.getElementById('buildAuditDiffModalMeta').textContent = [
+                '用户：' + (record.code_name || '-'),
+                '激活码 ID：' + (record.code_id || '-'),
+                '远程地址：' + (record.oss_config_url || '未记录')
+            ].join(' · ');
+            statusEl.textContent = '正在加载上一版本...';
+            statusEl.className = 'build-audit-diff-status';
+            previousTitleEl.textContent = record.oss_config_previous_created_at
+                ? getBuildAuditDiffVersionTitle('上一版本', {
+                    created_at: record.oss_config_previous_created_at,
+                    record_id: record.oss_config_previous_record_id,
+                    sha256: record.oss_config_previous_sha256
+                })
+                : '上一版本';
+            currentTitleEl.textContent = getBuildAuditDiffVersionTitle('当前版本', {
+                created_at: record.created_at,
+                record_id: record.record_id,
+                sha256: record.oss_config_content_sha256
+            });
+            previousContentEl.textContent = '加载中...';
+            currentContentEl.textContent = formatBuildAuditJSON(record.oss_config_content || '') || '当前没有可展示的 OSS 内容。';
+
+            buildAuditDiffPreviousFocus = trigger || document.activeElement;
+            overlay.classList.add('show');
+            overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('build-audit-modal-open');
+            document.getElementById('buildAuditDiffModalCloseBtn').focus();
+
+            try {
+                var response = await api('GET', '/admin/build-records/' + encodeURIComponent(recordID) + '/oss-diff');
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '获取 OSS 变化失败');
+                }
+                if (!data.previous) {
+                    throw new Error('未找到上一条可比较的 OSS 记录');
+                }
+                previousTitleEl.textContent = getBuildAuditDiffVersionTitle('上一版本', data.previous);
+                currentTitleEl.textContent = getBuildAuditDiffVersionTitle('当前版本', data.current);
+                previousContentEl.textContent = formatBuildAuditJSON(data.previous.content || '') || '上一版本没有可展示的 OSS 内容。';
+                currentContentEl.textContent = formatBuildAuditJSON((data.current || {}).content || '') || '当前版本没有可展示的 OSS 内容。';
+                statusEl.textContent = data.changed
+                    ? '已检测到 panels 后端地址变化，请对比两侧内容。'
+                    : 'panels 后端地址与上一版本一致。';
+                statusEl.className = 'build-audit-diff-status';
+            } catch (e) {
+                previousContentEl.textContent = '';
+                statusEl.textContent = '获取 OSS 变化失败：' + e.message;
+                statusEl.className = 'build-audit-diff-status error';
+            }
+        }
+
+        function closeBuildAuditDiff() {
+            var overlay = document.getElementById('buildAuditDiffModal');
+            if (!overlay) return;
+            overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('build-audit-modal-open');
+            if (buildAuditDiffPreviousFocus && typeof buildAuditDiffPreviousFocus.focus === 'function') {
+                buildAuditDiffPreviousFocus.focus();
+            }
+            buildAuditDiffPreviousFocus = null;
+        }
+
+        function decodeBuildAuditBase64(value) {
+            value = String(value || '').replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+            if (!value) throw new Error('内容为空');
+            while (value.length % 4) value += '=';
+            var binary;
+            try {
+                binary = atob(value);
+            } catch (e) {
+                throw new Error('不是有效的 Base64 内容');
+            }
+            var bytes = new Uint8Array(binary.length);
+            for (var i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        function getBuildAuditEncryptionKey(record) {
+            if (!record) return '';
+            var snapshot;
+            try {
+                snapshot = JSON.parse(String(record.remote_config_snapshot || '{}'));
+            } catch (e) {
+                return '';
+            }
+            var remoteConfig = snapshot && snapshot.remote_config ? snapshot.remote_config : snapshot;
+            var sources = remoteConfig && Array.isArray(remoteConfig.sources) ? remoteConfig.sources : [];
+            var targetURL = String(record.oss_config_url || '').trim();
+            var fallbackKey = '';
+            for (var i = 0; i < sources.length; i++) {
+                var source = sources[i] || {};
+                var key = String(source.encryption_key || '').trim();
+                if (!key) continue;
+                if (targetURL && String(source.url || '').trim() === targetURL) {
+                    return key;
+                }
+                if (!fallbackKey) fallbackKey = key;
+            }
+            return fallbackKey;
+        }
+
+        function initBuildAuditManualDecryptModal() {
+            if (buildAuditManualDecryptInitialized) return;
+            var overlay = document.getElementById('buildAuditManualDecryptModal');
+            var closeBtn = document.getElementById('buildAuditManualModalCloseBtn');
+            var doneBtn = document.getElementById('buildAuditManualDoneBtn');
+            var decryptBtn = document.getElementById('buildAuditManualDecryptBtn');
+            var copyBtn = document.getElementById('buildAuditManualCopyBtn');
+            if (!overlay || !closeBtn || !doneBtn || !decryptBtn || !copyBtn) return;
+
+            closeBtn.addEventListener('click', closeBuildAuditManualDecrypt);
+            doneBtn.addEventListener('click', closeBuildAuditManualDecrypt);
+            decryptBtn.addEventListener('click', decryptBuildAuditManualContent);
+            copyBtn.addEventListener('click', copyBuildAuditManualContent);
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeBuildAuditManualDecrypt();
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && overlay.classList.contains('show')) {
+                    closeBuildAuditManualDecrypt();
+                }
+            });
+            buildAuditManualDecryptInitialized = true;
+        }
+
+        function openBuildAuditManualDecrypt(recordID, trigger) {
+            initBuildAuditManualDecryptModal();
+            var record = buildAuditRecordsCache[String(recordID)];
+            var overlay = document.getElementById('buildAuditManualDecryptModal');
+            if (!record || !overlay) {
+                showAppAlert('未找到对应的打包审计记录。', '提示');
+                return;
+            }
+
+            buildAuditManualDecryptRecord = record;
+            buildAuditManualDecryptContentValue = '';
+            document.getElementById('buildAuditManualModalMeta').textContent = [
+                '用户：' + (record.code_name || '-'),
+                '记录 ID：' + (record.record_id || '-'),
+                '远程地址：' + (record.oss_config_url || '未记录')
+            ].join(' · ');
+            document.getElementById('buildAuditManualEncryptedContent').value = '';
+            document.getElementById('buildAuditManualResult').textContent = '输入加密内容后点击“解密内容”。';
+            document.getElementById('buildAuditManualCopyBtn').disabled = true;
+            document.getElementById('buildAuditManualCopyStatus').textContent = '';
+            document.getElementById('buildAuditManualCopyStatus').className = 'build-audit-modal-copy-status';
+            var statusEl = document.getElementById('buildAuditManualStatus');
+            statusEl.textContent = record.oss_config_fetch_error
+                ? '此前读取失败：' + record.oss_config_fetch_error
+                : '当前记录没有保存可查看的 OSS 内容。';
+            statusEl.title = '';
+            statusEl.className = 'build-audit-manual-status';
+
+            buildAuditManualDecryptPreviousFocus = trigger || document.activeElement;
+            overlay.classList.add('show');
+            overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('build-audit-modal-open');
+            document.getElementById('buildAuditManualEncryptedContent').focus();
+        }
+
+        function closeBuildAuditManualDecrypt() {
+            var overlay = document.getElementById('buildAuditManualDecryptModal');
+            if (!overlay) return;
+            overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('build-audit-modal-open');
+            document.getElementById('buildAuditManualEncryptedContent').value = '';
+            document.getElementById('buildAuditManualResult').textContent = '';
+            buildAuditManualDecryptContentValue = '';
+            buildAuditManualDecryptRecord = null;
+            if (buildAuditManualDecryptPreviousFocus && typeof buildAuditManualDecryptPreviousFocus.focus === 'function') {
+                buildAuditManualDecryptPreviousFocus.focus();
+            }
+            buildAuditManualDecryptPreviousFocus = null;
+        }
+
+        async function decryptBuildAuditManualContent() {
+            var record = buildAuditManualDecryptRecord;
+            var input = document.getElementById('buildAuditManualEncryptedContent');
+            var resultEl = document.getElementById('buildAuditManualResult');
+            var statusEl = document.getElementById('buildAuditManualStatus');
+            var copyBtn = document.getElementById('buildAuditManualCopyBtn');
+            if (!record || !input || !resultEl || !statusEl || !copyBtn) return;
+
+            var encodedContent = String(input.value || '').trim();
+            var encodedKey = getBuildAuditEncryptionKey(record);
+            buildAuditManualDecryptContentValue = '';
+            copyBtn.disabled = true;
+            if (!encodedContent) {
+                statusEl.textContent = '请先粘贴 OSS 返回的加密内容。';
+                statusEl.className = 'build-audit-manual-status error';
+                return;
+            }
+            if (!encodedKey) {
+                statusEl.textContent = '该记录的配置快照中没有可用密钥。';
+                statusEl.className = 'build-audit-manual-status error';
+                return;
+            }
+
+            try {
+                var encrypted = decodeBuildAuditBase64(encodedContent);
+                var key = decodeBuildAuditBase64(encodedKey);
+                var nonceSize = 16;
+                var tagSize = 16;
+                if (key.length !== 32) throw new Error('配置中的密钥长度不是 32 字节');
+                if (encrypted.length <= nonceSize + tagSize) throw new Error('加密内容长度无效');
+                if (!window.crypto || !window.crypto.subtle) throw new Error('当前浏览器不支持本地解密');
+                var cryptoKey = await window.crypto.subtle.importKey('raw', key, { name: 'AES-GCM' }, false, ['decrypt']);
+                var decrypted = await window.crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: encrypted.slice(0, nonceSize), tagLength: 128 },
+                    cryptoKey,
+                    encrypted.slice(nonceSize)
+                );
+                var plaintext = new TextDecoder().decode(decrypted);
+                if (!plaintext.trim()) throw new Error('解密后的内容为空');
+                buildAuditManualDecryptContentValue = plaintext;
+                resultEl.textContent = formatBuildAuditJSON(plaintext);
+                statusEl.textContent = '解密成功，仅在当前浏览器显示。';
+                statusEl.className = 'build-audit-manual-status success';
+                copyBtn.disabled = false;
+            } catch (e) {
+                resultEl.textContent = '';
+                statusEl.textContent = '解密失败：加密内容与配置中的密钥不匹配，或内容格式错误。';
+                statusEl.title = e.message || '';
+                statusEl.className = 'build-audit-manual-status error';
+            }
+        }
+
+        function copyBuildAuditManualContent() {
+            var statusEl = document.getElementById('buildAuditManualCopyStatus');
+            if (!buildAuditManualDecryptContentValue || !navigator.clipboard) {
+                statusEl.textContent = '当前浏览器不支持自动复制';
+                statusEl.className = 'build-audit-modal-copy-status error';
+                return;
+            }
+            navigator.clipboard.writeText(buildAuditManualDecryptContentValue).then(function() {
+                statusEl.textContent = '已复制解密结果';
+                statusEl.className = 'build-audit-modal-copy-status success';
+            }).catch(function() {
+                statusEl.textContent = '复制失败，请手动选择内容';
+                statusEl.className = 'build-audit-modal-copy-status error';
+            });
+        }
+
         async function loadAdminData() {
             await loadProfileList();
             await loadCodes();
@@ -1615,7 +2366,7 @@
             renderPlatformPermissionCheckboxes('codeAllowedPlatforms', 'platform-permission-cb', []);
             renderPlatformPermissionCheckboxes('editCodeAllowedPlatforms', 'edit-platform-permission-cb', []);
             initBuildAuditContentModal();
-            ['buildAuditCodeFilter', 'buildAuditClientFilter'].forEach(function(id) {
+            ['buildAuditCodeFilter', 'buildAuditClientFilter', 'buildAuditOSSChangeFilter'].forEach(function(id) {
                 var input = document.getElementById(id);
                 if (input) input.addEventListener('change', loadBuildAuditRecords);
             });
@@ -1674,7 +2425,8 @@
         var profileItemsByClient = {};
         var profileKeysByClient = {};
         var codesCache = [];
-        var editUnknownProfileKeys = [];
+        var codeProfileDeleteResolver = null;
+        var codeProfileDeleteModalInitialized = false;
         var buildPlatformCatalog = [
             { value: 'windows-arm64', label: 'Windows ARM64' },
             { value: 'windows-amd64', label: 'Windows AMD64' },
@@ -1684,7 +2436,8 @@
             { value: 'linux-amd64', label: 'Linux AMD64' },
             { value: 'openwrt', label: '软路由' },
             { value: 'macos-arm64', label: 'macOS ARM64' },
-            { value: 'macos-amd64', label: 'macOS AMD64' }
+            { value: 'macos-amd64', label: 'macOS AMD64' },
+            { value: 'ios', label: 'iOS 巨魔 IPA' }
         ];
         var buildClientCatalog = [
             { value: 'xboard_mihomo_sub', label: '老客户端 Xboard-Mihomo_sub', shortLabel: '老客户端' },
@@ -2003,7 +2756,7 @@
                 allProfiles = allProfileItems.map(function(p) { return getProfileKey(p); }).filter(Boolean);
                 renderRenameProfileSelect();
                 renderProfileCheckboxes('profileCheckboxes', 'profile-cb', getSelectedProfiles('.profile-cb:checked', 'manualProfiles'));
-                renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', getSelectedProfiles('.edit-profile-cb:checked', 'editManualProfiles'));
+                renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', getCheckedProfiles('.edit-profile-cb:checked'), { includeUnknown: true });
             } catch (e) {
                 console.log('加载档案列表失败:', e);
             }
@@ -2119,10 +2872,10 @@
                 return;
             }
             if (selected.length <= 3) {
-                summaryEl.textContent = selected.map(formatProfileLabel).join('、');
+                summaryEl.textContent = selected.map(formatProfileLabel).join('、') + (manualCount ? '（含 ' + manualCount + ' 个按名称绑定）' : '');
                 return;
             }
-            summaryEl.textContent = '已选择 ' + selected.length + ' 个档案' + (manualCount ? '（含 ' + manualCount + ' 个手动输入）' : '');
+            summaryEl.textContent = '已选择 ' + selected.length + ' 个档案' + (manualCount ? '（含 ' + manualCount + ' 个按名称绑定）' : '');
         }
 
         function closeAllProfilePickers(exceptId) {
@@ -2185,10 +2938,13 @@
             }
         }
 
-        function renderProfileCheckboxes(containerId, checkboxClass, selectedProfiles) {
+        // options.includeUnknown：把已绑定但不在档案列表里的键也渲染成可取消的选项。
+        // 之前这类键只被静默保留，管理员在界面上看不到也取消不掉。
+        function renderProfileCheckboxes(containerId, checkboxClass, selectedProfiles, options) {
             var container = document.getElementById(containerId);
             if (!container) return;
 
+            options = options || {};
             bindProfilePicker(containerId);
             selectedProfiles = selectedProfiles || [];
 
@@ -2196,17 +2952,18 @@
             selectedProfiles.forEach(function(name) {
                 if (name) selectedMap[name] = true;
             });
+            var unknownProfiles = options.includeUnknown
+                ? selectedProfiles.filter(function(name) { return name && allProfiles.indexOf(name) === -1; })
+                : [];
 
             container.innerHTML = '';
             if (allProfiles.length === 0) {
+                // 档案列表为空时仍然要继续渲染"已绑定但不在列表里"的项，否则无法解绑。
                 var empty = document.createElement('span');
                 empty.className = 'profile-picker-empty';
                 empty.textContent = '暂无已有档案，请在下方手动输入';
                 container.appendChild(empty);
-                updateProfilePickerSummary(containerId);
-                return;
-            }
-
+            } else {
 	            allProfiles.forEach(function(name) {
 	                var label = document.createElement('label');
 	                label.className = 'profile-picker-option';
@@ -2224,6 +2981,31 @@
 	                var text = document.createElement('span');
 	                text.textContent = formatProfileLabel(name);
 	                text.style.whiteSpace = 'nowrap';
+
+                label.appendChild(input);
+                label.appendChild(text);
+                container.appendChild(label);
+	            });
+            }
+
+            unknownProfiles.forEach(function(name) {
+                var label = document.createElement('label');
+                label.className = 'profile-picker-option';
+                label.setAttribute('data-profile-name', (name + ' ' + formatProfileLabel(name)).toLowerCase());
+
+                var input = document.createElement('input');
+                input.type = 'checkbox';
+                input.className = checkboxClass;
+                input.value = name;
+                input.checked = true;
+                input.addEventListener('change', function() {
+                    updateProfilePickerSummary(containerId);
+                });
+
+                var text = document.createElement('span');
+                text.textContent = formatProfileLabel(name) + '（不在档案列表，取消勾选即可解绑）';
+                text.style.whiteSpace = 'nowrap';
+                text.style.color = '#ffb85c';
 
                 label.appendChild(input);
                 label.appendChild(text);
@@ -2444,7 +3226,8 @@
                 'openwrt-amd64': '软路由',
                 'openwrt-arm64': '软路由',
                 'macos-arm64': 'macOS ARM64',
-                'macos-amd64': 'macOS AMD64'
+                'macos-amd64': 'macOS AMD64',
+                'ios': 'iOS IPA'
             };
             return Array.from(new Set(platforms.map(function(platform) {
                 return escapeHtml(shortLabelMap[platform] || platform);
@@ -2459,6 +3242,153 @@
             renderProfileCheckboxes('profileCheckboxes', 'profile-cb', []);
             renderClientPermissionCheckboxes('codeAllowedClients', 'client-permission-cb', []);
             renderPlatformPermissionCheckboxes('codeAllowedPlatforms', 'platform-permission-cb', []);
+        }
+
+        function escapeDuplicateText(value) {
+            return String(value === undefined || value === null ? '' : value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        async function detectDuplicateProfiles() {
+            var container = document.getElementById('duplicateProfilesResult');
+            if (!container) return;
+            container.innerHTML = '<div style="font-size:13px;color:#8b95a7;">正在扫描两个项目的档案...</div>';
+            try {
+                var response = await api('GET', '/admin/profiles/duplicates');
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '检测失败');
+                }
+                renderDuplicateProfiles(data.groups || []);
+            } catch (e) {
+                container.innerHTML = '<div style="font-size:13px;color:#ff9b9b;">检测失败: ' + escapeDuplicateText(e.message) + '</div>';
+            }
+        }
+
+        function renderDuplicateProfiles(groups) {
+            var container = document.getElementById('duplicateProfilesResult');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (!groups.length) {
+                var ok = document.createElement('div');
+                ok.style.fontSize = '13px';
+                ok.style.color = '#73e3a6';
+                ok.textContent = '未发现重复档案。';
+                container.appendChild(ok);
+                return;
+            }
+
+            var repeatedCount = groups.filter(function(group) { return group.reason === 'repeated'; }).length;
+            var hashedCount = groups.filter(function(group) { return group.reason === 'hashed_key'; }).length;
+            var title = document.createElement('div');
+            title.style.fontSize = '13px';
+            title.style.color = '#ffd08a';
+            title.style.marginBottom = '8px';
+            title.textContent = '发现 ' + groups.length + ' 项需要处理：'
+                + repeatedCount + ' 组同项目内重名'
+                + (hashedCount ? '，' + hashedCount + ' 个键名带自动后缀' : '') + '。';
+            container.appendChild(title);
+
+            groups.forEach(function(group) {
+                var card = document.createElement('div');
+                card.style.border = '1px solid rgba(255,184,92,0.28)';
+                card.style.borderRadius = '8px';
+                card.style.padding = '10px 12px';
+                card.style.marginBottom = '10px';
+                card.style.background = 'rgba(255,184,92,0.06)';
+
+                var head = document.createElement('div');
+                head.style.fontSize = '13px';
+                head.style.color = '#edf6ff';
+                head.style.marginBottom = '8px';
+                var reasonLabel = group.reason === 'hashed_key' ? '键名带自动后缀' : ('同项目内重名 ' + group.items.length + ' 个');
+                head.textContent = '显示名：' + group.display_name
+                    + '（' + (group.client_label || group.client) + '，' + reasonLabel + '）';
+                card.appendChild(head);
+
+                group.items.forEach(function(item) {
+                    var row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.alignItems = 'center';
+                    row.style.gap = '10px';
+                    row.style.flexWrap = 'wrap';
+                    row.style.marginBottom = '6px';
+
+                    var clientEl = document.createElement('span');
+                    clientEl.style.fontSize = '12px';
+                    clientEl.style.color = '#8b95a7';
+                    clientEl.textContent = item.client_label || item.client;
+                    row.appendChild(clientEl);
+
+                    var keyEl = document.createElement('code');
+                    keyEl.style.fontSize = '12px';
+                    keyEl.style.color = '#7fdcff';
+                    keyEl.textContent = item.key;
+                    row.appendChild(keyEl);
+
+                    if (item.hashed_key) {
+                        var badge = document.createElement('span');
+                        badge.style.fontSize = '11px';
+                        badge.style.color = '#ffd08a';
+                        badge.style.border = '1px solid rgba(255,184,92,0.38)';
+                        badge.style.borderRadius = '5px';
+                        badge.style.padding = '2px 6px';
+                        badge.textContent = '自动加后缀生成';
+                        row.appendChild(badge);
+                    }
+
+                    var boundEl = document.createElement('span');
+                    boundEl.style.fontSize = '12px';
+                    boundEl.style.color = item.bound_codes ? '#ff9b9b' : '#8b95a7';
+                    boundEl.textContent = '被 ' + item.bound_codes + ' 个激活码绑定';
+                    row.appendChild(boundEl);
+
+                    var delBtn = document.createElement('button');
+                    delBtn.type = 'button';
+                    delBtn.className = 'btn btn-del';
+                    delBtn.style.padding = '3px 9px';
+                    delBtn.style.fontSize = '12px';
+                    delBtn.textContent = '删除该档案';
+                    delBtn.addEventListener('click', function() {
+                        deleteDuplicateProfile(item.client, item.key, item.bound_codes | 0);
+                    });
+                    row.appendChild(delBtn);
+
+                    card.appendChild(row);
+                });
+
+                container.appendChild(card);
+            });
+        }
+
+        async function deleteDuplicateProfile(client, key, boundCodes) {
+            var message = '确定删除档案 "' + key + '" 吗？该操作会从 GitHub 仓库里删除对应文件（新旧客户端里同名的那份都会删）。';
+            if (boundCodes > 0) {
+                message += '\n\n它正被 ' + boundCodes + ' 个激活码绑定，删除后这些绑定会自动从激活码里移除。';
+            }
+            if (!await showAppConfirm(message, '删除档案', '确认删除')) {
+                return;
+            }
+            var statusEl = document.getElementById('profileManageStatus');
+            try {
+                var response = await api('DELETE', '/profiles/' + encodeURIComponent(key) + '?client=' + encodeURIComponent(client));
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '删除失败');
+                }
+                statusEl.className = 'status-msg success';
+                statusEl.textContent = '已删除档案: ' + key;
+                await loadProfileList();
+                await loadCodes();
+                detectDuplicateProfiles();
+            } catch (e) {
+                statusEl.className = 'status-msg error';
+                statusEl.textContent = '删除失败: ' + e.message;
+            }
         }
 
         async function renameProfileFromAdmin() {
@@ -2487,12 +3417,12 @@
                 statusEl.textContent = '新档案名称不能与原名称相同';
                 return;
             }
-            if (renameProfiles.indexOf(newName) !== -1) {
-                statusEl.className = 'status-msg error';
-                statusEl.textContent = '新档案名称已存在';
-                return;
+            var nameTaken = renameProfiles.indexOf(newName) !== -1;
+            var confirmMessage = '确定在“' + renameClientLabel + '”中将档案 "' + oldLabel + '" 重命名为 "' + newName + '" 吗？绑定关系和历史记录会同步更新。';
+            if (nameTaken) {
+                confirmMessage += '\n\n已存在同名档案：继续会保留同名档案，并给新档案键自动加上唯一后缀（显示名仍然是 "' + newName + '"）。可以稍后用下方的「检测重复档案」查看和清理。';
             }
-            if (!await showAppConfirm('确定在“' + renameClientLabel + '”中将档案 "' + oldLabel + '" 重命名为 "' + newName + '" 吗？绑定关系和历史记录会同步更新。', '重命名档案', '确认重命名')) {
+            if (!await showAppConfirm(confirmMessage, '重命名档案', '确认重命名')) {
                 return;
             }
 
@@ -2510,10 +3440,10 @@
                 }
                 document.getElementById('renameProfileName').value = '';
                 await loadProfileList();
-                document.getElementById('renameProfileSelect').value = newName;
+                document.getElementById('renameProfileSelect').value = data.new_key || newName;
                 await loadCodes();
                 statusEl.className = 'status-msg success';
-                statusEl.textContent = '已重命名（' + renameClientLabel + '）: ' + oldLabel + ' -> ' + newName;
+                statusEl.textContent = '（' + renameClientLabel + '）' + (data.message || ('已重命名: ' + oldLabel + ' -> ' + newName));
             } catch (e) {
                 statusEl.className = 'status-msg error';
                 statusEl.textContent = '重命名失败: ' + e.message;
@@ -2522,7 +3452,6 @@
 
         function cancelEditCode() {
             document.getElementById('editCodePanel').style.display = 'none';
-            editUnknownProfileKeys = [];
             document.getElementById('editStatus').className = 'status-msg';
             document.getElementById('editStatus').textContent = '';
             document.getElementById('editCodeId').value = '';
@@ -2549,10 +3478,6 @@
             var selectedProfiles = code.allowed_profiles || [];
             var selectedClients = code.allowed_clients || [];
             var selectedPlatforms = code.allowed_platforms || [];
-            var manualProfiles = selectedProfiles.filter(function(name) {
-                return allProfiles.indexOf(name) === -1;
-            });
-            editUnknownProfileKeys = manualProfiles.slice();
 
             document.getElementById('editCodeId').value = String(code.id);
             document.getElementById('editCodeName').value = code.name || '';
@@ -2562,7 +3487,7 @@
             document.getElementById('editManualProfiles').value = '';
             document.getElementById('editStatus').className = 'status-msg';
             document.getElementById('editStatus').textContent = '';
-            renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', selectedProfiles);
+            renderProfileCheckboxes('editProfileCheckboxes', 'edit-profile-cb', selectedProfiles, { includeUnknown: true });
             renderClientPermissionCheckboxes('editCodeAllowedClients', 'edit-client-permission-cb', selectedClients);
             renderPlatformPermissionCheckboxes('editCodeAllowedPlatforms', 'edit-platform-permission-cb', selectedPlatforms);
             document.getElementById('editCodePanel').style.display = 'block';
@@ -2737,7 +3662,16 @@
             var sourceURL = String(record.oss_config_url || '');
             var fetchStatusText = buildAuditFetchStatusText(String(record.oss_config_fetch_status || ''));
             var recordID = Number(record.record_id || 0);
-            var html = '<div class="build-audit-content-summary">' +
+            var html = '<div class="build-audit-content-summary">';
+            if (record.oss_config_changed) {
+                html += '<div class="build-audit-risk-badge">风险：panels 后端地址已变化</div>';
+                if (record.oss_config_previous_record_id) {
+                    html += '<div class="build-audit-change-meta">上一条同地址记录：' +
+                        escapeHtml(formatTableDateTime(record.oss_config_previous_created_at) || record.oss_config_previous_created_at || '-') +
+                        ' · ID ' + escapeHtml(record.oss_config_previous_record_id) + '</div>';
+                }
+            }
+            html +=
                 '<div class="build-audit-meta">获取状态：' + escapeHtml(fetchStatusText) + '</div>' +
                 '<div class="build-audit-meta">源类型：' + escapeHtml(sourceName) + ' · 格式：' + escapeHtml(ossFormat) + '</div>';
             if (sourceURL) {
@@ -2745,8 +3679,20 @@
             }
             if (recordID > 0 && ossContent) {
                 html += '<button type="button" class="btn btn-primary build-audit-view-btn" onclick="openBuildAuditContent(' + recordID + ', this)">查看解密内容</button>';
+                if (record.oss_config_changed && record.oss_config_previous_record_id) {
+                    html += '<button type="button" class="btn build-audit-diff-btn" onclick="openBuildAuditDiff(' + recordID + ', this)">查看变化</button>';
+                }
             } else {
-                html += '<div class="build-audit-url">' + (fetchStatusText === '历史记录未采集' ? '该记录创建时未采集 OSS 内容' : '暂无可展示的解密内容') + '</div>';
+                if (fetchStatusText === '历史记录未采集') {
+                    html += '<div class="build-audit-url">该记录创建时未采集 OSS 内容</div>';
+                } else if (record.oss_config_fetch_error) {
+                    html += '<div class="build-audit-error" title="' + escapeHtml(record.oss_config_fetch_error) + '">失败原因：' + escapeHtml(record.oss_config_fetch_error) + '</div>';
+                } else {
+                    html += '<div class="build-audit-url">暂无可展示的解密内容</div>';
+                }
+                if (recordID > 0) {
+                    html += '<button type="button" class="btn build-audit-manual-btn" onclick="openBuildAuditManualDecrypt(' + recordID + ', this)">手动解密</button>';
+                }
             }
             return html + '</div>';
         }
@@ -2798,6 +3744,9 @@
                 latestRecord.profile || '-',
                 '状态：' + buildAuditRecordStatusText(latestRecord)
             ].join(' · ');
+            var riskCount = group.records.filter(function(record) {
+                return record.oss_config_changed;
+            }).length;
             var operationHTML = '<span style="color:#777;font-size:12px;">激活码已删除</span>';
             if (code) {
                 var isActive = code.is_active !== false;
@@ -2815,8 +3764,11 @@
                                 '<span class="build-audit-group-title">用户：' + escapeHtml(userName) + ' · ' + escapeHtml(codeLabel) + '</span>' +
                                 '<span class="build-audit-group-subtitle">' + escapeHtml(latestSummary) + '</span>' +
                             '</span>' +
-                            '<span class="build-audit-group-toggle-label">展开记录</span>' +
-                            '<span class="build-audit-group-count">' + group.records.length + ' 条打包记录</span>' +
+                            '<span class="build-audit-group-controls">' +
+                                '<span class="build-audit-group-toggle-label">展开记录</span>' +
+                                '<span class="build-audit-group-count">' + group.records.length + ' 条记录</span>' +
+                                (riskCount > 0 ? '<span class="build-audit-group-risk">风险 ' + riskCount + '</span>' : '') +
+                            '</span>' +
                         '</button>' +
                     '</div>' +
                 '</td>' +
@@ -2881,10 +3833,13 @@
             var query = [];
             var codeFilter = document.getElementById('buildAuditCodeFilter');
             var clientFilter = document.getElementById('buildAuditClientFilter');
+            var ossChangeFilter = document.getElementById('buildAuditOSSChangeFilter');
             var codeID = codeFilter ? String(codeFilter.value || '').trim() : '';
             var client = clientFilter ? String(clientFilter.value || '').trim() : '';
+            var ossChange = ossChangeFilter ? String(ossChangeFilter.value || '').trim() : '';
             if (codeID) query.push('code_id=' + encodeURIComponent(codeID));
             if (client) query.push('client=' + encodeURIComponent(client));
+            if (ossChange) query.push('oss_change=' + encodeURIComponent(ossChange));
             query.push('limit=100');
             try {
                 var response = await api('GET', '/admin/build-records?' + query.join('&'));
@@ -2959,7 +3914,7 @@
             var maxUses = parseMaxUsesValue('editCodeMaxUses');
             var usedCount = parseUsedCountValue('editCodeUsedCount');
             var expiresAt = document.getElementById('editCodeExpiresAt').value.trim();
-            var selectedProfiles = mergeProfileValues(getCheckedProfiles('.edit-profile-cb:checked'), editUnknownProfileKeys);
+            var selectedProfiles = getCheckedProfiles('.edit-profile-cb:checked');
             var manualProfiles = getManualProfiles('editManualProfiles');
             var profileLabels = selectedProfiles.concat(manualProfiles);
             var selectedClients = getSelectedClientPermissions('.edit-client-permission-cb:checked');
@@ -3040,10 +3995,198 @@
             }
         }
 
+        // 汇总某个激活码绑定的档案：标注每个档案还被多少其它激活码使用、是否存在同显示名档案。
+        function buildCodeProfileDeleteOptions(codeId) {
+            var target = null;
+            codesCache.forEach(function(item) {
+                if (item.id === codeId) target = item;
+            });
+            if (!target) return { items: [], unrestrictedCodes: 0 };
+
+            var otherUsage = {};
+            var unrestrictedCodes = 0;
+            codesCache.forEach(function(item) {
+                if (item.id === codeId) return;
+                var profiles = item.allowed_profiles || [];
+                if (!profiles.length) {
+                    // 绑定为空表示不限制档案，这些激活码也会受删除影响。
+                    unrestrictedCodes += 1;
+                    return;
+                }
+                profiles.forEach(function(key) {
+                    otherUsage[key] = (otherUsage[key] || 0) + 1;
+                });
+            });
+
+            // 同显示名的档案单独计数：删除时必须按档案键区分，避免误删同名的那一份。
+            var boundKeys = (target.allowed_profiles || []).filter(function(key) { return !!key; });
+            var nameCounts = {};
+            boundKeys.forEach(function(key) {
+                var label = formatProfileLabel(key);
+                nameCounts[label] = (nameCounts[label] || 0) + 1;
+            });
+
+            var items = boundKeys.map(function(key) {
+                var label = formatProfileLabel(key);
+                return {
+                    key: key,
+                    label: label,
+                    sharedWith: otherUsage[key] || 0,
+                    sameNameCount: nameCounts[label] || 1
+                };
+            });
+            return { items: items, unrestrictedCodes: unrestrictedCodes };
+        }
+
+        function closeCodeProfileDeleteModal(result) {
+            var overlay = document.getElementById('codeProfileDeleteModal');
+            if (overlay) {
+                overlay.classList.remove('show');
+                overlay.setAttribute('aria-hidden', 'true');
+            }
+            var resolver = codeProfileDeleteResolver;
+            codeProfileDeleteResolver = null;
+            if (resolver) resolver(result);
+        }
+
+        function initCodeProfileDeleteModal() {
+            if (codeProfileDeleteModalInitialized) return;
+            var overlay = document.getElementById('codeProfileDeleteModal');
+            if (!overlay) return;
+            document.getElementById('codeProfileDeleteCloseBtn').addEventListener('click', function() {
+                closeCodeProfileDeleteModal(null);
+            });
+            document.getElementById('codeProfileDeleteSkipBtn').addEventListener('click', function() {
+                closeCodeProfileDeleteModal([]);
+            });
+            document.getElementById('codeProfileDeleteConfirmBtn').addEventListener('click', function() {
+                var picked = [];
+                document.querySelectorAll('#codeProfileDeleteList input[type="checkbox"]').forEach(function(cb) {
+                    if (cb.checked) picked.push(cb.value);
+                });
+                closeCodeProfileDeleteModal(picked);
+            });
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeCodeProfileDeleteModal(null);
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && overlay.classList.contains('show')) {
+                    closeCodeProfileDeleteModal(null);
+                }
+            });
+            codeProfileDeleteModalInitialized = true;
+        }
+
+        // 返回 null=取消整个删除；[]=只删激活码；[key...]=同时删除选中的档案
+        function chooseProfilesToDeleteWithCode(codeId) {
+            initCodeProfileDeleteModal();
+            var overlay = document.getElementById('codeProfileDeleteModal');
+            var listEl = document.getElementById('codeProfileDeleteList');
+            var metaEl = document.getElementById('codeProfileDeleteMeta');
+            var hintEl = document.getElementById('codeProfileDeleteHint');
+            if (!overlay || !listEl) return Promise.resolve(null);
+
+            var options = buildCodeProfileDeleteOptions(codeId);
+            var items = options.items;
+            if (!items.length) return Promise.resolve([]);
+
+            metaEl.textContent = '该激活码绑定了 ' + items.length + ' 个档案：仅被它使用的已勾选，仍被其它激活码使用的需要你自己确认后再勾选。';
+            listEl.innerHTML = '';
+
+            items.forEach(function(item) {
+                var row = document.createElement('label');
+                row.style.display = 'flex';
+                row.style.alignItems = 'flex-start';
+                row.style.gap = '9px';
+                row.style.padding = '9px 10px';
+                row.style.marginBottom = '8px';
+                row.style.border = '1px solid rgba(255,255,255,0.1)';
+                row.style.borderRadius = '7px';
+                row.style.background = 'rgba(0,0,0,0.22)';
+                row.style.cursor = 'pointer';
+
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = item.key;
+                cb.checked = item.sharedWith === 0;
+                cb.style.marginTop = '3px';
+                row.appendChild(cb);
+
+                var info = document.createElement('div');
+                info.style.minWidth = '0';
+
+                var nameEl = document.createElement('div');
+                nameEl.style.fontSize = '13px';
+                nameEl.style.color = '#edf6ff';
+                nameEl.textContent = item.label;
+                info.appendChild(nameEl);
+
+                var keyEl = document.createElement('code');
+                keyEl.style.fontSize = '11px';
+                keyEl.style.color = '#7fdcff';
+                keyEl.textContent = '档案键：' + item.key;
+                info.appendChild(keyEl);
+
+                var tags = document.createElement('div');
+                tags.style.marginTop = '4px';
+                tags.style.fontSize = '11px';
+                if (item.sharedWith > 0) {
+                    var shared = document.createElement('span');
+                    shared.style.color = '#ff9b9b';
+                    shared.textContent = '还被 ' + item.sharedWith + ' 个其它激活码绑定';
+                    tags.appendChild(shared);
+                } else {
+                    var only = document.createElement('span');
+                    only.style.color = '#73e3a6';
+                    only.textContent = '仅被本激活码绑定';
+                    tags.appendChild(only);
+                }
+                if (item.key.indexOf('--') !== -1) {
+                    var hashed = document.createElement('span');
+                    hashed.style.color = '#ffd08a';
+                    hashed.style.marginLeft = '8px';
+                    hashed.textContent = '档案键带自动后缀，通常是重复档案';
+                    tags.appendChild(hashed);
+                }
+                if (item.sameNameCount > 1) {
+                    var sameName = document.createElement('span');
+                    sameName.style.color = '#ffd08a';
+                    sameName.style.marginLeft = '8px';
+                    sameName.textContent = '注意：本激活码还绑定了 ' + (item.sameNameCount - 1) + ' 个同显示名的档案，请按档案键确认不要删错';
+                    tags.appendChild(sameName);
+                }
+                info.appendChild(tags);
+
+                row.appendChild(info);
+                listEl.appendChild(row);
+            });
+
+            var hintLines = ['勾选的档案会从新旧客户端的 GitHub 仓库里删除（同名的那份都会删），并自动清理所有激活码里指向它的绑定。'];
+            if (options.unrestrictedCodes > 0) {
+                hintLines.push('还有 ' + options.unrestrictedCodes + ' 个激活码未限定档案（绑定为空），删除后它们可见的档案会变少。');
+            }
+            hintEl.textContent = hintLines.join(' ');
+
+            overlay.classList.add('show');
+            overlay.setAttribute('aria-hidden', 'false');
+
+            return new Promise(function(resolve) {
+                codeProfileDeleteResolver = resolve;
+            });
+        }
+
         async function deleteCode(id) {
             if (!await showAppConfirm('确定要删除这个激活码吗？', '删除激活码', '确认删除')) return;
+
+            var pickedProfiles = await chooseProfilesToDeleteWithCode(id);
+            if (pickedProfiles === null) return; // 用户取消，整个删除中止
+
             try {
-                var response = await api('DELETE', '/admin/codes/' + id);
+                var query = '/admin/codes/' + id;
+                if (pickedProfiles.length) {
+                    query += '?delete_profiles=' + encodeURIComponent(pickedProfiles.join(','));
+                }
+                var response = await api('DELETE', query);
                 if (!response) return;
                 var data = await response.json();
                 if (!response.ok) {
@@ -3052,8 +4195,9 @@
                 if (parseInt(document.getElementById('editCodeId').value, 10) === id) {
                     cancelEditCode();
                 }
+                await loadProfileList();
                 loadCodes();
-                showAppAlert('激活码已删除', '删除成功');
+                showAppAlert(data.message || '激活码已删除', '删除成功');
             } catch (e) {
                 showAppAlert('删除失败: ' + e.message, '删除失败');
             }
