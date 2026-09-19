@@ -9,87 +9,87 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// ProfileFormState 是页面表单提交的配置。
+//
+// 两个域名列表字段用指针：为 nil 表示页面没有提交该字段（旧版页面缓存），
+// 此时保持档案原有内容不动，避免保存时误清空已经配置好的值。
 type ProfileFormState struct {
-	Provider                          string                    `json:"provider"`
-	AppTitle                          string                    `json:"app_title"`
-	LogoType                          string                    `json:"logo_type"`
-	LogoImageURL                      string                    `json:"logo_image_url"`
-	AppIconURL                        string                    `json:"app_icon_url"`
-	AuthBackgroundEnabled             bool                      `json:"auth_background_enabled"`
-	AuthBackgroundImageURL            string                    `json:"auth_background_image_url"`
-	PreferEncrypt                     bool                      `json:"prefer_encrypt"`
-	SubscriptionUserAgent             string                    `json:"user_agent"`
-	SubscriptionExclusiveUserAgent    string                    `json:"exclusive_user_agent"`
-	SubscriptionCustomDomain          string                    `json:"custom_domain"`
-	SubscriptionCustomSubscribeDomain string                    `json:"custom_subscribe_domain"`
-	SubscriptionCustomQuerySuffix     string                    `json:"custom_query_suffix"`
-	UseExclusiveMode                  bool                      `json:"use_exclusive_mode"`
-	DecryptKey                        string                    `json:"decrypt_key"`
-	APIEncryptedUserAgent             *string                   `json:"api_encrypted_user_agent"`
-	AutoOfflineEnabled                bool                      `json:"auto_offline_enabled"`
-	AutoOfflineForceOnStartup         bool                      `json:"auto_offline_force_on_startup"`
-	AutoOfflineIntervalHours          int                       `json:"auto_offline_interval_hours"`
-	CloudDispatchEnabled              bool                      `json:"cloud_dispatch_enabled"`
-	CloudDispatchQueryURL             string                    `json:"cloud_dispatch_query_url"`
-	CloudDispatchQuerySecret          string                    `json:"cloud_dispatch_query_secret"`
-	CloudDispatchTargetHost           string                    `json:"cloud_dispatch_target_host"`
-	CloudDispatchTargetHosts          []string                  `json:"cloud_dispatch_target_hosts"`
-	CloudDispatchAutoEnabled          bool                      `json:"cloud_dispatch_auto_enabled"`
-	CloudDispatchAutoInterval         int                       `json:"cloud_dispatch_auto_interval_minutes"`
-	CloudDispatchFallbackRetry        int                       `json:"cloud_dispatch_fallback_retry_minutes"`
-	DNSOverrideDefault                bool                      `json:"dns_override_default"`
-	AutoTestAfterLogin                bool                      `json:"auto_test_after_login"`
-	AutoConnectOnStartup              bool                      `json:"auto_connect_on_startup"`
-	LogFileEnabled                    bool                      `json:"log_file_enabled"`
-	PanelAPIPathPrefix                string                    `json:"api_path_prefix"`
-	RegistrationInviteEnabled         bool                      `json:"registration_invite_enabled"`
-	RegistrationInviteMode            string                    `json:"registration_invite_mode"`
-	RegistrationInviteCode            string                    `json:"registration_invite_code"`
-	RegistrationInviteLinkEnabled     bool                      `json:"registration_invite_link_enabled"`
-	RegistrationInviteLinkBaseURL     string                    `json:"registration_invite_link_base_url"`
-	SubscriptionCacheEnabled          bool                      `json:"subscription_cache_enabled"`
-	SubscriptionCacheTTL              int                       `json:"subscription_cache_ttl"`
-	UiVariant                         string                    `json:"ui_variant"`
-	UiColorScheme                     string                    `json:"ui_color_scheme"`
-	HideColorSchemeButton             bool                      `json:"hide_color_scheme_button"`
-	HideOnlineSupportButton           bool                      `json:"hide_online_support_button"`
-	HideTrafficDetails                bool                      `json:"hide_traffic_details"`
-	HideNodeStatus                    bool                      `json:"hide_node_status"`
-	HideInvitePromotion               bool                      `json:"hide_invite_promotion"`
-	HideDedicatedNodes                bool                      `json:"hide_dedicated_nodes"`
-	HideCurrentNodeLabel              bool                      `json:"hide_current_node_label"`
-	HidePageHeaderText                bool                      `json:"hide_page_header_text"`
-	HidePurchaseCoupon                *bool                     `json:"hide_purchase_coupon"`
-	HidePlanSpeed                     bool                      `json:"hide_plan_speed"`
-	ShowIPInfo                        *bool                     `json:"show_ip_info"`
-	HomePanelDefaultLayout            string                    `json:"home_panel_default_layout"`
-	LatencyReductionEnabled           bool                      `json:"latency_reduction_enabled"`
-	LatencyReductionValue             int                       `json:"latency_reduction_value"`
-	NoticeAutoOpenOnStartup           bool                      `json:"notice_auto_open_on_startup"`
-	NoticeAutoOpenIntervalHours       *int                      `json:"notice_auto_open_interval_hours"`
-	CheckinShowButton                 bool                      `json:"checkin_show_button"`
-	GiftCardShowButton                bool                      `json:"gift_card_show_button"`
-	TelegramShowButton                bool                      `json:"telegram_show_button"`
-	TelegramURL                       string                    `json:"telegram_url"`
-	UtilitySpeedShowButton            bool                      `json:"utility_speed_show_button"`
-	UtilityCfSpeedShowButton          bool                      `json:"utility_cf_speed_show_button"`
-	UtilityCfSpeedTargetDomains       []string                  `json:"utility_cf_speed_target_domains"`
-	UtilityCfSpeedAutoReplaceEnabled  bool                      `json:"utility_cf_speed_auto_replace_enabled"`
-	UtilityCfSpeedAutoReplaceInterval int                       `json:"utility_cf_speed_auto_replace_interval_minutes"`
-	UtilityIPLookupShowButton         bool                      `json:"utility_ip_lookup_show_button"`
-	UtilityMediaUnlockShowButton      bool                      `json:"utility_media_unlock_show_button"`
-	UtilityGoogleServicesShowButton   bool                      `json:"utility_google_services_show_button"`
-	UtilityPopularAppsShowSection     bool                      `json:"utility_popular_apps_show_section"`
-	UtilityPopularApps                []ProfilePopularAppState  `json:"utility_popular_apps"`
-	ShowCustomRuleEntry               bool                      `json:"show_custom_rule_entry"`
-	AuthPagesSupportShowButton        bool                      `json:"auth_pages_support_show_button"`
-	Sources                           []ProfileSourceFormState  `json:"sources"`
-	OnlineSupportItems                []ProfileSupportFormState `json:"online_support_items"`
-	// 以下字段为 nil 表示页面没有提交对应配置（旧版页面缓存），此时保持档案原有内容不动，
-	// 避免保存时误清空已经配置好的值。
-	ClientProxy                        *ClientProxyState `json:"client_proxy"`
-	SubscriptionCustomDomains          *[]string         `json:"custom_domains"`
-	SubscriptionCustomSubscribeDomains *[]string         `json:"custom_subscribe_domains"`
+	Provider                           string                   `json:"provider"`
+	AppTitle                           string                   `json:"app_title"`
+	LogoType                           string                   `json:"logo_type"`
+	LogoImageURL                       string                   `json:"logo_image_url"`
+	AppIconURL                         string                   `json:"app_icon_url"`
+	AuthBackgroundEnabled              bool                     `json:"auth_background_enabled"`
+	AuthBackgroundImageURL             string                   `json:"auth_background_image_url"`
+	PreferEncrypt                      bool                     `json:"prefer_encrypt"`
+	SubscriptionUserAgent              string                   `json:"user_agent"`
+	SubscriptionExclusiveUserAgent     string                   `json:"exclusive_user_agent"`
+	SubscriptionCustomDomain           string                   `json:"custom_domain"`
+	SubscriptionCustomSubscribeDomain  string                   `json:"custom_subscribe_domain"`
+	SubscriptionCustomQuerySuffix      string                   `json:"custom_query_suffix"`
+	UseExclusiveMode                   bool                     `json:"use_exclusive_mode"`
+	DecryptKey                         string                   `json:"decrypt_key"`
+	APIEncryptedUserAgent              *string                  `json:"api_encrypted_user_agent"`
+	AutoOfflineEnabled                 bool                     `json:"auto_offline_enabled"`
+	AutoOfflineForceOnStartup          bool                     `json:"auto_offline_force_on_startup"`
+	AutoOfflineIntervalHours           int                      `json:"auto_offline_interval_hours"`
+	CloudDispatchEnabled               bool                     `json:"cloud_dispatch_enabled"`
+	CloudDispatchQueryURL              string                   `json:"cloud_dispatch_query_url"`
+	CloudDispatchQuerySecret           string                   `json:"cloud_dispatch_query_secret"`
+	CloudDispatchTargetHost            string                   `json:"cloud_dispatch_target_host"`
+	CloudDispatchTargetHosts           []string                 `json:"cloud_dispatch_target_hosts"`
+	CloudDispatchAutoEnabled           bool                     `json:"cloud_dispatch_auto_enabled"`
+	CloudDispatchAutoInterval          int                      `json:"cloud_dispatch_auto_interval_minutes"`
+	CloudDispatchFallbackRetry         int                      `json:"cloud_dispatch_fallback_retry_minutes"`
+	DNSOverrideDefault                 bool                     `json:"dns_override_default"`
+	AutoTestAfterLogin                 bool                     `json:"auto_test_after_login"`
+	AutoConnectOnStartup               bool                     `json:"auto_connect_on_startup"`
+	LogFileEnabled                     bool                     `json:"log_file_enabled"`
+	PanelAPIPathPrefix                 string                   `json:"api_path_prefix"`
+	RegistrationInviteEnabled          bool                     `json:"registration_invite_enabled"`
+	RegistrationInviteMode             string                   `json:"registration_invite_mode"`
+	RegistrationInviteCode             string                   `json:"registration_invite_code"`
+	RegistrationInviteLinkEnabled      bool                     `json:"registration_invite_link_enabled"`
+	RegistrationInviteLinkBaseURL      string                   `json:"registration_invite_link_base_url"`
+	SubscriptionCacheEnabled           bool                     `json:"subscription_cache_enabled"`
+	SubscriptionCacheTTL               int                      `json:"subscription_cache_ttl"`
+	UiVariant                          string                   `json:"ui_variant"`
+	UiColorScheme                      string                   `json:"ui_color_scheme"`
+	HideColorSchemeButton              bool                     `json:"hide_color_scheme_button"`
+	HideOnlineSupportButton            bool                     `json:"hide_online_support_button"`
+	HideTrafficDetails                 bool                     `json:"hide_traffic_details"`
+	HideNodeStatus                     bool                     `json:"hide_node_status"`
+	HideInvitePromotion                bool                     `json:"hide_invite_promotion"`
+	HideDedicatedNodes                 bool                     `json:"hide_dedicated_nodes"`
+	HideCurrentNodeLabel               bool                     `json:"hide_current_node_label"`
+	HidePageHeaderText                 bool                     `json:"hide_page_header_text"`
+	HidePurchaseCoupon                 *bool                    `json:"hide_purchase_coupon"`
+	HidePlanSpeed                      bool                     `json:"hide_plan_speed"`
+	ShowIPInfo                         *bool                    `json:"show_ip_info"`
+	HomePanelDefaultLayout             string                   `json:"home_panel_default_layout"`
+	LatencyReductionEnabled            bool                     `json:"latency_reduction_enabled"`
+	LatencyReductionValue              int                      `json:"latency_reduction_value"`
+	NoticeAutoOpenOnStartup            bool                     `json:"notice_auto_open_on_startup"`
+	NoticeAutoOpenIntervalHours        *int                     `json:"notice_auto_open_interval_hours"`
+	CheckinShowButton                  bool                     `json:"checkin_show_button"`
+	GiftCardShowButton                 bool                     `json:"gift_card_show_button"`
+	TelegramShowButton                 bool                     `json:"telegram_show_button"`
+	TelegramURL                        string                   `json:"telegram_url"`
+	UtilitySpeedShowButton             bool                     `json:"utility_speed_show_button"`
+	UtilityCfSpeedShowButton           bool                     `json:"utility_cf_speed_show_button"`
+	UtilityCfSpeedTargetDomains        []string                 `json:"utility_cf_speed_target_domains"`
+	UtilityCfSpeedAutoReplaceEnabled   bool                     `json:"utility_cf_speed_auto_replace_enabled"`
+	UtilityCfSpeedAutoReplaceInterval  int                      `json:"utility_cf_speed_auto_replace_interval_minutes"`
+	UtilityIPLookupShowButton          bool                     `json:"utility_ip_lookup_show_button"`
+	UtilityMediaUnlockShowButton       bool                     `json:"utility_media_unlock_show_button"`
+	UtilityGoogleServicesShowButton    bool                     `json:"utility_google_services_show_button"`
+	UtilityPopularAppsShowSection      bool                     `json:"utility_popular_apps_show_section"`
+	UtilityPopularApps                 []ProfilePopularAppState `json:"utility_popular_apps"`
+	ShowCustomRuleEntry                bool                     `json:"show_custom_rule_entry"`
+	AuthPagesSupportShowButton         bool                     `json:"auth_pages_support_show_button"`
+	Sources                            []ProfileSourceFormState `json:"sources"`
+	SubscriptionCustomDomains          *[]string                `json:"custom_domains"`
+	SubscriptionCustomSubscribeDomains *[]string                `json:"custom_subscribe_domains"`
 }
 
 type ProfileSourceFormState struct {
@@ -97,20 +97,6 @@ type ProfileSourceFormState struct {
 	Name          string `json:"name"`
 	URL           string `json:"url"`
 	EncryptionKey string `json:"encryption_key"`
-}
-
-type ProfileSupportFormState struct {
-	MergeKey     string `json:"merge_key,omitempty"`
-	Type         string `json:"type"`
-	Description  string `json:"description"`
-	URL          string `json:"url"`
-	WebsiteID    string `json:"website_id"`
-	ChatraID     string `json:"chatra_id"`
-	WidgetCode   string `json:"widget_code"`
-	WidgetID     string `json:"widget_id"`
-	PropertyID   string `json:"property_id"`
-	WebsiteToken string `json:"website_token"`
-	BaseURL      string `json:"base_url"`
 }
 
 type ProfilePopularAppState struct {
@@ -168,7 +154,6 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	uiOnlineSupport := ensureMapValueNode(ui, "online_support")
 	authPages := ensureMapValueNode(uiOnlineSupport, "auth_pages")
 	remoteConfig := ensureMapValueNode(profileRoot, "remote_config")
-	onlineSupport := ensureMapValueNode(profileRoot, "online_support")
 	security := ensureMapValueNode(profileRoot, "security")
 	securityUserAgents := ensureMapValueNode(security, "user_agents")
 
@@ -347,17 +332,16 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	setMapBoolValue(proxyGroups, "show_custom_rule_entry", form.ShowCustomRuleEntry)
 	setMapBoolValue(authPages, "show_button", form.AuthPagesSupportShowButton)
 	removeMapKeys(profileRoot, "proxy_groups", "proxyGroups")
-	removeMapKeys(onlineSupport, "auth_pages", "authPages")
+	// 客服条目已改为 OSS 顶层 onlineSupport 下发，档案里的旧块一并清掉。
+	removeMapKeys(profileRoot, "online_support", "onlineSupport")
 
 	setMapStringValue(remoteConfig, "api_path_prefix", normalizePanelAPIPathPrefix(form.PanelAPIPathPrefix))
 	removeMapKeys(remoteConfig, "apiPathPrefix")
 	setMapNodeValue(remoteConfig, "sources", mergeProfileSources(getSequenceValueNode(remoteConfig, "sources"), form.Sources))
-	setMapNodeValue(onlineSupport, "items", mergeProfileSupportItems(getSequenceValueNode(onlineSupport, "items"), form.OnlineSupportItems))
 
-	// 内置代理：老客户端与新客户端都写 client_proxy，只是档案根键不同（xboard / nexgen）。
-	if err := mergeClientProxyConfig(profileRoot, form.ClientProxy); err != nil {
-		return "", err
-	}
+	// 内置代理已整体迁移到 OSS 远程配置（顶层 clientProxy）下发，档案里不再保留。
+	// 这里顺手清掉历史档案里的配置块，避免旧节点变成看不见的兜底。
+	removeMapKeys(profileRoot, "client_proxy", "clientProxy")
 
 	var buf bytes.Buffer
 	encoder := yaml.NewEncoder(&buf)
@@ -706,58 +690,6 @@ func mergeProfileSources(existing *yaml.Node, sources []ProfileSourceFormState) 
 		} else {
 			setMapStringValue(itemNode, "encryption_key", strings.TrimSpace(source.EncryptionKey))
 		}
-		seq.Content = append(seq.Content, itemNode)
-	}
-	return seq
-}
-
-func mergeProfileSupportItems(existing *yaml.Node, items []ProfileSupportFormState) *yaml.Node {
-	seq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
-	for index, item := range items {
-		itemNode := pickExistingSequenceItem(existing, item.MergeKey, index)
-		if itemNode == nil || itemNode.Kind != yaml.MappingNode {
-			itemNode = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
-		}
-
-		removeMapKeys(itemNode,
-			"url",
-			"website_id",
-			"chatra_id",
-			"widget_code",
-			"widget_id",
-			"property_id",
-			"website_token",
-			"base_url",
-			"description",
-		)
-
-		setMapStringValue(itemNode, "type", strings.TrimSpace(item.Type))
-		if strings.TrimSpace(item.Description) != "" {
-			setMapStringValue(itemNode, "description", strings.TrimSpace(item.Description))
-		}
-
-		switch strings.TrimSpace(item.Type) {
-		case "browser":
-			setMapStringValue(itemNode, "url", strings.TrimSpace(item.URL))
-		case "crisp":
-			setMapStringValue(itemNode, "website_id", strings.TrimSpace(item.WebsiteID))
-		case "chatra":
-			if strings.TrimSpace(item.ChatraID) != "" {
-				setMapStringValue(itemNode, "chatra_id", strings.TrimSpace(item.ChatraID))
-			}
-			if strings.TrimSpace(item.WidgetCode) != "" {
-				setMapStringValue(itemNode, "widget_code", item.WidgetCode)
-			}
-		case "chatway":
-			setMapStringValue(itemNode, "widget_id", strings.TrimSpace(item.WidgetID))
-		case "tawkto":
-			setMapStringValue(itemNode, "property_id", strings.TrimSpace(item.PropertyID))
-			setMapStringValue(itemNode, "widget_id", strings.TrimSpace(item.WidgetID))
-		case "chatwoot":
-			setMapStringValue(itemNode, "website_token", strings.TrimSpace(item.WebsiteToken))
-			setMapStringValue(itemNode, "base_url", strings.TrimSpace(item.BaseURL))
-		}
-
 		seq.Content = append(seq.Content, itemNode)
 	}
 	return seq

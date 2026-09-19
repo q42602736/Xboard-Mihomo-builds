@@ -130,14 +130,6 @@ func (h *Handlers) createUniqueProfileKeyForClient(client, displayName string) (
 func defaultProfileYaml(displayName string) string {
 	return bindProfileTitle(`xboard:
   provider: ""
-  # 客户端通讯专用的内置 Mihomo 节点：只用于面板 API、订阅和 OSS 通讯，
-  # 不接管用户的代理流量；未启用时不生成任何本地监听器。
-  client_proxy:
-    enabled: false
-    # 监听端口由客户端自行决定（默认 17890，被占用时自动换随机端口），一般不需要配置；
-    # 如需固定优先端口，取消下面注释即可。
-    # port: 17890
-    nodes: []
   app:
     title: ""
     logo:
@@ -189,8 +181,6 @@ func defaultProfileYaml(displayName string) string {
     sources:
       - name: redirect
         url: ""
-  online_support:
-    items: []
   ui:
     variant: legacy
     hide_color_scheme_button: false

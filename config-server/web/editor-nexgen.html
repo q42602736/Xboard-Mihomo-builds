@@ -3174,10 +3174,6 @@
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
                     订阅设置
                 </div>
-                <div class="nav-item" onclick="switchSection('clientProxy')">
-                    <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v2a2 2 0 01-1 1.732V13a2 2 0 01-2 2h-3.586l.293.293a1 1 0 01-1.414 1.414l-2-2a1 1 0 010-1.414l2-2a1 1 0 111.414 1.414L9.414 13H14V8.732A2 2 0 0113 7V5H5v2a2 2 0 01-1 1.732V15h3a1 1 0 110 2H5a2 2 0 01-2-2V8.732A2 2 0 012 7V5z" clip-rule="evenodd"/></svg>
-                    内置代理
-                </div>
                 <div class="nav-item" onclick="switchSection('sources')">
                     <svg class="nav-item-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"/></svg>
                     远程配置源
@@ -3456,6 +3452,16 @@
                                     </div>
                                 </div>
                                 <div class="help-text">控制桌面端和 Android 手机分流组弹窗里的“自定义规则”入口显示；关闭后会隐藏该入口。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示登录注册页客服入口</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="authPagesSupportShowButton"><span class="slider"></span></label>
+                                        <span id="authPagesSupportShowButtonLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">在构建期编译进客户端，控制登录页、注册页客服入口显示；新旧两套 UI 都生效。仅对无需登录即可打开的客服类型生效（浏览器跳转、Crisp、Chatway、Tawk.to、Chatwoot、Chatra），自建客服需要用户 token，因此不会出现在认证页。</div>
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
@@ -3812,65 +3818,6 @@
                     </div>
                 </div>
 
-                <!-- 内置代理 -->
-                <div class="content-section" id="clientProxySection">
-                    <div class="page-header">
-                        <div class="page-header-content">
-                            <h2>内置代理</h2>
-                            <p class="subtitle">为客户端后端通讯指定专用出口节点，不接管用户的代理流量</p>
-                        </div>
-                    </div>
-                    <div class="editor-container">
-                        <div class="section">
-                            <div class="section-title">基础配置</div>
-                            <div class="switch-card">
-                                <div class="switch-card-header">
-                                    <span class="switch-card-label">启用内置代理</span>
-                                    <div class="switch-group">
-                                        <label class="switch"><input type="checkbox" id="clientProxyEnabled"><span class="slider"></span></label>
-                                        <span id="clientProxyEnabledLabel">关闭</span>
-                                    </div>
-                                </div>
-                                <div class="help-text">
-                                    开启后，客户端启动时会用下方节点在本地起一个只监听 <code>127.0.0.1</code> 的代理，
-                                    OSS 远程配置、面板 API、订阅拉取、域名竞速、客服与更新检查等后端通讯都走这个节点。
-                                    它<strong>不会接管用户自己的代理流量</strong>，也不会写进 <code>remote.config.json</code>。
-                                </div>
-                                <div class="help-text">
-                                    注意：新客户端在内置代理模式下<strong>不做直连回退</strong>，节点全部不可用时后端请求会直接失败（有意设计，避免按 IP 直连暴露真实出口），所以节点务必填对。
-                                    不填节点（或关闭开关）则保持原有的直连与公开代理竞速逻辑。
-                                    监听端口由客户端自行决定（默认 <code>17890</code>，被占用时自动换随机端口），因此这里不提供端口配置。
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="section">
-                            <div class="section-title">节点导入</div>
-                            <div class="form-group">
-                                <label>粘贴节点分享链接</label>
-                                <textarea id="clientProxyLinksInput" class="client-proxy-links-input" spellcheck="false" placeholder="每行一个链接，例如：&#10;vless://uuid@host:443?security=reality&amp;sni=www.example.com&amp;pbk=xxx&amp;sid=yyy#节点名称&#10;hysteria2://password@host:443?sni=host&amp;insecure=0#节点名称&#10;trojan://password@host:443?sni=host&amp;allowInsecure=0#节点名称&#10;ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ=@host:443#节点名称&#10;vmess://eyJ2IjoiMiIsInBzIjoi..."></textarea>
-                                <div class="help-text">支持 vless、vmess、trojan、ss、ssr、hysteria、hysteria2、tuic。可一次粘贴多行，也可粘贴整段 Base64 编码的链接列表。</div>
-                            </div>
-                            <div class="client-proxy-import-actions">
-                                <button type="button" class="btn btn-primary" id="clientProxyImportBtn">解析并导入</button>
-                                <button type="button" class="btn" id="clientProxyClearInputBtn">清空输入</button>
-                                <span class="client-proxy-import-status" id="clientProxyImportStatus"></span>
-                            </div>
-                        </div>
-
-                        <div class="section">
-                            <div class="section-title">节点列表</div>
-                            <div id="clientProxyNodesContainer"></div>
-                            <div class="help-text" style="margin-top:10px;">
-                                客户端会把这里的节点组成一个自动测速策略组，始终选择延迟最低的节点；列表为空时内置代理不生效，客户端恢复原有通讯方式。
-                            </div>
-                        </div>
-                    </div>
-                    <div class="page-footer">
-                        <button type="button" class="btn btn-success page-save-btn" onclick="showSaveProfileInput()">保存当前档案</button>
-                    </div>
-                </div>
-
                 <!-- 远程配置源 -->
                 <div class="content-section" id="sourcesSection">
                     <div class="page-header">
@@ -4021,17 +3968,48 @@
                                     </div>
                                 </div>
                                 <div class="section" style="margin-top: 20px; margin-bottom: 10px;">
-                                    <div class="section-title">OSS 在线客服配置（onlineSupport）</div>
-                                    <div class="switch-card" style="margin-bottom:14px;">
+                                    <div class="section-title">OSS 内置代理配置（clientProxy）</div>
+                                    <div class="help-text" style="margin-bottom:14px;">
+                                        客户端通讯用的内置代理由 OSS 下发，换线路或改开关都不用重新打包。客户端拉取这份配置时<strong>恒直连</strong>，所以 OSS 域名必须在用户网络上可达。
+                                    </div>
+                                    <div class="switch-card" style="margin-bottom:12px;">
                                         <div class="switch-card-header">
-                                            <span class="switch-card-label">登录注册页显示客服入口</span>
+                                            <span class="switch-card-label">启用内置代理</span>
                                             <div class="switch-group">
-                                                <label class="switch"><input type="checkbox" id="remoteConfigAuthPagesSupportShowButton"><span class="slider"></span></label>
-                                                <span id="remoteConfigAuthPagesSupportShowButtonLabel">关闭</span>
+                                                <label class="switch"><input type="checkbox" id="remoteConfigClientProxyEnabled"><span class="slider"></span></label>
+                                                <span id="remoteConfigClientProxyEnabledLabel">关闭</span>
                                             </div>
                                         </div>
-                                        <div class="remote-config-switch-note">新客户端从 OSS 的 remote.config.json 读取客服配置；这里会写入 <code>onlineSupport</code> 和 <code>ui.onlineSupport.authPages.showButton</code>。</div>
+                                        <div class="help-text">关闭后客户端完全不提供内置代理（用户在 App 里也开不起来）。</div>
                                     </div>
+                                    <div class="switch-card" style="margin-bottom:12px;">
+                                        <div class="switch-card-header">
+                                            <span class="switch-card-label">首次启动默认开启</span>
+                                            <div class="switch-group">
+                                                <label class="switch"><input type="checkbox" id="remoteConfigClientProxyAutoEnable"><span class="slider"></span></label>
+                                                <span id="remoteConfigClientProxyAutoEnableLabel">关闭</span>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">只决定用户首次启动是否默认走内置代理；用户手动调过之后不再被这里覆盖。用户可在 App 的「服务状态」弹窗里自行开关与选线路。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>粘贴线路分享链接</label>
+                                        <textarea id="remoteConfigClientProxyLinksInput" class="client-proxy-links-input" spellcheck="false" placeholder="每行一个链接，例如：&#10;vless://uuid@host:443?security=reality&amp;sni=www.example.com&amp;pbk=xxx&amp;sid=yyy#线路名称&#10;hysteria2://password@host:443?sni=host&amp;insecure=0#线路名称&#10;trojan://password@host:443?sni=host&amp;allowInsecure=0#线路名称&#10;ss://YWVzLTI1Ni1nY206cGFzc3dvcmQ=@host:443#线路名称"></textarea>
+                                        <div class="help-text">支持 vless、vmess、trojan、ss、ssr、hysteria、hysteria2、tuic。可一次粘贴多行，也可粘贴整段 Base64 编码的链接列表。</div>
+                                    </div>
+                                    <div class="client-proxy-import-actions">
+                                        <button type="button" class="btn btn-primary" id="remoteConfigClientProxyImportBtn">解析并导入</button>
+                                        <button type="button" class="btn" id="remoteConfigClientProxyClearInputBtn">清空输入</button>
+                                        <span class="client-proxy-import-status" id="remoteConfigClientProxyStatus"></span>
+                                    </div>
+                                    <div id="remoteConfigClientProxyNodesContainer" style="margin-top:14px;"></div>
+                                    <div class="help-text" style="margin-top:10px;">客户端会用这些线路组成自动测速组，始终选择延迟最低的一条；列表为空时内置代理不生效。</div>
+                                </div>
+
+                                <div class="section" style="margin-top: 20px; margin-bottom: 10px;">
+                                    <div class="section-title">OSS 在线客服配置（onlineSupport）</div>
+                                    <div class="help-text" style="margin-bottom:14px;">新客户端从 OSS 的 remote.config.json 读取客服配置，这里会写入 <code>onlineSupport</code> 数组。
+                                        登录页、注册页是否显示客服入口由构建期开关决定，请到「自定义功能 → 显示登录注册页客服入口」配置；客户端不读 OSS 里的该字段。</div>
                                     <div id="remoteConfigSupportContainer"></div>
                                     <div class="remote-config-actions" id="remoteConfigSupportActions" style="margin-top:10px; margin-bottom:10px;">
                                         <button type="button" class="btn btn-primary" id="addRemoteConfigSupportBtn">+ 添加客服配置</button>
@@ -5769,7 +5747,6 @@
         ];
         var CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY = 'nexgen_custom_traffic_bar_code_v1';
         var sources = [];
-        var clientProxyNodes = [];
         var popularApps = [];
         var popularAppsExpanded = false;
         var remoteConfigEncryptedData = '';
@@ -5781,7 +5758,6 @@
         var remoteConfigHistoryRecords = [];
         var PROVIDER_HELP_TEXT = '自动跟随当前档案名称，并写入 remote.config.json 的 panels。';
         var REMOTE_CONFIG_PROVIDER_HELP_TEXT = '自动跟随当前档案名称，并写入 remote.config.json 的 panels。';
-        var onlineSupportItems = [];
         var profilesCache = [];
         var appIconHistoryRecords = [];
         var buildHistoryData = {};
@@ -6823,7 +6799,6 @@
             updateBuildTagValidationState();
             initRemoteConfigTool();
             renderSources();
-            renderSupportItems();
             syncDerivedProviderName({ updateRemotePreview: false });
 
             syncProfileBoundAppTitle();
@@ -6870,13 +6845,6 @@
                 '    decrypt_key: ""',
                 '    # 自定义订阅域名，可填写多个；每次拉取随机挑一个开始尝试，超时自动换下一个。',
                 '    custom_domains: []',
-                '  # 客户端通讯专用的内置 Mihomo 节点，只用于面板 API、订阅和 OSS 通讯',
-                '  client_proxy:',
-                '    enabled: false',
-                '    # 监听端口由客户端自行决定（默认 17890，被占用时自动换随机端口），一般不需要配置；',
-                '    # 如需固定优先端口，取消下面注释即可。',
-                '    # port: 17890',
-                '    nodes: []',
                 '  security:',
                 '    user_agents:',
                 '      api_encrypted: ""',
@@ -6933,6 +6901,9 @@
                 '    proxy_groups:',
                 '      show_custom_rule_entry: true',
                 '      main_policy_nodes_only: false',
+                '    online_support:',
+                '      auth_pages:',
+                '        show_button: false',
                 '    checkin:',
                 '      show_button: false',
                 '    gift_card:',
@@ -7033,12 +7004,15 @@
                 var trimmed = line.trim();
                 var indent = (line.match(/^(\s*)/) || [''])[0].length;
 
+                // 顶层 nexgen.online_support 是 OSS 客服条目，新客户端改为从远程配置读取，这里删掉。
                 if (indent === 2 && /^(online_support):\s*$/.test(trimmed)) {
                     stripYamlBlock(lines, i, indent);
                     i--;
                     continue;
                 }
-                if (indent === 4 && /^(online_support|custom_colors|customColors|home_panel_default_layout|subscription_status_popup|subscriptionStatusPopup|show_ip_info|showIpInfo):\s*(?:.*)$/.test(trimmed)) {
+                // ui 下只清掉新客户端不支持的键；
+                // ui.online_support.auth_pages.show_button 是构建期的认证页客服入口开关，必须保留。
+                if (indent === 4 && /^(custom_colors|customColors|home_panel_default_layout|subscription_status_popup|subscriptionStatusPopup|show_ip_info|showIpInfo):\s*(?:.*)$/.test(trimmed)) {
                     stripYamlBlock(lines, i, indent);
                     i--;
                     continue;
@@ -7110,14 +7084,12 @@
                 if (data.is_new || !data.yaml_content) {
                     currentProfileBaseYaml = getDefaultYamlTemplate();
                     document.getElementById('editor').value = currentProfileBaseYaml;
-                    loadClientProxyState(data);
                     yamlToForm();
                     syncProfileBoundAppTitle();
 	                    setStatus('档案 "' + getSelectedProfileDisplayName() + '" 尚未创建，请配置后保存', 'info');
 	                } else {
                     currentProfileBaseYaml = cleanNexGenProfileYaml(data.yaml_content);
                     document.getElementById('editor').value = currentProfileBaseYaml;
-                    loadClientProxyState(data);
                     yamlToForm();
                     syncProfileBoundAppTitle();
 	                    setStatus('已加载: ' + getSelectedProfileDisplayName(), 'success');
@@ -7169,7 +7141,6 @@
 
         function buildCurrentProfileFormState() {
             collectSources();
-            collectSupportItems();
             collectPopularApps();
 
             var validSources = sources.filter(function(source) {
@@ -7249,6 +7220,7 @@
                 notice_auto_open_on_startup: document.getElementById('noticeAutoOpenOnStartup').checked,
                 notice_auto_open_interval_hours: normalizeNoticeAutoOpenIntervalHours(document.getElementById('noticeAutoOpenIntervalHours').value),
                 show_custom_rule_entry: document.getElementById('showCustomRuleEntry').checked,
+                auth_pages_support_show_button: document.getElementById('authPagesSupportShowButton').checked,
                 checkin_show_button: document.getElementById('checkinShowButton').checked,
                 gift_card_show_button: document.getElementById('giftCardShowButton').checked,
                 telegram_show_button: document.getElementById('telegramShowButton').checked,
@@ -7265,8 +7237,6 @@
                 utility_popular_apps: validPopularApps,
                 api_path_prefix: document.getElementById('apiPathPrefix') ? document.getElementById('apiPathPrefix').value.trim() : '/api/v1',
                 sources: validSources,
-                online_support_items: [],
-                client_proxy: buildClientProxyFormState()
             };
             return formState;
         }
@@ -8282,7 +8252,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoTestAfterLogin', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideColorSchemeButton', 'hideOnlineSupportButton', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideDedicatedNodes', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'hidePlanSpeed', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled', 'clientProxyEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'dnsOverrideDefault', 'autoTestAfterLogin', 'autoConnectOnStartup', 'logFileEnabled', 'autoOfflineEnabled', 'autoOfflineForceOnStartup', 'cloudDispatchEnabled', 'cloudDispatchAutoEnabled', 'subscriptionCacheEnabled', 'hideColorSchemeButton', 'hideOnlineSupportButton', 'hideTrafficDetails', 'hideNodeStatus', 'hideInvitePromotion', 'hideDedicatedNodes', 'hideCurrentNodeLabel', 'hidePageHeaderText', 'hidePlanSpeed', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'authPagesSupportShowButton', 'checkinShowButton', 'giftCardShowButton', 'telegramShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 if (!el || !label) return;
@@ -8309,11 +8279,6 @@
             document.getElementById('utilityCfSpeedTargetDomains').addEventListener('change', function() {
                 this.value = parseMultilineListValue(this.value).join('\n');
                 formToYaml();
-            });
-            document.getElementById('clientProxyImportBtn').addEventListener('click', importClientProxyLinks);
-            document.getElementById('clientProxyClearInputBtn').addEventListener('click', function() {
-                document.getElementById('clientProxyLinksInput').value = '';
-                setClientProxyImportStatus('', '');
             });
             document.getElementById('utilityCfSpeedAutoReplaceIntervalMinutes').addEventListener('change', function() {
                 this.value = normalizeMinuteIntervalValue(this.value, 1440);
@@ -8470,220 +8435,6 @@
                     '<div class="form-group"><label>加密密钥（可选）</label><input type="text" class="source-key" value="' + (source.encryption_key || '') + '" placeholder="可选"></div>' +
                 '</div>';
             return div;
-        }
-
-        // ==================== 内置代理 ====================
-
-        function setClientProxyImportStatus(message, tone) {
-            var el = document.getElementById('clientProxyImportStatus');
-            if (!el) return;
-            el.textContent = message || '';
-            el.className = 'client-proxy-import-status' + (tone ? ' ' + tone : '');
-        }
-
-        // 内置代理节点直接从接口拿结构化对象，不经过 YAML 正则回填，
-        // 避免 reality-opts / ws-opts 这类嵌套结构被解析坏。
-        // 监听端口由客户端自行决定（默认 17890，冲突时自动换端口），页面不提供该配置。
-        function loadClientProxyState(data) {
-            var state = data && data.client_proxy ? data.client_proxy : null;
-            var enabled = !!(state && state.enabled);
-            clientProxyNodes = state && Array.isArray(state.nodes)
-                ? state.nodes.filter(function(node) {
-                    return node && typeof node === 'object' && !Array.isArray(node);
-                })
-                : [];
-
-            var enabledEl = document.getElementById('clientProxyEnabled');
-            enabledEl.checked = enabled;
-            document.getElementById('clientProxyEnabledLabel').textContent = enabled ? '开启' : '关闭';
-            document.getElementById('clientProxyLinksInput').value = '';
-            setClientProxyImportStatus('', '');
-            renderClientProxyNodes();
-        }
-
-        function collectClientProxyNodes() {
-            return clientProxyNodes.map(function(node) {
-                var cloned = {};
-                Object.keys(node).forEach(function(key) {
-                    cloned[key] = node[key];
-                });
-                return cloned;
-            });
-        }
-
-        function buildClientProxyFormState() {
-            return {
-                enabled: document.getElementById('clientProxyEnabled').checked,
-                nodes: collectClientProxyNodes()
-            };
-        }
-
-        function getClientProxyNodeLabel(node, index) {
-            var name = String((node && node.name) || '').trim();
-            return name || ('内置节点 ' + (index + 1));
-        }
-
-        function getClientProxyNodeEndpoint(node) {
-            var server = String((node && node.server) || '').trim();
-            var port = node && node.port !== undefined && node.port !== null ? String(node.port) : '';
-            if (!server) return '未填写服务器地址';
-            return port ? server + ':' + port : server;
-        }
-
-        function renderClientProxyNodes() {
-            var container = document.getElementById('clientProxyNodesContainer');
-            if (!container) return;
-            container.innerHTML = '';
-
-            if (clientProxyNodes.length === 0) {
-                var empty = document.createElement('div');
-                empty.className = 'client-proxy-empty';
-                empty.textContent = '还没有节点。先在上方粘贴分享链接，再点击「解析并导入」。';
-                container.appendChild(empty);
-                return;
-            }
-
-            clientProxyNodes.forEach(function(node, index) {
-                container.appendChild(createClientProxyNodeItem(node, index));
-            });
-        }
-
-        function createClientProxyNodeItem(node, index) {
-            var item = document.createElement('div');
-            item.className = 'client-proxy-node';
-
-            var header = document.createElement('div');
-            header.className = 'client-proxy-node-header';
-
-            var title = document.createElement('div');
-            title.className = 'client-proxy-node-title';
-            var indexEl = document.createElement('span');
-            indexEl.className = 'client-proxy-node-index';
-            indexEl.textContent = '#' + (index + 1);
-            var nameEl = document.createElement('span');
-            nameEl.className = 'client-proxy-node-name';
-            nameEl.textContent = getClientProxyNodeLabel(node, index);
-            var typeEl = document.createElement('span');
-            typeEl.className = 'client-proxy-node-badge';
-            typeEl.textContent = String(node.type || 'unknown');
-            title.appendChild(indexEl);
-            title.appendChild(nameEl);
-            title.appendChild(typeEl);
-
-            var actions = document.createElement('div');
-            actions.className = 'client-proxy-node-actions';
-            var toggleBtn = document.createElement('button');
-            toggleBtn.type = 'button';
-            toggleBtn.className = 'client-proxy-node-toggle';
-            toggleBtn.textContent = '查看/编辑';
-            var removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'client-proxy-node-remove';
-            removeBtn.textContent = '删除';
-            actions.appendChild(toggleBtn);
-            actions.appendChild(removeBtn);
-
-            header.appendChild(title);
-            header.appendChild(actions);
-            item.appendChild(header);
-
-            var metaEl = document.createElement('div');
-            metaEl.className = 'client-proxy-node-meta';
-            metaEl.textContent = getClientProxyNodeEndpoint(node);
-            item.appendChild(metaEl);
-
-            var detail = document.createElement('div');
-            detail.className = 'client-proxy-node-detail';
-            var textarea = document.createElement('textarea');
-            textarea.className = 'client-proxy-links-input';
-            textarea.spellcheck = false;
-            textarea.value = JSON.stringify(node, null, 2);
-            var detailActions = document.createElement('div');
-            detailActions.className = 'client-proxy-import-actions';
-            detailActions.style.marginTop = '8px';
-            var applyBtn = document.createElement('button');
-            applyBtn.type = 'button';
-            applyBtn.className = 'btn btn-primary';
-            applyBtn.textContent = '应用修改';
-            var detailStatus = document.createElement('span');
-            detailStatus.className = 'client-proxy-import-status';
-            detailActions.appendChild(applyBtn);
-            detailActions.appendChild(detailStatus);
-            detail.appendChild(textarea);
-            detail.appendChild(detailActions);
-            item.appendChild(detail);
-
-            toggleBtn.addEventListener('click', function() {
-                var expanded = item.classList.toggle('expanded');
-                toggleBtn.textContent = expanded ? '收起' : '查看/编辑';
-            });
-            removeBtn.addEventListener('click', function() {
-                clientProxyNodes.splice(index, 1);
-                renderClientProxyNodes();
-                setClientProxyImportStatus('已删除 1 个节点，记得保存档案。', 'warning');
-            });
-            applyBtn.addEventListener('click', function() {
-                var parsed;
-                try {
-                    parsed = JSON.parse(textarea.value);
-                } catch (e) {
-                    detailStatus.textContent = 'JSON 格式错误: ' + e.message;
-                    detailStatus.className = 'client-proxy-import-status error';
-                    return;
-                }
-                if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-                    detailStatus.textContent = '节点必须是 JSON 对象';
-                    detailStatus.className = 'client-proxy-import-status error';
-                    return;
-                }
-                if (!String(parsed.type || '').trim() || !String(parsed.server || '').trim() || !parsed.port) {
-                    detailStatus.textContent = '节点缺少 type / server / port 字段';
-                    detailStatus.className = 'client-proxy-import-status error';
-                    return;
-                }
-                clientProxyNodes[index] = parsed;
-                renderClientProxyNodes();
-                setClientProxyImportStatus('已更新 #' + (index + 1) + ' 节点，记得保存档案。', 'success');
-            });
-
-            return item;
-        }
-
-        async function importClientProxyLinks() {
-            var input = document.getElementById('clientProxyLinksInput');
-            var links = String(input.value || '').trim();
-            if (!links) {
-                setClientProxyImportStatus('请先粘贴节点分享链接', 'error');
-                return;
-            }
-
-            var button = document.getElementById('clientProxyImportBtn');
-            button.disabled = true;
-            setClientProxyImportStatus('正在解析节点链接...', '');
-            try {
-                var response = await api('POST', appendBuildClientQuery('/client-proxy/parse'), { links: links });
-                if (!response) return;
-                var data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || '解析失败');
-                }
-
-                var imported = Array.isArray(data.nodes) ? data.nodes : [];
-                clientProxyNodes = clientProxyNodes.concat(imported);
-                renderClientProxyNodes();
-                input.value = '';
-
-                var issues = Array.isArray(data.issues) ? data.issues : [];
-                if (issues.length > 0) {
-                    setClientProxyImportStatus('已导入 ' + imported.length + ' 个节点；' + issues.join('；'), 'warning');
-                } else {
-                    setClientProxyImportStatus('已导入 ' + imported.length + ' 个节点，记得保存档案。', 'success');
-                }
-            } catch (e) {
-                setClientProxyImportStatus('解析失败: ' + e.message, 'error');
-            } finally {
-                button.disabled = false;
-            }
         }
 
         function renderSources() {
@@ -9323,32 +9074,10 @@
             }).filter(Boolean);
         }
 
-        function setRemoteConfigSupportFormValues(items, uiConfig) {
+        // 只填充 OSS 客服条目。认证页客服入口开关是构建期配置，不在这里读写。
+        function setRemoteConfigSupportFormValues(items) {
             remoteConfigSupportItems = Array.isArray(items) ? items.map(normalizeRemoteConfigSupportItem) : [];
             renderRemoteConfigSupportItems();
-            var showButtonInput = document.getElementById('remoteConfigAuthPagesSupportShowButton');
-            if (showButtonInput) {
-                var onlineSupport = uiConfig && (uiConfig.onlineSupport || uiConfig.online_support);
-                var authPages = onlineSupport && (onlineSupport.authPages || onlineSupport.auth_pages);
-                showButtonInput.checked = !!(authPages && (authPages.showButton || authPages.show_button));
-                syncRemoteConfigSupportAuthPagesLabel();
-            }
-        }
-
-        function syncRemoteConfigSupportAuthPagesLabel() {
-            var input = document.getElementById('remoteConfigAuthPagesSupportShowButton');
-            var label = document.getElementById('remoteConfigAuthPagesSupportShowButtonLabel');
-            if (input && label) {
-                label.textContent = input.checked ? '开启' : '关闭';
-            }
-            syncRemoteConfigSupportActions();
-        }
-
-        function syncRemoteConfigSupportActions() {
-            var authPagesInput = document.getElementById('remoteConfigAuthPagesSupportShowButton');
-            var actions = document.getElementById('remoteConfigSupportActions');
-            if (!actions) return;
-            actions.style.display = authPagesInput && authPagesInput.checked ? '' : 'none';
         }
 
         function syncDerivedProviderName(options) {
@@ -9394,6 +9123,242 @@
             return providerValue;
         }
 
+        // ==================== OSS 内置代理配置（clientProxy） ====================
+
+        var remoteConfigClientProxyNodes = [];
+
+        function setRemoteConfigClientProxyImportStatus(message, tone) {
+            var el = document.getElementById('remoteConfigClientProxyStatus');
+            if (!el) return;
+            el.textContent = message || '';
+            el.className = 'client-proxy-import-status' + (tone ? ' ' + tone : '');
+        }
+
+        // 从 remote.config.json 读入内置代理配置（兼容驼峰写法）。
+        function setRemoteConfigClientProxyFormValues(value) {
+            var source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+            var enabled = source.enabled === true;
+            var autoEnableValue = source.auto_enabled === undefined ? source.autoEnabled : source.auto_enabled;
+            var autoEnable = autoEnableValue === undefined ? enabled : autoEnableValue === true;
+            var rawNodes = Array.isArray(source.nodes) ? source.nodes : (source.node ? [source.node] : []);
+            remoteConfigClientProxyNodes = rawNodes.map(normalizeRemoteConfigClientProxyNode).filter(Boolean);
+
+            document.getElementById('remoteConfigClientProxyEnabled').checked = enabled;
+            document.getElementById('remoteConfigClientProxyEnabledLabel').textContent = enabled ? '开启' : '关闭';
+            document.getElementById('remoteConfigClientProxyAutoEnable').checked = autoEnable;
+            document.getElementById('remoteConfigClientProxyAutoEnableLabel').textContent = autoEnable ? '开启' : '关闭';
+            document.getElementById('remoteConfigClientProxyLinksInput').value = '';
+            setRemoteConfigClientProxyImportStatus('', '');
+            renderRemoteConfigClientProxyNodes();
+        }
+
+        // 归一化单条线路：缺 type/server/port 的直接丢弃，与两个客户端的规则一致。
+        function normalizeRemoteConfigClientProxyNode(value) {
+            if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+            var node = {};
+            Object.keys(value).forEach(function(key) { node[key] = value[key]; });
+            var type = String(node.type || '').trim();
+            var server = String(node.server || '').trim();
+            var port = parseInt(node.port, 10);
+            if (!type || !server || !(port > 0) || port > 65535) return null;
+            node.type = type;
+            node.server = server;
+            node.port = port;
+            return node;
+        }
+
+        // 生成写入 remote.config.json 的 clientProxy 段。
+        // enabled 与 auto_enabled 按客户端规则收敛：没有有效线路时一律为 false。
+        function buildRemoteConfigClientProxy(requireComplete) {
+            var enabled = document.getElementById('remoteConfigClientProxyEnabled').checked;
+            var autoEnable = document.getElementById('remoteConfigClientProxyAutoEnable').checked;
+            var nodes = remoteConfigClientProxyNodes.map(normalizeRemoteConfigClientProxyNode).filter(Boolean);
+            if (requireComplete && enabled && nodes.length === 0) {
+                throw new Error('勾选「启用内置代理」时必须至少配置一条有效线路');
+            }
+            if (requireComplete && autoEnable && !enabled) {
+                throw new Error('勾选「首次启动默认开启」前，请先勾选「启用内置代理」');
+            }
+            var usable = enabled && nodes.length > 0;
+            return {
+                enabled: usable,
+                auto_enabled: usable ? autoEnable : false,
+                nodes: nodes
+            };
+        }
+
+        function getRemoteConfigClientProxyNodeLabel(node, index) {
+            var name = String((node && node.name) || '').trim();
+            return name || ('内置线路 ' + (index + 1));
+        }
+
+        function getRemoteConfigClientProxyNodeEndpoint(node) {
+            var server = String((node && node.server) || '').trim();
+            var port = node && node.port !== undefined && node.port !== null ? String(node.port) : '';
+            if (!server) return '未填写服务器地址';
+            return port ? server + ':' + port : server;
+        }
+
+        function renderRemoteConfigClientProxyNodes() {
+            var container = document.getElementById('remoteConfigClientProxyNodesContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (remoteConfigClientProxyNodes.length === 0) {
+                var empty = document.createElement('div');
+                empty.className = 'client-proxy-empty';
+                empty.textContent = '还没有线路。先在上方粘贴分享链接，再点击「解析并导入」。';
+                container.appendChild(empty);
+                return;
+            }
+
+            remoteConfigClientProxyNodes.forEach(function(node, index) {
+                container.appendChild(createRemoteConfigClientProxyNodeItem(node, index));
+            });
+        }
+
+        function createRemoteConfigClientProxyNodeItem(node, index) {
+            var item = document.createElement('div');
+            item.className = 'client-proxy-node';
+
+            var header = document.createElement('div');
+            header.className = 'client-proxy-node-header';
+
+            var title = document.createElement('div');
+            title.className = 'client-proxy-node-title';
+            var indexEl = document.createElement('span');
+            indexEl.className = 'client-proxy-node-index';
+            indexEl.textContent = '#' + (index + 1);
+            var nameEl = document.createElement('span');
+            nameEl.className = 'client-proxy-node-name';
+            nameEl.textContent = getRemoteConfigClientProxyNodeLabel(node, index);
+            var typeEl = document.createElement('span');
+            typeEl.className = 'client-proxy-node-badge';
+            typeEl.textContent = String(node.type || 'unknown');
+            title.appendChild(indexEl);
+            title.appendChild(nameEl);
+            title.appendChild(typeEl);
+
+            var actions = document.createElement('div');
+            actions.className = 'client-proxy-node-actions';
+            var toggleBtn = document.createElement('button');
+            toggleBtn.type = 'button';
+            toggleBtn.className = 'client-proxy-node-toggle';
+            toggleBtn.textContent = '查看/编辑';
+            var removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'client-proxy-node-remove';
+            removeBtn.textContent = '删除';
+            actions.appendChild(toggleBtn);
+            actions.appendChild(removeBtn);
+
+            header.appendChild(title);
+            header.appendChild(actions);
+            item.appendChild(header);
+
+            var metaEl = document.createElement('div');
+            metaEl.className = 'client-proxy-node-meta';
+            metaEl.textContent = getRemoteConfigClientProxyNodeEndpoint(node);
+            item.appendChild(metaEl);
+
+            var detail = document.createElement('div');
+            detail.className = 'client-proxy-node-detail';
+            var textarea = document.createElement('textarea');
+            textarea.className = 'client-proxy-links-input';
+            textarea.spellcheck = false;
+            textarea.value = JSON.stringify(node, null, 2);
+            var detailActions = document.createElement('div');
+            detailActions.className = 'client-proxy-import-actions';
+            detailActions.style.marginTop = '8px';
+            var applyBtn = document.createElement('button');
+            applyBtn.type = 'button';
+            applyBtn.className = 'btn btn-primary';
+            applyBtn.textContent = '应用修改';
+            var detailStatus = document.createElement('span');
+            detailStatus.className = 'client-proxy-import-status';
+            detailActions.appendChild(applyBtn);
+            detailActions.appendChild(detailStatus);
+            detail.appendChild(textarea);
+            detail.appendChild(detailActions);
+            item.appendChild(detail);
+
+            toggleBtn.addEventListener('click', function() {
+                var expanded = item.classList.toggle('expanded');
+                toggleBtn.textContent = expanded ? '收起' : '查看/编辑';
+            });
+            removeBtn.addEventListener('click', function() {
+                remoteConfigClientProxyNodes.splice(index, 1);
+                renderRemoteConfigClientProxyNodes();
+                setRemoteConfigClientProxyImportStatus('已删除 1 条线路。', 'warning');
+                handleRemoteConfigFormInput();
+            });
+            applyBtn.addEventListener('click', function() {
+                var parsed;
+                try {
+                    parsed = JSON.parse(textarea.value);
+                } catch (e) {
+                    detailStatus.textContent = 'JSON 格式错误: ' + e.message;
+                    detailStatus.className = 'client-proxy-import-status error';
+                    return;
+                }
+                if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                    detailStatus.textContent = '节点必须是 JSON 对象';
+                    detailStatus.className = 'client-proxy-import-status error';
+                    return;
+                }
+                if (!String(parsed.type || '').trim() || !String(parsed.server || '').trim() || !parsed.port) {
+                    detailStatus.textContent = '节点缺少 type / server / port 字段';
+                    detailStatus.className = 'client-proxy-import-status error';
+                    return;
+                }
+                remoteConfigClientProxyNodes[index] = parsed;
+                renderRemoteConfigClientProxyNodes();
+                setRemoteConfigClientProxyImportStatus('已更新 #' + (index + 1) + ' 条线路。', 'success');
+                handleRemoteConfigFormInput();
+            });
+
+            return item;
+        }
+
+        async function importRemoteConfigClientProxyLinks() {
+            var input = document.getElementById('remoteConfigClientProxyLinksInput');
+            var links = String(input.value || '').trim();
+            if (!links) {
+                setRemoteConfigClientProxyImportStatus('请先粘贴线路分享链接', 'error');
+                return;
+            }
+
+            var button = document.getElementById('remoteConfigClientProxyImportBtn');
+            button.disabled = true;
+            setRemoteConfigClientProxyImportStatus('正在解析线路链接...', '');
+            try {
+                var response = await api('POST', appendBuildClientQuery('/client-proxy/parse'), { links: links });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '解析失败');
+                }
+
+                var imported = Array.isArray(data.nodes) ? data.nodes : [];
+                remoteConfigClientProxyNodes = remoteConfigClientProxyNodes.concat(imported);
+                renderRemoteConfigClientProxyNodes();
+                input.value = '';
+                handleRemoteConfigFormInput();
+
+                var issues = Array.isArray(data.issues) ? data.issues : [];
+                if (issues.length > 0) {
+                    setRemoteConfigClientProxyImportStatus('已导入 ' + imported.length + ' 条线路；' + issues.join('；'), 'warning');
+                } else {
+                    setRemoteConfigClientProxyImportStatus('已导入 ' + imported.length + ' 条线路。', 'success');
+                }
+            } catch (e) {
+                setRemoteConfigClientProxyImportStatus('解析失败: ' + e.message, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+
         function getRemoteConfigFormData(requireComplete) {
             var panelTypeValue = String(document.getElementById('remoteConfigPanelType').value || '').trim();
             var websiteUrlValue = String(document.getElementById('remoteConfigWebsiteUrl').value || '').trim();
@@ -9401,7 +9366,6 @@
             var rawPanelItems = collectRemoteConfigPanels();
             var updateItems = getRemoteConfigUpdateFormData(requireComplete);
             var supportItems = isNexGenClient() ? buildRemoteConfigOnlineSupportItems() : [];
-            var supportShowButtonInput = document.getElementById('remoteConfigAuthPagesSupportShowButton');
             var panelItems = [];
 
             rawPanelItems.forEach(function(item, index) {
@@ -9447,15 +9411,11 @@
                 update: updateItems
             };
             if (isNexGenClient()) {
+                // 只写客服条目；认证页客服入口开关是构建期配置，不进 remote.config.json。
                 result.onlineSupport = supportItems;
-                result.ui = {
-                    onlineSupport: {
-                        authPages: {
-                            showButton: !!(supportShowButtonInput && supportShowButtonInput.checked)
-                        }
-                    }
-                };
             }
+            // 内置代理由 OSS 下发，两个客户端读同一段配置。
+            result.clientProxy = buildRemoteConfigClientProxy(!!requireComplete);
             return result;
         }
 
@@ -9492,7 +9452,6 @@
             var fileInput = document.getElementById('remoteConfigFileInput');
             var updateEnabledInput = document.getElementById('remoteConfigUpdateEnabled');
             var addSupportBtn = document.getElementById('addRemoteConfigSupportBtn');
-            var authPagesSupportInput = document.getElementById('remoteConfigAuthPagesSupportShowButton');
             var updateFieldIds = [
                 'remoteConfigUpdateDescription',
                 'remoteConfigUpdateLatestVersion',
@@ -9513,7 +9472,7 @@
             }
             renderRemoteConfigPanels();
             setRemoteConfigUpdateFormValues(getDefaultRemoteConfigUpdateItem(), { enabled: false });
-            setRemoteConfigSupportFormValues([], {});
+            setRemoteConfigSupportFormValues([]);
 
             [panelTypeInput, websiteUrlInput].forEach(function(input) {
                 if (!input) return;
@@ -9534,12 +9493,25 @@
             if (addSupportBtn) {
                 addSupportBtn.addEventListener('click', addRemoteConfigSupportItem);
             }
-            if (authPagesSupportInput) {
-                authPagesSupportInput.addEventListener('change', function() {
-                    syncRemoteConfigSupportAuthPagesLabel();
-                    handleRemoteConfigFormInput();
+            var clientProxyImportBtn = document.getElementById('remoteConfigClientProxyImportBtn');
+            if (clientProxyImportBtn) {
+                clientProxyImportBtn.addEventListener('click', importRemoteConfigClientProxyLinks);
+            }
+            var clientProxyClearBtn = document.getElementById('remoteConfigClientProxyClearInputBtn');
+            if (clientProxyClearBtn) {
+                clientProxyClearBtn.addEventListener('click', function() {
+                    document.getElementById('remoteConfigClientProxyLinksInput').value = '';
+                    setRemoteConfigClientProxyImportStatus('', '');
                 });
             }
+            ['remoteConfigClientProxyEnabled', 'remoteConfigClientProxyAutoEnable'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('change', function() {
+                    document.getElementById(id + 'Label').textContent = this.checked ? '开启' : '关闭';
+                    handleRemoteConfigFormInput();
+                });
+            });
             if (fileInput) {
                 fileInput.addEventListener('change', handleRemoteConfigFileUpload);
             }
@@ -9845,7 +9817,8 @@
                 enabled: !!firstUpdateItem
             });
             var onlineSupportData = Array.isArray(data.onlineSupport) ? data.onlineSupport : data.online_support;
-            setRemoteConfigSupportFormValues(Array.isArray(onlineSupportData) ? onlineSupportData : [], data.ui || {});
+            setRemoteConfigSupportFormValues(Array.isArray(onlineSupportData) ? onlineSupportData : []);
+            setRemoteConfigClientProxyFormValues(data.clientProxy || data.client_proxy);
             remoteConfigEncryptedData = '';
             renderRemoteConfigPanels();
             syncAllCustomSelects(document);
@@ -10043,8 +10016,8 @@
 
         function createSupportItem(index, item, options) {
             options = options || {};
-            var removeHandler = options.removeHandler || 'removeSupportItem';
-            var changeHandler = options.changeHandler || 'formToYaml';
+            var removeHandler = options.removeHandler || 'removeRemoteConfigSupportItem';
+            var changeHandler = options.changeHandler || 'handleRemoteConfigFormInput';
             item = normalizeSupportItem(item || { type: 'browser', url: '', description: '', website_id: '', widget_id: '', property_id: '', website_token: '', base_url: '', chatra_id: '', widget_code: '' });
             var div = document.createElement('div');
             div.className = 'support-item';
@@ -10126,72 +10099,6 @@
             } else {
                 formToYaml();
             }
-        }
-
-        function renderSupportItems() {
-            var container = document.getElementById('onlineSupportContainer');
-            if (!container) return;
-            container.innerHTML = '';
-            onlineSupportItems.forEach(function(item, index) {
-                var el = createSupportItem(index, item);
-                container.appendChild(el);
-                el.querySelectorAll('input, select').forEach(function(input) {
-                    input.addEventListener('change', function() { formToYaml(); });
-                });
-            });
-            syncAllCustomSelects(container, true);
-        }
-
-        function addSupportItem() {
-            onlineSupportItems.push({ type: 'browser', url: '', description: '在线客服' });
-            renderSupportItems();
-            formToYaml();
-        }
-
-        function removeSupportItem(index) {
-            onlineSupportItems.splice(index, 1);
-            renderSupportItems();
-            formToYaml();
-        }
-
-        function collectSupportItems() {
-            var container = document.getElementById('onlineSupportContainer');
-            if (!container) {
-                onlineSupportItems = [];
-                return onlineSupportItems;
-            }
-            var items = container.querySelectorAll('.support-item');
-            onlineSupportItems = [];
-            items.forEach(function(item) {
-                var type = item.querySelector('.support-type').value;
-                var obj = {
-                    type: type,
-                    description: item.querySelector('.support-description').value.trim()
-                };
-                if (item.dataset.mergeKey) {
-                    obj._merge_key = item.dataset.mergeKey;
-                }
-                if (type === 'browser') {
-                    obj.url = item.querySelector('.support-url').value.trim();
-                } else if (type === 'crisp') {
-                    obj.website_id = item.querySelector('.support-website-id').value.trim();
-                } else if (type === 'chatra') {
-                    obj.chatra_id = item.querySelector('.support-chatra-id').value.trim();
-                    if (!obj.chatra_id && item.dataset.legacyChatraWidgetCode) {
-                        obj.widget_code = item.dataset.legacyChatraWidgetCode;
-                    }
-                } else if (type === 'chatway') {
-                    obj.widget_id = item.querySelector('.support-chatway-widget-id').value.trim();
-                } else if (type === 'tawkto') {
-                    obj.property_id = item.querySelector('.support-property-id').value.trim();
-                    obj.widget_id = item.querySelector('.support-tawkto-widget-id').value.trim();
-                } else if (type === 'chatwoot') {
-                    obj.website_token = item.querySelector('.support-website-token').value.trim();
-                    obj.base_url = item.querySelector('.support-base-url').value.trim();
-                }
-                onlineSupportItems.push(obj);
-            });
-            return onlineSupportItems;
         }
 
         // ==================== YAML <-> 表单 转换 ====================
@@ -10633,6 +10540,21 @@
             var showCustomRuleEntry = showCustomRuleEntryMatch ? showCustomRuleEntryMatch[1] === 'true' : true;
             document.getElementById('showCustomRuleEntry').checked = showCustomRuleEntry;
             document.getElementById('showCustomRuleEntryLabel').textContent = showCustomRuleEntry ? '开启' : '关闭';
+            var uiOnlineSupportBlock =
+                extractNestedYamlBlock(yaml, ['ui', 'online_support']) ||
+                extractNestedYamlBlock(yaml, ['ui', 'onlineSupport']) ||
+                extractNamedYamlBlock(yaml, 'online_support') ||
+                extractNamedYamlBlock(yaml, 'onlineSupport');
+            var authPagesBlock =
+                extractNamedYamlBlock(uiOnlineSupportBlock, 'auth_pages') ||
+                extractNamedYamlBlock(uiOnlineSupportBlock, 'authPages');
+            var authPagesSupportShowButton = parseYamlBlockBool(
+                authPagesBlock,
+                'show_button',
+                parseYamlBlockBool(authPagesBlock, 'showButton', false)
+            );
+            document.getElementById('authPagesSupportShowButton').checked = authPagesSupportShowButton;
+            document.getElementById('authPagesSupportShowButtonLabel').textContent = authPagesSupportShowButton ? '开启' : '关闭';
             var checkinShowButtonMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)^\s{4}checkin:\s*\n(?:[\s\S]*?)^\s{6}show_button:\s*(true|false)/m) ||
                 yaml.match(/checkin:\s*\n(?:[\s\S]*?)show_button:\s*(true|false)/);
@@ -10764,7 +10686,6 @@
             }
             renderSources();
 
-            renderSupportItems();
             syncAllCustomSelects(document);
             syncDerivedProviderName();
             syncRemoteConfigJsonPreview({ silentStatus: true });
@@ -10772,7 +10693,6 @@
 
         function formToYaml() {
             collectSources();
-            collectSupportItems();
             collectPopularApps();
             syncDerivedProviderName();
             var editor = document.getElementById('editor');

@@ -39,8 +39,9 @@ on:
         required: true
         type: string
         default: 'all'
-        # 可选值: all, windows, windows-amd64, windows-arm64, android, android-tv, linux, linux-arm64, linux-amd64, openwrt, macos-arm64, macos-amd64
+        # 可选值: all, windows, windows-amd64, windows-arm64, android, android-tv, linux, linux-arm64, linux-amd64, openwrt, macos-arm64, macos-amd64, ios
         # 注意: all 包含 windows/linux/macos 双架构、android-tv 和软路由；openwrt 默认生成 x86_64 与 ARM64 两个 IPK 包
+        # ios 产出无签名 IPA（TrollStore / 自签安装），需要 macOS runner，且不包含在 all 里，必须显式勾选
         # 示例: windows,android 或 windows-arm64,linux-amd64,macos-arm64
       request_id:
         description: '构建请求唯一标识（由配置服务器生成，用于匹配本次构建运行）'
@@ -255,6 +256,15 @@ jobs:
             os: macos-15-intel
             arch: amd64
             include_in_all: true
+          - platform: ios
+            build_platform: ios
+            os: macos-latest
+            # iOS 内核只编译 arm64；产物为无签名 IPA（TrollStore / 自签安装）
+            arch: arm64
+            # 不并入 all：iOS 只服务巨魔/自签用户，且需要 macOS runner；
+            # 一旦 iOS 任务失败，merge-artifacts 会因为 build.result != success 整体跳过，
+            # 反而拖垮所有平台的合集包，所以必须显式勾选才构建。
+            include_in_all: false
 
     steps:
       - name: Check if platform should run
@@ -603,7 +613,7 @@ jobs:
           cache: true
 
       - name: Setup Flutter (macOS)
-        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'macos'
+        if: steps.check.outputs.should_run == 'true' && (matrix.build_platform == 'macos' || matrix.build_platform == 'ios')
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
@@ -659,7 +669,7 @@ jobs:
           echo "Dart SDK 版本校验通过：$dart_version"
 
       - name: 关闭 macOS Swift Package Manager
-        if: steps.check.outputs.should_run == 'true' && matrix.build_platform == 'macos'
+        if: steps.check.outputs.should_run == 'true' && (matrix.build_platform == 'macos' || matrix.build_platform == 'ios')
         run: flutter config --no-enable-swift-package-manager
 
       - name: Get Flutter Dependency
@@ -2289,7 +2299,7 @@ jobs:
 
             # 从构建产物文件名中提取拼音应用名称
             # 例如：Qieyun-1.0.0-android-arm64-v8a.apk -> Qieyun
-            FIRST_FILE=$(find ./dist -type f \( -iname "*.apk" -o -iname "*.dmg" -o -iname "*.exe" -o -iname "*.deb" -o -iname "*.appimage" -o -iname "*.rpm" \) | head -1)
+            FIRST_FILE=$(find ./dist -type f \( -iname "*.apk" -o -iname "*.dmg" -o -iname "*.exe" -o -iname "*.deb" -o -iname "*.appimage" -o -iname "*.rpm" -o -iname "*.ipa" \) | head -1)
             if [ -z "$FIRST_FILE" ]; then
               FIRST_FILE=$(find ./dist -type f -iname "*.ipk" | head -1)
             fi
