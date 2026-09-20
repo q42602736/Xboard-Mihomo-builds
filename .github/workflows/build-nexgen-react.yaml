@@ -201,16 +201,22 @@ jobs:
           VERSION: ${{ github.event.inputs.tag }}
           PROFILE_NAME: ${{ github.event.inputs.profile }}
         run: |
-          RELEASE_TAG="${PROFILE_NAME}-${VERSION}-${{ github.run_id }}"
-          EXISTING_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${RELEASE_TAG}")
+          # 仅规范 Git 标签，档案名和应用显示名称保留空格。
+          RELEASE_TAG=$(node -e 'process.stdout.write(process.argv[1].replace(/\s+/g, "-"))' -- "${PROFILE_NAME}-${VERSION}-${{ github.run_id }}")
+          if ! git check-ref-format "refs/tags/$RELEASE_TAG"; then
+            echo "::error::发布标签无效，请检查档案名和版本号是否包含 Git 禁止的字符。"
+            exit 1
+          fi
+          ENCODED_RELEASE_TAG=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' -- "$RELEASE_TAG")
+          EXISTING_RESPONSE=$(curl -sS -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${ENCODED_RELEASE_TAG}")
           EXISTING_ID=$(printf '%s' "$EXISTING_RESPONSE" | node -e "
             const fs = require('fs');
             const data = JSON.parse(fs.readFileSync(0, 'utf8'));
             process.stdout.write(data && data.id ? String(data.id) : '');
           ")
           if [ -n "$EXISTING_ID" ]; then
-            curl -s -X DELETE -H "Authorization: token $GH_TOKEN" \
+            curl -sS -X DELETE -H "Authorization: token $GH_TOKEN" \
               "https://api.github.com/repos/${{ github.repository }}/releases/${EXISTING_ID}" > /dev/null
           fi
 
@@ -223,7 +229,7 @@ jobs:
               body: `${appName} ${version} NexGen React 构建产物\n\n档案: ${profileName}`
             }));
           ' "$APP_NAME" "$VERSION" "$RELEASE_TAG" "$PROFILE_NAME")
-          RELEASE_RESPONSE=$(curl -s -X POST \
+          RELEASE_RESPONSE=$(curl -sS -X POST \
             -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
             "https://api.github.com/repos/${{ github.repository }}/releases" \
