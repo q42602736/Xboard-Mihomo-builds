@@ -427,6 +427,33 @@ jobs:
           cache: npm
           cache-dependency-path: source/package-lock.json
 
+      - name: 识别 Windows 界面宿主
+        if: matrix.family == 'windows'
+        id: windows-runtime
+        shell: pwsh
+        run: |
+          $package = Get-Content source/package.json -Raw | ConvertFrom-Json
+          $electron = (Test-Path source/scripts/electron-windows.mjs) -and [bool]$package.devDependencies.electron
+          $runtime = if ($electron) { 'electron' } else { 'tauri' }
+          "runtime=$runtime" >> $env:GITHUB_OUTPUT
+          Write-Host "Windows 构建宿主：$runtime"
+
+      - name: 配置 Electron 下载缓存目录
+        if: matrix.family == 'windows' && steps.windows-runtime.outputs.runtime == 'electron'
+        shell: pwsh
+        run: |
+          "ELECTRON_CACHE=$env:RUNNER_TEMP/nexgen-downloads/electron" >> $env:GITHUB_ENV
+          "ELECTRON_BUILDER_CACHE=$env:RUNNER_TEMP/nexgen-downloads/electron-builder" >> $env:GITHUB_ENV
+
+      - name: 缓存 Electron 与 Windows 安装工具
+        if: matrix.family == 'windows' && steps.windows-runtime.outputs.runtime == 'electron'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/nexgen-downloads
+          key: ${{ runner.os }}-nexgen-electron-downloads-${{ matrix.arch }}-${{ hashFiles('source/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nexgen-electron-downloads-${{ matrix.arch }}-
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -447,6 +474,12 @@ jobs:
           else
             retry rustup target add x86_64-pc-windows-msvc
           fi
+
+      - name: 配置 Windows MSVC 编译环境
+        if: matrix.family == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch == 'arm64' && 'amd64_arm64' || 'amd64' }}
 
       - name: Setup Java
         if: matrix.family == 'android'
@@ -500,6 +533,9 @@ jobs:
 
       - name: Install Dependencies
         working-directory: source
+        env:
+          # CI 只需要 electron-builder 下载目标架构，无须安装开发机 Electron 运行时。
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
         run: retry npm ci
 
       - name: Warm Go Module Cache
@@ -617,18 +653,31 @@ jobs:
       - name: Build Windows Package
         if: matrix.family == 'windows'
         working-directory: source
-        shell: bash
+        # PowerShell 保留 MSVC 的 PATH 顺序，避免 Git Bash 的 link 抢占微软链接器。
+        shell: pwsh
         env:
           GOMAXPROCS: '2'
           GOFLAGS: '-p=1'
+          WINDOWS_ARCH: ${{ matrix.arch }}
+          WINDOWS_RUNTIME: ${{ steps.windows-runtime.outputs.runtime }}
         run: |
-          if [ "${{ matrix.platform }}" = "windows-arm64" ]; then
-            npm run desktop:core -- --target aarch64-pc-windows-msvc
-            npm run package:windows -- --targets arm64 --bundles nsis,msi
-          else
-            npm run desktop:core -- --target x86_64-pc-windows-msvc
-            npm run package:windows -- --targets amd64 --bundles nsis,msi
-          fi
+          $arch = if ($env:WINDOWS_ARCH -eq 'arm64') { 'arm64' } else { 'x64' }
+          $target = if ($arch -eq 'arm64') { 'aarch64-pc-windows-msvc' } else { 'x86_64-pc-windows-msvc' }
+          if ($env:WINDOWS_RUNTIME -ne 'electron') {
+            npm run desktop:core -- --target $target
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          # Electron 入口内部会构建并校验当前架构的 Rust 宿主和 Mihomo 核心。
+          npm run package:windows -- --targets $arch --bundles 'nsis,msi'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $packages = @(
+            Get-ChildItem dist -File -Filter "*-windows-$arch-setup.exe"
+            Get-ChildItem dist -File -Filter "*-windows-$arch-installer.msi"
+          )
+          if ($packages.Count -ne 2 -or @($packages | Where-Object Length -eq 0).Count -ne 0) {
+            throw "Windows 安装包缺失或数量异常，预期各一个 NSIS 和 MSI：$arch"
+          }
+          $packages | Select-Object Name, Length
 
       - name: Build macOS Package
         if: matrix.family == 'macos'
@@ -1099,8 +1148,8 @@ jobs:
           find source/core -maxdepth 5 -type f \( -name "*.exe" -o -name "core-manifest.json" -o -name "*.so" -o -name "*.dylib" \) -print 2>/dev/null || true
           echo ""
 
-          echo "=== Tauri / Dist Artifacts ==="
-          find source/dist source/src-tauri/target -maxdepth 6 -type f 2>/dev/null | tail -100 || true
+          echo "=== 客户端安装包与后台产物 ==="
+          find source/dist source/release/windows source/.nexgen/electron source/src-tauri/target -maxdepth 6 -type f 2>/dev/null | tail -100 || true
 
       - name: Report Platform Failed
         if: failure()
