@@ -32,7 +32,16 @@ def prepare_profile(profile_path, source_dir, output_dir, profile_name):
     subscription = mapping(xboard.get("subscription"), "xboard.subscription")
     settings = mapping(xboard.get("settings"), "xboard.settings")
     template_path = source_dir / "router/xboard-openclash/files/config.json.in"
-    config = json.loads(template_path.read_text(encoding="utf-8"))
+    template = template_path.read_text(encoding="utf-8")
+    # 新版模板的 UA 和模式是未加引号的 JSON 值占位符，必须先填入合法字面量。
+    # 默认值与客户端订阅设置一致，随后由档案覆盖；旧版固定值模板保持兼容。
+    for placeholder, default in (
+        ("__XBOARD_SUBSCRIPTION_USER_AGENT__", ""),
+        ("__XBOARD_EXCLUSIVE_USER_AGENT__", ""),
+        ("__XBOARD_USE_EXCLUSIVE_MODE__", True),
+    ):
+        template = template.replace(placeholder, json.dumps(default))
+    config = json.loads(template)
 
     app_name = " ".join(text(app.get("title") or xboard.get("title") or "XBoard").split())
     config["app_name"] = app_name
