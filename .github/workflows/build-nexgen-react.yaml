@@ -434,19 +434,20 @@ jobs:
         run: |
           $package = Get-Content source/package.json -Raw | ConvertFrom-Json
           $electron = (Test-Path source/scripts/electron-windows.mjs) -and [bool]$package.devDependencies.electron
-          $runtime = if ($electron) { 'electron' } else { 'tauri' }
+          $dualRuntime = $electron -and (Select-String -Path source/scripts/package-app.mjs -Pattern 'function packageTauriWindows' -Quiet)
+          $runtime = if ($dualRuntime) { 'both' } elseif ($electron) { 'electron' } else { 'tauri' }
           "runtime=$runtime" >> $env:GITHUB_OUTPUT
           Write-Host "Windows 构建宿主：$runtime"
 
       - name: 配置 Electron 下载缓存目录
-        if: matrix.family == 'windows' && steps.windows-runtime.outputs.runtime == 'electron'
+        if: matrix.family == 'windows' && steps.windows-runtime.outputs.runtime != 'tauri'
         shell: pwsh
         run: |
           "ELECTRON_CACHE=$env:RUNNER_TEMP/nexgen-downloads/electron" >> $env:GITHUB_ENV
           "ELECTRON_BUILDER_CACHE=$env:RUNNER_TEMP/nexgen-downloads/electron-builder" >> $env:GITHUB_ENV
 
       - name: 缓存 Electron 与 Windows 安装工具
-        if: matrix.family == 'windows' && steps.windows-runtime.outputs.runtime == 'electron'
+        if: matrix.family == 'windows' && steps.windows-runtime.outputs.runtime != 'tauri'
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/nexgen-downloads
@@ -663,19 +664,33 @@ jobs:
         run: |
           $arch = if ($env:WINDOWS_ARCH -eq 'arm64') { 'arm64' } else { 'x64' }
           $target = if ($arch -eq 'arm64') { 'aarch64-pc-windows-msvc' } else { 'x86_64-pc-windows-msvc' }
-          if ($env:WINDOWS_RUNTIME -ne 'electron') {
+          if ($env:WINDOWS_RUNTIME -eq 'tauri') {
             npm run desktop:core -- --target $target
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           # Electron 入口内部会构建并校验当前架构的 Rust 宿主和 Mihomo 核心。
-          npm run package:windows -- --targets $arch --bundles 'nsis,msi'
+          if ($env:WINDOWS_RUNTIME -eq 'both') {
+            npm run package:windows -- --runtime both --targets $arch --bundles 'nsis,msi'
+          } else {
+            npm run package:windows -- --targets $arch --bundles 'nsis,msi'
+          }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $packages = @(
             Get-ChildItem dist -File -Filter "*-windows-$arch-setup.exe"
             Get-ChildItem dist -File -Filter "*-windows-$arch-installer.msi"
           )
-          if ($packages.Count -ne 2 -or @($packages | Where-Object Length -eq 0).Count -ne 0) {
-            throw "Windows 安装包缺失或数量异常，预期各一个 NSIS 和 MSI：$arch"
+          $expectedCount = if ($env:WINDOWS_RUNTIME -eq 'both') { 4 } else { 2 }
+          if ($packages.Count -ne $expectedCount -or @($packages | Where-Object Length -eq 0).Count -ne 0) {
+            throw "Windows 安装包缺失或数量异常，预期 $expectedCount 个 NSIS/MSI：$arch"
+          }
+          if ($env:WINDOWS_RUNTIME -eq 'both') {
+            foreach ($extension in @('setup.exe', 'installer.msi')) {
+              $electronPackages = @($packages | Where-Object Name -Like "*-Electron-windows-$arch-$extension")
+              $tauriPackages = @($packages | Where-Object { $_.Name -like "*-windows-$arch-$extension" -and $_.Name -notlike "*-Electron-windows-$arch-$extension" })
+              if ($electronPackages.Count -ne 1 -or $tauriPackages.Count -ne 1) {
+                throw "Tauri/Electron 安装包未成对生成：$arch $extension"
+              }
+            }
           }
           $packages | Select-Object Name, Length
 
@@ -1268,6 +1283,10 @@ jobs:
                 *android-arm64-v8a*.apk|*arm64-v8a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-arm64-v8a.apk" ;;
                 *android-armeabi-v7a*.apk|*armeabi-v7a*.apk) prefix="$SAFE_APP_NAME"; suffix="android-armeabi-v7a.apk" ;;
                 *android-universal*.apk|*universal*.apk) prefix="$SAFE_APP_NAME"; suffix="android-universal.apk" ;;
+                *-Electron-windows-x64-setup.exe) prefix="$SAFE_APP_NAME"; suffix="Electron-windows-x64-setup.exe" ;;
+                *-Electron-windows-x64-installer.msi) prefix="$SAFE_APP_NAME"; suffix="Electron-windows-x64-installer.msi" ;;
+                *-Electron-windows-arm64-setup.exe) prefix="$SAFE_APP_NAME"; suffix="Electron-windows-arm64-setup.exe" ;;
+                *-Electron-windows-arm64-installer.msi) prefix="$SAFE_APP_NAME"; suffix="Electron-windows-arm64-installer.msi" ;;
                 *windows-x64-setup.exe) prefix="$SAFE_APP_NAME"; suffix="windows-x64-setup.exe" ;;
                 *windows-arm64-setup.exe) prefix="$SAFE_APP_NAME"; suffix="windows-arm64-setup.exe" ;;
                 *windows-x64-installer.msi) prefix="$SAFE_APP_NAME"; suffix="windows-x64-installer.msi" ;;
