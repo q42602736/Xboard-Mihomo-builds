@@ -231,11 +231,19 @@ func defaultProfileYaml(displayName string) string {
       tools:
         speed:
           show_button: true
+        cf_speed:
+          show_button: false
+          target_domains: []
+          auto_replace:
+            enabled: false
+            interval_minutes: 1440
         ip_lookup:
           show_button: true
         media_unlock:
           show_button: true
         google_services:
+          show_button: false
+        chain_proxy:
           show_button: false
       popular_apps:
         show_section: false

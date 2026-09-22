@@ -75,16 +75,17 @@ type ProfileFormState struct {
 	GiftCardShowButton                 bool                     `json:"gift_card_show_button"`
 	TelegramShowButton                 bool                     `json:"telegram_show_button"`
 	TelegramURL                        string                   `json:"telegram_url"`
-	UtilitySpeedShowButton             bool                     `json:"utility_speed_show_button"`
-	UtilityCfSpeedShowButton           bool                     `json:"utility_cf_speed_show_button"`
+	UtilitySpeedShowButton             *bool                    `json:"utility_speed_show_button"`
+	UtilityCfSpeedShowButton           *bool                    `json:"utility_cf_speed_show_button"`
 	UtilityCfSpeedTargetDomains        []string                 `json:"utility_cf_speed_target_domains"`
-	UtilityCfSpeedAutoReplaceEnabled   bool                     `json:"utility_cf_speed_auto_replace_enabled"`
-	UtilityCfSpeedAutoReplaceInterval  int                      `json:"utility_cf_speed_auto_replace_interval_minutes"`
-	UtilityIPLookupShowButton          bool                     `json:"utility_ip_lookup_show_button"`
-	UtilityMediaUnlockShowButton       bool                     `json:"utility_media_unlock_show_button"`
-	UtilityGoogleServicesShowButton    bool                     `json:"utility_google_services_show_button"`
-	UtilityPopularAppsShowSection      bool                     `json:"utility_popular_apps_show_section"`
+	UtilityCfSpeedAutoReplaceEnabled   *bool                    `json:"utility_cf_speed_auto_replace_enabled"`
+	UtilityCfSpeedAutoReplaceInterval  *int                     `json:"utility_cf_speed_auto_replace_interval_minutes"`
+	UtilityIPLookupShowButton          *bool                    `json:"utility_ip_lookup_show_button"`
+	UtilityMediaUnlockShowButton       *bool                    `json:"utility_media_unlock_show_button"`
+	UtilityGoogleServicesShowButton    *bool                    `json:"utility_google_services_show_button"`
+	UtilityPopularAppsShowSection      *bool                    `json:"utility_popular_apps_show_section"`
 	UtilityPopularApps                 []ProfilePopularAppState `json:"utility_popular_apps"`
+	UtilityChainProxyShowButton        *bool                    `json:"utility_chain_proxy_show_button"`
 	ShowCustomRuleEntry                bool                     `json:"show_custom_rule_entry"`
 	AuthPagesSupportShowButton         bool                     `json:"auth_pages_support_show_button"`
 	Sources                            []ProfileSourceFormState `json:"sources"`
@@ -143,13 +144,6 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	notice := ensureMapValueNode(ui, "notice")
 	checkin := ensureMapValueNode(ui, "checkin")
 	giftCard := ensureMapValueNode(ui, "gift_card")
-	utilities := ensureMapValueNode(ui, "utilities")
-	utilityTools := ensureMapValueNode(utilities, "tools")
-	utilitySpeed := ensureMapValueNode(utilityTools, "speed")
-	utilityIPLookup := ensureMapValueNode(utilityTools, "ip_lookup")
-	utilityMediaUnlock := ensureMapValueNode(utilityTools, "media_unlock")
-	utilityGoogleServices := ensureMapValueNode(utilityTools, "google_services")
-	utilityPopularApps := ensureMapValueNode(utilities, "popular_apps")
 	proxyGroups := ensureMapValueNode(ui, "proxy_groups")
 	uiOnlineSupport := ensureMapValueNode(ui, "online_support")
 	authPages := ensureMapValueNode(uiOnlineSupport, "auth_pages")
@@ -311,24 +305,60 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 		setMapBoolValue(telegram, "show_button", form.TelegramShowButton)
 		setMapStringValue(telegram, "url", strings.TrimSpace(form.TelegramURL))
 	}
-	setMapBoolValue(utilitySpeed, "show_button", form.UtilitySpeedShowButton)
-	if rootKey == "nexgen" {
-		utilityCfSpeed := ensureMapValueNode(utilityTools, "cf_speed")
-		utilityCfSpeedAutoReplace := ensureMapValueNode(utilityCfSpeed, "auto_replace")
-		setMapBoolValue(utilityCfSpeed, "show_button", form.UtilityCfSpeedShowButton)
-		setMapNodeValue(utilityCfSpeed, "target_domains", newStringSequenceYamlNode(normalizeStringList(form.UtilityCfSpeedTargetDomains)))
-		setMapBoolValue(utilityCfSpeedAutoReplace, "enabled", form.UtilityCfSpeedAutoReplaceEnabled)
-		setMapIntValue(utilityCfSpeedAutoReplace, "interval_minutes", normalizeCloudDispatchIntervalValue(form.UtilityCfSpeedAutoReplaceInterval))
-		removeMapKeys(utilityCfSpeed, "showButton", "targetDomains", "autoReplace")
-		removeMapKeys(utilityCfSpeedAutoReplace, "intervalMinutes")
-	} else {
-		removeMapKeys(utilityTools, "cf_speed", "cfSpeed")
+	// 未提交的工具字段保留原值，兼容浏览器缓存中的旧编辑页。
+	if form.UtilitySpeedShowButton != nil {
+		tool := ensureMapValueNode(ensureMapValueNode(ensureMapValueNode(ui, "utilities"), "tools"), "speed")
+		setMapBoolValue(tool, "show_button", *form.UtilitySpeedShowButton)
 	}
-	setMapBoolValue(utilityIPLookup, "show_button", form.UtilityIPLookupShowButton)
-	setMapBoolValue(utilityMediaUnlock, "show_button", form.UtilityMediaUnlockShowButton)
-	setMapBoolValue(utilityGoogleServices, "show_button", form.UtilityGoogleServicesShowButton)
-	setMapBoolValue(utilityPopularApps, "show_section", form.UtilityPopularAppsShowSection)
-	setMapNodeValue(utilityPopularApps, "items", mergeProfilePopularApps(getSequenceValueNode(utilityPopularApps, "items"), form.UtilityPopularApps))
+	if form.UtilityCfSpeedShowButton != nil {
+		tool := ensureMapValueNode(ensureMapValueNode(ensureMapValueNode(ui, "utilities"), "tools"), "cf_speed")
+		setMapBoolValue(tool, "show_button", *form.UtilityCfSpeedShowButton)
+	}
+	if form.UtilityIPLookupShowButton != nil {
+		tool := ensureMapValueNode(ensureMapValueNode(ensureMapValueNode(ui, "utilities"), "tools"), "ip_lookup")
+		setMapBoolValue(tool, "show_button", *form.UtilityIPLookupShowButton)
+	}
+	if form.UtilityMediaUnlockShowButton != nil {
+		tool := ensureMapValueNode(ensureMapValueNode(ensureMapValueNode(ui, "utilities"), "tools"), "media_unlock")
+		setMapBoolValue(tool, "show_button", *form.UtilityMediaUnlockShowButton)
+	}
+	if form.UtilityGoogleServicesShowButton != nil {
+		tool := ensureMapValueNode(ensureMapValueNode(ensureMapValueNode(ui, "utilities"), "tools"), "google_services")
+		setMapBoolValue(tool, "show_button", *form.UtilityGoogleServicesShowButton)
+	}
+	if form.UtilityChainProxyShowButton != nil {
+		tool := ensureMapValueNode(ensureMapValueNode(ensureMapValueNode(ui, "utilities"), "tools"), "chain_proxy")
+		setMapBoolValue(tool, "show_button", *form.UtilityChainProxyShowButton)
+	}
+	if form.UtilityCfSpeedTargetDomains != nil || form.UtilityCfSpeedAutoReplaceEnabled != nil || form.UtilityCfSpeedAutoReplaceInterval != nil {
+		cfSpeed := ensureMapValueNode(ensureMapValueNode(ensureMapValueNode(ui, "utilities"), "tools"), "cf_speed")
+		if form.UtilityCfSpeedTargetDomains != nil {
+			setMapNodeValue(cfSpeed, "target_domains", newStringSequenceYamlNode(normalizeStringList(form.UtilityCfSpeedTargetDomains)))
+		}
+		if form.UtilityCfSpeedAutoReplaceEnabled != nil || form.UtilityCfSpeedAutoReplaceInterval != nil {
+			autoReplace := ensureMapValueNode(cfSpeed, "auto_replace")
+			if form.UtilityCfSpeedAutoReplaceEnabled != nil {
+				setMapBoolValue(autoReplace, "enabled", *form.UtilityCfSpeedAutoReplaceEnabled)
+			}
+			if form.UtilityCfSpeedAutoReplaceInterval != nil {
+				interval := normalizeCloudDispatchIntervalValue(*form.UtilityCfSpeedAutoReplaceInterval)
+				if rootKey == "xboard" {
+					// Flutter 客户端支持最长七天的自动优选间隔。
+					interval = max(1, min(*form.UtilityCfSpeedAutoReplaceInterval, 7*24*60))
+				}
+				setMapIntValue(autoReplace, "interval_minutes", interval)
+			}
+		}
+	}
+	if form.UtilityPopularAppsShowSection != nil || form.UtilityPopularApps != nil {
+		popularApps := ensureMapValueNode(ensureMapValueNode(ui, "utilities"), "popular_apps")
+		if form.UtilityPopularAppsShowSection != nil {
+			setMapBoolValue(popularApps, "show_section", *form.UtilityPopularAppsShowSection)
+		}
+		if form.UtilityPopularApps != nil {
+			setMapNodeValue(popularApps, "items", mergeProfilePopularApps(getSequenceValueNode(popularApps, "items"), form.UtilityPopularApps))
+		}
+	}
 	setMapBoolValue(proxyGroups, "show_custom_rule_entry", form.ShowCustomRuleEntry)
 	setMapBoolValue(authPages, "show_button", form.AuthPagesSupportShowButton)
 	removeMapKeys(profileRoot, "proxy_groups", "proxyGroups")

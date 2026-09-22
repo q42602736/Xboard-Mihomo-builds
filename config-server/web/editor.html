@@ -3238,6 +3238,13 @@
                 flex-direction: column;
             }
         }
+        .popular-app-item { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 15px; margin-bottom: 10px; position: relative; }
+        .popular-app-item .btn-remove { position: absolute; top: 10px; right: 10px; background: rgba(255,68,68,0.3); color: #ff4444; border: 1px solid rgba(255,68,68,0.5); padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; }
+        .popular-app-item .btn-remove:hover { background: rgba(255,68,68,0.5); }
+        .popular-app-index { color: #00d4ff; font-weight: bold; margin-bottom: 10px; }
+        .popular-app-item .popular-app-main-row { grid-template-columns: 1fr 160px; }
+        .popular-app-item .popular-app-url-row { grid-template-columns: 1.2fr 1.4fr; margin-top: 10px; }
+        .popular-app-editor.collapsed { display: none; }
     </style>
 </head>
 <body>
@@ -3568,6 +3575,103 @@
                                 </div>
                                 <div class="help-text">仅用于 main 分支对接 XBoard 面板。开启前请确认你的 XBoard 已安装并启用 <code>DailyCheckin</code> 这类签到插件，否则客户端只会显示按钮，实际无法签到。</div>
                             </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：网速测试</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="utilitySpeedShowButton"><span class="slider"></span></label>
+                                        <span id="utilitySpeedShowButtonLabel">关闭</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：CF 优选</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="utilityCfSpeedShowButton"><span class="slider"></span></label>
+                                        <span id="utilityCfSpeedShowButtonLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="switch-card-extra">
+                                    <div class="form-group" style="margin-bottom:12px;">
+                                        <label>需要替换的节点地址</label>
+                                        <textarea id="utilityCfSpeedTargetDomains" placeholder="每行填写一个需要替换的节点地址"></textarea>
+                                    </div>
+                                    <div class="form-row" style="grid-template-columns:minmax(0,1fr) minmax(160px,220px); align-items:end;">
+                                        <div class="form-group" style="margin-bottom:0;">
+                                            <label>自动优选替换</label>
+                                            <div class="switch-group">
+                                                <label class="switch"><input type="checkbox" id="utilityCfSpeedAutoReplaceEnabled"><span class="slider"></span></label>
+                                                <span id="utilityCfSpeedAutoReplaceEnabledLabel">关闭</span>
+                                            </div>
+                                        </div>
+                                        <div class="form-group" style="margin-bottom:0;">
+                                            <label>自动间隔（分钟）</label>
+                                            <input type="number" id="utilityCfSpeedAutoReplaceIntervalMinutes" min="1" max="10080" value="1440">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="help-text">每行一个域名或 IP。留空时只显示测速工具，不会替换节点地址。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：IP 查询</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="utilityIpLookupShowButton"><span class="slider"></span></label>
+                                        <span id="utilityIpLookupShowButtonLabel">关闭</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：流媒体解锁检测</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="utilityMediaUnlockShowButton"><span class="slider"></span></label>
+                                        <span id="utilityMediaUnlockShowButtonLabel">关闭</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：安卓谷歌服务检测</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="utilityGoogleServicesShowButton"><span class="slider"></span></label>
+                                        <span id="utilityGoogleServicesShowButtonLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">仅 Android 客户端显示；关闭后会隐藏工具箱中的谷歌服务检测入口。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：热门应用</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="popularAppsShowSection"><span class="slider"></span></label>
+                                        <span id="popularAppsShowSectionLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="switch-card-extra">
+                                    <div class="form-row" style="grid-template-columns:minmax(0,1fr) 160px; align-items:center; margin-bottom:12px;">
+                                        <div class="help-text" id="popularAppsSummary">已添加 0 个应用，配置默认收起。</div>
+                                        <button type="button" class="btn btn-secondary" id="togglePopularAppsBtn">展开配置</button>
+                                    </div>
+                                    <div class="popular-app-editor collapsed" id="popularAppsEditor">
+                                        <div id="popularAppsContainer"></div>
+                                        <button type="button" class="btn btn-primary" id="addPopularAppBtn" style="margin-top: 10px;">+ 添加应用</button>
+                                    </div>
+                                </div>
+                                <div class="help-text">开启后，客户端工具箱内会显示单独的“热门应用”工具；用户点击后查看应用列表，点击应用图标会跳转下载地址，下载地址不会直接展示。</div>
+                            </div>
+                            <div class="switch-card" style="margin-top:16px;">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">显示实用工具：链式代理</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="utilityChainProxyShowButton"><span class="slider"></span></label>
+                                        <span id="utilityChainProxyShowButtonLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">管理以订阅节点为前置、自有 SOCKS5 / HTTP 代理为出口的链式代理。</div>
+                            </div>
+
                         </div>
                     </div>
                     <div class="page-footer">
@@ -6748,6 +6852,8 @@
         ];
         var CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY = 'nexgen_custom_traffic_bar_code_v1';
         var sources = [];
+        var popularApps = [];
+        var popularAppsExpanded = false;
         var remoteConfigEncryptedData = '';
         var remoteConfigEncryptionKey = '';
         var remoteConfigPanels = [];
@@ -7383,6 +7489,15 @@
             document.getElementById('confirmSaveProfileBtn').addEventListener('click', confirmSaveProfile);
             document.getElementById('cancelSaveProfileBtn').addEventListener('click', hideSaveProfileInput);
 
+            document.getElementById('addPopularAppBtn').addEventListener('click', addPopularApp);
+            document.getElementById('togglePopularAppsBtn').addEventListener('click', togglePopularAppsEditor);
+            ['utilityCfSpeedTargetDomains', 'utilityCfSpeedAutoReplaceIntervalMinutes'].forEach(function(id) {
+                document.getElementById(id).addEventListener('change', function() {
+                    if (id === 'utilityCfSpeedAutoReplaceIntervalMinutes') this.value = normalizeMinuteIntervalValue(this.value, 1440);
+                    formToYaml();
+                    scheduleAutoSaveCurrentProfile('实用工具配置已自动保存');
+                });
+            });
             initSwitches();
             initCustomFeatureSwitches();
             initPlatformCheckboxes();
@@ -7391,6 +7506,7 @@
             updateBuildTagValidationState();
             initRemoteConfigTool();
             renderSources();
+            renderPopularApps();
             updateProviderConsistencyState();
             renderHomePanelPreview();
 
@@ -7508,7 +7624,28 @@
                 '    checkin:',
                 '      show_button: false',
                 '    gift_card:',
-                '      show_button: false'
+                '      show_button: false',
+                '    utilities:',
+                '      tools:',
+                '        speed:',
+                '          show_button: true',
+                '        cf_speed:',
+                '          show_button: false',
+                '          target_domains: []',
+                '          auto_replace:',
+                '            enabled: false',
+                '            interval_minutes: 1440',
+                '        ip_lookup:',
+                '          show_button: true',
+                '        media_unlock:',
+                '          show_button: true',
+                '        google_services:',
+                '          show_button: false',
+                '        chain_proxy:',
+                '          show_button: false',
+                '      popular_apps:',
+                '        show_section: false',
+                '        items: []'
             ];
             return lines.join('\n');
         }
@@ -7620,8 +7757,15 @@
         var autoSaveProfileDelayMs = 3 * 60 * 1000;
         var currentProfileBaseYaml = '';
 
+        function normalizeMinuteIntervalValue(value, fallback) {
+            var parsed = parseInt(value, 10);
+            if (isNaN(parsed) || parsed < 1) return fallback;
+            return Math.min(parsed, 10080);
+        }
+
         function buildCurrentProfileFormState() {
             collectSources();
+            collectPopularApps();
 
             var validSources = sources.filter(function(source) {
                 return source && String(source.url || '').trim();
@@ -7631,6 +7775,20 @@
                     name: normalizeSourceType(source.name),
                     url: String(source.url || '').trim(),
                     encryption_key: String(source.encryption_key || '').trim()
+                };
+            });
+
+            var validPopularApps = popularApps.filter(function(item) {
+                return item && (String(item.name || '').trim() || String(item.download_url || '').trim());
+            }).map(function(item) {
+                return {
+                    merge_key: item._merge_key || '',
+                    id: item.id || '',
+                    name: String(item.name || '').trim(),
+                    description: String(item.description || '').trim(),
+                    icon_url: String(item.icon_url || '').trim(),
+                    download_url: String(item.download_url || '').trim(),
+                    show_button: item.show_button !== false
                 };
             });
 
@@ -7680,6 +7838,17 @@
                 checkin_show_button: document.getElementById('checkinShowButton').checked,
                 auth_pages_support_show_button: document.getElementById('authPagesSupportShowButton').checked,
                 gift_card_show_button: document.getElementById('giftCardShowButton').checked,
+                utility_speed_show_button: document.getElementById('utilitySpeedShowButton').checked,
+                utility_cf_speed_show_button: document.getElementById('utilityCfSpeedShowButton').checked,
+                utility_cf_speed_target_domains: parseMultilineListValue(document.getElementById('utilityCfSpeedTargetDomains').value),
+                utility_cf_speed_auto_replace_enabled: document.getElementById('utilityCfSpeedAutoReplaceEnabled').checked,
+                utility_cf_speed_auto_replace_interval_minutes: normalizeMinuteIntervalValue(document.getElementById('utilityCfSpeedAutoReplaceIntervalMinutes').value, 1440),
+                utility_ip_lookup_show_button: document.getElementById('utilityIpLookupShowButton').checked,
+                utility_media_unlock_show_button: document.getElementById('utilityMediaUnlockShowButton').checked,
+                utility_google_services_show_button: document.getElementById('utilityGoogleServicesShowButton').checked,
+                utility_popular_apps_show_section: document.getElementById('popularAppsShowSection').checked,
+                utility_popular_apps: validPopularApps,
+                utility_chain_proxy_show_button: document.getElementById('utilityChainProxyShowButton').checked,
                 sources: validSources
             };
             return formState;
@@ -8651,7 +8820,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'showDedicatedNodes', 'showIpInfo', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'authPagesSupportShowButton', 'giftCardShowButton', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'showDedicatedNodes', 'showIpInfo', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'authPagesSupportShowButton', 'giftCardShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'utilityChainProxyShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -10288,6 +10457,7 @@
             var div = document.createElement('div');
             div.className = 'support-item';
             div.dataset.index = index;
+            div.dataset.appId = item.id || '';
             if (item._merge_key !== undefined && item._merge_key !== null && item._merge_key !== '') {
                 div.dataset.mergeKey = String(item._merge_key);
             }
@@ -10367,6 +10537,106 @@
             }
         }
 
+        // ==================== 热门应用管理 ====================
+
+        function createPopularAppItem(index, item) {
+            item = item || { name: '', description: '', icon_url: '', download_url: '', show_button: true };
+            var div = document.createElement('div');
+            div.className = 'popular-app-item';
+            div.dataset.index = index;
+            if (item._merge_key !== undefined && item._merge_key !== null && item._merge_key !== '') {
+                div.dataset.mergeKey = String(item._merge_key);
+            }
+            var showButton = item.show_button !== false;
+            div.innerHTML = '<div class="popular-app-index">热门应用 #' + (index + 1) + '</div>' +
+                '<button type="button" class="btn-remove" onclick="removePopularApp(' + index + ')">删除</button>' +
+                '<div class="form-row popular-app-main-row">' +
+                    '<div class="form-group"><label>应用名称</label><input type="text" class="popular-app-name" value="' + escapeHtml(item.name || '') + '" placeholder="如: OpenClash"></div>' +
+                    '<div class="form-group"><label>显示</label><label style="display:flex;align-items:center;gap:8px;height:44px;"><input type="checkbox" class="popular-app-show-button"' + (showButton ? ' checked' : '') + '> 在客户端显示</label></div>' +
+                '</div>' +
+                '<div class="form-row popular-app-url-row">' +
+                    '<div class="form-group"><label>图标地址</label><input type="text" class="popular-app-icon-url" value="' + escapeHtml(item.icon_url || '') + '" placeholder="https://example.com/app.png"></div>' +
+                    '<div class="form-group"><label>下载地址</label><input type="text" class="popular-app-download-url" value="' + escapeHtml(item.download_url || '') + '" placeholder="https://example.com/download"></div>' +
+                '</div>' +
+                '<div class="form-group" style="margin-bottom:0;"><label>描述</label><input type="text" class="popular-app-description" value="' + escapeHtml(item.description || '') + '" placeholder="可选，用于应用列表说明"></div>';
+            return div;
+        }
+
+        function renderPopularApps() {
+            var container = document.getElementById('popularAppsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            popularApps.forEach(function(item, index) {
+                var el = createPopularAppItem(index, item);
+                container.appendChild(el);
+                el.querySelectorAll('input').forEach(function(input) {
+                    input.addEventListener('input', formToYaml);
+                    input.addEventListener('change', formToYaml);
+                });
+            });
+            updatePopularAppsEditorState();
+        }
+
+        function updatePopularAppsEditorState() {
+            var editor = document.getElementById('popularAppsEditor');
+            var toggleBtn = document.getElementById('togglePopularAppsBtn');
+            var summary = document.getElementById('popularAppsSummary');
+            if (editor) {
+                editor.classList.toggle('collapsed', !popularAppsExpanded);
+            }
+            if (toggleBtn) {
+                toggleBtn.textContent = popularAppsExpanded ? '收起配置' : '展开配置';
+            }
+            if (summary) {
+                summary.textContent = '已添加 ' + popularApps.length + ' 个应用，当前' + (popularAppsExpanded ? '已展开。' : '已收起。');
+            }
+        }
+
+        function togglePopularAppsEditor() {
+            popularAppsExpanded = !popularAppsExpanded;
+            updatePopularAppsEditorState();
+        }
+
+        function addPopularApp() {
+            collectPopularApps();
+            popularAppsExpanded = true;
+            popularApps.push({ name: '', description: '', icon_url: '', download_url: '', show_button: true });
+            renderPopularApps();
+            formToYaml();
+        }
+
+        function removePopularApp(index) {
+            collectPopularApps();
+            popularApps.splice(index, 1);
+            renderPopularApps();
+            formToYaml();
+        }
+
+        function collectPopularApps() {
+            var container = document.getElementById('popularAppsContainer');
+            if (!container) {
+                popularApps = [];
+                return popularApps;
+            }
+            var items = container.querySelectorAll('.popular-app-item');
+            popularApps = [];
+            items.forEach(function(item) {
+                var obj = {
+                    id: item.dataset.appId || '',
+                    name: item.querySelector('.popular-app-name').value.trim(),
+                    description: item.querySelector('.popular-app-description').value.trim(),
+                    icon_url: item.querySelector('.popular-app-icon-url').value.trim(),
+                    download_url: item.querySelector('.popular-app-download-url').value.trim(),
+                    show_button: item.querySelector('.popular-app-show-button').checked
+                };
+                if (item.dataset.mergeKey) {
+                    obj._merge_key = item.dataset.mergeKey;
+                }
+                popularApps.push(obj);
+            });
+            return popularApps;
+        }
+
         // ==================== YAML <-> 表单 转换 ====================
 
         function stripYamlScalarQuotes(value) {
@@ -10385,9 +10655,127 @@
         }
 
         // 取出某个顶层键下的 YAML 子块（按缩进退到同级为止）。
+        function parsePopularAppsFromYaml(yaml) {
+            var result = {
+                show_section: false,
+                items: []
+            };
+            var lines = String(yaml || '').split('\n');
+            var inPopularApps = false;
+            var inItems = false;
+            var popularAppsIndent = -1;
+            var itemsIndent = -1;
+            var currentItem = null;
+
+            function readKeyValue(text) {
+                var match = text.match(/^([a-zA-Z0-9_]+):\s*(.*)$/);
+                if (!match) return null;
+                var value = match[2].trim();
+                // 保留应用名称、链接里的引号与转义字符，避免保存后变形。
+                if (value.charAt(0) === '"') {
+                    var quoted = value.match(/^"(?:[^"\\]|\\.)*"/);
+                    if (quoted) {
+                        try { value = JSON.parse(quoted[0]); } catch (_) { value = stripYamlScalarQuotes(quoted[0]); }
+                    }
+                } else if (value.charAt(0) === "'") {
+                    var quoted = value.match(/^'(?:[^']|'')*'/);
+                    if (quoted) value = quoted[0].slice(1, -1).replace(/''/g, "'");
+                } else {
+                    value = value.replace(/\s+#.*$/, '').trim();
+                }
+                return { key: match[1], value: value };
+            }
+
+            function applyItemValue(item, key, value) {
+                if (!item) return;
+                var aliases = { showButton: 'show_button', iconUrl: 'icon_url', downloadUrl: 'download_url' };
+                key = aliases[key] || key;
+                if (key === 'show_button') {
+                    item.show_button = !/^false(?:\s|$)/.test(String(value).trim());
+                    return;
+                }
+                if (key === 'id' || key === 'name' || key === 'description' || key === 'icon_url' || key === 'download_url') {
+                    item[key] = value;
+                }
+            }
+
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                if (/^\s*#/.test(line)) continue;
+                var trimmed = line.trim();
+                if (!trimmed) continue;
+                var indent = (line.match(/^(\s*)/) || [''])[0].length;
+
+                if (!inPopularApps) {
+                    if (/^(popular_apps|popularApps):\s*(?:#.*)?$/.test(trimmed)) {
+                        inPopularApps = true;
+                        popularAppsIndent = indent;
+                    }
+                    continue;
+                }
+
+                if (indent <= popularAppsIndent) {
+                    break;
+                }
+
+                if (/^(?:show_section|showSection):\s*(true|false)/.test(trimmed)) {
+                    result.show_section = trimmed.match(/^(?:show_section|showSection):\s*(true|false)/)[1] === 'true';
+                    continue;
+                }
+
+                if (/^items:\s*\[\]\s*$/.test(trimmed)) {
+                    inItems = false;
+                    continue;
+                }
+
+                if (/^items:\s*(?:#.*)?$/.test(trimmed)) {
+                    inItems = true;
+                    itemsIndent = indent;
+                    continue;
+                }
+
+                if (!inItems) continue;
+                if (indent < itemsIndent || (indent === itemsIndent && !/^-\s/.test(trimmed))) {
+                    inItems = false;
+                    continue;
+                }
+
+                if (/^-\s*/.test(trimmed)) {
+                    if (currentItem) {
+                        result.items.push(currentItem);
+                    }
+                    currentItem = {
+                        _merge_key: String(result.items.length),
+                        id: '',
+                        name: '',
+                        description: '',
+                        icon_url: '',
+                        download_url: '',
+                        show_button: true
+                    };
+                    var inline = trimmed.replace(/^-\s*/, '');
+                    var inlinePair = readKeyValue(inline);
+                    if (inlinePair) {
+                        applyItemValue(currentItem, inlinePair.key, inlinePair.value);
+                    }
+                    continue;
+                }
+
+                var pair = readKeyValue(trimmed);
+                if (pair) {
+                    applyItemValue(currentItem, pair.key, pair.value);
+                }
+            }
+
+            if (currentItem) {
+                result.items.push(currentItem);
+            }
+            return result;
+        }
+
         function extractNamedYamlBlock(source, keyName) {
             var lines = String(source || '').split('\n');
-            var keyPattern = new RegExp('^\\s*' + keyName + ':\\s*$');
+            var keyPattern = new RegExp('^\\s*' + keyName + ':[^\\S\\n]*(?:#.*)?$');
             for (var i = 0; i < lines.length; i++) {
                 if (!keyPattern.test(lines[i])) continue;
                 var baseIndent = (lines[i].match(/^(\s*)/) || [''])[0].length;
@@ -10407,7 +10795,25 @@
             return '';
         }
 
-        // 从 YAML 子块里读字符串列表，兼容 "key: [a, b]" 行内写法与本行一个 "- a" 的列表写法。
+        function extractNestedYamlBlock(source, keyNames) {
+            var block = String(source || '');
+            for (var i = 0; i < keyNames.length; i++) {
+                block = extractNamedYamlBlock(block, keyNames[i]);
+                if (!block) return '';
+            }
+            return block;
+        }
+
+        function parseYamlBlockBool(block, keyName, fallback) {
+            var match = String(block || '').match(new RegExp('^\\s*' + keyName + ':\\s*(true|false)[^\\S\\n]*(?:#.*)?$', 'm'));
+            return match ? match[1] === 'true' : fallback;
+        }
+
+        function parseYamlBlockInt(block, keyName, fallback) {
+            var match = String(block || '').match(new RegExp('^\\s*' + keyName + ':\\s*(-?\\d+)[^\\S\\n]*(?:#.*)?$', 'm'));
+            return match ? parseInt(match[1], 10) : fallback;
+        }
+
         function parseYamlBlockStringList(block, keyName) {
             var lines = String(block || '').split('\n');
             for (var i = 0; i < lines.length; i++) {
@@ -10676,6 +11082,36 @@
             var giftCardShowButton = giftCardShowButtonMatch ? giftCardShowButtonMatch[1] === 'true' : false;
             document.getElementById('giftCardShowButton').checked = giftCardShowButton;
             document.getElementById('giftCardShowButtonLabel').textContent = giftCardShowButton ? '开启' : '关闭';
+            var utilitiesBlock = extractNestedYamlBlock(yaml, ['xboard', 'ui', 'utilities']);
+            var utilityToolsBlock = extractNamedYamlBlock(utilitiesBlock, 'tools');
+            [
+                ['speed', 'speed', 'utilitySpeedShowButton'],
+                ['cf_speed', 'cfSpeed', 'utilityCfSpeedShowButton'],
+                ['ip_lookup', 'ipLookup', 'utilityIpLookupShowButton'],
+                ['media_unlock', 'mediaUnlock', 'utilityMediaUnlockShowButton'],
+                ['google_services', 'googleServices', 'utilityGoogleServicesShowButton'],
+                ['chain_proxy', 'chainProxy', 'utilityChainProxyShowButton']
+            ].forEach(function(tool) {
+                var block = extractNamedYamlBlock(utilityToolsBlock, tool[0]) || extractNamedYamlBlock(utilityToolsBlock, tool[1]);
+                var enabled = parseYamlBlockBool(block, 'show_button', parseYamlBlockBool(block, 'showButton', false));
+                document.getElementById(tool[2]).checked = enabled;
+                document.getElementById(tool[2] + 'Label').textContent = enabled ? '开启' : '关闭';
+            });
+            var cfBlock = extractNamedYamlBlock(utilityToolsBlock, 'cf_speed') || extractNamedYamlBlock(utilityToolsBlock, 'cfSpeed');
+            var cfAutoBlock = extractNamedYamlBlock(cfBlock, 'auto_replace') || extractNamedYamlBlock(cfBlock, 'autoReplace');
+            var cfDomains = parseYamlBlockStringList(cfBlock, 'target_domains');
+            if (!cfDomains.length) cfDomains = parseYamlBlockStringList(cfBlock, 'targetDomains');
+            document.getElementById('utilityCfSpeedTargetDomains').value = cfDomains.join('\n');
+            var cfAutoEnabled = parseYamlBlockBool(cfAutoBlock, 'enabled', false);
+            document.getElementById('utilityCfSpeedAutoReplaceEnabled').checked = cfAutoEnabled;
+            document.getElementById('utilityCfSpeedAutoReplaceEnabledLabel').textContent = cfAutoEnabled ? '开启' : '关闭';
+            document.getElementById('utilityCfSpeedAutoReplaceIntervalMinutes').value = normalizeMinuteIntervalValue(
+                parseYamlBlockInt(cfAutoBlock, 'interval_minutes', parseYamlBlockInt(cfAutoBlock, 'intervalMinutes', 1440)), 1440);
+            var parsedPopularApps = parsePopularAppsFromYaml(utilitiesBlock);
+            document.getElementById('popularAppsShowSection').checked = parsedPopularApps.show_section;
+            document.getElementById('popularAppsShowSectionLabel').textContent = parsedPopularApps.show_section ? '开启' : '关闭';
+            popularApps = parsedPopularApps.items;
+            renderPopularApps();
             var authBackgroundEnabledMatch = yaml.match(/auth_background:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var authBackgroundEnabled = authBackgroundEnabledMatch ? authBackgroundEnabledMatch[1] === 'true' : false;
             document.getElementById('authBackgroundEnabled').checked = authBackgroundEnabled;
@@ -10740,6 +11176,7 @@
 
         function formToYaml() {
             collectSources();
+            collectPopularApps();
             renderHomePanelPreview();
             updateProviderConsistencyState();
             syncRemoteConfigJsonPreview({ silentStatus: true });
