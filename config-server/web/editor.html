@@ -3430,6 +3430,21 @@
                                 </select>
                                 <div class="help-text">默认使用旧 UI；选择新 UI 后，重新打包的客户端将使用新入口。</div>
                             </div>
+                            <div class="form-group" id="uiColorSchemeField" style="margin-top:16px; display:none;">
+                                <label for="uiColorScheme">新 UI 默认配色</label>
+                                <select id="uiColorScheme" data-custom-select>
+                                    <option value="yellow">黄色</option>
+                                    <option value="green">绿色</option>
+                                    <option value="blue">蓝色</option>
+                                    <option value="purple">紫色</option>
+                                    <option value="orange">橙色</option>
+                                    <option value="teal">青绿色</option>
+                                    <option value="cyan">青色</option>
+                                    <option value="rose">玫红色</option>
+                                    <option value="indigo">靛蓝色</option>
+                                </select>
+                                <div class="help-text">设置新 UI 启动时的默认配色，重新打包后生效；未设置时使用黄色。</div>
+                            </div>
                         </div>
                         <div class="section">
                             <div class="section-title">首页与界面布局</div>
@@ -4310,6 +4325,19 @@
                                 <label>自定义订阅查询后缀</label>
                                 <input type="text" id="subscriptionCustomQuerySuffix" placeholder="留空时默认使用 clash=1">
                                 <div class="help-text">按需填写。留空时默认使用 <code>clash=1</code>，且不会额外写入该配置；如需 Clash Meta，可填写 <code>clashmeta=1</code>。</div>
+                            </div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">自动测速与选路</div>
+                            <div class="switch-card">
+                                <div class="switch-card-header">
+                                    <span class="switch-card-label">自动测速并选择最低延迟节点</span>
+                                    <div class="switch-group">
+                                        <label class="switch"><input type="checkbox" id="autoTestAfterLogin"><span class="slider"></span></label>
+                                        <span id="autoTestAfterLoginLabel">关闭</span>
+                                    </div>
+                                </div>
+                                <div class="help-text">适用于老客户端的旧 UI 和新 UI。开启后，启动、登录及订阅刷新完成时自动测速并优选节点；保留用户手动选择。新档案默认关闭，旧档案未配置时沿用客户端默认开启行为。V2Board 的 iOS 版仍保留手动测速。</div>
                             </div>
                         </div>
                         <div class="section">
@@ -7557,6 +7585,8 @@
                 '  security:',
                 '    user_agents:',
                 '      api_encrypted: ""',
+                '  settings:',
+                '    auto_test_after_login: false',
                 '  auto_offline:',
                 '    enabled: false',
                 '  subscription_cache:',
@@ -7586,6 +7616,7 @@
                 '        url: ""',
                 '  ui:',
                 '    variant: legacy',
+                '    color_scheme: yellow',
                 '    hide_traffic_details: false',
                 '    hide_node_status: false',
                 '    hide_dedicated_nodes: false',
@@ -7809,6 +7840,7 @@
                 custom_subscribe_domains: parseMultilineListValue(document.getElementById('subscriptionCustomSubscribeDomains').value),
                 api_encrypted_user_agent: document.getElementById('apiEncryptedUserAgent').value.trim(),
                 auto_offline_enabled: document.getElementById('autoOfflineEnabled').checked,
+                auto_test_after_login: document.getElementById('autoTestAfterLogin').checked,
                 cloud_dispatch_enabled: document.getElementById('cloudDispatchEnabled') ? document.getElementById('cloudDispatchEnabled').checked : false,
                 cloud_dispatch_query_url: document.getElementById('cloudDispatchQueryUrl') ? document.getElementById('cloudDispatchQueryUrl').value.trim() : '',
                 cloud_dispatch_query_secret: document.getElementById('cloudDispatchQuerySecret') ? document.getElementById('cloudDispatchQuerySecret').value.trim() : '',
@@ -7824,6 +7856,7 @@
                 subscription_cache_ttl: parseInt(document.getElementById('subscriptionCacheTtl').value || '24', 10) || 0,
                 api_path_prefix: document.getElementById('apiPathPrefix') ? document.getElementById('apiPathPrefix').value.trim() : '/api/v1',
                 ui_variant: normalizeUiVariant(document.getElementById('uiVariant').value),
+                ui_color_scheme: normalizeUiColorScheme(document.getElementById('uiColorScheme').value),
                 hide_traffic_details: document.getElementById('hideTrafficDetails').checked,
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
                 hide_dedicated_nodes: document.getElementById('showDedicatedNodes').checked,
@@ -8820,7 +8853,7 @@
         }
 
         function initSwitches() {
-            ['preferEncrypt', 'useExclusiveMode', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'showDedicatedNodes', 'showIpInfo', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'authPagesSupportShowButton', 'giftCardShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'utilityChainProxyShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
+            ['preferEncrypt', 'useExclusiveMode', 'autoTestAfterLogin', 'autoOfflineEnabled', 'subscriptionCacheEnabled', 'hideTrafficDetails', 'hideNodeStatus', 'showDedicatedNodes', 'showIpInfo', 'latencyReductionEnabled', 'noticeAutoOpenOnStartup', 'showCustomRuleEntry', 'checkinShowButton', 'authPagesSupportShowButton', 'giftCardShowButton', 'utilitySpeedShowButton', 'utilityCfSpeedShowButton', 'utilityCfSpeedAutoReplaceEnabled', 'utilityIpLookupShowButton', 'utilityMediaUnlockShowButton', 'utilityGoogleServicesShowButton', 'utilityChainProxyShowButton', 'popularAppsShowSection', 'authBackgroundEnabled'].forEach(function(id) {
                 var el = document.getElementById(id);
                 var label = document.getElementById(id + 'Label');
                 el.addEventListener('change', function() {
@@ -8849,6 +8882,14 @@
                     scheduleAutoSaveCurrentProfile('UI 构建变体已自动保存');
                 });
             }
+            var uiColorScheme = document.getElementById('uiColorScheme');
+            if (uiColorScheme) {
+                uiColorScheme.addEventListener('change', function() {
+                    this.value = normalizeUiColorScheme(this.value);
+                    formToYaml();
+                    scheduleAutoSaveCurrentProfile('新 UI 默认配色已自动保存');
+                });
+            }
             syncUiVariantVisibility();
             document.getElementById('subscriptionCacheTtl').addEventListener('change', function() {
                 formToYaml();
@@ -8863,6 +8904,13 @@
             return String(value || '').trim().toLowerCase() === 'new' ? 'new' : 'legacy';
         }
 
+        function normalizeUiColorScheme(value) {
+            var normalized = String(value || '').trim().toLowerCase();
+            return ['yellow', 'green', 'blue', 'purple', 'orange', 'teal', 'cyan', 'rose', 'indigo'].indexOf(normalized) >= 0
+                ? normalized
+                : 'yellow';
+        }
+
         function isNewUiVariant() {
             var variant = document.getElementById('uiVariant');
             return !!variant && normalizeUiVariant(variant.value) === 'new';
@@ -8870,11 +8918,15 @@
 
         function syncUiVariantVisibility() {
             var variant = document.getElementById('uiVariant');
+            var colorSchemeField = document.getElementById('uiColorSchemeField');
             var layoutControls = document.getElementById('homePanelLayoutControls');
             var supportsLegacyOnlyControls = !isNewUiVariant();
             var supportsHomePanelLayout = supportsLegacyOnlyControls;
             if (variant) {
                 variant.value = normalizeUiVariant(variant.value);
+            }
+            if (colorSchemeField) {
+                colorSchemeField.style.display = supportsLegacyOnlyControls ? 'none' : '';
             }
             document.querySelectorAll('[data-ui-variant]').forEach(function(section) {
                 var rule = String(section.getAttribute('data-ui-variant') || '').trim();
@@ -10917,6 +10969,14 @@
                 apiEncryptedUserAgent = getSecurityUserAgent('apiEncrypted');
             }
             document.getElementById('apiEncryptedUserAgent').value = apiEncryptedUserAgent;
+            var settingsBlock = extractNestedYamlBlock(yaml, ['xboard', 'settings']);
+            var autoTestAfterLogin = parseYamlBlockBool(
+                settingsBlock,
+                'auto_test_after_login',
+                parseYamlBlockBool(settingsBlock, 'autoTestAfterLogin', true)
+            );
+            document.getElementById('autoTestAfterLogin').checked = autoTestAfterLogin;
+            document.getElementById('autoTestAfterLoginLabel').textContent = autoTestAfterLogin ? '开启' : '关闭';
             var autoOfflineMatch = yaml.match(/auto_offline:\s*\n(?:\s*#[^\n]*\n)*\s*enabled:\s*(true|false)/);
             var autoOfflineEnabled = autoOfflineMatch ? autoOfflineMatch[1] === 'true' : false;
             document.getElementById('autoOfflineEnabled').checked = autoOfflineEnabled;
@@ -10989,6 +11049,13 @@
                 ? uiVariantMatch[1].trim().replace(/^["']|["']$/g, '').toLowerCase()
                 : 'legacy';
             document.getElementById('uiVariant').value = normalizeUiVariant(uiVariantValue);
+            var uiBlock = extractNamedYamlBlock(yaml, 'ui');
+            var uiColorSchemeMatch = uiBlock.match(/^\s*color_scheme:[^\S\n]*([^#\n]*)/m)
+                || uiBlock.match(/^\s*colorScheme:[^\S\n]*([^#\n]*)/m);
+            document.getElementById('uiColorScheme').value = normalizeUiColorScheme(
+                uiColorSchemeMatch ? stripYamlScalarQuotes(uiColorSchemeMatch[1]) : 'yellow'
+            );
+            syncAllCustomSelects(document.getElementById('uiColorScheme'));
             syncAllCustomSelects(document.getElementById('uiVariant'));
             syncUiVariantVisibility();
             var apiPathPrefixMatch =

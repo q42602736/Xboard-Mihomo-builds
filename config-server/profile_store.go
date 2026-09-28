@@ -183,6 +183,7 @@ func defaultProfileYaml(displayName string) string {
         url: ""
   ui:
     variant: legacy
+    color_scheme: yellow
     hide_color_scheme_button: false
     hide_online_support_button: false
     hide_traffic_details: false

@@ -42,7 +42,7 @@ type ProfileFormState struct {
 	CloudDispatchAutoInterval          int                      `json:"cloud_dispatch_auto_interval_minutes"`
 	CloudDispatchFallbackRetry         int                      `json:"cloud_dispatch_fallback_retry_minutes"`
 	DNSOverrideDefault                 bool                     `json:"dns_override_default"`
-	AutoTestAfterLogin                 bool                     `json:"auto_test_after_login"`
+	AutoTestAfterLogin                 *bool                    `json:"auto_test_after_login"`
 	AutoConnectOnStartup               bool                     `json:"auto_connect_on_startup"`
 	LogFileEnabled                     bool                     `json:"log_file_enabled"`
 	PanelAPIPathPrefix                 string                   `json:"api_path_prefix"`
@@ -182,12 +182,14 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	}
 	if rootKey == "nexgen" {
 		setMapBoolValue(settings, "dns_override_default", form.DNSOverrideDefault)
-		setMapBoolValue(settings, "auto_test_after_login", form.AutoTestAfterLogin)
 		setMapBoolValue(settings, "auto_connect_on_startup", form.AutoConnectOnStartup)
 		setMapBoolValue(settings, "log_file_enabled", form.LogFileEnabled)
 		removeMapKeys(settings, "dnsOverrideDefault", "autoTestAfterLogin", "autoConnectOnStartup", "logFileEnabled")
-	} else {
-		removeMapKeys(profileRoot, "settings")
+	}
+	// 新旧客户端共用自动测速开关；缺省表单字段保留档案原值及其他启动设置。
+	if form.AutoTestAfterLogin != nil {
+		setMapBoolValue(settings, "auto_test_after_login", *form.AutoTestAfterLogin)
+		removeMapKeys(settings, "autoTestAfterLogin")
 	}
 	setMapBoolValue(autoOffline, "enabled", form.AutoOfflineEnabled)
 	setMapBoolValue(autoOffline, "force_on_startup", form.AutoOfflineForceOnStartup)
@@ -253,17 +255,20 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 	if uiVariant != "" || rootKey == "nexgen" {
 		setMapStringValue(ui, "variant", normalizeNexGenUiVariant(uiVariant))
 	}
-	if rootKey == "nexgen" {
-		uiColorScheme := strings.TrimSpace(form.UiColorScheme)
-		if uiColorScheme == "" {
-			if existingColorScheme := getMapValueNode(ui, "color_scheme"); existingColorScheme != nil {
-				uiColorScheme = existingColorScheme.Value
-			}
+	uiColorScheme := strings.TrimSpace(form.UiColorScheme)
+	if uiColorScheme == "" {
+		if existingColorScheme := getMapValueNode(ui, "color_scheme"); existingColorScheme != nil {
+			uiColorScheme = existingColorScheme.Value
+		} else if existingColorScheme := getMapValueNode(ui, "colorScheme"); existingColorScheme != nil {
+			uiColorScheme = existingColorScheme.Value
 		}
+	}
+	if rootKey == "nexgen" {
 		setMapStringValue(ui, "color_scheme", normalizeNexGenUiColorScheme(uiColorScheme))
 		setMapBoolValue(ui, "hide_color_scheme_button", form.HideColorSchemeButton)
 		setMapBoolValue(ui, "hide_online_support_button", form.HideOnlineSupportButton)
 	} else {
+		setMapStringValue(ui, "color_scheme", normalizeXBoardUiColorScheme(uiColorScheme))
 		removeMapKeys(ui, "uiVariant", "colorScheme", "hideColorSchemeButton", "hideOnlineSupportButton", "show_color_scheme_button", "showColorSchemeButton", "show_online_support_button", "showOnlineSupportButton")
 	}
 	setMapBoolValue(ui, "hide_traffic_details", form.HideTrafficDetails)
@@ -548,6 +553,15 @@ func normalizeNexGenUiColorScheme(value string) string {
 		return strings.ToLower(strings.TrimSpace(value))
 	default:
 		return "green"
+	}
+}
+
+func normalizeXBoardUiColorScheme(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "yellow", "green", "blue", "purple", "orange", "teal", "cyan", "rose", "indigo":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return "yellow"
 	}
 }
 
