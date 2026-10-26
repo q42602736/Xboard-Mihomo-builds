@@ -41,7 +41,7 @@ on:
         default: 'all'
         # 可选值: all, windows, windows-amd64, windows-arm64, android, android-tv, linux, linux-arm64, linux-amd64, openwrt, macos-arm64, macos-amd64, ios
         # 注意: all 包含 windows/linux/macos 双架构、android-tv 和软路由；openwrt 默认生成 x86_64 与 ARM64 两个 IPK 包
-        # ios 产出无签名 IPA（TrollStore / 自签安装），需要 macOS runner，且不包含在 all 里，必须显式勾选
+        # ios 默认同时产出巨魔版和普通待签名版 IPA，无需提供证书；需要 macOS runner，不包含在 all 中
         # 示例: windows,android 或 windows-arm64,linux-amd64,macos-arm64
       request_id:
         description: '构建请求唯一标识（由配置服务器生成，用于匹配本次构建运行）'
@@ -265,9 +265,9 @@ jobs:
           - platform: ios
             build_platform: ios
             os: macos-latest
-            # iOS 内核只编译 arm64；产物为无签名 IPA（TrollStore / 自签安装）
+            # iOS 内核只编译 arm64；一次构建产出 unsigned（巨魔）和 signable（普通待签名）两份 IPA
             arch: arm64
-            # 不并入 all：iOS 只服务巨魔/自签用户，且需要 macOS runner；
+            # 不并入 all：iOS 需使用巨魔或签名软件安装，且需要 macOS runner；
             # 一旦 iOS 任务失败，merge-artifacts 会因为 build.result != success 整体跳过，
             # 反而拖垮所有平台的合集包，所以必须显式勾选才构建。
             include_in_all: false

@@ -39,6 +39,7 @@ type UIColorCustomConfig struct {
 	HidePageHeaderText                   bool     `json:"hide_page_header_text"`
 	HidePurchaseCoupon                   bool     `json:"hide_purchase_coupon"`
 	HidePlanSpeed                        bool     `json:"hide_plan_speed"`
+	UseClassicRailLayout                 bool     `json:"use_classic_rail_layout"`
 	CloudDispatchEnabled                 bool     `json:"cloud_dispatch_enabled"`
 	CloudDispatchQueryURL                string   `json:"cloud_dispatch_query_url"`
 	CloudDispatchQuerySecret             string   `json:"cloud_dispatch_query_secret"`
@@ -54,6 +55,7 @@ type UIColorCustomConfig struct {
 	RegistrationInviteCode               string   `json:"registration_invite_code"`
 	RegistrationInviteLinkEnabled        bool     `json:"registration_invite_link_enabled"`
 	RegistrationInviteLinkBaseURL        string   `json:"registration_invite_link_base_url"`
+	QuotePurchase                        bool     `json:"quote_purchase"`
 }
 
 const (
@@ -81,10 +83,12 @@ const (
 	customFeatureHidePageHeaderText                   = "hide_page_header_text"
 	customFeatureHidePurchaseCoupon                   = "hide_purchase_coupon"
 	customFeatureHidePlanSpeed                        = "hide_plan_speed"
+	customFeatureUseClassicRailLayout                 = "use_classic_rail_layout"
 	customFeatureCloudDispatch                        = "cloud_dispatch"
 	customFeatureSSPanelNodePageParse                 = "sspanel_node_page_parse"
 	customFeatureRegistrationInvite                   = "registration_invite"
 	customFeatureCustomInviteLink                     = "custom_invite_link"
+	customFeatureQuotePurchase                        = "quote_purchase"
 	registrationInviteModeDefaultWhenEmpty            = "default_when_empty"
 	registrationInviteModeForceOverride               = "force_override"
 )
@@ -116,10 +120,12 @@ var (
 		customFeatureHidePageHeaderText,
 		customFeatureHidePurchaseCoupon,
 		customFeatureHidePlanSpeed,
+		customFeatureUseClassicRailLayout,
 		customFeatureCloudDispatch,
 		customFeatureSSPanelNodePageParse,
 		customFeatureRegistrationInvite,
 		customFeatureCustomInviteLink,
+		customFeatureQuotePurchase,
 	}
 )
 
@@ -395,18 +401,45 @@ func filterAllowedUIColorFeatureKeys(featureKeys []string) []string {
 	return result
 }
 
+func excludeUIColorFeatureKeys(featureKeys []string, excluded ...string) []string {
+	if len(featureKeys) == 0 || len(excluded) == 0 {
+		return featureKeys
+	}
+	excludedMap := map[string]struct{}{}
+	for _, key := range excluded {
+		excludedMap[key] = struct{}{}
+	}
+	result := make([]string, 0, len(featureKeys))
+	for _, featureKey := range featureKeys {
+		if _, ok := excludedMap[featureKey]; ok {
+			continue
+		}
+		result = append(result, featureKey)
+	}
+	return result
+}
+
 func filterAllowedUIColorFeatureKeysForClient(featureKeys []string, client string) []string {
 	client = normalizeBuildClient(client)
 	allowed := filterAllowedUIColorFeatureKeys(featureKeys)
 	if client == buildClientNexGenReact {
-		return allowed
+		// 老 UI 经典侧栏布局只对老客户端生效，新客户端不暴露该开关。
+		return excludeUIColorFeatureKeys(allowed, customFeatureUseClassicRailLayout)
 	}
 	result := allowed[:0]
 	for _, featureKey := range allowed {
+		// 老 UI 经典侧栏布局只对老客户端生效，新客户端档案不暴露该开关。
+		if featureKey == customFeatureUseClassicRailLayout && client != buildClientLegacy {
+			continue
+		}
 		if featureKey == customFeatureHideDedicatedNodes && client != buildClientLegacy {
 			continue
 		}
 		if featureKey == customFeatureHideInvitePromotion || featureKey == customFeatureHideCurrentNodeLabel || featureKey == customFeatureHidePageHeaderText {
+			continue
+		}
+		// 服务端报价折抵购买只在新客户端生效，老客户端档案不暴露该开关。
+		if featureKey == customFeatureQuotePurchase {
 			continue
 		}
 		if client != buildClientLegacy {
@@ -602,6 +635,11 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 		} else if enabledNode := getMapValueNode(ui, "hidePlanSpeed"); enabledNode != nil {
 			result.HidePlanSpeed = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
 		}
+		if enabledNode := getMapValueNode(ui, "use_classic_rail_layout"); enabledNode != nil {
+			result.UseClassicRailLayout = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(ui, "useClassicRailLayout"); enabledNode != nil {
+			result.UseClassicRailLayout = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
 	}
 
 	cloudDispatch := getMapValueNode(profileRoot, "cloud_dispatch")
@@ -668,6 +706,16 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 	}
 	if strings.TrimSpace(result.RegistrationInviteMode) == "" {
 		result.RegistrationInviteMode = registrationInviteModeDefaultWhenEmpty
+	}
+
+	// 服务端报价折抵购买：只有新客户端档案的 nexgen 根下才有 purchase 节点。
+	purchase := getMapValueNode(profileRoot, "purchase")
+	if purchase != nil {
+		if enabledNode := getMapValueNode(purchase, "quote_purchase"); enabledNode != nil {
+			result.QuotePurchase = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		} else if enabledNode := getMapValueNode(purchase, "quotePurchase"); enabledNode != nil {
+			result.QuotePurchase = strings.EqualFold(strings.TrimSpace(enabledNode.Value), "true")
+		}
 	}
 
 	return result, nil
@@ -737,6 +785,8 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	removeMapKeys(ui, "hidePurchaseCoupon")
 	setMapBoolValue(ui, "hide_plan_speed", config.HidePlanSpeed)
 	removeMapKeys(ui, "hidePlanSpeed")
+	setMapBoolValue(ui, "use_classic_rail_layout", config.UseClassicRailLayout)
+	removeMapKeys(ui, "useClassicRailLayout")
 	setMapBoolValue(ui, "hide_color_scheme_button", config.HideColorSchemeButton)
 	removeMapKeys(ui, "hideColorSchemeButton", "show_color_scheme_button", "showColorSchemeButton")
 	setMapBoolValue(ui, "hide_online_support_button", config.HideOnlineSupportButton)
@@ -758,6 +808,13 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 		removeMapKeys(settings, "dnsOverrideDefault")
 	} else {
 		removeMapKeys(profileRoot, "settings")
+	}
+	// 服务端报价折抵购买只属于新客户端：老客户端档案（xboard 根）不写 purchase，
+	// 也不删除档案里可能已有的同名节点，避免误删历史数据。
+	if profileRootKey == "nexgen" {
+		purchase := ensureMapValueNode(profileRoot, "purchase")
+		setMapBoolValue(purchase, "quote_purchase", config.QuotePurchase)
+		removeMapKeys(purchase, "quotePurchase")
 	}
 	setMapBoolValue(subscription, "sspanel_node_page_parse_enabled", config.SSPanelNodePageParseEnabled)
 	removeMapKeys(subscription, "sspanelNodePageParseEnabled")
@@ -871,6 +928,7 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"hide_page_header_text":                    config.HidePageHeaderText,
 		"hide_purchase_coupon":                     config.HidePurchaseCoupon,
 		"hide_plan_speed":                          config.HidePlanSpeed,
+		"use_classic_rail_layout":                  config.UseClassicRailLayout,
 		"cloud_dispatch_enabled":                   config.CloudDispatchEnabled,
 		"cloud_dispatch_query_url":                 config.CloudDispatchQueryURL,
 		"cloud_dispatch_query_secret":              config.CloudDispatchQuerySecret,
@@ -886,6 +944,7 @@ func (h *Handlers) GetPublicUIColorCustomConfig(w http.ResponseWriter, r *http.R
 		"registration_invite_code":                 config.RegistrationInviteCode,
 		"registration_invite_link_enabled":         config.RegistrationInviteLinkEnabled,
 		"registration_invite_link_base_url":        config.RegistrationInviteLinkBaseURL,
+		"quote_purchase":                           config.QuotePurchase,
 	})
 }
 
@@ -920,6 +979,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		HidePageHeaderText                   bool     `json:"hide_page_header_text"`
 		HidePurchaseCoupon                   bool     `json:"hide_purchase_coupon"`
 		HidePlanSpeed                        bool     `json:"hide_plan_speed"`
+		UseClassicRailLayout                 bool     `json:"use_classic_rail_layout"`
 		CloudDispatchEnabled                 bool     `json:"cloud_dispatch_enabled"`
 		CloudDispatchQueryURL                string   `json:"cloud_dispatch_query_url"`
 		CloudDispatchQuerySecret             string   `json:"cloud_dispatch_query_secret"`
@@ -935,6 +995,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		RegistrationInviteCode               string   `json:"registration_invite_code"`
 		RegistrationInviteLinkEnabled        bool     `json:"registration_invite_link_enabled"`
 		RegistrationInviteLinkBaseURL        string   `json:"registration_invite_link_base_url"`
+		QuotePurchase                        bool     `json:"quote_purchase"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "请求格式错误", http.StatusBadRequest)
@@ -1172,6 +1233,9 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureHidePlanSpeed) {
 		targetConfig.HidePlanSpeed = req.HidePlanSpeed
 	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureUseClassicRailLayout) {
+		targetConfig.UseClassicRailLayout = req.UseClassicRailLayout
+	}
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureCloudDispatch) {
 		targetConfig.CloudDispatchEnabled = req.CloudDispatchEnabled
 		targetConfig.CloudDispatchQueryURL = normalizedCloudDispatchQueryURL
@@ -1193,6 +1257,9 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureCustomInviteLink) {
 		targetConfig.RegistrationInviteLinkEnabled = req.RegistrationInviteLinkEnabled
 		targetConfig.RegistrationInviteLinkBaseURL = normalizedRegistrationInviteLinkBaseURL
+	}
+	if isUIColorFeatureAllowed(allowedFeatureKeys, customFeatureQuotePurchase) {
+		targetConfig.QuotePurchase = req.QuotePurchase
 	}
 
 	var updatedYaml string
@@ -1262,6 +1329,7 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"hide_page_header_text":                    targetConfig.HidePageHeaderText,
 		"hide_purchase_coupon":                     targetConfig.HidePurchaseCoupon,
 		"hide_plan_speed":                          targetConfig.HidePlanSpeed,
+		"use_classic_rail_layout":                  targetConfig.UseClassicRailLayout,
 		"cloud_dispatch_enabled":                   targetConfig.CloudDispatchEnabled,
 		"cloud_dispatch_query_url":                 targetConfig.CloudDispatchQueryURL,
 		"cloud_dispatch_query_secret":              targetConfig.CloudDispatchQuerySecret,
@@ -1277,5 +1345,6 @@ func (h *Handlers) SavePublicUIColorCustomConfig(w http.ResponseWriter, r *http.
 		"registration_invite_code":                 targetConfig.RegistrationInviteCode,
 		"registration_invite_link_enabled":         targetConfig.RegistrationInviteLinkEnabled,
 		"registration_invite_link_base_url":        targetConfig.RegistrationInviteLinkBaseURL,
+		"quote_purchase":                           targetConfig.QuotePurchase,
 	})
 }

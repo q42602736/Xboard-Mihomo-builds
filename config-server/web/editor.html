@@ -3335,12 +3335,10 @@
                     <div class="editor-container">
                         <div class="section">
                             <div class="section-title">应用信息</div>
+                            <!-- 站点分组名称不再由页面填写：已有自定义值的档案保持原值，
+                                 为空时默认跟随档案文字（档案名称），与 React 客户端行为一致。 -->
+                            <input type="hidden" id="provider">
                             <div class="form-row">
-                                <div class="form-group">
-                                    <label>站点分组名称（provider / panels 键名）</label>
-                                    <input type="text" id="provider" placeholder="建议直接填你的品牌名或项目名">
-                                    <div class="help-text" id="providerHelpText">建议直接填写你的品牌名或项目名。这个值必须与“远程配置文件”里的“站点分组名称”完全一致，remote.config.json 会用它作为 panels 的键名。</div>
-                                </div>
                                 <div class="form-group" id="appTitleGroup">
                                     <label>应用名称</label>
                                     <input type="text" id="appTitle" placeholder="如：你的应用名称">
@@ -3353,6 +3351,7 @@
                                     </select>
                                 </div>
                             </div>
+                            <div class="help-text" id="providerHelpText">站点分组名称（provider / remote.config.json 的 panels 键名）默认跟随档案文字；已有自定义值的档案保持原值不变，需要修改请在 YAML 页签里调整 xboard.provider。</div>
                             <div class="form-group">
                                 <label>Logo图片地址</label>
                                 <input type="text" id="logoImageUrl" placeholder="https://example.com/logo.png">
@@ -4117,6 +4116,16 @@
                                     </div>
                                     <div class="help-text">开启后，购买套餐卡片和购买详情隐藏速率信息。</div>
                                 </div>
+                                <div class="switch-card" data-custom-feature-key="use_classic_rail_layout" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">Flutter 经典侧栏布局</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="useClassicRailLayout"><span class="slider"></span></label>
+                                            <span id="useClassicRailLayoutLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="help-text">开启后，Flutter 客户端恢复为导航入口集中在左侧导航栏与底部「更多」菜单的经典布局，不再显示公共顶栏。</div>
+                                </div>
                                 <div class="switch-card" data-custom-feature-key="hide_dedicated_nodes" style="margin-top:16px;">
                                     <div class="switch-card-header">
                                         <span class="switch-card-label">显示 Metron 专用节点</span>
@@ -4337,7 +4346,7 @@
                                         <span id="autoTestAfterLoginLabel">关闭</span>
                                     </div>
                                 </div>
-                                <div class="help-text">适用于老客户端的旧 UI 和新 UI。开启后，启动、登录及订阅刷新完成时自动测速并优选节点；保留用户手动选择。新档案默认关闭，旧档案未配置时沿用客户端默认开启行为。V2Board 的 iOS 版仍保留手动测速。</div>
+                                <div class="help-text">适用于 Flutter 客户端的经典 UI 和新版 UI。开启后，启动、登录及订阅刷新完成时自动测速并优选节点；保留用户手动选择。新档案默认关闭，旧档案未配置时沿用客户端默认开启行为。V2Board 的 iOS 版仍保留手动测速。</div>
                             </div>
                         </div>
                         <div class="section">
@@ -4439,12 +4448,12 @@
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>站点分组名称（remote.config.json > panels 键名）</label>
-                                    <input type="text" id="remoteConfigProviderKey" placeholder="必须与基础设置中的“站点分组名称”完全一致">
-                                    <div class="help-text" id="remoteConfigProviderKeyHelpText">这里非常重要：这个值必须与基础设置里的“站点分组名称”完全一致，包括大小写。建议两个地方都直接填写品牌名；remote.config.json 会用它作为 panels 的键名，如果不一致，软件可能无法正确识别站点，甚至无法正常启动。</div>
+                                    <label>站点名称（remote.config.json > panels 键名）</label>
+                                    <input type="text" id="remoteConfigProviderKey" placeholder="自动跟随当前档案的站点分组名称" readonly>
+                                    <div class="help-text" id="remoteConfigProviderKeyHelpText">默认跟随当前档案文字；已有自定义站点分组名称的档案保持原值不变。remote.config.json 会用它作为 panels 的键名。</div>
                                 </div>
 
-                                <div class="section" style="margin-top: 20px;">
+                                <div class="section" style="grid-column: 1 / -1; width: 100%; margin-top: 20px;">
                                     <div class="section-title">站点列表（panels）</div>
                                     <div id="remoteConfigPanelsContainer"></div>
                                     <div class="remote-config-actions" style="margin-top: 10px; margin-bottom: 10px;">
@@ -4453,7 +4462,7 @@
                                     <div class="help-text">面板类型、站点分组名称、至少一个站点地址（url）为必填；站点说明（description）留空时会自动使用“站点1、站点2 ...”。</div>
                                 </div>
 
-                                <div class="section" style="margin-top: 20px; margin-bottom: 10px;">
+                                <div class="section" style="grid-column: 1 / -1; width: 100%; margin-top: 20px; margin-bottom: 10px;">
                                     <div class="section-title">OSS 内置代理配置（clientProxy）</div>
                                     <div class="help-text" style="margin-bottom:14px;">
                                         客户端通讯用的内置代理由 OSS 下发，换线路或改开关都不用重新打包。客户端拉取这份配置时<strong>恒直连</strong>，所以 OSS 域名必须在用户网络上可达。
@@ -4468,6 +4477,7 @@
                                         </div>
                                         <div class="help-text">关闭后客户端完全不提供内置代理（用户在 App 里也开不起来）。</div>
                                     </div>
+                                    <div id="remoteConfigClientProxyFields" style="display:none;">
                                     <div class="switch-card" style="margin-bottom:12px;">
                                         <div class="switch-card-header">
                                             <span class="switch-card-label">首次启动默认开启</span>
@@ -4490,6 +4500,75 @@
                                     </div>
                                     <div id="remoteConfigClientProxyNodesContainer" style="margin-top:14px;"></div>
                                     <div class="help-text" style="margin-top:10px;">客户端会用这些线路组成自动测速组，始终选择延迟最低的一条；列表为空时内置代理不生效。</div>
+                                    </div>
+                                </div>
+
+                                <div class="section" style="grid-column: 1 / -1; width: 100%; margin-top: 20px; margin-bottom: 10px;">
+                                    <div class="section-title">OSS 附加订阅与节点配置（subscriptionExtension）</div>
+                                    <div class="help-text" style="margin-bottom:14px;">
+                                        将 OSS 下发的订阅和单节点并入登录后的主订阅。扩展订阅不使用独立定时器，主订阅应用时同步刷新。
+                                    </div>
+                                    <div class="switch-card" style="margin-bottom:12px;">
+                                        <div class="switch-card-header">
+                                            <span class="switch-card-label">启用附加订阅与节点</span>
+                                            <div class="switch-group">
+                                                <label class="switch"><input type="checkbox" id="remoteConfigSubscriptionExtensionEnabled"><span class="slider"></span></label>
+                                                <span id="remoteConfigSubscriptionExtensionEnabledLabel">关闭</span>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">关闭后保留配置内容，但客户端不会将其并入主订阅。</div>
+                                    </div>
+                                    <div id="remoteConfigSubscriptionExtensionFields" style="display:none;">
+                                    <div class="form-group">
+                                        <label>附加订阅地址</label>
+                                        <textarea id="remoteConfigSubscriptionExtensionLinksInput" class="client-proxy-links-input" spellcheck="false" placeholder="每行一个订阅地址，例如：&#10;https://example.com/subscribe/config.yaml"></textarea>
+                                        <div class="help-text">每行一个完整订阅地址；不填写 interval，客户端会跟随主订阅刷新。</div>
+                                        <div class="client-proxy-import-actions">
+                                            <button type="button" class="btn btn-primary" id="remoteConfigSubscriptionExtensionLoadBtn">读取订阅节点</button>
+                                            <span class="client-proxy-import-status" id="remoteConfigSubscriptionExtensionLoadStatus"></span>
+                                        </div>
+                                        <div id="remoteConfigSubscriptionExtensionSubscriptionNodesContainer" style="margin-top:14px;"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>附加订阅节点名称筛选</label>
+                                        <input type="text" id="remoteConfigSubscriptionExtensionFilterInput" placeholder="例如：香港|日本|韩国">
+                                        <div class="help-text">可选。按节点名称正则筛选，只有名称匹配的订阅节点会并入主订阅；留空表示附加全部节点。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>附加节点分享链接</label>
+                                        <textarea id="remoteConfigSubscriptionExtensionNodesInput" class="client-proxy-links-input" spellcheck="false" placeholder="每行一个节点分享链接，也支持整段 Base64 编码链接列表"></textarea>
+                                        <div class="help-text">支持 vless、vmess、trojan、ss、ssr、hysteria、hysteria2、tuic。</div>
+                                    </div>
+                                    <div class="client-proxy-import-actions">
+                                        <button type="button" class="btn btn-primary" id="remoteConfigSubscriptionExtensionImportBtn">解析并导入节点</button>
+                                        <button type="button" class="btn" id="remoteConfigSubscriptionExtensionClearBtn">清空节点输入</button>
+                                        <span class="client-proxy-import-status" id="remoteConfigSubscriptionExtensionStatus"></span>
+                                    </div>
+                                    <div id="remoteConfigSubscriptionExtensionNodesContainer" style="margin-top:14px;"></div>
+                                    </div>
+                                    </div>
+                                </div>
+
+                                <div class="section" style="margin-top: 20px; margin-bottom: 10px;">
+                                    <div class="section-title">订阅节点入口映射（nodeAddressReplacement）</div>
+                                    <div class="help-text" style="margin-bottom:14px;">将订阅节点中的虚假 server、Host、SNI 或 servername 映射为真实域名或 IP。默认关闭，映射为空时不做替换。</div>
+                                    <div class="switch-card" style="margin-bottom:12px;">
+                                        <div class="switch-card-header">
+                                            <span class="switch-card-label">启用订阅节点入口映射</span>
+                                            <div class="switch-group">
+                                                <label class="switch"><input type="checkbox" id="remoteConfigNodeAddressReplacementEnabled"><span class="slider"></span></label>
+                                                <span id="remoteConfigNodeAddressReplacementEnabledLabel">关闭</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>虚假入口到真实入口的映射（mappings）</label>
+                                        <div id="remoteConfigNodeAddressReplacementFields" style="display:none;">
+                                            <div id="remoteConfigNodeAddressReplacementRows"></div>
+                                            <button type="button" class="btn btn-primary" id="addRemoteConfigNodeAddressReplacementBtn" style="margin-top:10px;">+ 添加映射</button>
+                                            <div class="help-text">左侧填写订阅中的虚假入口，右侧填写真实域名或 IP。只替换节点内匹配的地址字段，不改节点名称、密码或规则。</div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="section" style="margin-top: 20px; margin-bottom: 10px;">
@@ -4718,9 +4797,9 @@
 	                                <label class="platform-checkbox"><input type="checkbox" value="openwrt" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">软路由</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">macOS ARM64</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem" data-cores="mihomo,xray"><span class="platform-checkbox-label">macOS AMD64</span></label>
-	                                <label class="platform-checkbox"><input type="checkbox" value="ios" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">iOS 巨魔 IPA</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="ios" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">iOS（巨魔版 + 待签名版）</span></label>
 	                            </div>
-	                            <div class="help-text" id="buildPlatformHelpText">勾选软路由会同时生成 x86_64、ARM64 两个 IPK 包；“全部平台”包含软路由。Android TV 会生成两个架构的 TV 安装包。iOS 巨魔 IPA 产出无签名 IPA（用 TrollStore 或自签工具安装），不在“全部平台”里，需要单独勾选。</div>
+	                            <div class="help-text" id="buildPlatformHelpText">勾选软路由会同时生成 x86_64、ARM64 两个 IPK 包；“全部平台”包含软路由。Android TV 会生成两个架构的 TV 安装包。iOS 一次生成巨魔版和普通待签名版两份 IPA，无需提前提供证书；巨魔版用 TrollStore 安装，普通版用签名软件签名后安装。iOS 不在“全部平台”里，需要单独勾选。</div>
 	                        </div>
                         <div id="buildQueue" style="margin-top: 15px; padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
                             <span style="color: #aaa; font-size: 13px;">打包队列：</span>
@@ -4736,7 +4815,7 @@
                             <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
                                 <div style="display:flex; flex-direction:column; gap:4px; min-width:0;">
                                     <div style="color:#aaa; font-size:12px;">我的打包记录</div>
-                                    <div style="color:#666; font-size:11px;">老客户端和新客户端共用最近 3 条记录，删除时会同步删除 GitHub 打包产物</div>
+                                    <div style="color:#666; font-size:11px;">Flutter 与 React 客户端共用最近 3 条记录，删除时会同步删除 GitHub 打包产物</div>
                                 </div>
                                 <button type="button" class="btn btn-secondary" id="myBuildRecordsToggleBtn" onclick="toggleMyBuildRecordsPanel()" style="padding:6px 10px; font-size:12px; white-space:nowrap;">展开</button>
                             </div>
@@ -5667,7 +5746,7 @@
 	            if (getSelectedBuildCore() === 'xray') {
 	                help.textContent = 'Xray 内核当前只支持 Windows ARM64/AMD64、Android（手机）和 macOS ARM64/AMD64；Linux、Android TV 与软路由已自动隐藏。';
 	            } else {
-	                help.textContent = '勾选软路由会同时生成 x86_64、ARM64 两个 IPK 包；“全部平台”包含软路由。Android TV 会生成两个架构的 TV 安装包。iOS 巨魔 IPA 产出无签名 IPA（用 TrollStore 或自签工具安装），不在“全部平台”里，需要单独勾选。';
+	                help.textContent = '勾选软路由会同时生成 x86_64、ARM64 两个 IPK 包；“全部平台”包含软路由。Android TV 会生成两个架构的 TV 安装包。iOS 一次生成巨魔版和普通待签名版两份 IPA，无需提前提供证书；巨魔版用 TrollStore 安装，普通版用签名软件签名后安装。iOS 不在“全部平台”里，需要单独勾选。';
 	            }
 	        }
 
@@ -6428,6 +6507,7 @@
             setCustomFeatureSwitchValue('hideOnlineSupportButton', !!data.hide_online_support_button);
             setCustomFeatureSwitchValue('hidePurchaseCoupon', !!data.hide_purchase_coupon);
             setCustomFeatureSwitchValue('hidePlanSpeed', !!data.hide_plan_speed);
+            setCustomFeatureSwitchValue('useClassicRailLayout', !!data.use_classic_rail_layout);
             setCustomFeatureSwitchValue('customHideDedicatedNodes', !!data.hide_dedicated_nodes);
             setCustomFeatureSwitchValue('sspanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
             setCustomFeatureSwitchValue('registrationInviteEnabled', !!data.registration_invite_enabled);
@@ -6562,6 +6642,7 @@
                 'hideOnlineSupportButton',
                 'hidePurchaseCoupon',
                 'hidePlanSpeed',
+                'useClassicRailLayout',
                 'customHideDedicatedNodes',
                 'sspanelNodePageParseEnabled',
                 'registrationInviteEnabled',
@@ -6702,6 +6783,7 @@
             var hideOnlineSupportButton = !!document.getElementById('hideOnlineSupportButton').checked;
             var hidePurchaseCoupon = !!document.getElementById('hidePurchaseCoupon').checked;
             var hidePlanSpeed = !!document.getElementById('hidePlanSpeed').checked;
+            var useClassicRailLayout = !!document.getElementById('useClassicRailLayout').checked;
             var hideDedicatedNodes = !!document.getElementById('customHideDedicatedNodes').checked;
             var sspanelNodePageParseEnabled = !!document.getElementById('sspanelNodePageParseEnabled').checked;
             var registrationInviteEnabled = !!document.getElementById('registrationInviteEnabled').checked;
@@ -6791,6 +6873,7 @@
                     hide_online_support_button: hideOnlineSupportButton,
                     hide_purchase_coupon: hidePurchaseCoupon,
                     hide_plan_speed: hidePlanSpeed,
+                    use_classic_rail_layout: useClassicRailLayout,
                     hide_dedicated_nodes: hideDedicatedNodes,
                     sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
                     registration_invite_enabled: registrationInviteEnabled,
@@ -6849,7 +6932,8 @@
             'invite_stats_total_invites_icon_color',
             'invite_stats_commission_rate_icon_color',
             'invite_stats_total_commission_icon_color',
-            'subscription_status_popup'
+            'subscription_status_popup',
+            'use_classic_rail_layout'
         ];
         var customUIColorFeatureKeys = [
             'traffic_bar_color',
@@ -6872,6 +6956,7 @@
             'hide_online_support_button',
             'hide_purchase_coupon',
             'hide_plan_speed',
+            'use_classic_rail_layout',
             'hide_dedicated_nodes',
             'sspanel_node_page_parse',
             'registration_invite',
@@ -6888,8 +6973,8 @@
         var remoteConfigActiveTab = 'visual';
         var REMOTE_CONFIG_HISTORY_STORAGE_KEY = 'nexgen_remote_config_history_v1';
         var remoteConfigHistoryRecords = [];
-        var PROVIDER_HELP_TEXT = '建议直接填写你的品牌名或项目名。这个值必须与“远程配置文件”里的“站点分组名称”完全一致，remote.config.json 会用它作为 panels 的键名。';
-        var REMOTE_CONFIG_PROVIDER_HELP_TEXT = '这里非常重要：这个值必须与基础设置里的“站点分组名称”完全一致，包括大小写。建议两个地方都直接填写品牌名；remote.config.json 会用它作为 panels 的键名，如果不一致，软件可能无法正确识别站点，甚至无法正常启动。';
+        var PROVIDER_HELP_TEXT = '站点分组名称（provider / remote.config.json 的 panels 键名）默认跟随档案文字；已有自定义值的档案保持原值不变，需要修改请在 YAML 页签里调整 xboard.provider。';
+        var REMOTE_CONFIG_PROVIDER_HELP_TEXT = '默认跟随当前档案文字；已有自定义站点分组名称的档案保持原值不变。remote.config.json 会用它作为 panels 的键名。';
         var profilesCache = [];
         var appIconHistoryRecords = [];
         var buildHistoryData = {};
@@ -7429,13 +7514,14 @@
             document.querySelectorAll('input[name="buildCore"]').forEach(function(input) {
                 input.addEventListener('change', handleBuildCoreChange);
             });
-            document.getElementById('provider').addEventListener('change', formToYaml);
-            document.getElementById('provider').addEventListener('input', function() {
-                updateProviderConsistencyState({ source: 'basic' });
-            });
-            document.getElementById('provider').addEventListener('change', function() {
-                updateProviderConsistencyState({ source: 'basic' });
-            });
+            var newProfileNameInput = document.getElementById('newProfileName');
+            if (newProfileNameInput) {
+                ['input', 'change'].forEach(function(eventName) {
+                    newProfileNameInput.addEventListener(eventName, function() {
+                        syncDerivedProviderName({ updateRemotePreview: true });
+                    });
+                });
+            }
             ['subscriptionUserAgent', 'subscriptionCustomSubscribeDomains', 'subscriptionCustomQuerySuffix', 'decryptKey', 'apiEncryptedUserAgent', 'apiPathPrefix'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (!el) return;
@@ -7451,6 +7537,7 @@
             document.getElementById('appIconUploadInput').addEventListener('change', handleAppIconUpload);
             document.getElementById('profileSelect').addEventListener('change', function() {
                 syncProfileBoundAppTitle();
+                syncDerivedProviderName({ updateRemotePreview: true });
                 syncCustomTrafficBarProfileName();
                 setCustomTrafficBarStatus('', 'info');
                 customUIColorConfigLoaded = false;
@@ -7535,7 +7622,7 @@
             initRemoteConfigTool();
             renderSources();
             renderPopularApps();
-            updateProviderConsistencyState();
+            syncDerivedProviderName();
             renderHomePanelPreview();
 
             syncProfileBoundAppTitle();
@@ -7622,6 +7709,7 @@
                 '    hide_dedicated_nodes: false',
                 '    hide_purchase_coupon: false',
                 '    hide_plan_speed: false',
+                '    use_classic_rail_layout: false',
                 '    show_ip_info: true',
                 '    custom_colors:',
                 '      notice_dialog_icon_background_color: ""',
@@ -7787,6 +7875,8 @@
         var autoSaveProfileTimer = null;
         var autoSaveProfileDelayMs = 3 * 60 * 1000;
         var currentProfileBaseYaml = '';
+        // 当前档案 YAML 里已有的站点分组名称（xboard.provider）；为空表示跟随档案文字。
+        var currentProfileProviderValue = '';
 
         function normalizeMinuteIntervalValue(value, fallback) {
             var parsed = parseInt(value, 10);
@@ -7824,7 +7914,7 @@
             });
 
             var formState = {
-                provider: document.getElementById('provider').value.trim(),
+                provider: getDerivedProviderName(),
                 app_title: getBoundAppTitleValue(),
                 logo_type: document.getElementById('logoType').value,
                 logo_image_url: document.getElementById('logoImageUrl').value.trim(),
@@ -9456,53 +9546,74 @@
             handleRemoteConfigFormInput();
         }
 
-        function updateProviderConsistencyState(options) {
+        function stripGeneratedProfileKeySuffix(value) {
+            return String(value || '').replace(/--[a-f0-9]{6,}$/i, '').trim();
+        }
+
+        // 站点分组名称（xboard.provider / remote.config.json 的 panels 键名）不再由页面填写：
+        // 档案 YAML 里已有非空值时保持原值（避免改动线上站点已生效的 panels 键名），
+        // 为空时默认跟随档案文字；新建档案时跟随输入的新档案名称。
+        function getDerivedProviderName() {
+            var selectedKey = getSelectedProfileKey();
+            if (!selectedKey) {
+                var newProfileNameInput = document.getElementById('newProfileName');
+                var newProfileName = newProfileNameInput ? String(newProfileNameInput.value || '').trim() : '';
+                if (newProfileName) {
+                    return newProfileName;
+                }
+            } else if (currentProfileProviderValue) {
+                return currentProfileProviderValue;
+            }
+
+            var selectedName = selectedKey ? stripGeneratedProfileKeySuffix(getSelectedProfileDisplayName()) : '';
+            if (selectedName) {
+                return selectedName;
+            }
+            return String(document.getElementById('appTitle').value || '').trim();
+        }
+
+        function syncDerivedProviderName(options) {
             options = options || {};
-            var source = options.source || '';
             var providerInput = document.getElementById('provider');
             var remoteProviderInput = document.getElementById('remoteConfigProviderKey');
             var providerHelpText = document.getElementById('providerHelpText');
             var remoteProviderHelpText = document.getElementById('remoteConfigProviderKeyHelpText');
-            if (!providerInput || !remoteProviderInput) {
-                return true;
+            if (!providerInput && !remoteProviderInput) {
+                return '';
             }
 
-            var providerValue = String(providerInput.value || '').trim();
-            var remoteProviderValue = String(remoteProviderInput.value || '').trim();
-            var providerGroup = providerInput.closest ? providerInput.closest('.form-group') : null;
-            var remoteProviderGroup = remoteProviderInput.closest ? remoteProviderInput.closest('.form-group') : null;
-
-            if (source === 'basic' && providerValue && !remoteProviderValue) {
+            var providerValue = getDerivedProviderName();
+            if (providerInput) {
+                providerInput.value = providerValue;
+            }
+            var previousRemoteProviderValue = remoteProviderInput ? String(remoteProviderInput.value || '').trim() : '';
+            if (remoteProviderInput) {
                 remoteProviderInput.value = providerValue;
-                remoteProviderValue = providerValue;
-                remoteConfigEncryptedData = '';
-                syncRemoteConfigJsonPreview({ silentStatus: true });
-            } else if (source === 'remote' && remoteProviderValue && !providerValue) {
-                providerInput.value = remoteProviderValue;
-                providerValue = remoteProviderValue;
-                formToYaml();
             }
 
-            var isMismatch = !!(providerValue && remoteProviderValue && providerValue !== remoteProviderValue);
+            var providerGroup = providerInput && providerInput.closest ? providerInput.closest('.form-group') : null;
+            var remoteProviderGroup = remoteProviderInput && remoteProviderInput.closest ? remoteProviderInput.closest('.form-group') : null;
             if (providerGroup) {
-                providerGroup.classList.toggle('is-warning', isMismatch);
+                providerGroup.classList.remove('is-warning');
             }
             if (remoteProviderGroup) {
-                remoteProviderGroup.classList.toggle('is-warning', isMismatch);
+                remoteProviderGroup.classList.remove('is-warning');
             }
             if (providerHelpText) {
-                providerHelpText.textContent = isMismatch
-                    ? '当前与远程配置文件里的“站点分组名称”不一致，请改成完全相同。'
-                    : PROVIDER_HELP_TEXT;
-                providerHelpText.classList.toggle('warning', isMismatch);
+                providerHelpText.textContent = PROVIDER_HELP_TEXT;
+                providerHelpText.classList.remove('warning');
             }
             if (remoteProviderHelpText) {
-                remoteProviderHelpText.textContent = isMismatch
-                    ? '当前与基础设置里的“站点分组名称”不一致，请保持完全相同，否则软件可能无法识别站点。'
-                    : REMOTE_CONFIG_PROVIDER_HELP_TEXT;
-                remoteProviderHelpText.classList.toggle('warning', isMismatch);
+                remoteProviderHelpText.textContent = REMOTE_CONFIG_PROVIDER_HELP_TEXT;
+                remoteProviderHelpText.classList.remove('warning');
             }
-            return !isMismatch;
+            if (remoteProviderInput && providerValue !== previousRemoteProviderValue) {
+                remoteConfigEncryptedData = '';
+                if (options.updateRemotePreview) {
+                    syncRemoteConfigJsonPreview({ silentStatus: true });
+                }
+            }
+            return providerValue;
         }
 
         // ==================== OSS 内置代理配置（clientProxy） ====================
@@ -9532,6 +9643,12 @@
             document.getElementById('remoteConfigClientProxyLinksInput').value = '';
             setRemoteConfigClientProxyImportStatus('', '');
             renderRemoteConfigClientProxyNodes();
+            setRemoteConfigClientProxyFieldsVisible(enabled);
+        }
+
+        function setRemoteConfigClientProxyFieldsVisible(visible) {
+            var fields = document.getElementById('remoteConfigClientProxyFields');
+            if (fields) fields.style.display = visible ? '' : 'none';
         }
 
         // 归一化单条线路：缺 type/server/port 的直接丢弃，与两个客户端的规则一致。
@@ -9740,6 +9857,260 @@
             }
         }
 
+        var remoteConfigSubscriptionExtensionNodes = [];
+
+        var remoteConfigSubscriptionExtensionSelections = [];
+
+        function setRemoteConfigSubscriptionExtensionLoadStatus(message, tone) {
+            var el = document.getElementById('remoteConfigSubscriptionExtensionLoadStatus');
+            if (!el) return;
+            el.textContent = message || '';
+            el.className = 'client-proxy-import-status' + (tone ? ' ' + tone : '');
+        }
+
+        function renderRemoteConfigSubscriptionExtensionSubscriptionNodes() {
+            var container = document.getElementById('remoteConfigSubscriptionExtensionSubscriptionNodesContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            remoteConfigSubscriptionExtensionSelections.forEach(function(entry, index) {
+                var row = document.createElement('label');
+                row.className = 'client-proxy-node';
+                row.style.display = 'block';
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = entry.selected !== false;
+                checkbox.style.marginRight = '10px';
+                checkbox.addEventListener('change', function() {
+                    entry.selected = checkbox.checked;
+                    handleRemoteConfigFormInput();
+                });
+                var text = document.createElement('span');
+                text.textContent = (entry.name || ('节点 ' + (index + 1))) + ' · ' + (entry.type || 'unknown') + ' · ' + getRemoteConfigClientProxyNodeEndpoint(entry.node);
+                row.appendChild(checkbox);
+                row.appendChild(text);
+                container.appendChild(row);
+            });
+        }
+
+        function openRemoteConfigSubscriptionExtensionSelector() {
+            var overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:24px;';
+            var dialog = document.createElement('div');
+            dialog.style.cssText = 'width:min(760px,96vw);max-height:88vh;display:flex;flex-direction:column;background:#202033;border:1px solid rgba(0,212,255,.35);border-radius:12px;box-shadow:0 20px 70px rgba(0,0,0,.5);padding:20px;';
+            var title = document.createElement('h3');
+            title.textContent = '选择要附加的订阅节点';
+            title.style.margin = '0 0 14px';
+            var list = document.createElement('div');
+            list.style.cssText = 'overflow:auto;flex:1;min-height:120px;max-height:58vh;';
+            remoteConfigSubscriptionExtensionSelections.forEach(function(entry, index) {
+                var row = document.createElement('label');
+                row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.08);color:#edf6ff;cursor:pointer;';
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = entry.selected !== false;
+                checkbox.addEventListener('change', function() { entry.selected = checkbox.checked; });
+                var text = document.createElement('span');
+                text.textContent = (entry.name || ('节点 ' + (index + 1))) + ' · ' + (entry.type || 'unknown') + ' · ' + getRemoteConfigClientProxyNodeEndpoint(entry.node);
+                row.appendChild(checkbox);
+                row.appendChild(text);
+                list.appendChild(row);
+            });
+            var actions = document.createElement('div');
+            actions.style.cssText = 'display:flex;justify-content:flex-end;gap:10px;margin-top:16px;';
+            var cancel = document.createElement('button');
+            cancel.type = 'button';
+            cancel.className = 'btn';
+            cancel.textContent = '取消';
+            var confirm = document.createElement('button');
+            confirm.type = 'button';
+            confirm.className = 'btn btn-primary';
+            confirm.textContent = '确定导入';
+            cancel.onclick = function() { overlay.remove(); };
+            confirm.onclick = function() {
+                overlay.remove();
+                renderRemoteConfigSubscriptionExtensionSubscriptionNodes();
+                handleRemoteConfigFormInput();
+                setRemoteConfigSubscriptionExtensionLoadStatus('已导入 ' + remoteConfigSubscriptionExtensionSelections.filter(function(entry) { return entry.selected !== false; }).length + ' 个节点。', 'success');
+            };
+            actions.appendChild(cancel);
+            actions.appendChild(confirm);
+            dialog.appendChild(title);
+            dialog.appendChild(list);
+            dialog.appendChild(actions);
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+        }
+
+        async function loadRemoteConfigSubscriptionNodes() {
+            var urls = String(document.getElementById('remoteConfigSubscriptionExtensionLinksInput').value || '').split(/\r?\n/).map(function(value) {
+                return value.trim();
+            }).filter(Boolean);
+            if (urls.length === 0) {
+                setRemoteConfigSubscriptionExtensionLoadStatus('请先填写订阅地址', 'error');
+                return;
+            }
+            var button = document.getElementById('remoteConfigSubscriptionExtensionLoadBtn');
+            button.disabled = true;
+            setRemoteConfigSubscriptionExtensionLoadStatus('正在读取订阅节点...', '');
+            try {
+                var loaded = [];
+                for (var i = 0; i < urls.length; i++) {
+                    var response = await api('POST', appendBuildClientQuery('/subscription/parse'), { url: urls[i] });
+                    if (!response) continue;
+                    var data = await response.json();
+                    if (!response.ok) throw new Error(data.error || ('读取第 ' + (i + 1) + ' 个订阅失败'));
+                    (Array.isArray(data.nodes) ? data.nodes : []).forEach(function(node) {
+                        var normalized = normalizeRemoteConfigClientProxyNode(node);
+                        if (normalized) loaded.push({ url: urls[i], node: normalized, name: normalized.name || '', type: normalized.type, selected: true });
+                    });
+                }
+                remoteConfigSubscriptionExtensionSelections = loaded;
+                openRemoteConfigSubscriptionExtensionSelector();
+                setRemoteConfigSubscriptionExtensionLoadStatus('已读取 ' + loaded.length + ' 个节点，请在弹窗中选择。', 'success');
+            } catch (e) {
+                setRemoteConfigSubscriptionExtensionLoadStatus('读取失败: ' + e.message, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        function setRemoteConfigSubscriptionExtensionStatus(message, tone) {
+            var el = document.getElementById('remoteConfigSubscriptionExtensionStatus');
+            if (!el) return;
+            el.textContent = message || '';
+            el.className = 'client-proxy-import-status' + (tone ? ' ' + tone : '');
+        }
+
+        function setRemoteConfigSubscriptionExtensionFormValues(value) {
+            var source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+            var enabled = source.enabled === true;
+            var rawNodes = Array.isArray(source.nodes) ? source.nodes : (source.node ? [source.node] : []);
+            var rawSubscriptions = Array.isArray(source.subscriptions) ? source.subscriptions : (source.subscription ? [source.subscription] : []);
+            remoteConfigSubscriptionExtensionNodes = rawNodes.map(normalizeRemoteConfigClientProxyNode).filter(Boolean);
+            remoteConfigSubscriptionExtensionSelections = [];
+            document.getElementById('remoteConfigSubscriptionExtensionEnabled').checked = enabled;
+            document.getElementById('remoteConfigSubscriptionExtensionEnabledLabel').textContent = enabled ? '开启' : '关闭';
+            document.getElementById('remoteConfigSubscriptionExtensionLinksInput').value = rawSubscriptions.map(function(item) {
+                return typeof item === 'string' ? item : (item && (item.url || item.link || item.subscription) || '');
+            }).filter(Boolean).join('\n');
+            document.getElementById('remoteConfigSubscriptionExtensionFilterInput').value =
+                rawSubscriptions.length && typeof rawSubscriptions[0] === 'object'
+                    ? String(rawSubscriptions[0].filter || '').trim()
+                    : '';
+            document.getElementById('remoteConfigSubscriptionExtensionNodesInput').value = '';
+            setRemoteConfigSubscriptionExtensionStatus('', '');
+            renderRemoteConfigSubscriptionExtensionNodes();
+            renderRemoteConfigSubscriptionExtensionSubscriptionNodes();
+            setRemoteConfigSubscriptionExtensionFieldsVisible(enabled);
+        }
+
+        function setRemoteConfigSubscriptionExtensionFieldsVisible(visible) {
+            var fields = document.getElementById('remoteConfigSubscriptionExtensionFields');
+            if (fields) fields.style.display = visible ? '' : 'none';
+        }
+
+        function buildRemoteConfigSubscriptionExtension(requireComplete) {
+            var enabled = document.getElementById('remoteConfigSubscriptionExtensionEnabled').checked;
+            var urls = String(document.getElementById('remoteConfigSubscriptionExtensionLinksInput').value || '').split(/\r?\n/).map(function(value) {
+                return value.trim();
+            }).filter(Boolean);
+            var filter = String(document.getElementById('remoteConfigSubscriptionExtensionFilterInput').value || '').trim();
+            var nodes = remoteConfigSubscriptionExtensionNodes.map(normalizeRemoteConfigClientProxyNode).filter(Boolean);
+            if (requireComplete && enabled && urls.length === 0 && nodes.length === 0) {
+                throw new Error('勾选「启用附加订阅与节点」时，至少填写一个订阅地址或导入一个节点');
+            }
+            var subscriptions = urls.map(function(url, index) {
+                var item = { name: 'OSS 附加订阅 ' + (index + 1), url: url };
+                if (filter) item.filter = filter;
+                return item;
+            });
+            var selectedByUrl = {};
+            remoteConfigSubscriptionExtensionSelections.filter(function(entry) { return entry.selected !== false; }).forEach(function(entry) {
+                selectedByUrl[entry.url] = selectedByUrl[entry.url] || [];
+                if (entry.name) selectedByUrl[entry.url].push(entry.name);
+            });
+            var selectedUrls = Object.keys(selectedByUrl);
+            if (selectedUrls.length > 0) {
+                subscriptions = selectedUrls.map(function(url, index) {
+                    var names = selectedByUrl[url].map(function(name) {
+                        return String(name).replace(/[.*+?^$()|[\\]{}]/g, '\\$&');
+                    });
+                    return { name: 'OSS 附加订阅 ' + (index + 1), url: url, filter: '^(?:' + names.join('|') + ')$' };
+                });
+            }
+            var subscriptionUsable = remoteConfigSubscriptionExtensionSelections.length > 0 ? selectedUrls.length > 0 : urls.length > 0;
+            if (requireComplete && enabled && !subscriptionUsable && nodes.length === 0) {
+                throw new Error('至少勾选一个订阅节点，或导入一个单独节点');
+            }
+            var usable = enabled && (subscriptionUsable || nodes.length > 0);
+            return { enabled: usable, nodes: nodes, subscriptions: subscriptions };
+        }
+
+        function renderRemoteConfigSubscriptionExtensionNodes() {
+            var container = document.getElementById('remoteConfigSubscriptionExtensionNodesContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            if (remoteConfigSubscriptionExtensionNodes.length === 0) {
+                var empty = document.createElement('div');
+                empty.className = 'client-proxy-empty';
+                empty.textContent = '还没有附加节点。';
+                container.appendChild(empty);
+                return;
+            }
+            remoteConfigSubscriptionExtensionNodes.forEach(function(node, index) {
+                var item = document.createElement('div');
+                item.className = 'client-proxy-node';
+                var title = document.createElement('div');
+                title.className = 'client-proxy-node-title';
+                title.textContent = '#' + (index + 1) + ' ' + getRemoteConfigClientProxyNodeLabel(node, index) + ' · ' + String(node.type || 'unknown');
+                var meta = document.createElement('div');
+                meta.className = 'client-proxy-node-meta';
+                meta.textContent = getRemoteConfigClientProxyNodeEndpoint(node);
+                var remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'client-proxy-node-remove';
+                remove.textContent = '删除';
+                remove.addEventListener('click', function() {
+                    remoteConfigSubscriptionExtensionNodes.splice(index, 1);
+                    renderRemoteConfigSubscriptionExtensionNodes();
+                    handleRemoteConfigFormInput();
+                });
+                item.appendChild(title);
+                item.appendChild(meta);
+                item.appendChild(remove);
+                container.appendChild(item);
+            });
+        }
+
+        async function importRemoteConfigSubscriptionExtensionLinks() {
+            var input = document.getElementById('remoteConfigSubscriptionExtensionNodesInput');
+            var links = String(input.value || '').trim();
+            if (!links) {
+                setRemoteConfigSubscriptionExtensionStatus('请先粘贴节点分享链接', 'error');
+                return;
+            }
+            var button = document.getElementById('remoteConfigSubscriptionExtensionImportBtn');
+            button.disabled = true;
+            setRemoteConfigSubscriptionExtensionStatus('正在解析节点链接...', '');
+            try {
+                var response = await api('POST', appendBuildClientQuery('/client-proxy/parse'), { links: links });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) throw new Error(data.error || '解析失败');
+                var imported = Array.isArray(data.nodes) ? data.nodes.map(normalizeRemoteConfigClientProxyNode).filter(Boolean) : [];
+                remoteConfigSubscriptionExtensionNodes = remoteConfigSubscriptionExtensionNodes.concat(imported);
+                renderRemoteConfigSubscriptionExtensionNodes();
+                input.value = '';
+                handleRemoteConfigFormInput();
+                var issues = Array.isArray(data.issues) ? data.issues : [];
+                setRemoteConfigSubscriptionExtensionStatus('已导入 ' + imported.length + ' 条节点' + (issues.length ? '；' + issues.join('；') : '。'), issues.length ? 'warning' : 'success');
+            } catch (e) {
+                setRemoteConfigSubscriptionExtensionStatus('解析失败: ' + e.message, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
 
         var remoteConfigSupportItems = [];
 
@@ -9869,12 +10240,69 @@
             renderRemoteConfigSupportItems();
         }
 
+        var remoteConfigNodeAddressReplacementRows = [];
+
+        function renderRemoteConfigNodeAddressReplacementRows() {
+            var container = document.getElementById('remoteConfigNodeAddressReplacementRows');
+            if (!container) return;
+            container.innerHTML = '';
+            remoteConfigNodeAddressReplacementRows.forEach(function(row, index) {
+                var wrapper = document.createElement('div');
+                wrapper.className = 'form-row-2';
+                wrapper.style.marginBottom = '10px';
+                var fakeInput = document.createElement('input');
+                fakeInput.type = 'text'; fakeInput.className = 'remote-node-address-fake';
+                fakeInput.placeholder = '虚假入口'; fakeInput.value = row.fake || '';
+                var realInput = document.createElement('input');
+                realInput.type = 'text'; realInput.className = 'remote-node-address-real';
+                realInput.placeholder = '真实域名或 IP'; realInput.value = row.real || '';
+                [fakeInput, realInput].forEach(function(input) {
+                    input.addEventListener('input', function() {
+                        remoteConfigNodeAddressReplacementRows[index] = { fake: fakeInput.value, real: realInput.value };
+                        handleRemoteConfigFormInput();
+                    });
+                });
+                wrapper.appendChild(fakeInput); wrapper.appendChild(realInput); container.appendChild(wrapper);
+            });
+        }
+
+        function setRemoteConfigNodeAddressReplacementFieldsVisible(visible) {
+            var fields = document.getElementById('remoteConfigNodeAddressReplacementFields');
+            if (fields) fields.style.display = visible ? '' : 'none';
+        }
+
+        function setRemoteConfigNodeAddressReplacementFormValues(value) {
+            var source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+            var mappings = source.mappings && typeof source.mappings === 'object' && !Array.isArray(source.mappings) ? source.mappings : {};
+            remoteConfigNodeAddressReplacementRows = Object.keys(mappings).map(function(fake) { return { fake: fake, real: String(mappings[fake] || '') }; });
+            if (remoteConfigNodeAddressReplacementRows.length === 0) remoteConfigNodeAddressReplacementRows.push({ fake: '', real: '' });
+            var enabled = source.enabled === true;
+            document.getElementById('remoteConfigNodeAddressReplacementEnabled').checked = enabled;
+            document.getElementById('remoteConfigNodeAddressReplacementEnabledLabel').textContent = enabled ? '开启' : '关闭';
+            setRemoteConfigNodeAddressReplacementFieldsVisible(enabled); renderRemoteConfigNodeAddressReplacementRows();
+        }
+
+        function addRemoteConfigNodeAddressReplacementRow() {
+            remoteConfigNodeAddressReplacementRows.push({ fake: '', real: '' });
+            renderRemoteConfigNodeAddressReplacementRows(); handleRemoteConfigFormInput();
+        }
+
+        function buildRemoteConfigNodeAddressReplacement(requireComplete) {
+            var enabled = document.getElementById('remoteConfigNodeAddressReplacementEnabled').checked;
+            var mappings = {};
+            remoteConfigNodeAddressReplacementRows.forEach(function(row) {
+                var fake = String(row.fake || '').trim(); var real = String(row.real || '').trim();
+                if (!fake && !real) return;
+                if (!fake || !real) { if (requireComplete) throw new Error('订阅节点入口映射必须同时填写虚假入口和真实入口'); return; }
+                mappings[fake] = real;
+            });
+            return { enabled: enabled, mappings: mappings };
+        }
+
         function getRemoteConfigFormData(requireComplete) {
             var panelTypeValue = String(document.getElementById('remoteConfigPanelType').value || '').trim();
             var websiteUrlValue = String(document.getElementById('remoteConfigWebsiteUrl').value || '').trim();
-            var providerValue = String(document.getElementById('remoteConfigProviderKey').value || '').trim();
-            var basicProviderValue = String(document.getElementById('provider').value || '').trim();
-            updateProviderConsistencyState();
+            var providerValue = syncDerivedProviderName();
             var rawPanelItems = collectRemoteConfigPanels();
             var updateItems = getRemoteConfigUpdateFormData(requireComplete);
             var panelItems = [];
@@ -9902,13 +10330,7 @@
                     throw new Error('请选择面板类型（panelType）');
                 }
                 if (!providerValue) {
-                    throw new Error('请填写站点分组名称');
-                }
-                if (!basicProviderValue) {
-                    throw new Error('请先在基础设置中填写站点分组名称');
-                }
-                if (basicProviderValue !== providerValue) {
-                    throw new Error('远程配置页的站点分组名称必须与基础设置中的站点分组名称完全一致');
+                    throw new Error('请先选择或填写档案名称');
                 }
                 if (panelItems.length === 0) {
                     throw new Error('请至少添加一个站点并填写站点地址（url）');
@@ -9928,7 +10350,10 @@
                 update: updateItems,
                 // 客服与内置代理都改由 OSS 下发，两个客户端读同一段配置。
                 onlineSupport: buildRemoteConfigOnlineSupportItems(),
-                clientProxy: buildRemoteConfigClientProxy(!!requireComplete)
+                clientProxy: buildRemoteConfigClientProxy(!!requireComplete),
+                subscriptionExtension: buildRemoteConfigSubscriptionExtension(!!requireComplete),
+                // 订阅节点虚假入口映射由 OSS 下发，默认关闭；客户端按 mappings 替换节点内地址字段。
+                nodeAddressReplacement: buildRemoteConfigNodeAddressReplacement(!!requireComplete)
             };
             return result;
         }
@@ -9951,7 +10376,7 @@
         }
 
         function handleRemoteConfigFormInput() {
-            updateProviderConsistencyState();
+            syncDerivedProviderName();
             remoteConfigEncryptedData = '';
             syncRemoteConfigJsonPreview({ silentStatus: true });
             setRemoteConfigStatus('remote.config.json 已根据当前配置项自动更新，可直接下载或加密。', 'info');
@@ -9993,7 +10418,7 @@
             });
             if (providerKeyInput) {
                 var handleProviderKeyChange = function() {
-                    updateProviderConsistencyState({ source: 'remote' });
+                    syncDerivedProviderName();
                     handleRemoteConfigFormInput();
                 };
                 providerKeyInput.addEventListener('input', handleProviderKeyChange);
@@ -10022,11 +10447,52 @@
                 if (!el) return;
                 el.addEventListener('change', function() {
                     document.getElementById(id + 'Label').textContent = this.checked ? '开启' : '关闭';
+                    if (id === 'remoteConfigClientProxyEnabled') setRemoteConfigClientProxyFieldsVisible(this.checked);
                     handleRemoteConfigFormInput();
                 });
             });
+            var subscriptionExtensionImportBtn = document.getElementById('remoteConfigSubscriptionExtensionImportBtn');
+            if (subscriptionExtensionImportBtn) {
+                subscriptionExtensionImportBtn.addEventListener('click', importRemoteConfigSubscriptionExtensionLinks);
+            }
+            var subscriptionExtensionLoadBtn = document.getElementById('remoteConfigSubscriptionExtensionLoadBtn');
+            if (subscriptionExtensionLoadBtn) {
+                subscriptionExtensionLoadBtn.addEventListener('click', loadRemoteConfigSubscriptionNodes);
+            }
+            var subscriptionExtensionClearBtn = document.getElementById('remoteConfigSubscriptionExtensionClearBtn');
+            if (subscriptionExtensionClearBtn) {
+                subscriptionExtensionClearBtn.addEventListener('click', function() {
+                    document.getElementById('remoteConfigSubscriptionExtensionNodesInput').value = '';
+                    setRemoteConfigSubscriptionExtensionStatus('', '');
+                });
+            }
+            ['remoteConfigSubscriptionExtensionEnabled', 'remoteConfigSubscriptionExtensionLinksInput', 'remoteConfigSubscriptionExtensionFilterInput'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('input', handleRemoteConfigFormInput);
+                el.addEventListener('change', function() {
+                    var label = document.getElementById('remoteConfigSubscriptionExtensionEnabledLabel');
+                    if (label && id === 'remoteConfigSubscriptionExtensionEnabled') {
+                        label.textContent = this.checked ? '开启' : '关闭';
+                        setRemoteConfigSubscriptionExtensionFieldsVisible(this.checked);
+                    }
+                    handleRemoteConfigFormInput();
+                });
+            });
+            var nodeAddressEnabledInput = document.getElementById('remoteConfigNodeAddressReplacementEnabled');
+            var addNodeAddressRowButton = document.getElementById('addRemoteConfigNodeAddressReplacementBtn');
+            if (nodeAddressEnabledInput) {
+                nodeAddressEnabledInput.addEventListener('change', function() {
+                    document.getElementById('remoteConfigNodeAddressReplacementEnabledLabel').textContent = this.checked ? '开启' : '关闭';
+                    setRemoteConfigNodeAddressReplacementFieldsVisible(this.checked);
+                    handleRemoteConfigFormInput();
+                });
+            }
+            if (addNodeAddressRowButton) addNodeAddressRowButton.addEventListener('click', addRemoteConfigNodeAddressReplacementRow);
             setRemoteConfigSupportFormValues([]);
             setRemoteConfigClientProxyFormValues({});
+            setRemoteConfigSubscriptionExtensionFormValues({});
+            setRemoteConfigNodeAddressReplacementFormValues({});
             if (fileInput) {
                 fileInput.addEventListener('change', handleRemoteConfigFileUpload);
             }
@@ -10047,7 +10513,7 @@
             refreshRemoteConfigSourceTargets();
             syncRemoteConfigJsonPreview({ silentStatus: true });
             renderRemoteConfigHistoryRecords();
-            updateProviderConsistencyState();
+            syncDerivedProviderName();
             setRemoteConfigStatus('请先完善必填项；如果不需要加密，可直接下载使用，如需更高安全性再生成密钥并执行加密。', 'info');
         }
 
@@ -10300,7 +10766,7 @@
             document.getElementById('remoteConfigPanelType').value = data && data.panelType ? data.panelType : '';
             document.getElementById('remoteConfigWebsiteUrl').value = data && data.websiteUrl ? data.websiteUrl : '';
             document.getElementById('remoteConfigProviderKey').value = providerKey;
-            updateProviderConsistencyState({ source: 'remote' });
+            syncDerivedProviderName();
             remoteConfigPanels = panelItems.length ? panelItems.map(function(item) {
                 return {
                     url: item && item.url ? item.url : '',
@@ -10312,6 +10778,8 @@
             });
             setRemoteConfigSupportFormValues(Array.isArray(data.onlineSupport) ? data.onlineSupport : (Array.isArray(data.online_support) ? data.online_support : []));
             setRemoteConfigClientProxyFormValues(data.clientProxy || data.client_proxy);
+            setRemoteConfigSubscriptionExtensionFormValues(data.subscriptionExtension || data.subscription_extension);
+            setRemoteConfigNodeAddressReplacementFormValues(data.nodeAddressReplacement || data.node_address_replacement);
             remoteConfigEncryptedData = '';
             renderRemoteConfigPanels();
             syncAllCustomSelects(document);
@@ -10931,10 +11399,10 @@
                 return getSubscriptionValue(key) === 'true';
             };
             var providerMatch = yaml.match(/xboard:\s*\n(?:\s*#[^\n]*\n)*\s*provider:[^\S\n]*(.*)/);
-            if (providerMatch) {
-                document.getElementById('provider').value = providerMatch[1].trim().replace(/^["']|["']$/g, '');
-            } else {
-                document.getElementById('provider').value = '';
+            currentProfileProviderValue = providerMatch ? providerMatch[1].trim().replace(/^["']|["']$/g, '') : '';
+            var providerMirrorInput = document.getElementById('provider');
+            if (providerMirrorInput) {
+                providerMirrorInput.value = currentProfileProviderValue;
             }
             document.getElementById('appTitle').value = getValue('title');
             syncProfileBoundAppTitle();
@@ -11090,6 +11558,10 @@
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_plan_speed:\s*(true|false)/) ||
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)hidePlanSpeed:\s*(true|false)/);
             setCustomFeatureSwitchValue('hidePlanSpeed', hidePlanSpeedMatch ? hidePlanSpeedMatch[1] === 'true' : false);
+            var useClassicRailLayoutMatch =
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)use_classic_rail_layout:\s*(true|false)/) ||
+                yaml.match(/ui:\s*\n(?:[\s\S]*?)useClassicRailLayout:\s*(true|false)/);
+            setCustomFeatureSwitchValue('useClassicRailLayout', useClassicRailLayoutMatch ? useClassicRailLayoutMatch[1] === 'true' : false);
             var showIpInfoMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)show_ip_info:\s*(true|false)/) ||
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)showIpInfo:\s*(true|false)/);
@@ -11237,7 +11709,7 @@
 
             syncAllCustomSelects(document);
             renderHomePanelPreview();
-            updateProviderConsistencyState({ source: 'basic' });
+            syncDerivedProviderName();
             syncRemoteConfigJsonPreview({ silentStatus: true });
         }
 
@@ -11245,7 +11717,7 @@
             collectSources();
             collectPopularApps();
             renderHomePanelPreview();
-            updateProviderConsistencyState();
+            syncDerivedProviderName();
             syncRemoteConfigJsonPreview({ silentStatus: true });
         }
 

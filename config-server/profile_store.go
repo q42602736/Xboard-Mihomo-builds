@@ -190,6 +190,7 @@ func defaultProfileYaml(displayName string) string {
     hide_node_status: false
     hide_purchase_coupon: false
     hide_plan_speed: false
+    use_classic_rail_layout: false
     hide_current_node_label: false
     hide_page_header_text: false
     hide_dedicated_nodes: false

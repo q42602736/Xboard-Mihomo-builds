@@ -56,7 +56,7 @@ func parseClientProxyShareLinks(text string) ([]map[string]interface{}, []string
 			node, err = parseShadowsocksRShareLinkNode(names, body)
 		case "hysteria":
 			node, err = parseHysteriaShareLinkNode(names, line)
-		case "hysteria2", "hy2":
+		case "hysteria2", "hy2", "hysteria2+realm", "hy2+realm":
 			node, err = parseHysteria2ShareLinkNode(names, line)
 		case "tuic":
 			node, err = parseTUICShareLinkNode(names, line)

@@ -1533,6 +1533,119 @@
         .custom-feature-grid .switch-card-extra .form-row {
             margin-top: 0;
         }
+        .custom-feature-overview {
+            margin: 16px 0 24px;
+            padding: 16px;
+            border: 1px solid rgba(0,212,255,0.18);
+            border-radius: 8px;
+            background: rgba(0,212,255,0.055);
+        }
+        .custom-feature-overview-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+        }
+        .custom-feature-overview-kicker {
+            color: #7f8b98;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+        .custom-feature-overview-title {
+            margin-top: 4px;
+            color: #e8f7fa;
+            font-size: 16px;
+            font-weight: 650;
+            line-height: 1.4;
+        }
+        .custom-feature-overview-stats {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-shrink: 0;
+        }
+        .custom-feature-overview-stat {
+            min-width: 56px;
+            text-align: right;
+        }
+        .custom-feature-overview-stat strong {
+            display: block;
+            color: #e8f7fa;
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .custom-feature-overview-stat span {
+            color: #7f8b98;
+            font-size: 11px;
+        }
+        .custom-feature-overview-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 8px;
+            margin-top: 14px;
+        }
+        .custom-feature-overview-item {
+            min-width: 0;
+            padding: 9px 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.14);
+            color: #cfd7df;
+            font: inherit;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            text-align: left;
+            transition: border-color 0.16s ease, background 0.16s ease;
+        }
+        .custom-feature-overview-item:hover,
+        .custom-feature-overview-item:focus-visible {
+            outline: none;
+            border-color: rgba(0,212,255,0.36);
+            background: rgba(0,212,255,0.08);
+        }
+        .custom-feature-overview-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+        .custom-feature-overview-state {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0;
+            color: #84909c;
+            font-size: 11px;
+        }
+        .custom-feature-overview-state::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #66717d;
+        }
+        .custom-feature-overview-state.active {
+            color: #67e2a5;
+        }
+        .custom-feature-overview-state.active::before {
+            background: #21c77a;
+        }
+        .custom-feature-overview-state.pending {
+            color: #d8b565;
+        }
+        .custom-feature-overview-state.pending::before {
+            background: #d5a83f;
+        }
+        .custom-feature-focus {
+            outline: 2px solid rgba(0,212,255,0.58);
+            outline-offset: 3px;
+        }
         .cloud-dispatch-extra {
             display: grid;
             gap: 16px;
@@ -1593,6 +1706,18 @@
             }
         }
         @media (max-width: 560px) {
+            .custom-feature-overview-head {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .custom-feature-overview-stats {
+                width: 100%;
+                justify-content: space-between;
+                gap: 12px;
+            }
+            .custom-feature-overview-list {
+                grid-template-columns: 1fr;
+            }
             .cloud-dispatch-auto-header {
                 align-items: flex-start;
                 flex-direction: column;
@@ -3376,7 +3501,7 @@
                                         <span id="hideDedicatedNodesLabel">关闭</span>
                                     </div>
                                 </div>
-                                <div class="help-text">默认关闭并隐藏专用节点页面；开启后，新客户端会显示专用节点入口和页面。</div>
+                                <div class="help-text">默认关闭并隐藏专用节点页面；开启后，React 客户端会显示专用节点入口和页面。</div>
                             </div>
                             <div class="switch-card" style="margin-top:16px;">
                                 <div class="switch-card-header">
@@ -3615,6 +3740,29 @@
                                 </div>
                             </div>
                             <div id="customTrafficBarEditorPanel" style="display:none;">
+                                <div class="custom-feature-overview" id="customFeatureOverview">
+                                    <div class="custom-feature-overview-head">
+                                        <div>
+                                            <div class="custom-feature-overview-kicker" id="customFeatureOverviewKicker">当前对接码</div>
+                                            <div class="custom-feature-overview-title" id="customFeatureOverviewTitle" aria-live="polite">已授权 0 项功能</div>
+                                        </div>
+                                        <div class="custom-feature-overview-stats">
+                                            <div class="custom-feature-overview-stat">
+                                                <strong id="customFeatureAuthorizedCount">0</strong>
+                                                <span>已授权</span>
+                                            </div>
+                                            <div class="custom-feature-overview-stat">
+                                                <strong id="customFeatureActiveCount">--</strong>
+                                                <span>已开启/配置</span>
+                                            </div>
+                                            <div class="custom-feature-overview-stat">
+                                                <strong id="customFeaturePendingCount">--</strong>
+                                                <span>待开启/配置</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="custom-feature-overview-list" id="customFeatureOverviewList"></div>
+                                </div>
                                 <div class="section-title">自定义功能配置</div>
                                 <div class="help-text">只会显示当前对接码已绑定的功能。保存后会直接写入当前档案对应的公共 YAML 配置。</div>
                                 <div class="custom-feature-grid" id="customFeatureGrid"></div>
@@ -3884,7 +4032,7 @@
                                     <div class="help-text" id="remoteConfigProviderKeyHelpText">自动跟随当前档案名称，并写入 remote.config.json 的 panels。</div>
                                 </div>
 
-                                <div class="section" style="margin-top: 20px;">
+                                <div class="section" style="grid-column: 1 / -1; width: 100%; margin-top: 20px;">
                                     <div class="section-title">站点列表（panels）</div>
                                     <div id="remoteConfigPanelsContainer"></div>
                                     <div class="remote-config-actions" style="margin-top: 10px; margin-bottom: 10px;">
@@ -3967,7 +4115,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="section" style="margin-top: 20px; margin-bottom: 10px;">
+                                <div class="section" style="grid-column: 1 / -1; width: 100%; margin-top: 20px; margin-bottom: 10px;">
                                     <div class="section-title">OSS 内置代理配置（clientProxy）</div>
                                     <div class="help-text" style="margin-bottom:14px;">
                                         客户端通讯用的内置代理由 OSS 下发，换线路或改开关都不用重新打包。客户端拉取这份配置时<strong>恒直连</strong>，所以 OSS 域名必须在用户网络上可达。
@@ -3982,6 +4130,7 @@
                                         </div>
                                         <div class="help-text">关闭后客户端完全不提供内置代理（用户在 App 里也开不起来）。</div>
                                     </div>
+                                    <div id="remoteConfigClientProxyFields" style="display:none;">
                                     <div class="switch-card" style="margin-bottom:12px;">
                                         <div class="switch-card-header">
                                             <span class="switch-card-label">首次启动默认开启</span>
@@ -4004,11 +4153,78 @@
                                     </div>
                                     <div id="remoteConfigClientProxyNodesContainer" style="margin-top:14px;"></div>
                                     <div class="help-text" style="margin-top:10px;">客户端会用这些线路组成自动测速组，始终选择延迟最低的一条；列表为空时内置代理不生效。</div>
+                                    </div>
+                                </div>
+
+                                <div class="section" style="grid-column: 1 / -1; width: 100%; margin-top: 20px; margin-bottom: 10px;">
+                                    <div class="section-title">OSS 附加订阅与节点配置（subscriptionExtension）</div>
+                                    <div class="help-text" style="margin-bottom:14px;">将 OSS 下发的订阅和单节点并入登录后的主订阅。扩展订阅不使用独立定时器，主订阅应用时同步刷新。</div>
+                                    <div class="switch-card" style="margin-bottom:12px;">
+                                        <div class="switch-card-header">
+                                            <span class="switch-card-label">启用附加订阅与节点</span>
+                                            <div class="switch-group">
+                                                <label class="switch"><input type="checkbox" id="remoteConfigSubscriptionExtensionEnabled"><span class="slider"></span></label>
+                                                <span id="remoteConfigSubscriptionExtensionEnabledLabel">关闭</span>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">关闭后保留配置内容，但客户端不会将其并入主订阅。</div>
+                                    </div>
+                                    <div id="remoteConfigSubscriptionExtensionFields" style="display:none;">
+                                    <div class="form-group">
+                                        <label>附加订阅地址</label>
+                                        <textarea id="remoteConfigSubscriptionExtensionLinksInput" class="client-proxy-links-input" spellcheck="false" placeholder="每行一个订阅地址，例如：&#10;https://example.com/subscribe/config.yaml"></textarea>
+                                        <div class="help-text">每行一个完整订阅地址；不填写 interval，客户端会跟随主订阅刷新。</div>
+                                        <div class="client-proxy-import-actions">
+                                            <button type="button" class="btn btn-primary" id="remoteConfigSubscriptionExtensionLoadBtn">读取订阅节点</button>
+                                            <span class="client-proxy-import-status" id="remoteConfigSubscriptionExtensionLoadStatus"></span>
+                                        </div>
+                                        <div id="remoteConfigSubscriptionExtensionSubscriptionNodesContainer" style="margin-top:14px;"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>附加订阅节点名称筛选</label>
+                                        <input type="text" id="remoteConfigSubscriptionExtensionFilterInput" placeholder="例如：香港|日本|韩国">
+                                        <div class="help-text">可选。按节点名称正则筛选，只有名称匹配的订阅节点会并入主订阅；留空表示附加全部节点。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>附加节点分享链接</label>
+                                        <textarea id="remoteConfigSubscriptionExtensionNodesInput" class="client-proxy-links-input" spellcheck="false" placeholder="每行一个节点分享链接，也支持整段 Base64 编码链接列表"></textarea>
+                                        <div class="help-text">支持 vless、vmess、trojan、ss、ssr、hysteria、hysteria2、tuic。</div>
+                                    </div>
+                                    <div class="client-proxy-import-actions">
+                                        <button type="button" class="btn btn-primary" id="remoteConfigSubscriptionExtensionImportBtn">解析并导入节点</button>
+                                        <button type="button" class="btn" id="remoteConfigSubscriptionExtensionClearBtn">清空节点输入</button>
+                                        <span class="client-proxy-import-status" id="remoteConfigSubscriptionExtensionStatus"></span>
+                                    </div>
+                                    <div id="remoteConfigSubscriptionExtensionNodesContainer" style="margin-top:14px;"></div>
+                                    </div>
+                                    </div>
+                                </div>
+
+                                <div class="section" style="margin-top: 20px; margin-bottom: 10px;">
+                                    <div class="section-title">订阅节点入口映射（nodeAddressReplacement）</div>
+                                    <div class="help-text" style="margin-bottom:14px;">将订阅节点中的虚假 server、Host、SNI 或 servername 映射为真实域名或 IP。默认关闭，映射为空时不做替换。</div>
+                                    <div class="switch-card" style="margin-bottom:12px;">
+                                        <div class="switch-card-header">
+                                            <span class="switch-card-label">启用订阅节点入口映射</span>
+                                            <div class="switch-group">
+                                                <label class="switch"><input type="checkbox" id="remoteConfigNodeAddressReplacementEnabled"><span class="slider"></span></label>
+                                                <span id="remoteConfigNodeAddressReplacementEnabledLabel">关闭</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>虚假入口到真实入口的映射（mappings）</label>
+                                        <div id="remoteConfigNodeAddressReplacementFields" style="display:none;">
+                                            <div id="remoteConfigNodeAddressReplacementRows"></div>
+                                            <button type="button" class="btn btn-primary" id="addRemoteConfigNodeAddressReplacementBtn" style="margin-top:10px;">+ 添加映射</button>
+                                            <div class="help-text">左侧填写订阅中的虚假入口，右侧填写真实域名或 IP。只替换节点内匹配的地址字段，不改节点名称、密码或规则。</div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="section" style="margin-top: 20px; margin-bottom: 10px;">
                                     <div class="section-title">OSS 在线客服配置（onlineSupport）</div>
-                                    <div class="help-text" style="margin-bottom:14px;">新客户端从 OSS 的 remote.config.json 读取客服配置，这里会写入 <code>onlineSupport</code> 数组。
+                                    <div class="help-text" style="margin-bottom:14px;">React 客户端从 OSS 的 remote.config.json 读取客服配置，这里会写入 <code>onlineSupport</code> 数组。
                                         登录页、注册页是否显示客服入口由构建期开关决定，请到「自定义功能 → 显示登录注册页客服入口」配置；客户端不读 OSS 里的该字段。</div>
                                     <div id="remoteConfigSupportContainer"></div>
                                     <div class="remote-config-actions" id="remoteConfigSupportActions" style="margin-top:10px; margin-bottom:10px;">
@@ -4174,7 +4390,7 @@
                             <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
                                 <div style="display:flex; flex-direction:column; gap:4px; min-width:0;">
                                     <div style="color:#aaa; font-size:12px;">我的打包记录</div>
-                                    <div style="color:#666; font-size:11px;">老客户端和新客户端共用最近 3 条记录，删除时会同步删除 GitHub 打包产物</div>
+                                    <div style="color:#666; font-size:11px;">Flutter 与 React 客户端共用最近 3 条记录，删除时会同步删除 GitHub 打包产物</div>
                                 </div>
                                 <button type="button" class="btn btn-secondary" id="myBuildRecordsToggleBtn" onclick="toggleMyBuildRecordsPanel()" style="padding:6px 10px; font-size:12px; white-space:nowrap;">展开</button>
                             </div>
@@ -4320,7 +4536,7 @@
             if (isNexGenClient()) {
                 return '当前打包客户端：NexGen Client React。左侧配置、远程 OSS/远程配置源、订阅、客服等仍使用完整编辑器；软件打包使用所选源码分支的 NexGen React 客户端流程。';
             }
-            return '当前打包客户端：Xboard-Mihomo_sub。使用老客户端完整配置编辑器和 Mihomo / Xray 打包流程。';
+            return '当前打包客户端：Xboard-Mihomo_sub。使用 Flutter 架构完整配置编辑器和 Mihomo / Xray 打包流程。';
         }
 
         function syncClientModeUI() {
@@ -4340,11 +4556,11 @@
             }
             var buildBtn = document.getElementById('buildBtn');
             if (buildBtn) {
-                buildBtn.textContent = isNexGenClient() ? '开始打包新客户端' : '开始打包';
+                buildBtn.textContent = isNexGenClient() ? '开始打包 React 客户端' : '开始打包';
             }
             var buildStatus = document.getElementById('buildStatus');
             if (buildStatus) {
-                buildStatus.textContent = isNexGenClient() ? '选择平台和版本后点击“开始打包新客户端”' : '选择平台和版本后点击“开始打包”';
+                buildStatus.textContent = isNexGenClient() ? '选择平台和版本后点击“开始打包 React 客户端”' : '选择平台和版本后点击“开始打包”';
             }
         }
 
@@ -5699,6 +5915,7 @@
         var currentUserInfo = null;
         var customTrafficBarAccessVerified = false;
         var customUIColorAvailableFeatures = [];
+        var customUIColorConfigLoaded = false;
         var customUIColorFeatureKeys = [
             'traffic_bar_color',
             'notice_dialog_icon_background_color',
@@ -5727,7 +5944,8 @@
             'sspanel_node_page_parse',
             'registration_invite',
             'custom_invite_link',
-            'cloud_dispatch'
+            'cloud_dispatch',
+            'quote_purchase'
         ];
         var customUIColorFields = [
             { key: 'traffic_bar_color', id: 'customTrafficBarColor', label: '流量条自定义', defaultColor: '#00897B', placeholder: '#00897B', help: '留空则继续使用默认流量条颜色；如需透明度，也可以手动输入 #AARRGGBB。' },
@@ -5953,13 +6171,13 @@
                 '</div>',
                 '<div class="switch-card" data-custom-feature-key="hide_dedicated_nodes" style="margin-top:16px;">',
                     '<div class="switch-card-header">',
-                        '<span class="switch-card-label">显示专用节点（仅新客户端）</span>',
+                        '<span class="switch-card-label">显示专用节点（仅 React 客户端）</span>',
                         '<div class="switch-group">',
                             '<label class="switch"><input type="checkbox" id="customHideDedicatedNodes"><span class="slider"></span></label>',
                             '<span id="customHideDedicatedNodesLabel">关闭</span>',
                         '</div>',
                     '</div>',
-                    '<div class="help-text">默认关闭并隐藏专用节点页面；开启后，新客户端会显示专用节点入口和页面。旧客户端不会应用此功能。</div>',
+                    '<div class="help-text">默认关闭并隐藏专用节点页面；开启后，React 客户端会显示专用节点入口和页面。Flutter 客户端不会应用此功能。</div>',
                 '</div>',
                 '<div class="switch-card" data-custom-feature-key="hide_current_node_label" style="margin-top:16px;">',
                     '<div class="switch-card-header">',
@@ -6000,6 +6218,16 @@
                         '</div>',
                     '</div>',
                     '<div class="help-text">开启后，老板 UI 和新 UI 的套餐卡片、购买详情均隐藏速率信息。</div>',
+                '</div>',
+                '<div class="switch-card" data-custom-feature-key="quote_purchase" style="margin-top:16px;">',
+                    '<div class="switch-card-header">',
+                        '<span class="switch-card-label">服务端报价折抵购买</span>',
+                        '<div class="switch-group">',
+                            '<label class="switch"><input type="checkbox" id="customQuotePurchase"><span class="slider"></span></label>',
+                            '<span id="customQuotePurchaseLabel">关闭</span>',
+                        '</div>',
+                    '</div>',
+                    '<div class="help-text">开启后客户端购买前请求 /user/shop/quote 取报价与令牌，购买弹窗显示服务端计算的旧套餐折抵、手续费、余额抵扣与还需支付，下单时携带 conversion_token；仅 SSPanel 面板生效。关闭则保持原有购买流程。</div>',
                 '</div>',
                 '<div class="switch-card" data-custom-feature-key="sspanel_node_page_parse" style="margin-top:16px;">',
                     '<div class="switch-card-header">',
@@ -6143,12 +6371,121 @@
             return getVisibleCustomUIColorFeatureKeys().indexOf(featureKey) !== -1;
         }
 
+        function findCustomFeatureSection(featureKey) {
+            var result = null;
+            document.querySelectorAll('[data-custom-feature-key]').forEach(function(section) {
+                if (String(section.getAttribute('data-custom-feature-key') || '').trim() === featureKey) {
+                    result = section;
+                }
+            });
+            return result;
+        }
+
+        function getCustomFeatureDisplayName(featureKey, section) {
+            var label = section ? section.querySelector('.switch-card-label') : null;
+            return label && String(label.textContent || '').trim()
+                ? String(label.textContent || '').trim()
+                : featureKey;
+        }
+
+        function getCustomFeatureCurrentState(section) {
+            if (!customUIColorConfigLoaded) {
+                return { label: '已授权', tone: '', active: false };
+            }
+            var checkbox = section ? section.querySelector('.switch-card-header input[type="checkbox"]') : null;
+            if (checkbox) {
+                return checkbox.checked
+                    ? { label: '已开启', tone: 'active', active: true }
+                    : { label: '未开启', tone: 'pending', active: false };
+            }
+            var valueInput = section ? section.querySelector('input[type="text"]') : null;
+            var configured = !!(valueInput && String(valueInput.value || '').trim());
+            return configured
+                ? { label: '已配置', tone: 'active', active: true }
+                : { label: '待配置', tone: 'pending', active: false };
+        }
+
+        function focusCustomFeatureSection(featureKey) {
+            var section = findCustomFeatureSection(featureKey);
+            if (!section) return;
+            var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            section.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
+            section.classList.add('custom-feature-focus');
+            window.setTimeout(function() {
+                section.classList.remove('custom-feature-focus');
+            }, 1400);
+        }
+
+        function refreshCustomFeatureOverview() {
+            var title = document.getElementById('customFeatureOverviewTitle');
+            var kicker = document.getElementById('customFeatureOverviewKicker');
+            var authorizedCount = document.getElementById('customFeatureAuthorizedCount');
+            var activeCount = document.getElementById('customFeatureActiveCount');
+            var pendingCount = document.getElementById('customFeaturePendingCount');
+            var list = document.getElementById('customFeatureOverviewList');
+            if (!title || !kicker || !authorizedCount || !activeCount || !pendingCount || !list) return;
+
+            var features = getVisibleCustomUIColorFeatureKeys().map(function(featureKey) {
+                var section = findCustomFeatureSection(featureKey);
+                if (!section) return null;
+                return {
+                    key: featureKey,
+                    name: getCustomFeatureDisplayName(featureKey, section),
+                    state: getCustomFeatureCurrentState(section)
+                };
+            }).filter(Boolean);
+            var enabledCount = features.filter(function(feature) { return feature.state.active; }).length;
+            var profileName = getSelectedCustomTrafficBarProfile() ? getSelectedProfileDisplayName() : '未选择档案';
+
+            kicker.textContent = profileName + (isAdminSession() ? ' · 管理员可用功能' : ' · 当前对接码');
+            title.textContent = customUIColorConfigLoaded
+                ? '已授权 ' + features.length + ' 项，其中 ' + enabledCount + ' 项已开启或配置'
+                : '已授权 ' + features.length + ' 项，读取配置后显示启用状态';
+            authorizedCount.textContent = String(features.length);
+            activeCount.textContent = customUIColorConfigLoaded ? String(enabledCount) : '--';
+            pendingCount.textContent = customUIColorConfigLoaded ? String(features.length - enabledCount) : '--';
+            list.replaceChildren();
+
+            features.forEach(function(feature) {
+                var item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'custom-feature-overview-item';
+                item.setAttribute('aria-label', feature.name + '，' + feature.state.label + '，点击定位到配置项');
+                item.addEventListener('click', function() {
+                    focusCustomFeatureSection(feature.key);
+                });
+
+                var name = document.createElement('span');
+                name.className = 'custom-feature-overview-name';
+                name.textContent = feature.name;
+                name.title = feature.name;
+
+                var state = document.createElement('span');
+                state.className = 'custom-feature-overview-state' + (feature.state.tone ? ' ' + feature.state.tone : '');
+                state.textContent = feature.state.label;
+
+                item.appendChild(name);
+                item.appendChild(state);
+                list.appendChild(item);
+            });
+        }
+
+        function getCustomFeatureOverviewStatusText(prefix) {
+            var features = getVisibleCustomUIColorFeatureKeys().map(function(featureKey) {
+                var section = findCustomFeatureSection(featureKey);
+                return section ? getCustomFeatureCurrentState(section) : null;
+            }).filter(Boolean);
+            var activeCount = features.filter(function(state) { return state.active; }).length;
+            return prefix + '：已授权 ' + features.length + ' 项，已开启或配置 ' + activeCount + ' 项';
+        }
+
         function syncCustomUIColorFeatureVisibility() {
             var visibleFeatureKeys = getVisibleCustomUIColorFeatureKeys();
             document.querySelectorAll('[data-custom-feature-key]').forEach(function(section) {
                 var featureKey = String(section.getAttribute('data-custom-feature-key') || '').trim();
                 section.style.display = visibleFeatureKeys.indexOf(featureKey) !== -1 ? 'block' : 'none';
             });
+            refreshCustomFeatureOverview();
         }
 
         function syncCustomTrafficBarAccessView() {
@@ -6256,6 +6593,7 @@
                 'customHidePageHeaderText',
                 'customHidePurchaseCoupon',
                 'customHidePlanSpeed',
+                'customQuotePurchase',
                 'customSSPanelNodePageParseEnabled',
                 'customRegistrationInviteEnabled',
                 'customRegistrationInviteLinkEnabled',
@@ -6266,6 +6604,7 @@
                 if (!input) return;
                 input.addEventListener('change', function() {
                     syncCustomFeatureSwitchLabel(id);
+                    refreshCustomFeatureOverview();
                 });
                 syncCustomFeatureSwitchLabel(id);
             });
@@ -6335,6 +6674,7 @@
             setCustomFeatureSwitchValue('customHidePageHeaderText', !!data.hide_page_header_text);
             setCustomFeatureSwitchValue('customHidePurchaseCoupon', !!data.hide_purchase_coupon);
             setCustomFeatureSwitchValue('customHidePlanSpeed', !!data.hide_plan_speed);
+            setCustomFeatureSwitchValue('customQuotePurchase', !!data.quote_purchase);
             setCustomFeatureSwitchValue('customSSPanelNodePageParseEnabled', !!data.sspanel_node_page_parse_enabled);
             setCustomFeatureSwitchValue('customRegistrationInviteEnabled', !!data.registration_invite_enabled);
             setCustomFeatureSwitchValue('customRegistrationInviteLinkEnabled', !!data.registration_invite_link_enabled);
@@ -6348,6 +6688,7 @@
             setCustomInputValue('customCloudDispatchQuerySecret', data.cloud_dispatch_query_secret || '');
             setCustomInputValue('customCloudDispatchAutoIntervalMinutes', data.cloud_dispatch_auto_interval_minutes || 5);
             setCustomInputValue('customCloudDispatchFallbackRetryMinutes', data.cloud_dispatch_fallback_retry_minutes || 5);
+            customUIColorConfigLoaded = true;
             syncCustomUIColorFeatureVisibility();
         }
 
@@ -6405,10 +6746,11 @@
                 applyCustomTrafficBarConfig(data);
                 sessionStorage.setItem(CUSTOM_TRAFFIC_BAR_CODE_STORAGE_KEY, integrationCode);
                 syncCustomTrafficBarAccessView();
-                setCustomTrafficBarStatus('对接码验证通过，已显示当前绑定的自定义功能', 'success');
+                setCustomTrafficBarStatus(getCustomFeatureOverviewStatusText('对接码验证通过'), 'success');
             } catch (e) {
                 customTrafficBarAccessVerified = false;
                 customUIColorAvailableFeatures = [];
+                customUIColorConfigLoaded = false;
                 syncCustomTrafficBarAccessView();
                 setCustomTrafficBarStatus('验证失败: ' + e.message, 'error');
             }
@@ -6450,11 +6792,12 @@
                     customTrafficBarAccessVerified = true;
                     syncCustomTrafficBarAccessView();
                 }
-                setCustomTrafficBarStatus('已读取当前自定义功能配置', 'success');
+                setCustomTrafficBarStatus(getCustomFeatureOverviewStatusText('已读取当前配置'), 'success');
             } catch (e) {
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
                     customUIColorAvailableFeatures = [];
+                    customUIColorConfigLoaded = false;
                     syncCustomTrafficBarAccessView();
                 }
                 setCustomTrafficBarStatus('读取失败: ' + e.message, 'error');
@@ -6490,6 +6833,7 @@
             var hidePageHeaderText = getCustomInputChecked('customHidePageHeaderText');
             var hidePurchaseCoupon = getCustomInputChecked('customHidePurchaseCoupon');
             var hidePlanSpeed = getCustomInputChecked('customHidePlanSpeed');
+            var quotePurchase = getCustomInputChecked('customQuotePurchase');
             var sspanelNodePageParseEnabled = getCustomInputChecked('customSSPanelNodePageParseEnabled');
             var registrationInviteEnabled = getCustomInputChecked('customRegistrationInviteEnabled');
             var registrationInviteMode = getCustomInputValue('customRegistrationInviteMode') || 'default_when_empty';
@@ -6585,6 +6929,7 @@
                     hide_page_header_text: hidePageHeaderText,
                     hide_purchase_coupon: hidePurchaseCoupon,
                     hide_plan_speed: hidePlanSpeed,
+                    quote_purchase: quotePurchase,
                     sspanel_node_page_parse_enabled: sspanelNodePageParseEnabled,
                     registration_invite_enabled: registrationInviteEnabled,
                     registration_invite_mode: registrationInviteMode,
@@ -6611,11 +6956,12 @@
                 if (profileName === getSelectedCustomTrafficBarProfile()) {
                     await loadProfile();
                 }
-                setCustomTrafficBarStatus('自定义功能配置已保存', 'success');
+                setCustomTrafficBarStatus(getCustomFeatureOverviewStatusText('自定义功能配置已保存'), 'success');
             } catch (e) {
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
                     customUIColorAvailableFeatures = [];
+                    customUIColorConfigLoaded = false;
                     syncCustomTrafficBarAccessView();
                 }
                 setCustomTrafficBarStatus('保存失败: ' + e.message, 'error');
@@ -6658,6 +7004,7 @@
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
                     customUIColorAvailableFeatures = [];
+                    customUIColorConfigLoaded = false;
                 }
                 syncCustomTrafficBarProfileName();
                 updateCustomTrafficBarCodeHint();
@@ -6734,6 +7081,8 @@
                 syncCustomTrafficBarProfileName();
                 syncDerivedProviderName({ updateRemotePreview: true });
                 setCustomTrafficBarStatus('', 'info');
+                customUIColorConfigLoaded = false;
+                refreshCustomFeatureOverview();
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
                     customUIColorAvailableFeatures = [];
@@ -6750,6 +7099,8 @@
                 if (!isAdminSession()) {
                     customTrafficBarAccessVerified = false;
                     customUIColorAvailableFeatures = [];
+                    customUIColorConfigLoaded = false;
+                    refreshCustomFeatureOverview();
                     syncCustomTrafficBarAccessView();
                 }
             });
@@ -6765,17 +7116,21 @@
                 if (picker) {
                     picker.addEventListener('input', function() {
                         syncCustomUIColorTextFromPicker(field.id);
+                        refreshCustomFeatureOverview();
                     });
                     picker.addEventListener('change', function() {
                         syncCustomUIColorTextFromPicker(field.id);
+                        refreshCustomFeatureOverview();
                     });
                 }
                 if (input) {
                     input.addEventListener('input', function() {
                         syncCustomUIColorPickerFromText(field.id);
+                        refreshCustomFeatureOverview();
                     });
                     input.addEventListener('change', function() {
                         syncCustomUIColorPickerFromText(field.id);
+                        refreshCustomFeatureOverview();
                     });
                 }
             });
@@ -7004,13 +7359,13 @@
                 var trimmed = line.trim();
                 var indent = (line.match(/^(\s*)/) || [''])[0].length;
 
-                // 顶层 nexgen.online_support 是 OSS 客服条目，新客户端改为从远程配置读取，这里删掉。
+                // 顶层 nexgen.online_support 是 OSS 客服条目，React 客户端改为从远程配置读取，这里删掉。
                 if (indent === 2 && /^(online_support):\s*$/.test(trimmed)) {
                     stripYamlBlock(lines, i, indent);
                     i--;
                     continue;
                 }
-                // ui 下只清掉新客户端不支持的键；
+                // ui 下只清掉 React 客户端不支持的键；
                 // ui.online_support.auth_pages.show_button 是构建期的认证页客服入口开关，必须保留。
                 if (indent === 4 && /^(custom_colors|customColors|home_panel_default_layout|subscription_status_popup|subscriptionStatusPopup|show_ip_info|showIpInfo):\s*(?:.*)$/.test(trimmed)) {
                     stripYamlBlock(lines, i, indent);
@@ -9150,6 +9505,12 @@
             document.getElementById('remoteConfigClientProxyLinksInput').value = '';
             setRemoteConfigClientProxyImportStatus('', '');
             renderRemoteConfigClientProxyNodes();
+            setRemoteConfigClientProxyFieldsVisible(enabled);
+        }
+
+        function setRemoteConfigClientProxyFieldsVisible(visible) {
+            var fields = document.getElementById('remoteConfigClientProxyFields');
+            if (fields) fields.style.display = visible ? '' : 'none';
         }
 
         // 归一化单条线路：缺 type/server/port 的直接丢弃，与两个客户端的规则一致。
@@ -9358,6 +9719,333 @@
             }
         }
 
+        var remoteConfigSubscriptionExtensionNodes = [];
+
+        var remoteConfigSubscriptionExtensionSelections = [];
+
+        function setRemoteConfigSubscriptionExtensionLoadStatus(message, tone) {
+            var el = document.getElementById('remoteConfigSubscriptionExtensionLoadStatus');
+            if (!el) return;
+            el.textContent = message || '';
+            el.className = 'client-proxy-import-status' + (tone ? ' ' + tone : '');
+        }
+
+        function renderRemoteConfigSubscriptionExtensionSubscriptionNodes() {
+            var container = document.getElementById('remoteConfigSubscriptionExtensionSubscriptionNodesContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            remoteConfigSubscriptionExtensionSelections.forEach(function(entry, index) {
+                var row = document.createElement('label');
+                row.className = 'client-proxy-node';
+                row.style.display = 'block';
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = entry.selected !== false;
+                checkbox.style.marginRight = '10px';
+                checkbox.addEventListener('change', function() {
+                    entry.selected = checkbox.checked;
+                    handleRemoteConfigFormInput();
+                });
+                var text = document.createElement('span');
+                text.textContent = (entry.name || ('节点 ' + (index + 1))) + ' · ' + (entry.type || 'unknown') + ' · ' + getRemoteConfigClientProxyNodeEndpoint(entry.node);
+                row.appendChild(checkbox);
+                row.appendChild(text);
+                container.appendChild(row);
+            });
+        }
+
+        function openRemoteConfigSubscriptionExtensionSelector() {
+            var overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:24px;';
+            var dialog = document.createElement('div');
+            dialog.style.cssText = 'width:min(760px,96vw);max-height:88vh;display:flex;flex-direction:column;background:#202033;border:1px solid rgba(0,212,255,.35);border-radius:12px;box-shadow:0 20px 70px rgba(0,0,0,.5);padding:20px;';
+            var title = document.createElement('h3');
+            title.textContent = '选择要附加的订阅节点';
+            title.style.margin = '0 0 14px';
+            var list = document.createElement('div');
+            list.style.cssText = 'overflow:auto;flex:1;min-height:120px;max-height:58vh;';
+            remoteConfigSubscriptionExtensionSelections.forEach(function(entry, index) {
+                var row = document.createElement('label');
+                row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.08);color:#edf6ff;cursor:pointer;';
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = entry.selected !== false;
+                checkbox.addEventListener('change', function() { entry.selected = checkbox.checked; });
+                var text = document.createElement('span');
+                text.textContent = (entry.name || ('节点 ' + (index + 1))) + ' · ' + (entry.type || 'unknown') + ' · ' + getRemoteConfigClientProxyNodeEndpoint(entry.node);
+                row.appendChild(checkbox);
+                row.appendChild(text);
+                list.appendChild(row);
+            });
+            var actions = document.createElement('div');
+            actions.style.cssText = 'display:flex;justify-content:flex-end;gap:10px;margin-top:16px;';
+            var cancel = document.createElement('button');
+            cancel.type = 'button';
+            cancel.className = 'btn';
+            cancel.textContent = '取消';
+            var confirm = document.createElement('button');
+            confirm.type = 'button';
+            confirm.className = 'btn btn-primary';
+            confirm.textContent = '确定导入';
+            cancel.onclick = function() { overlay.remove(); };
+            confirm.onclick = function() {
+                overlay.remove();
+                renderRemoteConfigSubscriptionExtensionSubscriptionNodes();
+                handleRemoteConfigFormInput();
+                setRemoteConfigSubscriptionExtensionLoadStatus('已导入 ' + remoteConfigSubscriptionExtensionSelections.filter(function(entry) { return entry.selected !== false; }).length + ' 个节点。', 'success');
+            };
+            actions.appendChild(cancel);
+            actions.appendChild(confirm);
+            dialog.appendChild(title);
+            dialog.appendChild(list);
+            dialog.appendChild(actions);
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+        }
+
+        async function loadRemoteConfigSubscriptionNodes() {
+            var urls = String(document.getElementById('remoteConfigSubscriptionExtensionLinksInput').value || '').split(/\r?\n/).map(function(value) {
+                return value.trim();
+            }).filter(Boolean);
+            if (urls.length === 0) {
+                setRemoteConfigSubscriptionExtensionLoadStatus('请先填写订阅地址', 'error');
+                return;
+            }
+            var button = document.getElementById('remoteConfigSubscriptionExtensionLoadBtn');
+            button.disabled = true;
+            setRemoteConfigSubscriptionExtensionLoadStatus('正在读取订阅节点...', '');
+            try {
+                var loaded = [];
+                for (var i = 0; i < urls.length; i++) {
+                    var response = await api('POST', appendBuildClientQuery('/subscription/parse'), { url: urls[i] });
+                    if (!response) continue;
+                    var data = await response.json();
+                    if (!response.ok) throw new Error(data.error || ('读取第 ' + (i + 1) + ' 个订阅失败'));
+                    (Array.isArray(data.nodes) ? data.nodes : []).forEach(function(node) {
+                        var normalized = normalizeRemoteConfigClientProxyNode(node);
+                        if (normalized) loaded.push({ url: urls[i], node: normalized, name: normalized.name || '', type: normalized.type, selected: true });
+                    });
+                }
+                remoteConfigSubscriptionExtensionSelections = loaded;
+                openRemoteConfigSubscriptionExtensionSelector();
+                setRemoteConfigSubscriptionExtensionLoadStatus('已读取 ' + loaded.length + ' 个节点，请在弹窗中选择。', 'success');
+            } catch (e) {
+                setRemoteConfigSubscriptionExtensionLoadStatus('读取失败: ' + e.message, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        function setRemoteConfigSubscriptionExtensionStatus(message, tone) {
+            var el = document.getElementById('remoteConfigSubscriptionExtensionStatus');
+            if (!el) return;
+            el.textContent = message || '';
+            el.className = 'client-proxy-import-status' + (tone ? ' ' + tone : '');
+        }
+
+        function setRemoteConfigSubscriptionExtensionFormValues(value) {
+            var source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+            var enabled = source.enabled === true;
+            var rawNodes = Array.isArray(source.nodes) ? source.nodes : (source.node ? [source.node] : []);
+            var rawSubscriptions = Array.isArray(source.subscriptions) ? source.subscriptions : (source.subscription ? [source.subscription] : []);
+            remoteConfigSubscriptionExtensionNodes = rawNodes.map(normalizeRemoteConfigClientProxyNode).filter(Boolean);
+            remoteConfigSubscriptionExtensionSelections = [];
+            document.getElementById('remoteConfigSubscriptionExtensionEnabled').checked = enabled;
+            document.getElementById('remoteConfigSubscriptionExtensionEnabledLabel').textContent = enabled ? '开启' : '关闭';
+            document.getElementById('remoteConfigSubscriptionExtensionLinksInput').value = rawSubscriptions.map(function(item) {
+                return typeof item === 'string' ? item : (item && (item.url || item.link || item.subscription) || '');
+            }).filter(Boolean).join('\n');
+            document.getElementById('remoteConfigSubscriptionExtensionFilterInput').value =
+                rawSubscriptions.length && typeof rawSubscriptions[0] === 'object'
+                    ? String(rawSubscriptions[0].filter || '').trim()
+                    : '';
+            document.getElementById('remoteConfigSubscriptionExtensionNodesInput').value = '';
+            setRemoteConfigSubscriptionExtensionStatus('', '');
+            renderRemoteConfigSubscriptionExtensionNodes();
+            renderRemoteConfigSubscriptionExtensionSubscriptionNodes();
+            setRemoteConfigSubscriptionExtensionFieldsVisible(enabled);
+        }
+
+        function setRemoteConfigSubscriptionExtensionFieldsVisible(visible) {
+            var fields = document.getElementById('remoteConfigSubscriptionExtensionFields');
+            if (fields) fields.style.display = visible ? '' : 'none';
+        }
+
+        function buildRemoteConfigSubscriptionExtension(requireComplete) {
+            var enabled = document.getElementById('remoteConfigSubscriptionExtensionEnabled').checked;
+            var urls = String(document.getElementById('remoteConfigSubscriptionExtensionLinksInput').value || '').split(/\r?\n/).map(function(value) {
+                return value.trim();
+            }).filter(Boolean);
+            var filter = String(document.getElementById('remoteConfigSubscriptionExtensionFilterInput').value || '').trim();
+            var nodes = remoteConfigSubscriptionExtensionNodes.map(normalizeRemoteConfigClientProxyNode).filter(Boolean);
+            if (requireComplete && enabled && urls.length === 0 && nodes.length === 0) {
+                throw new Error('勾选「启用附加订阅与节点」时，至少填写一个订阅地址或导入一个节点');
+            }
+            var subscriptions = urls.map(function(url, index) {
+                var item = { name: 'OSS 附加订阅 ' + (index + 1), url: url };
+                if (filter) item.filter = filter;
+                return item;
+            });
+            var selectedByUrl = {};
+            remoteConfigSubscriptionExtensionSelections.filter(function(entry) { return entry.selected !== false; }).forEach(function(entry) {
+                selectedByUrl[entry.url] = selectedByUrl[entry.url] || [];
+                if (entry.name) selectedByUrl[entry.url].push(entry.name);
+            });
+            var selectedUrls = Object.keys(selectedByUrl);
+            if (selectedUrls.length > 0) {
+                subscriptions = selectedUrls.map(function(url, index) {
+                    var names = selectedByUrl[url].map(function(name) {
+                        return String(name).replace(/[.*+?^$()|[\]{}]/g, '\\$&');
+                    });
+                    return { name: 'OSS 附加订阅 ' + (index + 1), url: url, filter: '^(?:' + names.join('|') + ')$' };
+                });
+            }
+            var subscriptionUsable = remoteConfigSubscriptionExtensionSelections.length > 0 ? selectedUrls.length > 0 : urls.length > 0;
+            if (requireComplete && enabled && !subscriptionUsable && nodes.length === 0) {
+                throw new Error('至少勾选一个订阅节点，或导入一个单独节点');
+            }
+            var usable = enabled && (subscriptionUsable || nodes.length > 0);
+            return { enabled: usable, nodes: nodes, subscriptions: subscriptions };
+        }
+
+        function renderRemoteConfigSubscriptionExtensionNodes() {
+            var container = document.getElementById('remoteConfigSubscriptionExtensionNodesContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            if (remoteConfigSubscriptionExtensionNodes.length === 0) {
+                var empty = document.createElement('div');
+                empty.className = 'client-proxy-empty';
+                empty.textContent = '还没有附加节点。';
+                container.appendChild(empty);
+                return;
+            }
+            remoteConfigSubscriptionExtensionNodes.forEach(function(node, index) {
+                var item = document.createElement('div');
+                item.className = 'client-proxy-node';
+                var title = document.createElement('div');
+                title.className = 'client-proxy-node-title';
+                title.textContent = '#' + (index + 1) + ' ' + getRemoteConfigClientProxyNodeLabel(node, index) + ' · ' + String(node.type || 'unknown');
+                var meta = document.createElement('div');
+                meta.className = 'client-proxy-node-meta';
+                meta.textContent = getRemoteConfigClientProxyNodeEndpoint(node);
+                var remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'client-proxy-node-remove';
+                remove.textContent = '删除';
+                remove.addEventListener('click', function() {
+                    remoteConfigSubscriptionExtensionNodes.splice(index, 1);
+                    renderRemoteConfigSubscriptionExtensionNodes();
+                    handleRemoteConfigFormInput();
+                });
+                item.appendChild(title);
+                item.appendChild(meta);
+                item.appendChild(remove);
+                container.appendChild(item);
+            });
+        }
+
+        async function importRemoteConfigSubscriptionExtensionLinks() {
+            var input = document.getElementById('remoteConfigSubscriptionExtensionNodesInput');
+            var links = String(input.value || '').trim();
+            if (!links) {
+                setRemoteConfigSubscriptionExtensionStatus('请先粘贴节点分享链接', 'error');
+                return;
+            }
+            var button = document.getElementById('remoteConfigSubscriptionExtensionImportBtn');
+            button.disabled = true;
+            setRemoteConfigSubscriptionExtensionStatus('正在解析节点链接...', '');
+            try {
+                var response = await api('POST', appendBuildClientQuery('/client-proxy/parse'), { links: links });
+                if (!response) return;
+                var data = await response.json();
+                if (!response.ok) throw new Error(data.error || '解析失败');
+                var imported = Array.isArray(data.nodes) ? data.nodes.map(normalizeRemoteConfigClientProxyNode).filter(Boolean) : [];
+                remoteConfigSubscriptionExtensionNodes = remoteConfigSubscriptionExtensionNodes.concat(imported);
+                renderRemoteConfigSubscriptionExtensionNodes();
+                input.value = '';
+                handleRemoteConfigFormInput();
+                var issues = Array.isArray(data.issues) ? data.issues : [];
+                setRemoteConfigSubscriptionExtensionStatus('已导入 ' + imported.length + ' 条节点' + (issues.length ? '；' + issues.join('；') : '。'), issues.length ? 'warning' : 'success');
+            } catch (e) {
+                setRemoteConfigSubscriptionExtensionStatus('解析失败: ' + e.message, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+
+        var remoteConfigNodeAddressReplacementRows = [];
+
+        function renderRemoteConfigNodeAddressReplacementRows() {
+            var container = document.getElementById('remoteConfigNodeAddressReplacementRows');
+            if (!container) return;
+            container.innerHTML = '';
+            remoteConfigNodeAddressReplacementRows.forEach(function(row, index) {
+                var wrapper = document.createElement('div');
+                wrapper.className = 'form-row-2';
+                wrapper.style.marginBottom = '10px';
+                var fakeInput = document.createElement('input');
+                fakeInput.type = 'text';
+                fakeInput.className = 'remote-node-address-fake';
+                fakeInput.placeholder = '虚假入口';
+                fakeInput.value = row.fake || '';
+                var realInput = document.createElement('input');
+                realInput.type = 'text';
+                realInput.className = 'remote-node-address-real';
+                realInput.placeholder = '真实域名或 IP';
+                realInput.value = row.real || '';
+                [fakeInput, realInput].forEach(function(input) {
+                    input.addEventListener('input', function() {
+                        remoteConfigNodeAddressReplacementRows[index] = { fake: fakeInput.value, real: realInput.value };
+                        handleRemoteConfigFormInput();
+                    });
+                });
+                wrapper.appendChild(fakeInput);
+                wrapper.appendChild(realInput);
+                container.appendChild(wrapper);
+            });
+        }
+
+        function setRemoteConfigNodeAddressReplacementFieldsVisible(visible) {
+            var fields = document.getElementById('remoteConfigNodeAddressReplacementFields');
+            if (fields) fields.style.display = visible ? '' : 'none';
+        }
+
+        function setRemoteConfigNodeAddressReplacementFormValues(value) {
+            var source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+            var mappings = source.mappings && typeof source.mappings === 'object' && !Array.isArray(source.mappings) ? source.mappings : {};
+            remoteConfigNodeAddressReplacementRows = Object.keys(mappings).map(function(fake) {
+                return { fake: fake, real: String(mappings[fake] || '') };
+            });
+            if (remoteConfigNodeAddressReplacementRows.length === 0) remoteConfigNodeAddressReplacementRows.push({ fake: '', real: '' });
+            var enabled = source.enabled === true;
+            document.getElementById('remoteConfigNodeAddressReplacementEnabled').checked = enabled;
+            document.getElementById('remoteConfigNodeAddressReplacementEnabledLabel').textContent = enabled ? '开启' : '关闭';
+            setRemoteConfigNodeAddressReplacementFieldsVisible(enabled);
+            renderRemoteConfigNodeAddressReplacementRows();
+        }
+
+        function addRemoteConfigNodeAddressReplacementRow() {
+            remoteConfigNodeAddressReplacementRows.push({ fake: '', real: '' });
+            renderRemoteConfigNodeAddressReplacementRows();
+            handleRemoteConfigFormInput();
+        }
+
+        function buildRemoteConfigNodeAddressReplacement(requireComplete) {
+            var enabled = document.getElementById('remoteConfigNodeAddressReplacementEnabled').checked;
+            var mappings = {};
+            remoteConfigNodeAddressReplacementRows.forEach(function(row) {
+                var fake = String(row.fake || '').trim();
+                var real = String(row.real || '').trim();
+                if (!fake && !real) return;
+                if (!fake || !real) {
+                    if (requireComplete) throw new Error('订阅节点入口映射必须同时填写虚假入口和真实入口');
+                    return;
+                }
+                mappings[fake] = real;
+            });
+            return { enabled: enabled, mappings: mappings };
+        }
 
         function getRemoteConfigFormData(requireComplete) {
             var panelTypeValue = String(document.getElementById('remoteConfigPanelType').value || '').trim();
@@ -9416,6 +10104,9 @@
             }
             // 内置代理由 OSS 下发，两个客户端读同一段配置。
             result.clientProxy = buildRemoteConfigClientProxy(!!requireComplete);
+            result.subscriptionExtension = buildRemoteConfigSubscriptionExtension(!!requireComplete);
+            // 订阅节点虚假入口映射由 OSS 下发，默认关闭；客户端按 mappings 替换节点内地址字段。
+            result.nodeAddressReplacement = buildRemoteConfigNodeAddressReplacement(!!requireComplete);
             return result;
         }
 
@@ -9473,6 +10164,8 @@
             renderRemoteConfigPanels();
             setRemoteConfigUpdateFormValues(getDefaultRemoteConfigUpdateItem(), { enabled: false });
             setRemoteConfigSupportFormValues([]);
+            setRemoteConfigSubscriptionExtensionFormValues({});
+            setRemoteConfigNodeAddressReplacementFormValues({});
 
             [panelTypeInput, websiteUrlInput].forEach(function(input) {
                 if (!input) return;
@@ -9509,9 +10202,48 @@
                 if (!el) return;
                 el.addEventListener('change', function() {
                     document.getElementById(id + 'Label').textContent = this.checked ? '开启' : '关闭';
+                    if (id === 'remoteConfigClientProxyEnabled') setRemoteConfigClientProxyFieldsVisible(this.checked);
                     handleRemoteConfigFormInput();
                 });
             });
+            var subscriptionExtensionImportBtn = document.getElementById('remoteConfigSubscriptionExtensionImportBtn');
+            if (subscriptionExtensionImportBtn) {
+                subscriptionExtensionImportBtn.addEventListener('click', importRemoteConfigSubscriptionExtensionLinks);
+            }
+            var subscriptionExtensionLoadBtn = document.getElementById('remoteConfigSubscriptionExtensionLoadBtn');
+            if (subscriptionExtensionLoadBtn) {
+                subscriptionExtensionLoadBtn.addEventListener('click', loadRemoteConfigSubscriptionNodes);
+            }
+            var subscriptionExtensionClearBtn = document.getElementById('remoteConfigSubscriptionExtensionClearBtn');
+            if (subscriptionExtensionClearBtn) {
+                subscriptionExtensionClearBtn.addEventListener('click', function() {
+                    document.getElementById('remoteConfigSubscriptionExtensionNodesInput').value = '';
+                    setRemoteConfigSubscriptionExtensionStatus('', '');
+                });
+            }
+            ['remoteConfigSubscriptionExtensionEnabled', 'remoteConfigSubscriptionExtensionLinksInput', 'remoteConfigSubscriptionExtensionFilterInput'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('input', handleRemoteConfigFormInput);
+                el.addEventListener('change', function() {
+                    var label = document.getElementById('remoteConfigSubscriptionExtensionEnabledLabel');
+                    if (label && id === 'remoteConfigSubscriptionExtensionEnabled') {
+                        label.textContent = this.checked ? '开启' : '关闭';
+                        setRemoteConfigSubscriptionExtensionFieldsVisible(this.checked);
+                    }
+                    handleRemoteConfigFormInput();
+                });
+            });
+            var nodeAddressEnabledInput = document.getElementById('remoteConfigNodeAddressReplacementEnabled');
+            var addNodeAddressRowButton = document.getElementById('addRemoteConfigNodeAddressReplacementBtn');
+            if (nodeAddressEnabledInput) {
+                nodeAddressEnabledInput.addEventListener('change', function() {
+                    document.getElementById('remoteConfigNodeAddressReplacementEnabledLabel').textContent = this.checked ? '开启' : '关闭';
+                    setRemoteConfigNodeAddressReplacementFieldsVisible(this.checked);
+                    handleRemoteConfigFormInput();
+                });
+            }
+            if (addNodeAddressRowButton) addNodeAddressRowButton.addEventListener('click', addRemoteConfigNodeAddressReplacementRow);
             if (fileInput) {
                 fileInput.addEventListener('change', handleRemoteConfigFileUpload);
             }
@@ -9819,6 +10551,8 @@
             var onlineSupportData = Array.isArray(data.onlineSupport) ? data.onlineSupport : data.online_support;
             setRemoteConfigSupportFormValues(Array.isArray(onlineSupportData) ? onlineSupportData : []);
             setRemoteConfigClientProxyFormValues(data.clientProxy || data.client_proxy);
+            setRemoteConfigSubscriptionExtensionFormValues(data.subscriptionExtension || data.subscription_extension);
+            setRemoteConfigNodeAddressReplacementFormValues(data.nodeAddressReplacement || data.node_address_replacement);
             remoteConfigEncryptedData = '';
             renderRemoteConfigPanels();
             syncAllCustomSelects(document);
@@ -10288,7 +11022,7 @@
         // 读取订阅域名列表；档案里只有旧的单值键时按单项处理，便于旧档案平滑迁移。
         function readCustomSubscribeDomains(yaml) {
             var subscriptionBlock = extractNamedYamlBlock(yaml, 'subscription');
-            // custom_subscribe_domains 是老客户端档案被克隆成新客户端档案时可能残留的写法。
+            // custom_subscribe_domains 是 Flutter 档案被克隆成 React 档案时可能残留的写法。
             var domains = parseYamlBlockStringList(subscriptionBlock, 'custom_domains');
             if (domains.length === 0) {
                 domains = parseYamlBlockStringList(subscriptionBlock, 'custom_subscribe_domains');

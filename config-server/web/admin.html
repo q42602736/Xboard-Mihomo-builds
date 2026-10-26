@@ -1355,7 +1355,7 @@
                         <select id="renameProfileClient" onchange="renderRenameProfileSelect()">
                             <option value="all">全部项目</option>
                             <option value="xboard_mihomo_sub">旧版客户端</option>
-                            <option value="nexgen_react">NexGen 客户端</option>
+                            <option value="nexgen_react">React 架构</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -1377,7 +1377,7 @@
                     <span style="font-size:12px;color:#666;">按显示名分组列出重复档案（含历史上自动加后缀产生的），并显示各档案被多少激活码绑定。</span>
                 </div>
                 <div id="duplicateProfilesResult" style="margin-top:12px;"></div>
-                <div style="font-size:12px;color:#666;margin-top:-8px;">选择“全部项目”会同步重命名新旧客户端中存在的同名档案；选择单个项目则只重命名对应项目档案。绑定关系、打包记录和档案资源历史会同步更新。</div>
+                <div style="font-size:12px;color:#666;margin-top:-8px;">选择“全部项目”会同步重命名两种架构中存在的同名档案；选择单个项目则只重命名对应项目档案。绑定关系、打包记录和档案资源历史会同步更新。</div>
             </div>
 
             <div class="panel">
@@ -1420,7 +1420,7 @@
                 <div class="form-group">
                     <label>允许客户端（不选择表示全部客户端可访问）</label>
                     <div id="codeAllowedClients" class="platform-permission-grid"></div>
-                    <div style="font-size:12px;color:#666;margin-top:5px;">可限制激活码只显示和访问老客户端或新客户端。</div>
+                    <div style="font-size:12px;color:#666;margin-top:5px;">可限制激活码只显示和访问 Flutter 架构或 React 架构客户端。</div>
                 </div>
                 <div class="form-group">
                     <label>允许打包平台（不选择表示全部平台可打包）</label>
@@ -1539,7 +1539,7 @@
                         <label>客户端</label>
                         <select id="buildAuditClientFilter">
                             <option value="">全部客户端</option>
-                            <option value="xboard_mihomo_sub">老客户端</option>
+                            <option value="xboard_mihomo_sub">Flutter 架构</option>
                             <option value="nexgen_react">NexGen 客户端</option>
                         </select>
                     </div>
@@ -2101,7 +2101,7 @@
             try {
                 var response = await api('GET', '/admin/build-records/' + encodeURIComponent(recordID) + '/oss-diff');
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
                 if (!response.ok) {
                     throw new Error(data.error || '获取 OSS 变化失败');
                 }
@@ -2337,7 +2337,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password: password })
                 });
-                var data = await response.json();
+                var data = await readApiJson(response);
                 if (!response.ok) {
                     throw new Error(data.error || '登录失败');
                 }
@@ -2399,6 +2399,20 @@
             return response;
         }
 
+        // 读取接口响应。后端处理过慢时，反向代理（nginx / Cloudflare）会先返回
+        // HTTP 504/502 的 HTML 错误页，此时 response.json() 只会抛出
+        // "Unexpected token '<', "<!DOCTYPE "... is not valid JSON"，看不出真实原因。
+        // 这里统一转成可判断的提示：请求很可能已在后台完成，刷新列表确认后再决定是否重试。
+        async function readApiJson(response) {
+            var text = await response.text();
+            if (!text) return {};
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                throw new Error('服务端返回了非 JSON 响应（HTTP ' + response.status + '），通常是反向代理等待后端超时；该操作可能已在后台完成，请刷新列表确认，避免重复提交。');
+            }
+        }
+
         function switchTab(name) {
             document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
             document.querySelectorAll('.tab-page').forEach(function(p) { p.classList.remove('active'); });
@@ -2437,11 +2451,11 @@
             { value: 'openwrt', label: '软路由' },
             { value: 'macos-arm64', label: 'macOS ARM64' },
             { value: 'macos-amd64', label: 'macOS AMD64' },
-            { value: 'ios', label: 'iOS 巨魔 IPA' }
+            { value: 'ios', label: 'iOS（巨魔版 + 待签名版）' }
         ];
         var buildClientCatalog = [
-            { value: 'xboard_mihomo_sub', label: '老客户端 Xboard-Mihomo_sub', shortLabel: '老客户端' },
-            { value: 'nexgen_react', label: '新客户端 NexGen Client React', shortLabel: '新客户端' }
+            { value: 'xboard_mihomo_sub', label: 'Flutter 架构 Xboard-Mihomo_sub', shortLabel: 'Flutter 架构' },
+            { value: 'nexgen_react', label: 'React 架构 NexGen Client React', shortLabel: 'React 架构' }
         ];
 
         function getProfileKey(profile) {
@@ -2525,10 +2539,12 @@
             { key: 'hide_page_header_text', label: '隐藏页面顶部标题文案' },
             { key: 'hide_purchase_coupon', label: '隐藏购买页优惠码' },
             { key: 'hide_plan_speed', label: '隐藏购买套餐速率' },
+            { key: 'use_classic_rail_layout', label: 'Flutter 经典侧栏布局' },
             { key: 'cloud_dispatch', label: '云端调度' },
             { key: 'sspanel_node_page_parse', label: 'SSPanel 节点页面解析' },
             { key: 'registration_invite', label: '注册邀请绑定' },
-            { key: 'custom_invite_link', label: '自定义邀请链接' }
+            { key: 'custom_invite_link', label: '自定义邀请链接' },
+            { key: 'quote_purchase', label: '服务端报价折抵购买' }
         ];
 
         function escapeHtml(value) {
@@ -2713,7 +2729,7 @@
         async function loadProfilesForClient(client) {
             var response = await api('GET', '/profiles?light=1&client=' + encodeURIComponent(client));
             if (!response) return [];
-            var data = await response.json();
+            var data = await readApiJson(response);
             if (!response.ok) {
                 throw new Error((data && data.error) || '加载档案列表失败');
             }
@@ -3227,7 +3243,7 @@
                 'openwrt-arm64': '软路由',
                 'macos-arm64': 'macOS ARM64',
                 'macos-amd64': 'macOS AMD64',
-                'ios': 'iOS IPA'
+                'ios': 'iOS 双 IPA'
             };
             return Array.from(new Set(platforms.map(function(platform) {
                 return escapeHtml(shortLabelMap[platform] || platform);
@@ -3257,7 +3273,7 @@
             try {
                 var response = await api('GET', '/admin/profiles/duplicates');
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
                 if (!response.ok) {
                     throw new Error(data.error || '检测失败');
                 }
@@ -3365,7 +3381,7 @@
         }
 
         async function deleteDuplicateProfile(client, key, boundCodes) {
-            var message = '确定删除档案 "' + key + '" 吗？该操作会从 GitHub 仓库里删除对应文件（新旧客户端里同名的那份都会删）。';
+            var message = '确定删除档案 "' + key + '" 吗？该操作会从 GitHub 仓库里删除对应文件（两种架构里同名的那份都会删）。';
             if (boundCodes > 0) {
                 message += '\n\n它正被 ' + boundCodes + ' 个激活码绑定，删除后这些绑定会自动从激活码里移除。';
             }
@@ -3376,7 +3392,7 @@
             try {
                 var response = await api('DELETE', '/profiles/' + encodeURIComponent(key) + '?client=' + encodeURIComponent(client));
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
                 if (!response.ok) {
                     throw new Error(data.error || '删除失败');
                 }
@@ -3434,7 +3450,7 @@
                     new_name: newName
                 });
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
                 if (!response.ok) {
                     throw new Error(data.error || '重命名失败');
                 }
@@ -3528,7 +3544,7 @@
             try {
                 var response = await api('GET', '/admin/codes');
                 if (!response) return;
-                var codes = await response.json();
+                var codes = await readApiJson(response);
                 codesCache = Array.isArray(codes) ? codes : [];
                 renderBuildAuditCodeFilter();
                 var tbody = document.getElementById('codesTable');
@@ -3630,7 +3646,7 @@
                     is_active: !!isActive
                 });
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
                 if (!response.ok) {
                     throw new Error(data.error || actionText + '失败');
                 }
@@ -3844,7 +3860,7 @@
             try {
                 var response = await api('GET', '/admin/build-records?' + query.join('&'));
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
                 if (!response.ok) {
                     throw new Error(data.error || '加载打包审计记录失败');
                 }
@@ -3889,7 +3905,7 @@
                     expires_at: expiresAt
                 });
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
 
                 if (!response.ok) {
                     statusEl.className = 'status-msg error';
@@ -3949,7 +3965,7 @@
                     expires_at: expiresAt
                 });
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
 
                 if (!response.ok) {
                     statusEl.className = 'status-msg error';
@@ -3983,7 +3999,7 @@
                     allowed_clients: selectedClients
                 });
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
                 if (!response.ok) {
                     throw new Error(data.error || '批量更新失败');
                 }
@@ -4161,7 +4177,7 @@
                 listEl.appendChild(row);
             });
 
-            var hintLines = ['勾选的档案会从新旧客户端的 GitHub 仓库里删除（同名的那份都会删），并自动清理所有激活码里指向它的绑定。'];
+            var hintLines = ['勾选的档案会从两种架构的 GitHub 仓库里删除（同名的那份都会删），并自动清理所有激活码里指向它的绑定。'];
             if (options.unrestrictedCodes > 0) {
                 hintLines.push('还有 ' + options.unrestrictedCodes + ' 个激活码未限定档案（绑定为空），删除后它们可见的档案会变少。');
             }
@@ -4188,7 +4204,7 @@
                 }
                 var response = await api('DELETE', query);
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
                 if (!response.ok) {
                     throw new Error(data.error || '删除失败');
                 }
@@ -4222,7 +4238,7 @@
             try {
                 var response = await api('GET', '/admin/logs?limit=200');
                 if (!response) return;
-                var logs = await response.json();
+                var logs = await readApiJson(response);
                 var tbody = document.getElementById('logsTable');
 
                 if (!logs || logs.length === 0) {
@@ -4329,7 +4345,7 @@
             try {
                 var response = await api('GET', '/admin/github/api-stats');
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
                 if (!response.ok) {
                     throw new Error(data.error || '加载 GitHub API 统计失败');
                 }
@@ -4348,7 +4364,7 @@
             try {
                 var response = await api('GET', '/admin/settings');
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
                 document.getElementById('clientUpdatesLimit').value = data.client_updates_limit || 10;
                 customFeatureGroupsCache = normalizeCustomFeatureGroups(data.custom_feature_groups || []);
                 renderCustomFeatureGroups();
@@ -4381,7 +4397,7 @@
                     custom_feature_groups: customFeatureGroups
                 });
                 if (!response) return;
-                var data = await response.json();
+                var data = await readApiJson(response);
                 if (!response.ok) {
                     statusEl.className = 'status-msg error';
                     statusEl.textContent = data.error || '保存失败';
