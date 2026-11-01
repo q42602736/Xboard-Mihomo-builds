@@ -295,8 +295,11 @@ jobs:
           const catalog = [
             { platform: "windows-amd64", os: "windows-2022", family: "windows", arch: "amd64" },
             { platform: "windows-arm64", os: "windows-2022", family: "windows", arch: "arm64" },
+            // macos-14 已于 2026-11-02 退役，退役前的 brownout 会直接取消 job（不会分配 runner）。
+            // 这里固定 macos-15：macos-latest 指向 macOS 26 arm64，跨两个大版本会改变 Xcode 与
+            // 最低系统版本行为；macos-15 仍是受支持的 arm64 镜像，与 macos-15-intel 同代。
             { platform: "macos-amd64", os: "macos-15-intel", family: "macos", arch: "amd64" },
-            { platform: "macos-arm64", os: "macos-14", family: "macos", arch: "arm64" },
+            { platform: "macos-arm64", os: "macos-15", family: "macos", arch: "arm64" },
             { platform: "android", os: "ubuntu-latest", family: "android", arch: "" },
             { platform: "android-tv", os: "ubuntu-latest", family: "android", arch: "arm64+armv7" },
           ];
@@ -484,7 +487,7 @@ jobs:
 
       - name: Setup Java
         if: matrix.family == 'android'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
