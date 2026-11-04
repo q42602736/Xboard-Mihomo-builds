@@ -562,11 +562,28 @@ jobs:
         env:
           NEXGEN_ANDROID_TAURI_CLI_VERSION: '2.12.4'
         run: |
-          retry npm install --no-save --package-lock=false --ignore-scripts "@tauri-apps/cli@$NEXGEN_ANDROID_TAURI_CLI_VERSION"
-          node - <<'NODE'
-          const version = require("@tauri-apps/cli/package.json").version;
+          cli_install_dir="$(mktemp -d "$RUNNER_TEMP/nexgen-tauri-cli.XXXXXX")"
+          printf '{"private":true}\n' > "$cli_install_dir/package.json"
+          retry npm install --prefix "$cli_install_dir" --no-save --package-lock=false --ignore-scripts "@tauri-apps/cli@$NEXGEN_ANDROID_TAURI_CLI_VERSION"
+          NEXGEN_ANDROID_TAURI_CLI_DIR="$cli_install_dir" node - <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const isolatedCliPath = path.join(process.env.NEXGEN_ANDROID_TAURI_CLI_DIR, "node_modules", "@tauri-apps", "cli");
+          const version = JSON.parse(fs.readFileSync(path.join(isolatedCliPath, "package.json"), "utf8")).version;
           if (version !== process.env.NEXGEN_ANDROID_TAURI_CLI_VERSION) {
             throw new Error(`Android Tauri CLI 版本不符合预期：${version}`);
+          }
+          const localCliPath = path.resolve("node_modules", "@tauri-apps", "cli");
+          fs.rmSync(localCliPath, { recursive: true, force: true });
+          fs.symlinkSync(isolatedCliPath, localCliPath, "dir");
+          const lockedPackages = JSON.parse(fs.readFileSync("package-lock.json", "utf8")).packages;
+          for (const name of ["@tauri-apps/api", "@tauri-apps/plugin-log"]) {
+            const lockedVersion = lockedPackages[`node_modules/${name}`]?.version;
+            const installedVersion = JSON.parse(fs.readFileSync(path.join("node_modules", name, "package.json"), "utf8")).version;
+            if (!lockedVersion || installedVersion !== lockedVersion) {
+              throw new Error(`Android 依赖版本偏离锁文件：${name}，预期 ${lockedVersion}，实际 ${installedVersion}`);
+            }
+            console.log(`Android 依赖版本核对通过：${name}@${installedVersion}`);
           }
           console.log(`Android Tauri CLI 版本：${version}`);
           NODE
