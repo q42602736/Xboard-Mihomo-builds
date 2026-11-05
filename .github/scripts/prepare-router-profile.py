@@ -31,14 +31,17 @@ def prepare_profile(profile_path, source_dir, output_dir, profile_name):
     remote = mapping(xboard.get("remote_config"), "xboard.remote_config")
     subscription = mapping(xboard.get("subscription"), "xboard.subscription")
     settings = mapping(xboard.get("settings"), "xboard.settings")
+    ui = mapping(xboard.get("ui"), "xboard.ui")
     template_path = source_dir / "router/xboard-openclash/files/config.json.in"
     template = template_path.read_text(encoding="utf-8")
-    # 新版模板的 UA 和模式是未加引号的 JSON 值占位符，必须先填入合法字面量。
+    # 新版模板的 UA、模式和延迟优化使用 JSON 值占位符，必须先填入合法字面量。
     # 默认值与客户端订阅设置一致，随后由档案覆盖；旧版固定值模板保持兼容。
     for placeholder, default in (
         ("__XBOARD_SUBSCRIPTION_USER_AGENT__", ""),
         ("__XBOARD_EXCLUSIVE_USER_AGENT__", ""),
         ("__XBOARD_USE_EXCLUSIVE_MODE__", True),
+        ("__XBOARD_LATENCY_REDUCTION_ENABLED__", False),
+        ("__XBOARD_LATENCY_REDUCTION_VALUE__", 0),
     ):
         template = template.replace(placeholder, json.dumps(default))
     config = json.loads(template)
@@ -112,6 +115,25 @@ def prepare_profile(profile_path, source_dir, output_dir, profile_name):
             if not isinstance(value, bool):
                 raise ValueError(f"settings.{source_key} 必须是布尔值")
             config[target_key] = value
+
+    # 与 App 一致读取 ui.latency_reduction，兼容旧版直接填写百分比的写法。
+    latency = ui.get("latency_reduction")
+    if isinstance(latency, dict):
+        latency_enabled = latency.get("enabled", False)
+        latency_value = latency.get("value", 0)
+    else:
+        latency_value = latency
+        latency_enabled = isinstance(latency, int) and latency > 0
+    if latency_enabled is None:
+        latency_enabled = False
+    if latency_value is None:
+        latency_value = 0
+    if not isinstance(latency_enabled, bool):
+        raise ValueError("ui.latency_reduction.enabled 必须是布尔值")
+    if not isinstance(latency_value, int) or isinstance(latency_value, bool):
+        raise ValueError("ui.latency_reduction.value 必须是整数")
+    config["latency_reduction_enabled"] = latency_enabled
+    config["latency_reduction_value"] = max(0, min(90, latency_value))
 
     # 中文品牌名保留在界面中，包标识使用稳定的 ASCII 名称。
     package_slug = re.sub(r"[^a-z0-9-]", "", app_name.lower()).strip("-")
