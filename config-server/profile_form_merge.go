@@ -64,6 +64,7 @@ type ProfileFormState struct {
 	HideCurrentNodeLabel               bool                     `json:"hide_current_node_label"`
 	HidePageHeaderText                 bool                     `json:"hide_page_header_text"`
 	HidePurchaseCoupon                 *bool                    `json:"hide_purchase_coupon"`
+	QuotePurchase                      *bool                    `json:"quote_purchase"`
 	HidePlanSpeed                      bool                     `json:"hide_plan_speed"`
 	ShowIPInfo                         *bool                    `json:"show_ip_info"`
 	HomePanelDefaultLayout             string                   `json:"home_panel_default_layout"`
@@ -287,6 +288,11 @@ func mergeProfileYamlWithFormForRoot(baseYaml string, form ProfileFormState, roo
 		removeMapKeys(ui, "hidePurchaseCoupon")
 	}
 	setMapBoolValue(ui, "hide_plan_speed", form.HidePlanSpeed)
+	if form.QuotePurchase != nil {
+		purchase := ensureMapValueNode(profileRoot, "purchase")
+		setMapBoolValue(purchase, "quote_purchase", *form.QuotePurchase)
+		removeMapKeys(purchase, "quotePurchase")
+	}
 	showIPInfo := true
 	if form.ShowIPInfo != nil {
 		showIPInfo = *form.ShowIPInfo

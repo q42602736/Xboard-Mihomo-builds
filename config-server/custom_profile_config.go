@@ -438,8 +438,8 @@ func filterAllowedUIColorFeatureKeysForClient(featureKeys []string, client strin
 		if featureKey == customFeatureHideInvitePromotion || featureKey == customFeatureHideCurrentNodeLabel || featureKey == customFeatureHidePageHeaderText {
 			continue
 		}
-		// 服务端报价折抵购买只在新客户端生效，老客户端档案不暴露该开关。
-		if featureKey == customFeatureQuotePurchase {
+		// 报价购买支持 Flutter 和 React 客户端，其他客户端暂不暴露。
+		if featureKey == customFeatureQuotePurchase && client != buildClientLegacy {
 			continue
 		}
 		if client != buildClientLegacy {
@@ -708,7 +708,7 @@ func readProfileUIColorCustomConfig(yamlContent string) (UIColorCustomConfig, er
 		result.RegistrationInviteMode = registrationInviteModeDefaultWhenEmpty
 	}
 
-	// 服务端报价折抵购买：只有新客户端档案的 nexgen 根下才有 purchase 节点。
+	// 新旧客户端均从各自档案根下读取购买配置。
 	purchase := getMapValueNode(profileRoot, "purchase")
 	if purchase != nil {
 		if enabledNode := getMapValueNode(purchase, "quote_purchase"); enabledNode != nil {
@@ -809,13 +809,9 @@ func writeProfileUIColorCustomConfig(yamlContent string, config UIColorCustomCon
 	} else {
 		removeMapKeys(profileRoot, "settings")
 	}
-	// 服务端报价折抵购买只属于新客户端：老客户端档案（xboard 根）不写 purchase，
-	// 也不删除档案里可能已有的同名节点，避免误删历史数据。
-	if profileRootKey == "nexgen" {
-		purchase := ensureMapValueNode(profileRoot, "purchase")
-		setMapBoolValue(purchase, "quote_purchase", config.QuotePurchase)
-		removeMapKeys(purchase, "quotePurchase")
-	}
+	purchase := ensureMapValueNode(profileRoot, "purchase")
+	setMapBoolValue(purchase, "quote_purchase", config.QuotePurchase)
+	removeMapKeys(purchase, "quotePurchase")
 	setMapBoolValue(subscription, "sspanel_node_page_parse_enabled", config.SSPanelNodePageParseEnabled)
 	removeMapKeys(subscription, "sspanelNodePageParseEnabled")
 	setMapBoolValue(registrationInvite, "enabled", config.RegistrationInviteEnabled)

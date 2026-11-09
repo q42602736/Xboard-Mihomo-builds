@@ -4106,6 +4106,16 @@
                                     </div>
                                     <div class="help-text">开启后，购买套餐页面默认隐藏优惠码使用区域及输入框。</div>
                                 </div>
+                                <div class="switch-card" data-custom-feature-key="quote_purchase" style="margin-top:16px;">
+                                    <div class="switch-card-header">
+                                        <span class="switch-card-label">服务端报价折抵购买</span>
+                                        <div class="switch-group">
+                                            <label class="switch"><input type="checkbox" id="customQuotePurchase"><span class="slider"></span></label>
+                                            <span id="customQuotePurchaseLabel">关闭</span>
+                                        </div>
+                                    </div>
+                                    <div class="help-text">开启后，Flutter 客户端的新旧界面按服务端报价显示折抵金额和补款，确认后购买。仅适用于已支持报价接口的 SSPanel/Metron 站点；保存后需重新打包安装。</div>
+                                </div>
                                 <div class="switch-card" data-custom-feature-key="hide_plan_speed" style="margin-top:16px;">
                                     <div class="switch-card-header">
                                         <span class="switch-card-label">隐藏购买套餐速率</span>
@@ -6506,6 +6516,7 @@
             setCustomFeatureSwitchValue('hideColorSchemeButton', !!data.hide_color_scheme_button);
             setCustomFeatureSwitchValue('hideOnlineSupportButton', !!data.hide_online_support_button);
             setCustomFeatureSwitchValue('hidePurchaseCoupon', !!data.hide_purchase_coupon);
+            setCustomFeatureSwitchValue('customQuotePurchase', !!data.quote_purchase);
             setCustomFeatureSwitchValue('hidePlanSpeed', !!data.hide_plan_speed);
             setCustomFeatureSwitchValue('useClassicRailLayout', !!data.use_classic_rail_layout);
             setCustomFeatureSwitchValue('customHideDedicatedNodes', !!data.hide_dedicated_nodes);
@@ -6641,6 +6652,7 @@
                 'hideColorSchemeButton',
                 'hideOnlineSupportButton',
                 'hidePurchaseCoupon',
+                'customQuotePurchase',
                 'hidePlanSpeed',
                 'useClassicRailLayout',
                 'customHideDedicatedNodes',
@@ -6782,6 +6794,7 @@
             var hideColorSchemeButton = !!document.getElementById('hideColorSchemeButton').checked;
             var hideOnlineSupportButton = !!document.getElementById('hideOnlineSupportButton').checked;
             var hidePurchaseCoupon = !!document.getElementById('hidePurchaseCoupon').checked;
+            var quotePurchase = !!document.getElementById('customQuotePurchase').checked;
             var hidePlanSpeed = !!document.getElementById('hidePlanSpeed').checked;
             var useClassicRailLayout = !!document.getElementById('useClassicRailLayout').checked;
             var hideDedicatedNodes = !!document.getElementById('customHideDedicatedNodes').checked;
@@ -6872,6 +6885,7 @@
                     hide_color_scheme_button: hideColorSchemeButton,
                     hide_online_support_button: hideOnlineSupportButton,
                     hide_purchase_coupon: hidePurchaseCoupon,
+                    quote_purchase: quotePurchase,
                     hide_plan_speed: hidePlanSpeed,
                     use_classic_rail_layout: useClassicRailLayout,
                     hide_dedicated_nodes: hideDedicatedNodes,
@@ -6955,6 +6969,7 @@
             'hide_color_scheme_button',
             'hide_online_support_button',
             'hide_purchase_coupon',
+            'quote_purchase',
             'hide_plan_speed',
             'use_classic_rail_layout',
             'hide_dedicated_nodes',
@@ -7701,6 +7716,8 @@
                 '    sources:',
                 '      - name: redirect',
                 '        url: ""',
+                '  purchase:',
+                '    quote_purchase: false',
                 '  ui:',
                 '    variant: legacy',
                 '    color_scheme: yellow',
@@ -7951,6 +7968,7 @@
                 hide_node_status: document.getElementById('hideNodeStatus').checked,
                 hide_dedicated_nodes: document.getElementById('showDedicatedNodes').checked,
                 hide_purchase_coupon: document.getElementById('hidePurchaseCoupon') ? document.getElementById('hidePurchaseCoupon').checked : false,
+                quote_purchase: document.getElementById('customQuotePurchase') ? document.getElementById('customQuotePurchase').checked : false,
                 hide_plan_speed: document.getElementById('hidePlanSpeed') ? document.getElementById('hidePlanSpeed').checked : false,
                 show_ip_info: document.getElementById('showIpInfo').checked,
                 home_panel_default_layout: document.getElementById('homePanelDefaultLayout').value,
@@ -11554,6 +11572,8 @@
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_purchase_coupon:\s*(true|false)/) ||
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)hidePurchaseCoupon:\s*(true|false)/);
             setCustomFeatureSwitchValue('hidePurchaseCoupon', hidePurchaseCouponMatch ? hidePurchaseCouponMatch[1] === 'true' : false);
+            var quotePurchaseMatch = yaml.match(/^  purchase:[ \t]*\n(?:(?: {4,}[^\n]*|[ \t]*)\n)*? {4}(?:quote_purchase|quotePurchase):[ \t]*(true|false)/m);
+            setCustomFeatureSwitchValue('customQuotePurchase', quotePurchaseMatch ? quotePurchaseMatch[1] === 'true' : false);
             var hidePlanSpeedMatch =
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)hide_plan_speed:\s*(true|false)/) ||
                 yaml.match(/ui:\s*\n(?:[\s\S]*?)hidePlanSpeed:\s*(true|false)/);
