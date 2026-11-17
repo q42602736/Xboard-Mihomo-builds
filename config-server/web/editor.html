@@ -4473,6 +4473,59 @@
                                 </div>
 
                                 <div class="section" style="grid-column: 1 / -1; width: 100%; margin-top: 20px; margin-bottom: 10px;">
+                                    <div class="section-title">OSS 自定义邀请链接与订阅域名</div>
+                                    <div class="switch-card" style="margin-bottom:12px;">
+                                        <div class="switch-card-header">
+                                            <span class="switch-card-label">开启配置选项</span>
+                                            <div class="switch-group">
+                                                <label class="switch"><input type="checkbox" id="remoteConfigLinkOverridesExpanded" aria-label="开启自定义邀请链接与订阅域名配置选项" aria-controls="remoteConfigLinkOverrideFields" aria-expanded="false"><span class="slider"></span></label>
+                                                <span id="remoteConfigLinkOverridesExpandedLabel">关闭</span>
+                                            </div>
+                                        </div>
+                                        <div class="help-text">开启后显示选项和参数，收起时保留已填配置。</div>
+                                    </div>
+                                    <div id="remoteConfigLinkOverrideFields" style="display:none;">
+                                    <div class="help-text" style="margin-bottom:14px;">按需启用自定义邀请链接或订阅域名，开启后填写对应参数。</div>
+                                    <div class="switch-card" style="margin-bottom:12px;">
+                                        <div class="switch-card-header">
+                                            <span class="switch-card-label">启用自定义邀请链接</span>
+                                            <div class="switch-group">
+                                                <label class="switch"><input type="checkbox" id="remoteConfigInviteLinkEnabled" aria-controls="remoteConfigInviteLinkFields" aria-expanded="false"><span class="slider"></span></label>
+                                                <span id="remoteConfigInviteLinkEnabledLabel">关闭</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="remoteConfigInviteLinkFields" style="display:none;">
+                                        <div class="form-group">
+                                            <label>邀请链接基础地址</label>
+                                            <input type="text" id="remoteConfigInviteLinkBaseUrl" placeholder="https://invite.example.com" disabled>
+                                            <div class="help-text">填写 HTTP 或 HTTPS 基础地址，可带站点路径。客户端按面板类型拼接注册路径：V2Board 使用 <code>/#/register</code>，SSPanel 使用 <code>/auth/register</code>，并自动附加邀请码；不要填写邀请码、查询参数或 # 后的路由。</div>
+                                        </div>
+                                    </div>
+                                    <div class="switch-card" style="margin-bottom:12px;">
+                                        <div class="switch-card-header">
+                                            <span class="switch-card-label">启用自定义订阅域名</span>
+                                            <div class="switch-group">
+                                                <label class="switch"><input type="checkbox" id="remoteConfigSubscriptionDomainsEnabled" aria-controls="remoteConfigSubscriptionDomainFields" aria-expanded="false"><span class="slider"></span></label>
+                                                <span id="remoteConfigSubscriptionDomainsEnabledLabel">关闭</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="remoteConfigSubscriptionDomainFields" style="display:none;">
+                                        <div class="form-group">
+                                            <label>自定义订阅域名列表</label>
+                                            <textarea id="remoteConfigSubscriptionDomains" spellcheck="false" placeholder="每行一个域名，例如：&#10;https://sub1.example.com&#10;https://sub2.example.com:8443" disabled></textarea>
+                                            <div class="help-text">省略协议时使用 HTTPS；替换域名与端口，保留原订阅路径、令牌和参数。</div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>订阅候选请求超时（秒）</label>
+                                            <input type="number" id="remoteConfigSubscriptionDomainTimeout" min="1" step="any" placeholder="例如：10" disabled>
+                                            <div class="help-text">至少 1 秒，作用于每个订阅候选请求。</div>
+                                        </div>
+                                    </div>
+                                    </div>
+                                </div>
+                                <div class="section" style="grid-column: 1 / -1; width: 100%; margin-top: 20px; margin-bottom: 10px;">
                                     <div class="section-title">OSS 内置代理配置（clientProxy）</div>
                                     <div class="help-text" style="margin-bottom:14px;">
                                         客户端通讯用的内置代理由 OSS 下发，换线路或改开关都不用重新打包。客户端拉取这份配置时<strong>恒直连</strong>，所以 OSS 域名必须在用户网络上可达。
@@ -6983,6 +7036,9 @@
         var popularApps = [];
         var popularAppsExpanded = false;
         var remoteConfigEncryptedData = '';
+        var remoteConfigImportedData = {};
+        var remoteConfigLinkOverrideChanged = { invite: false, subscription: false };
+        var remoteConfigOriginalProviderKey = '';
         var remoteConfigEncryptionKey = '';
         var remoteConfigPanels = [];
         var remoteConfigActiveTab = 'visual';
@@ -9513,15 +9569,16 @@
 
         function collectRemoteConfigPanels() {
             var items = document.querySelectorAll('.remote-config-panel-item');
+            var previousPanels = remoteConfigPanels;
             remoteConfigPanels = [];
             items.forEach(function(item, index) {
                 var urlValue = item.querySelector('.remote-config-panel-url').value.trim();
                 var descriptionValue = item.querySelector('.remote-config-panel-description').value.trim();
                 if (urlValue || descriptionValue) {
-                    remoteConfigPanels.push({
+                    remoteConfigPanels.push(Object.assign({}, copyRemoteConfigObject(previousPanels[index]), {
                         url: urlValue,
                         description: descriptionValue || ('站点' + (index + 1))
-                    });
+                    }));
                 }
             });
             if (remoteConfigPanels.length === 0) {
@@ -10317,6 +10374,131 @@
             return { enabled: enabled, mappings: mappings };
         }
 
+        function copyRemoteConfigObject(value) {
+            return value && typeof value === 'object' && !Array.isArray(value) ? Object.assign({}, value) : {};
+        }
+
+        function normalizeRemoteConfigLinkUrl(value, allowBareDomain) {
+            if (typeof value !== 'string') return undefined;
+            var trimmed = value.trim();
+            if (!trimmed) return '';
+            try {
+                var url = new URL(allowBareDomain && trimmed.indexOf('://') < 0 ? 'https://' + trimmed : trimmed);
+                if (['http:', 'https:'].indexOf(url.protocol) < 0 || !url.hostname || url.username || url.password || url.search || url.hash) return undefined;
+                return url.toString().replace(/\/+$/, '');
+            } catch (e) {
+                return undefined;
+            }
+        }
+
+        function normalizeRemoteConfigCustomDomains(value) {
+            if (typeof value !== 'string' && !Array.isArray(value)) return undefined;
+            var values = Array.isArray(value) ? value : [value];
+            var domains = values.map(function(item) { return normalizeRemoteConfigLinkUrl(item, true); });
+            if (domains.some(function(item) { return item === undefined || item === ''; })) return undefined;
+            return Array.from(new Set(domains));
+        }
+
+        function setRemoteConfigLinkOverrideFieldsVisible(visible) {
+            var toggle = document.getElementById('remoteConfigLinkOverridesExpanded');
+            toggle.checked = visible;
+            toggle.setAttribute('aria-expanded', String(visible));
+            document.getElementById('remoteConfigLinkOverridesExpandedLabel').textContent = visible ? '开启' : '关闭';
+            document.getElementById('remoteConfigLinkOverrideFields').style.display = visible ? '' : 'none';
+        }
+
+        function setRemoteConfigLinkOverrideFieldsEnabled() {
+            var inviteEnabled = document.getElementById('remoteConfigInviteLinkEnabled').checked;
+            var domainsEnabled = document.getElementById('remoteConfigSubscriptionDomainsEnabled').checked;
+            document.getElementById('remoteConfigInviteLinkEnabledLabel').textContent = inviteEnabled ? '开启' : '关闭';
+            document.getElementById('remoteConfigSubscriptionDomainsEnabledLabel').textContent = domainsEnabled ? '开启' : '关闭';
+            document.getElementById('remoteConfigInviteLinkEnabled').setAttribute('aria-expanded', String(inviteEnabled));
+            document.getElementById('remoteConfigSubscriptionDomainsEnabled').setAttribute('aria-expanded', String(domainsEnabled));
+            document.getElementById('remoteConfigInviteLinkFields').style.display = inviteEnabled ? '' : 'none';
+            document.getElementById('remoteConfigSubscriptionDomainFields').style.display = domainsEnabled ? '' : 'none';
+            document.getElementById('remoteConfigInviteLinkBaseUrl').disabled = !inviteEnabled;
+            document.getElementById('remoteConfigSubscriptionDomains').disabled = !domainsEnabled;
+            document.getElementById('remoteConfigSubscriptionDomainTimeout').disabled = !domainsEnabled;
+        }
+
+        function setRemoteConfigLinkOverrideFormValues(data) {
+            var invite = Object.assign({}, copyRemoteConfigObject(data.registrationInvite), copyRemoteConfigObject(data.registration_invite));
+            var subscription = copyRemoteConfigObject(data.subscription);
+            var enabled = invite.link_enabled ?? invite.linkEnabled ?? invite.invite_link_enabled ?? invite.inviteLinkEnabled;
+            var baseUrl = normalizeRemoteConfigLinkUrl(invite.link_base_url ?? invite.linkBaseUrl ?? invite.invite_link_base_url ?? invite.inviteLinkBaseUrl, false);
+            var domains = normalizeRemoteConfigCustomDomains(subscription.custom_domains ?? subscription.customDomains ?? subscription.custom_domain ?? subscription.customDomain);
+            var rawTimeout = subscription.custom_domain_timeout_seconds ?? subscription.customDomainTimeoutSeconds;
+            var timeout = typeof rawTimeout === 'number' || typeof rawTimeout === 'string' ? Number(rawTimeout) : NaN;
+            document.getElementById('remoteConfigInviteLinkEnabled').checked = enabled === true || (enabled === undefined && Boolean(baseUrl));
+            document.getElementById('remoteConfigInviteLinkBaseUrl').value = baseUrl || '';
+            document.getElementById('remoteConfigSubscriptionDomainsEnabled').checked = Boolean(domains && domains.length);
+            document.getElementById('remoteConfigSubscriptionDomains').value = domains ? domains.join('\n') : '';
+            document.getElementById('remoteConfigSubscriptionDomainTimeout').value = Number.isFinite(timeout) && timeout >= 1 ? String(timeout) : '';
+            // 未编辑的新字段维持原样，兼容没有远程覆盖项的旧 OSS。
+            remoteConfigLinkOverrideChanged = { invite: false, subscription: false };
+            setRemoteConfigLinkOverrideFieldsEnabled();
+            setRemoteConfigLinkOverrideFieldsVisible(
+                typeof enabled === 'boolean' || baseUrl !== undefined || domains !== undefined || (Number.isFinite(timeout) && timeout >= 1)
+            );
+        }
+
+        function applyRemoteConfigLinkOverrides(result, requireComplete) {
+            if (remoteConfigLinkOverrideChanged.invite) {
+                var invite = Object.assign({}, copyRemoteConfigObject(result.registrationInvite), copyRemoteConfigObject(result.registration_invite));
+                ['link_enabled', 'linkEnabled', 'invite_link_enabled', 'inviteLinkEnabled', 'link_base_url', 'linkBaseUrl', 'invite_link_base_url', 'inviteLinkBaseUrl'].forEach(function(key) { delete invite[key]; });
+                var enabled = document.getElementById('remoteConfigInviteLinkEnabled').checked;
+                var baseUrl = normalizeRemoteConfigLinkUrl(document.getElementById('remoteConfigInviteLinkBaseUrl').value, false);
+                if (enabled && !baseUrl && requireComplete) throw new Error('请填写有效的邀请链接基础地址（HTTP 或 HTTPS，不含查询参数和路由）');
+                invite.link_enabled = enabled;
+                if (baseUrl) invite.link_base_url = baseUrl;
+                delete result.registrationInvite;
+                result.registration_invite = invite;
+            }
+
+            if (remoteConfigLinkOverrideChanged.subscription) {
+                // 仅更新自定义域名参数，保留旧订阅 urls 和加密字段。
+                var subscription = copyRemoteConfigObject(result.subscription);
+                ['custom_domains', 'customDomains', 'custom_domain', 'customDomain', 'custom_domain_timeout_seconds', 'customDomainTimeoutSeconds'].forEach(function(key) { delete subscription[key]; });
+                if (document.getElementById('remoteConfigSubscriptionDomainsEnabled').checked) {
+                    var rawDomains = document.getElementById('remoteConfigSubscriptionDomains').value.split(/\r?\n/).map(function(item) { return item.trim(); }).filter(Boolean);
+                    var domains = normalizeRemoteConfigCustomDomains(rawDomains);
+                    if ((!domains || !domains.length) && requireComplete) throw new Error('请至少填写一个有效的自定义订阅域名（每行一个，不含查询参数和路由）');
+                    if (domains && domains.length) subscription.custom_domains = domains;
+                    var timeoutText = document.getElementById('remoteConfigSubscriptionDomainTimeout').value.trim();
+                    if (timeoutText) {
+                        var timeout = Number(timeoutText);
+                        if ((!Number.isFinite(timeout) || timeout < 1) && requireComplete) throw new Error('订阅候选请求超时必须是至少 1 秒的有效数字');
+                        if (Number.isFinite(timeout) && timeout >= 1) subscription.custom_domain_timeout_seconds = timeout;
+                    }
+                } else {
+                    subscription.custom_domains = [];
+                }
+                result.subscription = subscription;
+            }
+        }
+
+        function initRemoteConfigLinkOverrides() {
+            setRemoteConfigLinkOverrideFormValues(remoteConfigImportedData);
+            document.getElementById('remoteConfigLinkOverridesExpanded').addEventListener('change', function() {
+                setRemoteConfigLinkOverrideFieldsVisible(this.checked);
+            });
+            [
+                { feature: 'invite', ids: ['remoteConfigInviteLinkEnabled', 'remoteConfigInviteLinkBaseUrl'] },
+                { feature: 'subscription', ids: ['remoteConfigSubscriptionDomainsEnabled', 'remoteConfigSubscriptionDomains', 'remoteConfigSubscriptionDomainTimeout'] }
+            ].forEach(function(group) {
+                group.ids.forEach(function(id) {
+                    var input = document.getElementById(id);
+                    var handleChange = function() {
+                        remoteConfigLinkOverrideChanged[group.feature] = true;
+                        setRemoteConfigLinkOverrideFieldsEnabled();
+                        handleRemoteConfigFormInput();
+                    };
+                    input.addEventListener('input', handleChange);
+                    input.addEventListener('change', handleChange);
+                });
+            });
+        }
+
         function getRemoteConfigFormData(requireComplete) {
             var panelTypeValue = String(document.getElementById('remoteConfigPanelType').value || '').trim();
             var websiteUrlValue = String(document.getElementById('remoteConfigWebsiteUrl').value || '').trim();
@@ -10337,10 +10519,10 @@
                     }
                     return;
                 }
-                panelItems.push({
+                panelItems.push(Object.assign({}, copyRemoteConfigObject(item), {
                     url: urlValue,
                     description: descriptionValue || ('站点' + (panelItems.length + 1))
-                });
+                }));
             });
 
             if (requireComplete) {
@@ -10359,12 +10541,17 @@
             if (providerValue) {
                 panels[providerValue] = panelItems;
             }
-            var result = {
+            // 先保留导入文件，再覆盖表单管理的字段，避免丢失旧订阅、代理和其他供应商站点。
+            var importedData = JSON.parse(JSON.stringify(remoteConfigImportedData));
+            Object.keys(copyRemoteConfigObject(importedData.panels)).forEach(function(key) {
+                if (key !== remoteConfigOriginalProviderKey && key !== providerValue) panels[key] = importedData.panels[key];
+            });
+            var result = Object.assign(importedData, {
                 panelType: panelTypeValue,
                 websiteUrl: websiteUrlValue,
                 panels: panels,
-                proxy: [],
-                ws: [],
+                proxy: Array.isArray(importedData.proxy) ? importedData.proxy : [],
+                ws: Array.isArray(importedData.ws) ? importedData.ws : [],
                 update: updateItems,
                 // 客服与内置代理都改由 OSS 下发，两个客户端读同一段配置。
                 onlineSupport: buildRemoteConfigOnlineSupportItems(),
@@ -10372,7 +10559,8 @@
                 subscriptionExtension: buildRemoteConfigSubscriptionExtension(!!requireComplete),
                 // 订阅节点虚假入口映射由 OSS 下发，默认关闭；客户端按 mappings 替换节点内地址字段。
                 nodeAddressReplacement: buildRemoteConfigNodeAddressReplacement(!!requireComplete)
-            };
+            });
+            applyRemoteConfigLinkOverrides(result, !!requireComplete);
             return result;
         }
 
@@ -10401,6 +10589,7 @@
         }
 
         function initRemoteConfigTool() {
+            initRemoteConfigLinkOverrides();
             var panelTypeInput = document.getElementById('remoteConfigPanelType');
             var websiteUrlInput = document.getElementById('remoteConfigWebsiteUrl');
             var providerKeyInput = document.getElementById('remoteConfigProviderKey');
@@ -10775,21 +10964,25 @@
 
         function applyRemoteConfigData(data, options) {
             options = options || {};
-            var providerKeys = data && data.panels && typeof data.panels === 'object' ? Object.keys(data.panels) : [];
-            var providerKey = providerKeys.length ? providerKeys[0] : '';
-            var panelItems = providerKey && Array.isArray(data.panels[providerKey]) ? data.panels[providerKey] : [];
+            data = copyRemoteConfigObject(data);
+            remoteConfigImportedData = JSON.parse(JSON.stringify(data));
+            var sourcePanels = data.panels ?? data.panel_urls ?? data.panelUrls;
+            var providerKeys = Object.keys(copyRemoteConfigObject(sourcePanels));
+            var providerKey = providerKeys.length ? providerKeys[0] : syncDerivedProviderName();
+            var panelItems = Array.isArray(sourcePanels) ? sourcePanels : (providerKey && Array.isArray(sourcePanels && sourcePanels[providerKey]) ? sourcePanels[providerKey] : []);
+            remoteConfigOriginalProviderKey = providerKey;
             var updateItems = Array.isArray(data.update) ? data.update : [];
             var firstUpdateItem = updateItems.length ? updateItems[0] : null;
 
-            document.getElementById('remoteConfigPanelType').value = data && data.panelType ? data.panelType : '';
-            document.getElementById('remoteConfigWebsiteUrl').value = data && data.websiteUrl ? data.websiteUrl : '';
+            document.getElementById('remoteConfigPanelType').value = data.panelType ?? data.panel_type ?? '';
+            document.getElementById('remoteConfigWebsiteUrl').value = data.websiteUrl ?? data.website_url ?? '';
             document.getElementById('remoteConfigProviderKey').value = providerKey;
             syncDerivedProviderName();
             remoteConfigPanels = panelItems.length ? panelItems.map(function(item) {
-                return {
-                    url: item && item.url ? item.url : '',
+                return Object.assign({}, copyRemoteConfigObject(item), {
+                    url: typeof item === 'string' ? item : (item && item.url ? item.url : ''),
                     description: item && item.description ? item.description : ''
-                };
+                });
             }) : [getDefaultRemoteConfigPanelItem()];
             setRemoteConfigUpdateFormValues(firstUpdateItem || getDefaultRemoteConfigUpdateItem(), {
                 enabled: !!firstUpdateItem
@@ -10798,6 +10991,7 @@
             setRemoteConfigClientProxyFormValues(data.clientProxy || data.client_proxy);
             setRemoteConfigSubscriptionExtensionFormValues(data.subscriptionExtension || data.subscription_extension);
             setRemoteConfigNodeAddressReplacementFormValues(data.nodeAddressReplacement || data.node_address_replacement);
+            setRemoteConfigLinkOverrideFormValues(data);
             remoteConfigEncryptedData = '';
             renderRemoteConfigPanels();
             syncAllCustomSelects(document);
