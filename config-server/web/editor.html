@@ -5783,7 +5783,7 @@
 	                var label = cb.closest('.platform-checkbox');
 	                cb.disabled = !allowed;
 	                if (label) {
-	                    label.style.display = supportedByCore ? '' : 'none';
+	                    label.style.display = allowed ? '' : 'none';
 	                    label.title = supportedByCore ? '' : (formatBuildCoreLabel(currentCore) + ' 内核暂不支持该平台');
 	                }
 	                if (!allowed && cb.checked) {

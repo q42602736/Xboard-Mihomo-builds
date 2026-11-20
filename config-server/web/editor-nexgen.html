@@ -4422,12 +4422,11 @@
 	                                <label class="platform-checkbox"><input type="checkbox" value="windows-amd64" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">Windows AMD64</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="android" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">Android（手机）</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="android-tv" class="platformItem" data-cores="mihomo,nexgen"><span class="platform-checkbox-label">Android TV</span></label>
-	                                <label class="platform-checkbox"><input type="checkbox" value="linux-arm64" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Linux ARM64</span></label>
-	                                <label class="platform-checkbox"><input type="checkbox" value="linux-amd64" class="platformItem" data-cores="mihomo"><span class="platform-checkbox-label">Linux AMD64</span></label>
+	                                <label class="platform-checkbox"><input type="checkbox" value="linux" class="platformItem" data-cores="mihomo,nexgen"><span class="platform-checkbox-label">Linux（全部安装包）</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="macos-arm64" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">macOS ARM64</span></label>
 	                                <label class="platform-checkbox"><input type="checkbox" value="macos-amd64" class="platformItem" data-cores="mihomo,xray,nexgen"><span class="platform-checkbox-label">macOS AMD64</span></label>
 	                            </div>
-	                            <div class="help-text" id="buildPlatformHelpText">Windows、Linux 和 macOS 都只保留 ARM64 / AMD64 两个架构选项。Android TV 使用独立入口和 TV 界面，勾选后会产出 arm64-v8a 与 armeabi-v7a 两个 TV 安装包；如需全平台请直接选择“全部平台”。</div>
+	                            <div class="help-text" id="buildPlatformHelpText">Windows 和 macOS 分别选择 ARM64 / AMD64；Linux 一个选项打包全部架构与格式。Android TV 使用独立入口和 TV 界面，勾选后会产出 arm64-v8a 与 armeabi-v7a 两个 TV 安装包；如需全平台请直接选择“全部平台”。</div>
 	                        </div>
                         <div id="buildQueue" style="margin-top: 15px; padding: 10px 14px; background: rgba(0,0,0,0.2); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
                             <span style="color: #aaa; font-size: 13px;">打包队列：</span>
@@ -5246,6 +5245,7 @@
                 'windows-amd64': 'Windows AMD64',
                 'android': 'Android（手机）',
                 'android-tv': 'Android TV',
+                'linux': 'Linux（全部安装包）',
                 'linux-arm64': 'Linux ARM64',
                 'linux-amd64': 'Linux AMD64',
                 'macos-arm64': 'macOS ARM64',
@@ -5255,7 +5255,7 @@
 
 	        function getBuildPlatformCatalogValues() {
 	            if (isNexGenClient()) {
-	                return ['windows-arm64', 'windows-amd64', 'android', 'android-tv', 'macos-amd64', 'macos-arm64'];
+	                return ['windows-arm64', 'windows-amd64', 'android', 'android-tv', 'linux-amd64', 'linux-arm64', 'macos-amd64', 'macos-arm64'];
 	            }
 	            return [
 	                'windows-arm64',
@@ -5294,6 +5294,9 @@
 	            core = core || getSelectedBuildCore();
 	            return getBuildPlatformCatalogValues().filter(function(platform) {
 	                var cb = document.querySelector('.platformItem[value="' + platform + '"]');
+	                if (!cb && platform.indexOf('linux-') === 0) {
+	                    cb = document.querySelector('.platformItem[value="linux"]');
+	                }
 	                if (!cb) return true;
 	                var cores = String(cb.getAttribute('data-cores') || 'mihomo').split(',');
 	                return cores.indexOf(core) !== -1;
@@ -5321,6 +5324,9 @@
 	                        add('windows-amd64');
 	                    } else if (token === 'windows-amd64' || token === 'windows-arm64') {
 	                        add(token);
+	                    } else if (token === 'linux') {
+	                        add('linux-amd64');
+	                        add('linux-arm64');
 	                    } else if (token === 'macos') {
 	                        add('macos-amd64');
 	                        add('macos-arm64');
@@ -5343,6 +5349,9 @@
         }
 
 	        function isBuildPlatformAllowed(platform) {
+	            if (platform === 'linux') {
+	                return ['linux-amd64', 'linux-arm64'].every(isBuildPlatformAllowed);
+	            }
 	            if (getBuildPlatformCatalogValuesForCore().indexOf(platform) === -1) {
 	                return false;
 	            }
@@ -5350,7 +5359,7 @@
 	                return true;
 	            }
             var allowedPlatforms = normalizeAllowedBuildPlatformsForCurrentClient(currentUserInfo.allowed_platforms);
-            if (allowedPlatforms.length === 0) {
+            if (!Array.isArray(currentUserInfo.allowed_platforms) || currentUserInfo.allowed_platforms.length === 0) {
                 return true;
             }
             return allowedPlatforms.indexOf(platform) !== -1;
@@ -5388,11 +5397,13 @@
 
 	            itemCheckboxes.forEach(function(cb) {
 	                var allowed = isBuildPlatformAllowed(cb.value);
-	                var supportedByCore = currentCatalog.indexOf(cb.value) !== -1;
+	                var supportedByCore = cb.value === 'linux'
+	                    ? ['linux-amd64', 'linux-arm64'].every(function(platform) { return currentCatalog.indexOf(platform) !== -1; })
+	                    : currentCatalog.indexOf(cb.value) !== -1;
 	                var label = cb.closest('.platform-checkbox');
 	                cb.disabled = !allowed;
 	                if (label) {
-	                    label.style.display = supportedByCore ? '' : 'none';
+	                    label.style.display = allowed ? '' : 'none';
 	                    label.title = supportedByCore ? '' : (formatBuildCoreLabel(currentCore) + ' 内核暂不支持该平台');
 	                }
 	                if (!allowed && cb.checked) {
@@ -5416,17 +5427,24 @@
 	            var help = document.getElementById('buildPlatformHelpText');
 	            if (!help) return;
 	            if (isNexGenClient()) {
-	                help.textContent = 'NexGen Client React 当前支持 Windows ARM64/AMD64、Android、Android TV、macOS AMD64、macOS ARM64；Android TV 会产出 arm64-v8a 与 armeabi-v7a 两个 TV 安装包。远程 OSS、远程配置源、订阅、客服和 UI 配置仍在左侧完整配置页维护。';
+	                help.textContent = 'NexGen Client React 支持 Windows、Android、Android TV、Linux 和 macOS。勾选 Linux 一次生成 AMD64、ARM64 两种架构的 DEB、RPM、AppImage，共 6 个安装包；选择“全部平台”也包含 Linux。Android TV 会产出 arm64-v8a 与 armeabi-v7a 两个 TV 安装包。';
 	            } else if (getSelectedBuildCore() === 'xray') {
 	                help.textContent = 'Xray 内核当前只支持 Windows ARM64/AMD64、Android（手机）和 macOS ARM64/AMD64；Linux 与 Android TV 已自动隐藏。';
 	            } else {
-	                help.textContent = 'Windows、Linux 和 macOS 都只保留 ARM64 / AMD64 两个架构选项。Android TV 使用独立入口和 TV 界面，勾选后会产出 arm64-v8a 与 armeabi-v7a 两个 TV 安装包；如需全平台请直接选择“全部平台”。';
+	                help.textContent = 'Windows 和 macOS 分别选择 ARM64 / AMD64；Linux 一个选项打包全部架构与格式。Android TV 使用独立入口和 TV 界面，勾选后会产出 arm64-v8a 与 armeabi-v7a 两个 TV 安装包；如需全平台请直接选择“全部平台”。';
 	            }
 	        }
 
         function getBuildDisableReason() {
             if (!buildPermissionAvailable) {
                 return buildPermissionStatusMessage || '当前不可打包';
+            }
+            var allCheckbox = document.getElementById('platformAll');
+            var hasAvailablePlatform = Array.from(document.querySelectorAll('.platformItem')).some(function(cb) {
+                return !cb.disabled;
+            });
+            if (allCheckbox && allCheckbox.disabled && !hasAvailablePlatform) {
+                return '当前激活码没有可选的打包平台；Linux 需要同时授权 AMD64 和 ARM64。';
             }
             if (!buildQueueAvailable) {
                 return buildQueueStatusMessage || '当前打包队列已满，请稍后再试';
